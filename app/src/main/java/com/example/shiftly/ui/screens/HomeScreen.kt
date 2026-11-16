@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,24 +9,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,7 +31,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
@@ -52,22 +44,19 @@ import com.example.shiftly.ui.theme.MintInkOnWhite
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.SoftCloudWhite
 import com.example.shiftly.ui.theme.tabular
 import java.time.LocalDate
-import kotlin.math.abs
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     repository: ShiftlyRepository,
     onNavigateToSplitBill: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
+    onNavigateToAnalytics: () -> Unit = {},
     onShowMessage: (String) -> Unit = {}
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    var showInsightsSheet by remember { mutableStateOf(false) }
 
     HomeScreenContent(
         state = state,
@@ -89,63 +78,8 @@ fun HomeScreen(
         },
         onProfileClick = onNavigateToProfile,
         onOpenPendingSplits = onNavigateToSplitBill,
-        onViewInsights = { showInsightsSheet = true }
+        onViewInsights = onNavigateToAnalytics
     )
-
-    if (showInsightsSheet) {
-        ModalBottomSheet(
-            onDismissRequest = { showInsightsSheet = false },
-            containerColor = PureWhite,
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Text(
-                    text = "Student Money Insights",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = InkPrimary
-                )
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = SoftCloudWhite,
-                    border = BorderStroke(1.dp, HairlineLight),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = "Month-to-Date Net",
-                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                            color = InkSecondary
-                        )
-                        val net = state.mtdIncome - state.mtdExpenses
-                        Text(
-                            text = "${if (net >= 0) "+" else "-"}${state.currencySymbol}${"%,.2f".format(abs(net))}",
-                            style = MaterialTheme.typography.headlineLarge.tabular(),
-                            color = if (net >= 0) MintInkOnWhite else CoralInkOnWhite
-                        )
-                        Text(
-                            text = "Income ${state.currencySymbol}${"%,.2f".format(state.mtdIncome)} • Spent ${state.currencySymbol}${"%,.2f".format(state.mtdExpenses)}",
-                            style = MaterialTheme.typography.bodySmall.tabular(),
-                            color = InkSecondary
-                        )
-                    }
-                }
-                ShiftlyPrimaryPillButton(
-                    text = "Close",
-                    onClick = { showInsightsSheet = false }
-                )
-            }
-        }
-    }
 }
 
 @Composable

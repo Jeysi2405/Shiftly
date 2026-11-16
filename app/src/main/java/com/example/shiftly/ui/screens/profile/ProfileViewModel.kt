@@ -3,7 +3,12 @@ package com.example.shiftly.ui.screens.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.shiftly.data.local.CategoryBudgetSetting
+import com.example.shiftly.data.local.ManagedCategorySetting
+import com.example.shiftly.data.local.RecurringEntrySetting
+import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.repository.ShiftlyRepository
+import java.io.File
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -11,40 +16,56 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class ProfileUiState(
-    val defaultHourlyRate: Double = 0.0,
+    val userName: String = "Maya",
+    val defaultHourlyRate: Double = 96.38,
     val currencySymbol: String = "₱",
+    val monthlyBudget: Double = 3000.0,
+    val savingsBuffer: Double = 1000.0,
     val totalShifts: Int = 0,
     val totalHoursWorked: Double = 0.0,
     val totalEarnings: Double = 0.0,
-    val totalExpenses: Double = 0.0
+    val totalExpenses: Double = 0.0,
+    val settings: ShiftlySettingsSnapshot = ShiftlySettingsSnapshot()
 )
 
 class ProfileViewModel(
     private val repository: ShiftlyRepository
 ) : ViewModel() {
 
-    val uiState: StateFlow<ProfileUiState> = combine<Any?, ProfileUiState>(
+    val uiState: StateFlow<ProfileUiState> = combine(
+        repository.userName,
         repository.defaultHourlyRate,
         repository.currencySymbol,
+        repository.monthlyBudget,
+        repository.savingsBuffer,
         repository.totalShiftCount,
         repository.totalMinutesWorked,
         repository.totalLifetimeEarnings,
-        repository.totalExpenseAmount
+        repository.totalExpenseAmount,
+        repository.settingsSnapshot
     ) { values ->
-        val rate = values[0] as Double
-        val currency = values[1] as String
-        val shiftCount = values[2] as Int
-        val minutes = (values[3] as Int?) ?: 0
-        val earnings = (values[4] as Double?) ?: 0.0
-        val expenses = (values[5] as Double?) ?: 0.0
+        val name = values[0] as String
+        val rate = values[1] as Double
+        val currency = values[2] as String
+        val budget = values[3] as Double
+        val buffer = values[4] as Double
+        val shiftCount = values[5] as Int
+        val minutes = (values[6] as Int?) ?: 0
+        val earnings = (values[7] as Double?) ?: 0.0
+        val expenses = (values[8] as Double?) ?: 0.0
+        val settings = values[9] as ShiftlySettingsSnapshot
 
         ProfileUiState(
+            userName = name,
             defaultHourlyRate = rate,
             currencySymbol = currency,
+            monthlyBudget = budget,
+            savingsBuffer = buffer,
             totalShifts = shiftCount,
             totalHoursWorked = minutes / 60.0,
             totalEarnings = earnings,
-            totalExpenses = expenses
+            totalExpenses = expenses,
+            settings = settings
         )
     }.stateIn(
         scope = viewModelScope,
@@ -52,10 +73,74 @@ class ProfileViewModel(
         initialValue = ProfileUiState()
     )
 
+    fun updateUserName(name: String) {
+        viewModelScope.launch { repository.updateUserName(name) }
+    }
+
+    fun updateCurrency(symbol: String) {
+        viewModelScope.launch { repository.updateCurrencySymbol(symbol) }
+    }
+
+    fun updateNotificationsEnabled(enabled: Boolean) {
+        viewModelScope.launch { repository.updateNotificationsEnabled(enabled) }
+    }
+
+    fun updatePayCycle(schedule: String, paydayReminder: Boolean, shiftReminder: Boolean) {
+        viewModelScope.launch { repository.updatePayCycleSettings(schedule, paydayReminder, shiftReminder) }
+    }
+
+    fun updateShiftRules(ndStartHour: Int, ndMultiplier: Double, otMultiplier: Double) {
+        viewModelScope.launch { repository.updateShiftRules(ndStartHour, ndMultiplier, otMultiplier) }
+    }
+
+    fun updateBudgets(monthlyBudget: Double, categoryBudgets: List<CategoryBudgetSetting>) {
+        viewModelScope.launch {
+            repository.updateMonthlyBudget(monthlyBudget)
+            repository.updateCategoryBudgets(categoryBudgets)
+        }
+    }
+
+    fun updateSavingsGoal(title: String, target: Double, buffer: Double) {
+        viewModelScope.launch {
+            repository.updateSavingsGoal(title, target)
+            repository.updateSavingsBuffer(buffer)
+        }
+    }
+
+    fun updateManagedCategories(items: List<ManagedCategorySetting>) {
+        viewModelScope.launch { repository.updateManagedCategories(items) }
+    }
+
+    fun updateRecurringEntries(items: List<RecurringEntrySetting>) {
+        viewModelScope.launch { repository.updateRecurringEntries(items) }
+    }
+
+    fun updateAppLock(enabled: Boolean, method: String, pin: String) {
+        viewModelScope.launch { repository.updateAppLock(enabled, method, pin) }
+    }
+
     fun exportBackup(onReady: (String) -> Unit) {
         viewModelScope.launch {
             val report = repository.generateOfflineBackupSummary()
             onReady(report)
+        }
+    }
+
+    fun restoreBackup(rawJson: String, onResult: (Result<String>) -> Unit) {
+        viewModelScope.launch {
+            onResult(repository.restoreFromBackupJson(rawJson))
+        }
+    }
+
+    fun exportCsv(onReady: (File) -> Unit) {
+        viewModelScope.launch {
+            onReady(repository.generateCsvExportFile())
+        }
+    }
+
+    fun exportPdf(onReady: (File) -> Unit) {
+        viewModelScope.launch {
+            onReady(repository.generatePdfSummaryFile())
         }
     }
 

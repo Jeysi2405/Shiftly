@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Schedule
@@ -27,6 +28,13 @@ sealed class Screen(
         label = "Home",
         selectedIcon = Icons.Filled.Home,
         unselectedIcon = Icons.Outlined.Home
+    )
+
+    data object Analytics : Screen(
+        route = "analytics",
+        label = "Analytics",
+        selectedIcon = Icons.Outlined.BarChart,
+        unselectedIcon = Icons.Outlined.BarChart
     )
 
     data object Duties : Screen(

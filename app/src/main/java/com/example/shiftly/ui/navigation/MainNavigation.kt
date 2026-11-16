@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -55,6 +54,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
 import com.example.shiftly.ui.screens.WelcomeScreen
 import com.example.shiftly.ui.screens.duties.DutiesScreen
@@ -188,7 +188,8 @@ private fun MainDashboardShell(
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
                     isSelected = { screen ->
-                        currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                        currentDestination?.hierarchy?.any { it.route == screen.route } == true ||
+                            (screen == Screen.Home && currentDestination?.route == Screen.Analytics.route)
                     },
                     onSelect = ::navigateToTab
                 )
@@ -210,6 +211,19 @@ private fun MainDashboardShell(
                         repository = repository,
                         onNavigateToSplitBill = { navigateToTab(Screen.SplitBill) },
                         onNavigateToProfile = { navigateToTab(Screen.Profile) },
+                        onNavigateToAnalytics = {
+                            navController.navigate(Screen.Analytics.route) {
+                                launchSingleTop = true
+                            }
+                        },
+                        onShowMessage = showMessage
+                    )
+                }
+                composable(Screen.Analytics.route) {
+                    AnalyticsScreen(
+                        repository = repository,
+                        onBack = { navController.popBackStack() },
+                        onNavigateToSplitBill = { navigateToTab(Screen.SplitBill) },
                         onShowMessage = showMessage
                     )
                 }
@@ -223,14 +237,10 @@ private fun MainDashboardShell(
                     SplitBillScreen(repository = repository, onShowMessage = showMessage)
                 }
                 composable(Screen.Profile.route) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .statusBarsPadding()
-                            .padding(bottom = 92.dp)
-                    ) {
-                        ProfileScreen(repository = repository)
-                    }
+                    ProfileScreen(
+                        repository = repository,
+                        onShowMessage = showMessage
+                    )
                 }
             }
         }

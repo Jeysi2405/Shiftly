@@ -1,22 +1,34 @@
 package com.example.shiftly.data.repository
 
 import android.content.Context
+import android.graphics.Paint
+import android.graphics.pdf.PdfDocument
 import androidx.room.withTransaction
 import com.example.shiftly.data.local.ActiveTimerState
+import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ExpenseEntity
+import com.example.shiftly.data.local.ManagedCategorySetting
+import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlyDatabase
+import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.data.local.UserPreferencesManager
+import java.io.File
+import java.io.FileOutputStream
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
-class ShiftlyRepository(context: Context) {
+class ShiftlyRepository(private val context: Context) {
     private val db = ShiftlyDatabase.getInstance(context)
     private val shiftDao = db.shiftDao()
     private val expenseDao = db.expenseDao()
@@ -31,6 +43,7 @@ class ShiftlyRepository(context: Context) {
     val userName: Flow<String> = prefs.userName
     val monthlyBudget: Flow<Double> = prefs.monthlyBudget
     val savingsBuffer: Flow<Double> = prefs.savingsBuffer
+    val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = prefs.settingsSnapshot
 
     suspend fun updateDefaultHourlyRate(rate: Double) = prefs.setDefaultHourlyRate(rate)
     suspend fun updateCurrencySymbol(symbol: String) = prefs.setCurrencySymbol(symbol)
@@ -38,6 +51,18 @@ class ShiftlyRepository(context: Context) {
     suspend fun updateUserName(name: String) = prefs.setUserName(name)
     suspend fun updateMonthlyBudget(budget: Double) = prefs.setMonthlyBudget(budget)
     suspend fun updateSavingsBuffer(buffer: Double) = prefs.setSavingsBuffer(buffer)
+    suspend fun updatePayCycleSettings(schedule: String, paydayReminder: Boolean, shiftReminder: Boolean) =
+        prefs.setPayCycleSettings(schedule, paydayReminder, shiftReminder)
+    suspend fun updateNotificationsEnabled(enabled: Boolean) = prefs.setNotificationsEnabled(enabled)
+    suspend fun updateShiftRules(ndStartHour: Int, ndMultiplier: Double, otMultiplier: Double) =
+        prefs.setShiftRules(ndStartHour, ndMultiplier, otMultiplier)
+    suspend fun updateSavingsGoal(title: String, target: Double) = prefs.setSavingsGoal(title, target)
+    suspend fun updateCategoryBudgets(items: List<CategoryBudgetSetting>) = prefs.setCategoryBudgets(items)
+    suspend fun updateManagedCategories(items: List<ManagedCategorySetting>) = prefs.setManagedCategories(items)
+    suspend fun updateRecurringEntries(items: List<RecurringEntrySetting>) = prefs.setRecurringEntries(items)
+    suspend fun updateAppLock(enabled: Boolean, method: String, pin: String) =
+        prefs.setAppLock(enabled, method, pin)
+
     suspend fun startShiftTimer(startMillis: Long, dateEpochDay: Long, lockedRate: Double) =
         prefs.startActiveTimer(startMillis, dateEpochDay, lockedRate)
     suspend fun stopShiftTimer() = prefs.clearActiveTimer()
@@ -211,21 +236,182 @@ class ShiftlyRepository(context: Context) {
         val bills = allSplitBills.first()
         val currency = currencySymbol.first()
         val rate = defaultHourlyRate.first()
+        val name = userName.first()
 
-        return buildString {
-            appendLine("=== SHIFTLY OFFLINE BACKUP ===")
-            appendLine("Default Rate: $currency${"%.2f".format(rate)}/hr")
-            appendLine("Total Shifts: ${shifts.size}")
-            appendLine("Total Expenses: ${expenses.size}")
-            appendLine("Total Split Bills: ${bills.size}")
-            appendLine("\n--- SHIFTS ---")
-            shifts.forEach {
-                appendLine("EpochDay=${it.dateEpochDay} | ${it.durationMinutes}m | Rate=$currency${it.lockedHourlyRate} | Earned=$currency${"%.2f".format(it.totalEarned)} | Note=${it.overtimeNote}")
+        val root = JSONObject().apply {
+            put("app", "Shiftly")
+            put("version", 2)
+            put("userName", name)
+            put("currencySymbol", currency)
+            put("defaultHourlyRate", rate)
+            put(
+                "shifts",
+                JSONArray().apply {
+                    shifts.forEach { s ->
+                        put(
+                            JSONObject().apply {
+                                put("dateEpochDay", s.dateEpochDay)
+                                put("timeInMillis", s.timeInMillis)
+                                put("timeOutMillis", s.timeOutMillis)
+                                put("durationMinutes", s.durationMinutes)
+                                put("lockedHourlyRate", s.lockedHourlyRate)
+                                put("totalEarned", s.totalEarned)
+                                put("overtimeNote", s.overtimeNote)
+                                put("dayType", s.dayType)
+                            }
+                        )
+                    }
+                }
+            )
+            put(
+                "expenses",
+                JSONArray().apply {
+                    expenses.forEach { e ->
+                        put(
+                            JSONObject().apply {
+                                put("title", e.title)
+                                put("amount", e.amount)
+                                put("category", e.category)
+                                put("dateEpochDay", e.dateEpochDay)
+                            }
+                        )
+                    }
+                }
+            )
+            put("splitBillCount", bills.size)
+        }
+        return root.toString(2)
+    }
+
+    suspend fun restoreFromBackupJson(rawJson: String): Result<String> = runCatching {
+        val root = JSONObject(rawJson)
+        val restoredName = root.optString("userName", "").trim()
+        val restoredCurrency = root.optString("currencySymbol", "").trim()
+        val restoredRate = root.optDouble("defaultHourlyRate", Double.NaN)
+        val shiftsArray = root.optJSONArray("shifts") ?: JSONArray()
+        val expensesArray = root.optJSONArray("expenses") ?: JSONArray()
+
+        db.withTransaction {
+            if (restoredName.isNotEmpty()) prefs.setUserName(restoredName)
+            if (restoredCurrency.isNotEmpty()) prefs.setCurrencySymbol(restoredCurrency)
+            if (!restoredRate.isNaN() && restoredRate > 0.0) prefs.setDefaultHourlyRate(restoredRate)
+
+            for (i in 0 until shiftsArray.length()) {
+                val obj = shiftsArray.getJSONObject(i)
+                shiftDao.insertShift(
+                    ShiftEntity(
+                        dateEpochDay = obj.getLong("dateEpochDay"),
+                        timeInMillis = obj.getLong("timeInMillis"),
+                        timeOutMillis = obj.getLong("timeOutMillis"),
+                        durationMinutes = obj.getInt("durationMinutes"),
+                        lockedHourlyRate = obj.getDouble("lockedHourlyRate"),
+                        totalEarned = obj.getDouble("totalEarned"),
+                        overtimeNote = obj.optString("overtimeNote", ""),
+                        dayType = obj.optString("dayType", "ORDINARY")
+                    )
+                )
             }
-            appendLine("\n--- EXPENSES ---")
-            expenses.forEach {
-                appendLine("EpochDay=${it.dateEpochDay} | ${it.title} [${it.category}] | $currency${"%.2f".format(it.amount)}")
+            for (i in 0 until expensesArray.length()) {
+                val obj = expensesArray.getJSONObject(i)
+                expenseDao.insertExpense(
+                    ExpenseEntity(
+                        title = obj.getString("title"),
+                        amount = obj.getDouble("amount"),
+                        category = obj.optString("category", "Other"),
+                        dateEpochDay = obj.getLong("dateEpochDay")
+                    )
+                )
             }
         }
+        "Restored ${shiftsArray.length()} shift(s) and ${expensesArray.length()} expense(s)"
+    }
+
+    suspend fun generateCsvExportFile(): File = withContext(Dispatchers.IO) {
+        val shifts = allShifts.first()
+        val expenses = allExpenses.first()
+        val currency = currencySymbol.first()
+        val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val csvFile = File(exportDir, "shiftly_export.csv")
+
+        val csvContent = buildString {
+            appendLine("Type,Date,Title_Or_Note,Category_Or_DayType,Duration_Min,Amount ($currency)")
+            shifts.forEach { s ->
+                val date = LocalDate.ofEpochDay(s.dateEpochDay)
+                val note = s.overtimeNote.replace(",", " ")
+                appendLine("Shift,$date,$note,${s.dayType},${s.durationMinutes},${"%.2f".format(s.totalEarned)}")
+            }
+            expenses.forEach { e ->
+                val date = LocalDate.ofEpochDay(e.dateEpochDay)
+                val title = e.title.replace(",", " ")
+                appendLine("Expense,$date,$title,${e.category},0,-${"%.2f".format(e.amount)}")
+            }
+        }
+        csvFile.writeText(csvContent)
+        csvFile
+    }
+
+    suspend fun generatePdfSummaryFile(): File = withContext(Dispatchers.IO) {
+        val shifts = allShifts.first()
+        val expenses = allExpenses.first()
+        val currency = currencySymbol.first()
+        val name = userName.first()
+        val totalIncome = shifts.sumOf { it.totalEarned }
+        val totalExpense = expenses.sumOf { it.amount }
+        val totalHours = shifts.sumOf { it.durationMinutes } / 60.0
+
+        val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val pdfFile = File(exportDir, "shiftly_statement.pdf")
+
+        val doc = PdfDocument()
+        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
+        val page = doc.startPage(pageInfo)
+        val canvas = page.canvas
+
+        val titlePaint = Paint().apply { textSize = 20f; isFakeBoldText = true }
+        val headerPaint = Paint().apply { textSize = 13f; isFakeBoldText = true }
+        val bodyPaint = Paint().apply { textSize = 11f }
+
+        var y = 52f
+        canvas.drawText("Shiftly Statement — $name", 40f, y, titlePaint)
+        y += 24f
+        canvas.drawText(
+            "Shifts: ${shifts.size} (${"%.1f".format(totalHours)}h)   |   Earnings: $currency${"%,.2f".format(totalIncome)}   |   Expenses: $currency${"%,.2f".format(totalExpense)}",
+            40f,
+            y,
+            bodyPaint
+        )
+        y += 28f
+        canvas.drawText("Recent Shifts", 40f, y, headerPaint)
+        y += 18f
+        shifts.take(12).forEach { s ->
+            val date = LocalDate.ofEpochDay(s.dateEpochDay)
+            canvas.drawText(
+                "$date  •  ${s.durationMinutes}m  •  +$currency${"%,.2f".format(s.totalEarned)}  ${s.overtimeNote}",
+                40f,
+                y,
+                bodyPaint
+            )
+            y += 16f
+        }
+        y += 16f
+        canvas.drawText("Recent Expenses", 40f, y, headerPaint)
+        y += 18f
+        expenses.take(14).forEach { e ->
+            val date = LocalDate.ofEpochDay(e.dateEpochDay)
+            canvas.drawText(
+                "$date  •  ${e.category}  •  -$currency${"%,.2f".format(e.amount)}  ${e.title}",
+                40f,
+                y,
+                bodyPaint
+            )
+            y += 16f
+        }
+
+        doc.finishPage(page)
+        FileOutputStream(pdfFile).use { out ->
+            doc.writeTo(out)
+        }
+        doc.close()
+        pdfFile
     }
 }
