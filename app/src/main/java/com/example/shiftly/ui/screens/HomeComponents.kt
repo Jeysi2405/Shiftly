@@ -49,17 +49,18 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.theme.AzureAccent
+import com.example.shiftly.ui.theme.AzureDarkContainer
 import com.example.shiftly.ui.theme.AzureInkOnWhite
+import com.example.shiftly.ui.theme.AzurePrimaryButton
 import com.example.shiftly.ui.theme.AzureSoftContainer
 import com.example.shiftly.ui.theme.CoralBright
 import com.example.shiftly.ui.theme.CoralInkOnWhite
 import com.example.shiftly.ui.theme.CoralSoftContainer
 import com.example.shiftly.ui.theme.CoralTextOnBlue
-import com.example.shiftly.ui.theme.DeepAzureBottom
-import com.example.shiftly.ui.theme.HairlineLight
-import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.InkPrimary
-import com.example.shiftly.ui.theme.InkSecondary
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCard
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintBright
 import com.example.shiftly.ui.theme.MintInkOnWhite
 import com.example.shiftly.ui.theme.MintSoftContainer
@@ -67,7 +68,8 @@ import com.example.shiftly.ui.theme.MintTextOnBlue
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
-import com.example.shiftly.ui.theme.SoftCloudWhite
+import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import java.time.LocalDate
 
@@ -88,12 +90,12 @@ fun HomeGreetingHeader(
             Text(
                 text = "Good day,",
                 style = MaterialTheme.typography.labelLarge.copy(fontFamily = ShiftlySerif),
-                color = PureWhite.copy(alpha = 0.85f)
+                color = TextLightSecondary
             )
             Text(
                 text = "Hello, $userName",
                 style = MaterialTheme.typography.headlineLarge,
-                color = PureWhite
+                color = TextLightPrimary
             )
         }
 
@@ -103,12 +105,13 @@ fun HomeGreetingHeader(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(PureWhite.copy(alpha = 0.16f))
+                    .background(DarkCard)
+                    .border(1.dp, DarkBorder, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Notifications,
                     contentDescription = "Notifications",
-                    tint = PureWhite
+                    tint = TextLightPrimary
                 )
             }
             IconButton(
@@ -116,12 +119,13 @@ fun HomeGreetingHeader(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(PureWhite)
+                    .background(AzureDarkContainer)
+                    .border(1.dp, AzureAccent.copy(alpha = 0.45f), CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Person,
                     contentDescription = "Profile",
-                    tint = DeepAzureBottom
+                    tint = AzureAccent
                 )
             }
         }
@@ -148,7 +152,7 @@ fun HomeHeroPager(state: HomeUiState) {
                         Text(
                             text = "Total Balance",
                             style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                            color = PureWhite.copy(alpha = 0.88f)
+                            color = TextLightSecondary
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -158,7 +162,7 @@ fun HomeHeroPager(state: HomeUiState) {
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 36.sp
                             ).tabular(),
-                            color = PureWhite
+                            color = TextLightPrimary
                         )
                         Spacer(modifier = Modifier.height(14.dp))
                         Row(
@@ -186,7 +190,7 @@ fun HomeHeroPager(state: HomeUiState) {
                         Text(
                             text = "Safe to Spend",
                             style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                            color = PureWhite.copy(alpha = 0.88f)
+                            color = TextLightSecondary
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
@@ -233,7 +237,7 @@ fun HomeHeroPager(state: HomeUiState) {
                             Text(
                                 text = "Month-to-Date Budget",
                                 style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                                color = PureWhite.copy(alpha = 0.88f)
+                                color = TextLightSecondary
                             )
                             Text(
                                 text = "${(ratio * 100).toInt()}% used",
@@ -245,13 +249,13 @@ fun HomeHeroPager(state: HomeUiState) {
                         Text(
                             text = "$currency${"%,.0f".format(state.mtdExpenses)} / $currency${"%,.0f".format(state.monthlyBudget)}",
                             style = MaterialTheme.typography.headlineLarge.tabular(),
-                            color = PureWhite
+                            color = TextLightPrimary
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         LinearProgressIndicator(
                             progress = { ratio },
                             color = if (nearLimit) CoralBright else MintBright,
-                            trackColor = PureWhite.copy(alpha = 0.20f),
+                            trackColor = DarkBorder,
                             strokeCap = StrokeCap.Round,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -280,7 +284,7 @@ fun HomeHeroPager(state: HomeUiState) {
                         .padding(horizontal = 4.dp)
                         .size(width = if (active) 20.dp else 7.dp, height = 7.dp)
                         .clip(CircleShape)
-                        .background(if (active) PureWhite else PureWhite.copy(alpha = 0.35f))
+                        .background(if (active) AzureAccent else DarkBorder)
                 )
             }
         }
@@ -297,8 +301,8 @@ private fun HeroMetricPill(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
-        color = PureWhite.copy(alpha = 0.14f),
-        border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.22f))
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -315,7 +319,7 @@ private fun HeroMetricPill(
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                    color = PureWhite.copy(alpha = 0.85f)
+                    color = TextLightSecondary
                 )
                 Text(
                     text = amount,
@@ -339,14 +343,14 @@ private fun GlassSubStatPill(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
-        color = PureWhite.copy(alpha = 0.14f),
-        border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.22f))
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder)
     ) {
         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                color = PureWhite.copy(alpha = 0.85f)
+                color = TextLightSecondary
             )
             Text(
                 text = value,
@@ -354,7 +358,7 @@ private fun GlassSubStatPill(
                     fontFamily = ShiftlySans,
                     fontWeight = FontWeight.Bold
                 ).tabular(),
-                color = PureWhite
+                color = TextLightPrimary
             )
         }
     }
@@ -379,10 +383,10 @@ fun CircularWeekdaySelector(
                     .width(48.dp)
                     .heightIn(min = 66.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(if (selected) PureWhite else PureWhite.copy(alpha = 0.12f))
+                    .background(if (selected) AzurePrimaryButton else DarkSurface)
                     .border(
                         width = 1.dp,
-                        color = if (selected) PureWhite else PureWhite.copy(alpha = 0.22f),
+                        color = if (selected) AzureAccent else DarkBorder,
                         shape = RoundedCornerShape(24.dp)
                     )
                     .clickable { onSelectDate(slot.date) }
@@ -393,7 +397,7 @@ fun CircularWeekdaySelector(
                 Text(
                     text = slot.dayLetter,
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                    color = if (selected) DeepAzureBottom else PureWhite.copy(alpha = 0.82f)
+                    color = if (selected) PureWhite.copy(alpha = 0.88f) else TextLightSecondary
                 )
                 Text(
                     text = slot.dayNumber,
@@ -401,7 +405,7 @@ fun CircularWeekdaySelector(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
-                    color = if (selected) DeepAzureBottom else PureWhite
+                    color = if (selected) PureWhite else TextLightPrimary
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                     if (slot.hasShift) {
@@ -409,7 +413,7 @@ fun CircularWeekdaySelector(
                             modifier = Modifier
                                 .size(5.dp)
                                 .clip(CircleShape)
-                                .background(if (selected) MintInkOnWhite else MintBright)
+                                .background(if (selected) MintTextOnBlue else MintBright)
                         )
                     }
                     if (slot.hasExpense) {
@@ -417,7 +421,7 @@ fun CircularWeekdaySelector(
                             modifier = Modifier
                                 .size(5.dp)
                                 .clip(CircleShape)
-                                .background(if (selected) CoralInkOnWhite else CoralBright)
+                                .background(if (selected) CoralTextOnBlue else CoralBright)
                         )
                     }
                 }
@@ -447,7 +451,7 @@ fun NextShiftQuickCard(
                 Text(
                     text = if (isTimerRunning) "Shift timer active" else "Next Shift • 4h Duty",
                     style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                    color = PureWhite
+                    color = TextLightPrimary
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
@@ -465,7 +469,7 @@ fun NextShiftQuickCard(
                 onClick = onQuickTimeIn,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = InkBlack,
+                    containerColor = AzurePrimaryButton,
                     contentColor = PureWhite
                 ),
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
@@ -495,8 +499,8 @@ fun WeeklyEarningsSnapshotCard(
 
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = SoftCloudWhite,
-        border = BorderStroke(1.dp, HairlineLight),
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -512,7 +516,7 @@ fun WeeklyEarningsSnapshotCard(
                     Text(
                         text = "Weekly Earnings",
                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                        color = InkSecondary
+                        color = TextLightSecondary
                     )
                     Text(
                         text = "$currencySymbol${"%,.2f".format(weeklyEarnings)} (${"%.1f".format(weeklyHours)}h)",
@@ -520,7 +524,7 @@ fun WeeklyEarningsSnapshotCard(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
-                        color = InkPrimary
+                        color = TextLightPrimary
                     )
                 }
 
@@ -571,13 +575,13 @@ fun WeeklyEarningsSnapshotCard(
                                 .width(18.dp)
                                 .height((44 * fraction).dp)
                                 .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                                .background(if (bar.earned > 0) MintInkOnWhite else HairlineLight)
+                                .background(if (bar.earned > 0) MintBright else DarkBorder)
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = bar.dayLabel,
                             style = MaterialTheme.typography.labelSmall,
-                            color = InkSecondary
+                            color = TextLightSecondary
                         )
                     }
                 }
@@ -596,7 +600,7 @@ fun PendingSplitsBanner(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = AzureSoftContainer,
-        border = BorderStroke(1.dp, AzureInkOnWhite.copy(alpha = 0.22f)),
+        border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.35f)),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
@@ -627,12 +631,12 @@ fun PendingSplitsBanner(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
-                        color = InkPrimary
+                        color = TextLightPrimary
                     )
                     Text(
                         text = "$billCount split bill(s) awaiting payment",
                         style = MaterialTheme.typography.bodySmall,
-                        color = InkSecondary
+                        color = TextLightSecondary
                     )
                 }
             }
@@ -679,14 +683,14 @@ fun HomeTimelineRow(
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.titleSmall,
-                        color = InkPrimary,
+                        color = TextLightPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "${item.timeRange} • ${item.durationLabel}",
                         style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = InkSecondary
+                        color = TextLightSecondary
                     )
                 }
 
@@ -694,14 +698,14 @@ fun HomeTimelineRow(
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.titleSmall,
-                        color = InkPrimary,
+                        color = TextLightPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "${item.category} • ${item.timeLabel}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = InkSecondary
+                        color = TextLightSecondary
                     )
                 }
             }

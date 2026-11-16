@@ -36,14 +36,14 @@ import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.CoralBright
 import com.example.shiftly.ui.theme.CoralInkOnWhite
-import com.example.shiftly.ui.theme.HairlineLight
-import com.example.shiftly.ui.theme.InkPrimary
-import com.example.shiftly.ui.theme.InkSecondary
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintBright
 import com.example.shiftly.ui.theme.MintInkOnWhite
-import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
+import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import java.time.LocalDate
 
@@ -134,7 +134,7 @@ fun HomeScreenContent(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = PureWhite,
+                color = DarkSurface,
                 shadowElevation = 12.dp
             ) {
                 Column(
@@ -152,7 +152,7 @@ fun HomeScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(HairlineLight)
+                                .background(DarkBorder)
                         )
                     }
 
@@ -171,7 +171,7 @@ fun HomeScreenContent(
                             Text(
                                 text = "Monthly Budget",
                                 style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                                color = InkPrimary
+                                color = TextLightPrimary
                             )
                             Text(
                                 text = "$currency${"%,.0f".format(state.mtdExpenses)} of $currency${"%,.0f".format(state.monthlyBudget)}",
@@ -182,7 +182,7 @@ fun HomeScreenContent(
                         LinearProgressIndicator(
                             progress = { budgetRatio },
                             color = if (nearLimit) CoralBright else MintBright,
-                            trackColor = HairlineLight,
+                            trackColor = DarkBorder,
                             strokeCap = StrokeCap.Round,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -217,7 +217,7 @@ fun HomeScreenContent(
                         Text(
                             text = "No activity logged yet. Tap Time In above to start a shift.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = InkSecondary,
+                            color = TextLightSecondary,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     } else {
@@ -225,7 +225,7 @@ fun HomeScreenContent(
                             state.timelineItems.forEachIndexed { idx, item ->
                                 HomeTimelineRow(item = item, currencySymbol = currency)
                                 if (idx < state.timelineItems.lastIndex) {
-                                    HorizontalDivider(color = HairlineLight)
+                                    HorizontalDivider(color = DarkBorder)
                                 }
                             }
                         }

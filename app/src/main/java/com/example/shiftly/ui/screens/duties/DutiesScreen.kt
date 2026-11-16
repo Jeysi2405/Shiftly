@@ -60,14 +60,14 @@ import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.HairlineLight
+import com.example.shiftly.ui.theme.AzureAccent
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.InkPrimary
-import com.example.shiftly.ui.theme.InkSecondary
-import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
+import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.utils.DayType
 import java.time.Instant
 import java.time.LocalDate
@@ -142,7 +142,7 @@ fun DutiesScreen(
                 ) {
                     Text(
                         text = "Select",
-                        color = AzureInkOnWhite,
+                        color = AzureAccent,
                         fontFamily = ShiftlySerif,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -150,7 +150,7 @@ fun DutiesScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDutyDatePicker = false }) {
-                    Text("Cancel", color = InkSecondary, fontFamily = ShiftlySerif)
+                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
                 }
             }
         ) {
@@ -167,7 +167,7 @@ fun DutiesScreen(
         ModalBottomSheet(
             onDismissRequest = { showCheckOutSheet = false },
             sheetState = sheetState,
-            containerColor = PureWhite,
+            containerColor = DarkSurface,
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
         ) {
             Column(
@@ -186,13 +186,13 @@ fun DutiesScreen(
                     Text(
                         text = "Check Out Shift",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = InkPrimary
+                        color = TextLightPrimary
                     )
                     TextButton(
                         onClick = { showCheckOutSheet = false },
                         modifier = Modifier.heightIn(min = 48.dp)
                     ) {
-                        Text("Cancel", fontFamily = ShiftlySerif, color = InkSecondary)
+                        Text("Cancel", fontFamily = ShiftlySerif, color = TextLightSecondary)
                     }
                 }
 
@@ -208,12 +208,12 @@ fun DutiesScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AzureInkOnWhite,
-                        unfocusedBorderColor = HairlineLight,
-                        focusedLabelColor = AzureInkOnWhite,
-                        unfocusedLabelColor = InkSecondary,
-                        focusedTextColor = InkPrimary,
-                        unfocusedTextColor = InkPrimary
+                        focusedBorderColor = AzureAccent,
+                        unfocusedBorderColor = DarkBorder,
+                        focusedLabelColor = AzureAccent,
+                        unfocusedLabelColor = TextLightSecondary,
+                        focusedTextColor = TextLightPrimary,
+                        unfocusedTextColor = TextLightPrimary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -282,7 +282,7 @@ fun DutiesScreen(
         ModalBottomSheet(
             onDismissRequest = { editingShift = null },
             sheetState = sheetState,
-            containerColor = PureWhite,
+            containerColor = DarkSurface,
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
         ) {
             Column(
@@ -301,13 +301,13 @@ fun DutiesScreen(
                     Text(
                         text = "Edit Shift (${LocalDate.ofEpochDay(targetShift.dateEpochDay).format(shiftDateFormatter)})",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = InkPrimary
+                        color = TextLightPrimary
                     )
                     TextButton(
                         onClick = { editingShift = null },
                         modifier = Modifier.heightIn(min = 48.dp)
                     ) {
-                        Text("Cancel", fontFamily = ShiftlySerif, color = InkSecondary)
+                        Text("Cancel", fontFamily = ShiftlySerif, color = TextLightSecondary)
                     }
                 }
 
@@ -517,7 +517,7 @@ fun DutiesScreenContent(
             }
         }
 
-        // 5. White Bottom Sheet Surface for Shift History
+        // 5. Dark Bottom Sheet Surface for Shift History
         item {
             val filterDate = state.selectedCalendarDate
             val headerTitle = if (filterDate != null) {
@@ -529,7 +529,7 @@ fun DutiesScreenContent(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = PureWhite,
+                color = DarkSurface,
                 shadowElevation = 12.dp
             ) {
                 Column(
@@ -547,7 +547,7 @@ fun DutiesScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(HairlineLight)
+                                .background(DarkBorder)
                         )
                     }
 
@@ -573,7 +573,7 @@ fun DutiesScreenContent(
                             )
                             if (idx < state.displayedShifts.lastIndex) {
                                 HorizontalDivider(
-                                    color = HairlineLight.copy(alpha = 0.6f),
+                                    color = DarkBorder.copy(alpha = 0.6f),
                                     modifier = Modifier.padding(horizontal = 4.dp)
                                 )
                             }
@@ -727,11 +727,11 @@ private fun DutiesManualEntrySheetPreview() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(InkBlack.copy(alpha = 0.45f))
+                        .background(InkBlack.copy(alpha = 0.65f))
                 ) {
                     Surface(
                         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                        color = PureWhite,
+                        color = DarkSurface,
                         shadowElevation = 16.dp,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -746,7 +746,7 @@ private fun DutiesManualEntrySheetPreview() {
                                     modifier = Modifier
                                         .size(width = 36.dp, height = 4.dp)
                                         .clip(RoundedCornerShape(50))
-                                        .background(HairlineLight)
+                                        .background(DarkBorder)
                                 )
                             }
                             Spacer(modifier = Modifier.height(6.dp))

@@ -61,7 +61,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -75,15 +74,14 @@ import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.theme.AzureAccent
 import com.example.shiftly.ui.theme.AzureInkOnWhite
+import com.example.shiftly.ui.theme.AzurePrimaryButton
 import com.example.shiftly.ui.theme.AzureSoftContainer
 import com.example.shiftly.ui.theme.CoralInkOnWhite
-import com.example.shiftly.ui.theme.CoralSoftContainer
-import com.example.shiftly.ui.theme.DeepAzureBottom
-import com.example.shiftly.ui.theme.HairlineLight
-import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.InkPrimary
-import com.example.shiftly.ui.theme.InkSecondary
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCard
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintBright
 import com.example.shiftly.ui.theme.MintInkOnWhite
 import com.example.shiftly.ui.theme.MintSoftContainer
@@ -91,7 +89,8 @@ import com.example.shiftly.ui.theme.MintTextOnBlue
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
-import com.example.shiftly.ui.theme.SoftCloudWhite
+import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.DayType
 import com.example.shiftly.utils.WageCalculator
@@ -102,7 +101,6 @@ import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -128,18 +126,18 @@ fun DayTypeSelector(
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
                 .fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AzureInkOnWhite,
-                unfocusedBorderColor = HairlineLight,
-                focusedLabelColor = AzureInkOnWhite,
-                unfocusedLabelColor = InkSecondary,
-                focusedTextColor = InkPrimary,
-                unfocusedTextColor = InkPrimary
+                focusedBorderColor = AzureAccent,
+                unfocusedBorderColor = DarkBorder,
+                focusedLabelColor = AzureAccent,
+                unfocusedLabelColor = TextLightSecondary,
+                focusedTextColor = TextLightPrimary,
+                unfocusedTextColor = TextLightPrimary
             )
         )
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.background(PureWhite)
+            modifier = Modifier.background(DarkCard)
         ) {
             DayType.entries.forEach { dayType ->
                 DropdownMenuItem(
@@ -147,7 +145,7 @@ fun DayTypeSelector(
                         Text(
                             text = dayType.label,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = InkPrimary
+                            color = TextLightPrimary
                         )
                     },
                     onClick = {
@@ -195,7 +193,7 @@ fun DutiesRateSettingsCard(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(PureWhite.copy(alpha = 0.16f)),
+                            .background(DarkCard),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -209,18 +207,19 @@ fun DutiesRateSettingsCard(
                     Text(
                         text = "Rate & Currency",
                         style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
-                        color = PureWhite
+                        color = TextLightPrimary
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = PureWhite.copy(alpha = 0.15f)
+                    color = DarkCard,
+                    border = BorderStroke(1.dp, DarkBorder)
                 ) {
                     Text(
                         text = "Locked per shift",
                         style = MaterialTheme.typography.labelSmall,
-                        color = PureWhite.copy(alpha = 0.90f),
+                        color = TextLightSecondary,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
@@ -239,11 +238,11 @@ fun DutiesRateSettingsCard(
                             .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(50))
                             .background(
-                                if (selected) PureWhite else PureWhite.copy(alpha = 0.14f)
+                                if (selected) AzurePrimaryButton else DarkCard
                             )
                             .border(
                                 width = 1.dp,
-                                color = if (selected) PureWhite else PureWhite.copy(alpha = 0.28f),
+                                color = if (selected) AzureAccent else DarkBorder,
                                 shape = RoundedCornerShape(50)
                             )
                             .clickable {
@@ -259,13 +258,13 @@ fun DutiesRateSettingsCard(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.Bold
                             ),
-                            color = if (selected) DeepAzureBottom else PureWhite
+                            color = if (selected) PureWhite else TextLightPrimary
                         )
                     }
                 }
             }
 
-            // Hourly Rate Input + Black Pill Save Button
+            // Hourly Rate Input + Primary Pill Save Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -287,22 +286,22 @@ fun DutiesRateSettingsCard(
                         Text(
                             text = currencySymbol,
                             fontWeight = FontWeight.Bold,
-                            color = PureWhite
+                            color = TextLightPrimary
                         )
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PureWhite,
-                        unfocusedBorderColor = PureWhite.copy(alpha = 0.40f),
-                        focusedLabelColor = PureWhite,
-                        unfocusedLabelColor = PureWhite.copy(alpha = 0.85f),
-                        focusedTextColor = PureWhite,
-                        unfocusedTextColor = PureWhite,
+                        focusedBorderColor = AzureAccent,
+                        unfocusedBorderColor = DarkBorder,
+                        focusedLabelColor = AzureAccent,
+                        unfocusedLabelColor = TextLightSecondary,
+                        focusedTextColor = TextLightPrimary,
+                        unfocusedTextColor = TextLightPrimary,
                         cursorColor = MintTextOnBlue,
-                        focusedContainerColor = PureWhite.copy(alpha = 0.10f),
-                        unfocusedContainerColor = PureWhite.copy(alpha = 0.08f)
+                        focusedContainerColor = DarkCard,
+                        unfocusedContainerColor = DarkCard
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -316,7 +315,7 @@ fun DutiesRateSettingsCard(
                     },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = InkBlack,
+                        containerColor = AzurePrimaryButton,
                         contentColor = PureWhite
                     ),
                     contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
@@ -399,7 +398,7 @@ fun LiveShiftTimerCard(
                 if (activeTimer.isRunning) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = MintBright.copy(alpha = 0.22f),
+                        color = MintSoftContainer,
                         border = BorderStroke(1.dp, MintBright.copy(alpha = 0.55f))
                     ) {
                         Row(
@@ -434,7 +433,7 @@ fun LiveShiftTimerCard(
                         Text(
                             text = "Duty Timer",
                             style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
-                            color = PureWhite
+                            color = TextLightPrimary
                         )
                     }
                 }
@@ -442,8 +441,8 @@ fun LiveShiftTimerCard(
                 val displayedRate = if (activeTimer.isRunning) activeTimer.lockedRate else defaultHourlyRate
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = PureWhite.copy(alpha = 0.16f),
-                    border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.28f))
+                    color = DarkCard,
+                    border = BorderStroke(1.dp, DarkBorder)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -459,7 +458,7 @@ fun LiveShiftTimerCard(
                         Text(
                             text = "$currencySymbol${"%.2f".format(displayedRate)}/hr",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold).tabular(),
-                            color = PureWhite
+                            color = TextLightPrimary
                         )
                     }
                 }
@@ -484,14 +483,14 @@ fun LiveShiftTimerCard(
                             fontWeight = FontWeight.Bold,
                             fontSize = 38.sp
                         ).tabular(),
-                        color = PureWhite
+                        color = TextLightPrimary
                     )
 
                     // Live Income Counter Pill ("+₱ so far")
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = MintBright.copy(alpha = 0.22f),
-                        border = BorderStroke(1.dp, MintBright.copy(alpha = 0.50f))
+                        color = MintSoftContainer,
+                        border = BorderStroke(1.dp, MintBright.copy(alpha = 0.45f))
                     ) {
                         Text(
                             text = "+$currencySymbol${"%,.2f".format(liveAccrued)} so far",
@@ -512,14 +511,14 @@ fun LiveShiftTimerCard(
                     OutlinedButton(
                         onClick = onCancelTimer,
                         shape = RoundedCornerShape(50),
-                        border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.45f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PureWhite),
+                        border = BorderStroke(1.dp, DarkBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
                         modifier = Modifier.heightIn(min = 52.dp)
                     ) {
                         Text(
                             text = "Discard",
                             style = MaterialTheme.typography.labelLarge.copy(fontFamily = ShiftlySerif),
-                            color = PureWhite
+                            color = TextLightPrimary
                         )
                     }
 
@@ -530,7 +529,7 @@ fun LiveShiftTimerCard(
                         },
                         shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = InkBlack,
+                            containerColor = AzurePrimaryButton,
                             contentColor = PureWhite
                         ),
                         modifier = Modifier
@@ -556,8 +555,8 @@ fun LiveShiftTimerCard(
                         .fillMaxWidth()
                         .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(PureWhite.copy(alpha = 0.14f))
-                        .border(1.dp, PureWhite.copy(alpha = 0.24f), RoundedCornerShape(16.dp))
+                        .background(DarkCard)
+                        .border(1.dp, DarkBorder, RoundedCornerShape(16.dp))
                         .clickable { onPickDutyDate() }
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -577,13 +576,13 @@ fun LiveShiftTimerCard(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = PureWhite
+                            color = TextLightPrimary
                         )
                     }
 
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = PureWhite.copy(alpha = 0.18f)
+                        color = AzureSoftContainer
                     ) {
                         Text(
                             text = "Change",
@@ -591,13 +590,13 @@ fun LiveShiftTimerCard(
                                 fontFamily = ShiftlySerif,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = PureWhite,
+                            color = AzureInkOnWhite,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                         )
                     }
                 }
 
-                // Primary Actions Row: Black Pill "Time In" + Outlined Pill "Manual"
+                // Primary Actions Row: Primary Pill "Time In" + Outlined Pill "Manual"
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -610,7 +609,7 @@ fun LiveShiftTimerCard(
                             },
                             shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = InkBlack,
+                                containerColor = AzurePrimaryButton,
                                 contentColor = PureWhite
                             ),
                             modifier = Modifier
@@ -633,7 +632,7 @@ fun LiveShiftTimerCard(
                             },
                             shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = InkBlack,
+                                containerColor = AzurePrimaryButton,
                                 contentColor = PureWhite
                             ),
                             modifier = Modifier
@@ -656,15 +655,15 @@ fun LiveShiftTimerCard(
                     OutlinedButton(
                         onClick = onOpenManualEntry,
                         shape = RoundedCornerShape(50),
-                        border = BorderStroke(1.2.dp, PureWhite.copy(alpha = 0.55f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PureWhite),
+                        border = BorderStroke(1.2.dp, DarkBorder),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
                         modifier = Modifier.heightIn(min = 52.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Add,
                             contentDescription = null,
-                            tint = PureWhite,
+                            tint = TextLightPrimary,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
@@ -674,7 +673,7 @@ fun LiveShiftTimerCard(
                                 fontFamily = ShiftlySerif,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = PureWhite
+                            color = TextLightPrimary
                         )
                     }
                 }
@@ -701,7 +700,7 @@ fun TimeBreakdownCard(
                     Text(
                         text = "Weekly Summary",
                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                        color = PureWhite.copy(alpha = 0.88f)
+                        color = TextLightSecondary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -711,13 +710,13 @@ fun TimeBreakdownCard(
                             fontWeight = FontWeight.Bold,
                             fontSize = 32.sp
                         ).tabular(),
-                        color = PureWhite
+                        color = TextLightPrimary
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = MintBright.copy(alpha = 0.20f),
+                    color = MintSoftContainer,
                     border = BorderStroke(1.dp, MintBright.copy(alpha = 0.45f))
                 ) {
                     Text(
@@ -732,7 +731,7 @@ fun TimeBreakdownCard(
                 }
             }
 
-            // Three translucent stat tiles (Regular, Night Diff, Overtime in mint)
+            // Three elevated stat tiles (Regular, Night Diff, Overtime in mint)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -766,8 +765,8 @@ private fun TimeBreakdownTile(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(PureWhite.copy(alpha = 0.14f))
-            .border(1.dp, PureWhite.copy(alpha = 0.24f), RoundedCornerShape(18.dp))
+            .background(DarkCard)
+            .border(1.dp, DarkBorder, RoundedCornerShape(18.dp))
             .padding(horizontal = 10.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -786,7 +785,7 @@ private fun TimeBreakdownTile(
                 fontFamily = ShiftlySerif,
                 fontWeight = FontWeight.Medium
             ),
-            color = PureWhite.copy(alpha = 0.90f),
+            color = TextLightSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -824,7 +823,7 @@ fun ShiftCalendarCard(
                         fontFamily = ShiftlySerif,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = PureWhite,
+                    color = TextLightPrimary,
                     modifier = Modifier.padding(start = 4.dp)
                 )
 
@@ -835,7 +834,8 @@ fun ShiftCalendarCard(
                     if (selectedCalendarDate != null) {
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = PureWhite.copy(alpha = 0.18f),
+                            color = DarkCard,
+                            border = BorderStroke(1.dp, DarkBorder),
                             modifier = Modifier
                                 .heightIn(min = 48.dp)
                                 .clip(RoundedCornerShape(50))
@@ -848,7 +848,7 @@ fun ShiftCalendarCard(
                                 Text(
                                     text = "Reset",
                                     style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                                    color = PureWhite
+                                    color = TextLightPrimary
                                 )
                             }
                         }
@@ -859,12 +859,13 @@ fun ShiftCalendarCard(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(PureWhite.copy(alpha = 0.12f))
+                            .background(DarkCard)
+                            .border(1.dp, DarkBorder, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ChevronLeft,
                             contentDescription = "Previous Month",
-                            tint = PureWhite
+                            tint = TextLightPrimary
                         )
                     }
 
@@ -873,12 +874,13 @@ fun ShiftCalendarCard(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(PureWhite.copy(alpha = 0.12f))
+                            .background(DarkCard)
+                            .border(1.dp, DarkBorder, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ChevronRight,
                             contentDescription = "Next Month",
-                            tint = PureWhite
+                            tint = TextLightPrimary
                         )
                     }
                 }
@@ -898,7 +900,7 @@ fun ShiftCalendarCard(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = PureWhite.copy(alpha = 0.85f),
+                        color = TextLightSecondary,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -934,22 +936,22 @@ fun ShiftCalendarCard(
                                         .clip(RoundedCornerShape(14.dp))
                                         .background(
                                             when {
-                                                isSelected -> PureWhite
-                                                hasLoggedShift -> MintBright.copy(alpha = 0.22f)
-                                                else -> PureWhite.copy(alpha = 0.08f)
+                                                isSelected -> AzurePrimaryButton
+                                                hasLoggedShift -> MintSoftContainer
+                                                else -> DarkCard
                                             }
                                         )
                                         .then(
                                             if (isToday && !isSelected) {
                                                 Modifier.border(
                                                     width = 1.6.dp,
-                                                    color = PureWhite,
+                                                    color = AzureAccent,
                                                     shape = RoundedCornerShape(14.dp)
                                                 )
                                             } else if (hasLoggedShift && !isSelected) {
                                                 Modifier.border(
                                                     width = 1.dp,
-                                                    color = MintBright.copy(alpha = 0.50f),
+                                                    color = MintBright.copy(alpha = 0.45f),
                                                     shape = RoundedCornerShape(14.dp)
                                                 )
                                             } else {
@@ -971,9 +973,9 @@ fun ShiftCalendarCard(
                                                 }
                                             ).tabular(),
                                             color = when {
-                                                isSelected -> DeepAzureBottom
+                                                isSelected -> PureWhite
                                                 hasLoggedShift -> MintTextOnBlue
-                                                else -> PureWhite
+                                                else -> TextLightPrimary
                                             }
                                         )
                                         if (hasLoggedShift) {
@@ -983,7 +985,7 @@ fun ShiftCalendarCard(
                                                     .size(5.dp)
                                                     .clip(CircleShape)
                                                     .background(
-                                                        if (isSelected) MintInkOnWhite else MintBright
+                                                        if (isSelected) MintTextOnBlue else MintBright
                                                     )
                                             )
                                         }
@@ -1012,8 +1014,8 @@ fun ShiftHistoryEmptyCard(
 ) {
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = SoftCloudWhite,
-        border = BorderStroke(1.dp, HairlineLight),
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -1040,7 +1042,7 @@ fun ShiftHistoryEmptyCard(
             Text(
                 text = if (isFiltered) "No shifts on this day" else "No shifts logged yet",
                 style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
-                color = InkPrimary,
+                color = TextLightPrimary,
                 textAlign = TextAlign.Center
             )
             Text(
@@ -1050,7 +1052,7 @@ fun ShiftHistoryEmptyCard(
                     "Tap below to log your hours and auto-compute your take-home pay."
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = InkSecondary,
+                color = TextLightSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))
@@ -1089,8 +1091,8 @@ fun ShiftHistoryItemCard(
 
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = PureWhite,
-        border = BorderStroke(1.dp, HairlineLight),
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
         shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1130,12 +1132,12 @@ fun ShiftHistoryItemCard(
                                 fontFamily = ShiftlySerif,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = InkPrimary
+                            color = TextLightPrimary
                         )
                         Text(
                             text = "$timeRangeText ($durationLabel)",
                             style = MaterialTheme.typography.bodySmall.tabular(),
-                            color = InkSecondary
+                            color = TextLightSecondary
                         )
                     }
                 }
@@ -1152,7 +1154,7 @@ fun ShiftHistoryItemCard(
                     Text(
                         text = runCatching { DayType.valueOf(shift.dayType).label }.getOrNull() ?: shift.dayType,
                         style = MaterialTheme.typography.labelSmall,
-                        color = InkSecondary
+                        color = TextLightSecondary
                     )
                 }
             }
@@ -1165,14 +1167,14 @@ fun ShiftHistoryItemCard(
                 if (shift.overtimeNote.isNotBlank()) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = SoftCloudWhite,
-                        border = BorderStroke(1.dp, HairlineLight),
+                        color = DarkSurface,
+                        border = BorderStroke(1.dp, DarkBorder),
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Text(
                             text = shift.overtimeNote,
                             style = MaterialTheme.typography.labelSmall,
-                            color = InkPrimary,
+                            color = TextLightPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -1182,7 +1184,7 @@ fun ShiftHistoryItemCard(
                     Text(
                         text = "$currencySymbol${"%.2f".format(shift.lockedHourlyRate)}/hr locked",
                         style = MaterialTheme.typography.labelSmall.tabular(),
-                        color = InkSecondary
+                        color = TextLightSecondary
                     )
                 }
 
@@ -1231,7 +1233,7 @@ fun ManualShiftBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = PureWhite,
+        containerColor = DarkSurface,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
         ManualShiftSheetContent(
@@ -1311,21 +1313,21 @@ fun ManualShiftSheetContent(
             Text(
                 text = "Log Manual Shift",
                 style = MaterialTheme.typography.headlineSmall,
-                color = InkPrimary
+                color = TextLightPrimary
             )
             TextButton(
                 onClick = onDismiss,
                 modifier = Modifier.heightIn(min = 48.dp)
             ) {
-                Text("Cancel", fontFamily = ShiftlySerif, color = InkSecondary)
+                Text("Cancel", fontFamily = ShiftlySerif, color = TextLightSecondary)
             }
         }
 
         // Date Selector Row
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = SoftCloudWhite,
-            border = BorderStroke(1.dp, HairlineLight),
+            color = DarkCard,
+            border = BorderStroke(1.dp, DarkBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 48.dp)
@@ -1350,7 +1352,7 @@ fun ManualShiftSheetContent(
                     Text(
                         text = selectedDate.format(dateFormatter),
                         style = MaterialTheme.typography.titleSmall,
-                        color = InkPrimary
+                        color = TextLightPrimary
                     )
                 }
                 Text(
@@ -1374,8 +1376,8 @@ fun ManualShiftSheetContent(
                 val active = startHour == times[0] && endHour == times[2]
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = if (active) AzureSoftContainer else SoftCloudWhite,
-                    border = BorderStroke(1.dp, if (active) AzureInkOnWhite else HairlineLight),
+                    color = if (active) AzureSoftContainer else DarkCard,
+                    border = BorderStroke(1.dp, if (active) AzureInkOnWhite else DarkBorder),
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 48.dp)
@@ -1391,7 +1393,7 @@ fun ManualShiftSheetContent(
                         Text(
                             text = label,
                             style = MaterialTheme.typography.labelMedium.tabular(),
-                            color = if (active) AzureInkOnWhite else InkSecondary
+                            color = if (active) AzureInkOnWhite else TextLightSecondary
                         )
                     }
                 }
@@ -1459,7 +1461,7 @@ fun ManualShiftSheetContent(
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = MintSoftContainer,
-            border = BorderStroke(1.dp, MintInkOnWhite.copy(alpha = 0.25f)),
+            border = BorderStroke(1.dp, MintBright.copy(alpha = 0.35f)),
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -1478,7 +1480,7 @@ fun ManualShiftSheetContent(
                     Text(
                         text = "${"%.1f".format(durationHours)} hrs × $currencySymbol${"%.2f".format(hourlyRate)}/hr",
                         style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = InkSecondary
+                        color = TextLightSecondary
                     )
                 }
 

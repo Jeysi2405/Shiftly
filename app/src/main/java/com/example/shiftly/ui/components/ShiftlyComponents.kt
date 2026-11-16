@@ -1,7 +1,6 @@
 package com.example.shiftly.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -36,40 +35,36 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.example.shiftly.ui.theme.AzureMid
+import com.example.shiftly.ui.theme.AzurePrimaryButton
 import com.example.shiftly.ui.theme.BorderSubtle
-import com.example.shiftly.ui.theme.DeepAzureBottom
+import com.example.shiftly.ui.theme.CoralBright
+import com.example.shiftly.ui.theme.DarkBackground
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCard
+import com.example.shiftly.ui.theme.DarkDisabledContainer
+import com.example.shiftly.ui.theme.DarkDisabledContent
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.DeepBlueContainer
-import com.example.shiftly.ui.theme.GlassBacking
-import com.example.shiftly.ui.theme.GlassBorderBottom
-import com.example.shiftly.ui.theme.GlassBorderTop
-import com.example.shiftly.ui.theme.GlassFillBottom
-import com.example.shiftly.ui.theme.GlassFillTop
 import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.OrbAquaSoft
-import com.example.shiftly.ui.theme.OrbSkyLight
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.RoseAlert
 import com.example.shiftly.ui.theme.RoseContainer
 import com.example.shiftly.ui.theme.ShiftlySerif
-import com.example.shiftly.ui.theme.SkyBlueTop
 import com.example.shiftly.ui.theme.SlateSurface
-import com.example.shiftly.ui.theme.SlateSurfaceElevated
-import com.example.shiftly.ui.theme.SlateSurfaceVariant
 import com.example.shiftly.ui.theme.SoftBlue
+import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.TextPrimary
 import com.example.shiftly.ui.theme.TextSecondary
 
 /**
- * Full-bleed calm sky-to-deep-azure gradient backdrop with soft translucent circular shapes.
+ * Full-bleed deep dark charcoal backdrop (#121212) preserving screen layout wrappers.
  */
 @Composable
 fun ShiftlyBlueGradientBackground(
@@ -79,49 +74,14 @@ fun ShiftlyBlueGradientBackground(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        SkyBlueTop,
-                        AzureMid,
-                        DeepAzureBottom
-                    )
-                )
-            )
+            .background(DarkBackground)
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            // Large soft translucent orb top-right behind greeting/hero
-            drawCircle(
-                color = OrbSkyLight.copy(alpha = 0.18f),
-                radius = size.width * 0.48f,
-                center = Offset(x = size.width * 0.88f, y = size.height * 0.10f)
-            )
-            // Soft aqua-tinted circle mid-left for depth behind hero glass card
-            drawCircle(
-                color = OrbAquaSoft.copy(alpha = 0.11f),
-                radius = size.width * 0.38f,
-                center = Offset(x = size.width * 0.10f, y = size.height * 0.28f)
-            )
-            // Subtle large outer halo top-left
-            drawCircle(
-                color = PureWhite.copy(alpha = 0.06f),
-                radius = size.width * 0.62f,
-                center = Offset(x = size.width * 0.20f, y = size.height * 0.02f)
-            )
-            // Deep azure glow bottom-right
-            drawCircle(
-                color = OrbSkyLight.copy(alpha = 0.10f),
-                radius = size.width * 0.42f,
-                center = Offset(x = size.width * 0.92f, y = size.height * 0.48f)
-            )
-        }
         content()
     }
 }
 
 /**
- * Frosted glass container with specular rim highlight, depth backing for WCAG AA white text,
- * and subtle azure-tinted elevation shadow.
+ * Elevated dark container (#1E1E1E) with crisp subtle border (#333333) and gentle shadow.
  */
 @Composable
 fun ShiftlyGlassCard(
@@ -135,27 +95,16 @@ fun ShiftlyGlassCard(
         modifier = modifier
             .fillMaxWidth()
             .shadow(
-                elevation = 16.dp,
+                elevation = 10.dp,
                 shape = shape,
-                ambientColor = DeepAzureBottom.copy(alpha = 0.35f),
-                spotColor = DeepAzureBottom.copy(alpha = 0.45f)
+                ambientColor = InkBlack.copy(alpha = 0.55f),
+                spotColor = InkBlack.copy(alpha = 0.65f)
             )
             .clip(shape)
-            .background(GlassBacking)
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(GlassFillTop, GlassFillBottom),
-                    start = Offset(0f, 0f),
-                    end = Offset(700f, 900f)
-                )
-            )
+            .background(DarkSurface)
             .border(
                 width = 1.dp,
-                brush = Brush.linearGradient(
-                    colors = listOf(GlassBorderTop, GlassBorderBottom),
-                    start = Offset(0f, 0f),
-                    end = Offset(400f, 600f)
-                ),
+                color = DarkBorder,
                 shape = shape
             )
             .padding(contentPadding)
@@ -165,7 +114,7 @@ fun ShiftlyGlassCard(
 }
 
 /**
- * Full-width black pill primary action button with refined editorial serif label.
+ * Full-width pill primary action button with refined editorial serif label adapted for Dark Mode.
  */
 @Composable
 fun ShiftlyPrimaryPillButton(
@@ -180,10 +129,10 @@ fun ShiftlyPrimaryPillButton(
         enabled = enabled,
         shape = RoundedCornerShape(50),
         colors = ButtonDefaults.buttonColors(
-            containerColor = InkBlack,
+            containerColor = AzurePrimaryButton,
             contentColor = PureWhite,
-            disabledContainerColor = InkBlack.copy(alpha = 0.45f),
-            disabledContentColor = PureWhite.copy(alpha = 0.7f)
+            disabledContainerColor = DarkDisabledContainer,
+            disabledContentColor = DarkDisabledContent
         ),
         elevation = ButtonDefaults.buttonElevation(
             defaultElevation = 4.dp,
@@ -204,7 +153,7 @@ fun ShiftlyPrimaryPillButton(
                 fontFamily = ShiftlySerif,
                 fontWeight = FontWeight.SemiBold
             ),
-            color = PureWhite
+            color = if (enabled) PureWhite else DarkDisabledContent
         )
     }
 }
@@ -236,7 +185,7 @@ fun ShiftlyCard(
 }
 
 /**
- * Screen-level header rendered directly over the blue gradient backdrop (white for AA contrast).
+ * Screen-level header rendered over the dark charcoal backdrop.
  */
 @Composable
 fun ShiftlyScreenHeader(
@@ -254,14 +203,14 @@ fun ShiftlyScreenHeader(
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineSmall,
-                color = PureWhite
+                color = TextLightPrimary
             )
             if (subtitle.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = PureWhite.copy(alpha = 0.85f)
+                    color = TextLightSecondary
                 )
             }
         }
@@ -283,9 +232,9 @@ fun ShiftlySectionHeader(
     trailingText: String? = null,
     onLightSurface: Boolean = false
 ) {
-    val titleColor = if (onLightSurface) TextPrimary else PureWhite
-    val countBg = if (onLightSurface) SlateSurfaceVariant else PureWhite.copy(alpha = 0.22f)
-    val countTextColor = if (onLightSurface) TextSecondary else PureWhite
+    val titleColor = TextPrimary
+    val countBg = if (onLightSurface) DarkCard else DarkSurface
+    val countTextColor = TextSecondary
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -304,7 +253,8 @@ fun ShiftlySectionHeader(
             if (count != null) {
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = countBg
+                    color = countBg,
+                    border = BorderStroke(1.dp, DarkBorder)
                 ) {
                     Text(
                         text = count.toString(),
@@ -319,7 +269,7 @@ fun ShiftlySectionHeader(
             Text(
                 text = trailingText,
                 style = MaterialTheme.typography.labelMedium,
-                color = if (onLightSurface) TextSecondary else PureWhite.copy(alpha = 0.85f)
+                color = TextSecondary
             )
         }
     }
@@ -424,7 +374,7 @@ fun ShiftlyConfirmDeleteDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = SlateSurfaceElevated,
+        containerColor = DarkCard,
         icon = {
             Box(
                 modifier = Modifier
@@ -460,8 +410,8 @@ fun ShiftlyConfirmDeleteDialog(
                 onClick = onConfirm,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = RoseAlert,
-                    contentColor = PureWhite
+                    containerColor = CoralBright,
+                    contentColor = InkBlack
                 )
             ) {
                 Text("Delete", fontWeight = FontWeight.SemiBold)

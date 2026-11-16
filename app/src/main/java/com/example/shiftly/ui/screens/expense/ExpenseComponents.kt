@@ -89,24 +89,28 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.theme.AzureAccent
 import com.example.shiftly.ui.theme.AzureInkOnWhite
+import com.example.shiftly.ui.theme.AzurePrimaryButton
 import com.example.shiftly.ui.theme.AzureSoftContainer
 import com.example.shiftly.ui.theme.CoralBright
 import com.example.shiftly.ui.theme.CoralInkOnWhite
 import com.example.shiftly.ui.theme.CoralSoftContainer
 import com.example.shiftly.ui.theme.CoralTextOnBlue
-import com.example.shiftly.ui.theme.DeepAzureBottom
-import com.example.shiftly.ui.theme.HairlineLight
-import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.InkMuted
-import com.example.shiftly.ui.theme.InkPrimary
-import com.example.shiftly.ui.theme.InkSecondary
+import com.example.shiftly.ui.theme.DarkBackground
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCard
+import com.example.shiftly.ui.theme.DarkDisabledContainer
+import com.example.shiftly.ui.theme.DarkDisabledContent
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintBright
 import com.example.shiftly.ui.theme.OrbSkyLight
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
-import com.example.shiftly.ui.theme.SoftCloudWhite
+import com.example.shiftly.ui.theme.TextLightMuted
+import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import java.io.File
 import java.time.Instant
@@ -131,7 +135,7 @@ private fun categorySegmentColor(index: Int): Color {
         Color(0xFFFF9F7F),
         OrbSkyLight,
         MintBright,
-        Color(0xFFD8E8FF)
+        Color(0xFF93C5FD)
     )
     return palette[index % palette.size]
 }
@@ -159,7 +163,7 @@ fun ExpenseSummaryCard(
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.8.sp
                         ),
-                        color = PureWhite.copy(alpha = 0.88f)
+                        color = TextLightSecondary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -179,13 +183,13 @@ fun ExpenseSummaryCard(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = PureWhite.copy(alpha = 0.16f),
-                        border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.24f))
+                        color = DarkCard,
+                        border = BorderStroke(1.dp, DarkBorder)
                     ) {
                         Text(
                             text = "All-time: $currencySymbol${"%,.2f".format(allTimeTotal)}",
                             style = MaterialTheme.typography.labelSmall.tabular(),
-                            color = PureWhite,
+                            color = TextLightPrimary,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
                     }
@@ -193,7 +197,7 @@ fun ExpenseSummaryCard(
                         Text(
                             text = "$totalReceiptCount receipt(s) saved",
                             style = MaterialTheme.typography.labelSmall,
-                            color = PureWhite.copy(alpha = 0.80f)
+                            color = TextLightSecondary
                         )
                     }
                 }
@@ -206,7 +210,7 @@ fun ExpenseSummaryCard(
                         .fillMaxWidth()
                         .height(10.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(PureWhite.copy(alpha = 0.18f)),
+                        .background(DarkBorder),
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     categoryBreakdown.forEachIndexed { index, item ->
@@ -241,7 +245,7 @@ fun ExpenseSummaryCard(
                             Text(
                                 text = "${item.category} ($currencySymbol${"%,.0f".format(item.totalAmount)})",
                                 style = MaterialTheme.typography.labelSmall.tabular(),
-                                color = PureWhite.copy(alpha = 0.92f)
+                                color = TextLightSecondary
                             )
                         }
                     }
@@ -282,10 +286,10 @@ fun ExpenseCategoryFilterRow(
                 modifier = Modifier
                     .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(if (selected) PureWhite else PureWhite.copy(alpha = 0.14f))
+                    .background(if (selected) AzurePrimaryButton else DarkSurface)
                     .border(
                         width = 1.dp,
-                        color = if (selected) PureWhite else PureWhite.copy(alpha = 0.28f),
+                        color = if (selected) AzureAccent else DarkBorder,
                         shape = RoundedCornerShape(50)
                     )
                     .clickable { onSelectCategory(category) }
@@ -298,7 +302,7 @@ fun ExpenseCategoryFilterRow(
                         fontFamily = ShiftlySerif,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
                     ),
-                    color = if (selected) DeepAzureBottom else PureWhite
+                    color = if (selected) PureWhite else TextLightSecondary
                 )
             }
         }
@@ -314,8 +318,8 @@ fun ExpenseEmptyCard(
     val isFiltered = selectedCategory != "All"
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = SoftCloudWhite,
-        border = BorderStroke(1.dp, HairlineLight),
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -342,7 +346,7 @@ fun ExpenseEmptyCard(
             Text(
                 text = if (isFiltered) "No $selectedCategory expenses" else "No expenses logged yet",
                 style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
-                color = InkPrimary,
+                color = TextLightPrimary,
                 textAlign = TextAlign.Center
             )
             Text(
@@ -352,7 +356,7 @@ fun ExpenseEmptyCard(
                     "Log meals, jeepney fares, and school supplies between classes."
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = InkSecondary,
+                color = TextLightSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))
@@ -383,8 +387,8 @@ fun ExpenseItemCard(
 
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = PureWhite,
-        border = BorderStroke(1.dp, HairlineLight),
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
         shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -417,7 +421,7 @@ fun ExpenseItemCard(
                         fontFamily = ShiftlySerif,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = InkPrimary,
+                    color = TextLightPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -425,7 +429,7 @@ fun ExpenseItemCard(
                 Text(
                     text = "${expense.category}  •  $dateLabel",
                     style = MaterialTheme.typography.bodySmall,
-                    color = InkSecondary
+                    color = TextLightSecondary
                 )
 
                 if (hasReceipt) {
@@ -503,7 +507,7 @@ fun AddExpenseBottomSheet(
             onDismiss()
         },
         sheetState = sheetState,
-        containerColor = PureWhite,
+        containerColor = DarkSurface,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
         AddExpenseSheetContent(
@@ -587,13 +591,13 @@ fun AddExpenseSheetContent(
             Text(
                 text = "Add Expense",
                 style = MaterialTheme.typography.headlineSmall,
-                color = InkPrimary
+                color = TextLightPrimary
             )
             TextButton(
                 onClick = onDismiss,
                 modifier = Modifier.heightIn(min = 48.dp)
             ) {
-                Text("Cancel", fontFamily = ShiftlySerif, color = InkSecondary)
+                Text("Cancel", fontFamily = ShiftlySerif, color = TextLightSecondary)
             }
         }
 
@@ -606,7 +610,7 @@ fun AddExpenseSheetContent(
                 Text(
                     text = "0.00",
                     style = MaterialTheme.typography.headlineLarge.tabular(),
-                    color = InkMuted
+                    color = TextLightMuted
                 )
             },
             prefix = {
@@ -628,11 +632,11 @@ fun AddExpenseSheetContent(
             shape = RoundedCornerShape(18.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = CoralInkOnWhite,
-                unfocusedBorderColor = HairlineLight,
+                unfocusedBorderColor = DarkBorder,
                 focusedLabelColor = CoralInkOnWhite,
-                unfocusedLabelColor = InkSecondary,
-                focusedTextColor = InkPrimary,
-                unfocusedTextColor = InkPrimary
+                unfocusedLabelColor = TextLightSecondary,
+                focusedTextColor = TextLightPrimary,
+                unfocusedTextColor = TextLightPrimary
             ),
             modifier = Modifier.fillMaxWidth()
         )
@@ -645,10 +649,12 @@ fun AddExpenseSheetContent(
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AzureInkOnWhite,
-                unfocusedBorderColor = HairlineLight,
-                focusedLabelColor = AzureInkOnWhite,
-                unfocusedLabelColor = InkSecondary
+                focusedBorderColor = AzureAccent,
+                unfocusedBorderColor = DarkBorder,
+                focusedLabelColor = AzureAccent,
+                unfocusedLabelColor = TextLightSecondary,
+                focusedTextColor = TextLightPrimary,
+                unfocusedTextColor = TextLightPrimary
             ),
             modifier = Modifier.fillMaxWidth()
         )
@@ -658,7 +664,7 @@ fun AddExpenseSheetContent(
             Text(
                 text = "Category",
                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                color = InkSecondary
+                color = TextLightSecondary
             )
             Row(
                 modifier = Modifier
@@ -672,10 +678,10 @@ fun AddExpenseSheetContent(
                         modifier = Modifier
                             .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(50))
-                            .background(if (selected) CoralSoftContainer else SoftCloudWhite)
+                            .background(if (selected) CoralSoftContainer else DarkCard)
                             .border(
                                 width = 1.dp,
-                                color = if (selected) CoralInkOnWhite else HairlineLight,
+                                color = if (selected) CoralInkOnWhite else DarkBorder,
                                 shape = RoundedCornerShape(50)
                             )
                             .clickable { selectedCategory = category }
@@ -688,7 +694,7 @@ fun AddExpenseSheetContent(
                                 fontFamily = ShiftlySerif,
                                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
                             ),
-                            color = if (selected) CoralInkOnWhite else InkSecondary
+                            color = if (selected) CoralInkOnWhite else TextLightSecondary
                         )
                     }
                 }
@@ -698,8 +704,8 @@ fun AddExpenseSheetContent(
         // Date Selector Row
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = SoftCloudWhite,
-            border = BorderStroke(1.dp, HairlineLight),
+            color = DarkCard,
+            border = BorderStroke(1.dp, DarkBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 48.dp)
@@ -724,7 +730,7 @@ fun AddExpenseSheetContent(
                     Text(
                         text = selectedDate.format(dateFormatter),
                         style = MaterialTheme.typography.titleSmall,
-                        color = InkPrimary
+                        color = TextLightPrimary
                     )
                 }
                 Text(
@@ -740,14 +746,14 @@ fun AddExpenseSheetContent(
             Text(
                 text = "Receipt (optional)",
                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                color = InkSecondary
+                color = TextLightSecondary
             )
 
             if (savedReceiptPath != null) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = SoftCloudWhite,
-                    border = BorderStroke(1.dp, AzureInkOnWhite),
+                    color = DarkCard,
+                    border = BorderStroke(1.dp, AzureAccent),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -768,7 +774,7 @@ fun AddExpenseSheetContent(
                         Text(
                             text = "Receipt attached",
                             style = MaterialTheme.typography.titleSmall,
-                            color = InkPrimary,
+                            color = TextLightPrimary,
                             modifier = Modifier.weight(1f)
                         )
                         IconButton(
@@ -798,7 +804,7 @@ fun AddExpenseSheetContent(
                             )
                         },
                         shape = RoundedCornerShape(50),
-                        border = BorderStroke(1.dp, HairlineLight),
+                        border = BorderStroke(1.dp, DarkBorder),
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 48.dp)
@@ -810,7 +816,7 @@ fun AddExpenseSheetContent(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Gallery", fontFamily = ShiftlySerif, color = InkPrimary)
+                        Text("Gallery", fontFamily = ShiftlySerif, color = TextLightPrimary)
                     }
 
                     OutlinedButton(
@@ -820,7 +826,7 @@ fun AddExpenseSheetContent(
                             cameraLauncher.launch(uri)
                         },
                         shape = RoundedCornerShape(50),
-                        border = BorderStroke(1.dp, HairlineLight),
+                        border = BorderStroke(1.dp, DarkBorder),
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 48.dp)
@@ -832,13 +838,13 @@ fun AddExpenseSheetContent(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Camera", fontFamily = ShiftlySerif, color = InkPrimary)
+                        Text("Camera", fontFamily = ShiftlySerif, color = TextLightPrimary)
                     }
                 }
             }
         }
 
-        // Full-width Black Pill Save Button with clear enabled / disabled states
+        // Full-width Primary Pill Save Button with clear enabled / disabled states
         Button(
             onClick = {
                 onSaveExpense(title, parsedAmount, selectedCategory, selectedDate, savedReceiptPath)
@@ -846,10 +852,10 @@ fun AddExpenseSheetContent(
             enabled = isValid,
             shape = RoundedCornerShape(50),
             colors = ButtonDefaults.buttonColors(
-                containerColor = InkBlack,
+                containerColor = AzurePrimaryButton,
                 contentColor = PureWhite,
-                disabledContainerColor = HairlineLight,
-                disabledContentColor = InkMuted
+                disabledContainerColor = DarkDisabledContainer,
+                disabledContentColor = DarkDisabledContent
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -884,7 +890,7 @@ fun AddExpenseSheetContent(
                 ) {
                     Text(
                         text = "Select",
-                        color = AzureInkOnWhite,
+                        color = AzureAccent,
                         fontFamily = ShiftlySerif,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -892,7 +898,7 @@ fun AddExpenseSheetContent(
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel", color = InkSecondary, fontFamily = ShiftlySerif)
+                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
                 }
             }
         ) {
@@ -919,7 +925,7 @@ fun ReceiptViewerDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            color = InkBlack.copy(alpha = 0.94f),
+            color = DarkBackground.copy(alpha = 0.96f),
             modifier = Modifier.fillMaxSize()
         ) {
             Column(
@@ -936,7 +942,7 @@ fun ReceiptViewerDialog(
                         Text(
                             text = expense.title,
                             style = MaterialTheme.typography.titleMedium,
-                            color = PureWhite
+                            color = TextLightPrimary
                         )
                         Text(
                             text = "$currencySymbol${"%,.2f".format(expense.amount)}  •  $dateLabel",
@@ -950,12 +956,12 @@ fun ReceiptViewerDialog(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(PureWhite.copy(alpha = 0.14f))
+                            .background(DarkCard)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Close",
-                            tint = PureWhite
+                            tint = TextLightPrimary
                         )
                     }
                 }
@@ -967,7 +973,7 @@ fun ReceiptViewerDialog(
                         .fillMaxWidth()
                         .weight(1f)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(PureWhite.copy(alpha = 0.08f)),
+                        .background(DarkSurface),
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(

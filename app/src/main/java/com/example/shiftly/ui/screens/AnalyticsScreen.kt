@@ -38,11 +38,11 @@ import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.HairlineLight
-import com.example.shiftly.ui.theme.InkPrimary
-import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
+import com.example.shiftly.ui.theme.TextLightPrimary
 
 @Composable
 fun AnalyticsScreen(
@@ -101,21 +101,21 @@ fun AnalyticsScreenContent(
             )
         }
 
-        // 2. Frosted Glass Bar Chart (Income Mint vs Expenses Coral)
+        // 2. Elevated Dark Bar Chart (Income Mint vs Expenses Coral)
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 IncomeVsExpenseGlassChartCard(state = state)
             }
         }
 
-        // 3. White Bottom Sheet with Insight Cards & "Show All"
+        // 3. Dark Surface Bottom Sheet with Insight Cards & "Show All"
         item {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 520.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = PureWhite,
+                color = DarkSurface,
                 shadowElevation = 12.dp
             ) {
                 Column(
@@ -133,7 +133,7 @@ fun AnalyticsScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(HairlineLight)
+                                .background(DarkBorder)
                         )
                     }
 
@@ -145,7 +145,7 @@ fun AnalyticsScreenContent(
                         Text(
                             text = "Insights (${state.selectedRange.fullLabel})",
                             style = MaterialTheme.typography.titleMedium,
-                            color = InkPrimary
+                            color = TextLightPrimary
                         )
                         Box(
                             modifier = Modifier

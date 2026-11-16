@@ -60,12 +60,12 @@ import com.example.shiftly.ui.theme.AzureInkOnWhite
 import com.example.shiftly.ui.theme.AzureSoftContainer
 import com.example.shiftly.ui.theme.CoralInkOnWhite
 import com.example.shiftly.ui.theme.CoralSoftContainer
-import com.example.shiftly.ui.theme.HairlineLight
-import com.example.shiftly.ui.theme.InkPrimary
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintInkOnWhite
 import com.example.shiftly.ui.theme.MintSoftContainer
-import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyTheme
+import com.example.shiftly.ui.theme.TextLightPrimary
 import java.io.File
 
 private enum class ActiveSettingsSheet {
@@ -401,14 +401,14 @@ private fun ProfileScreenContent(
             }
         }
 
-        // 3. White Bottom Sheet with Grouped Settings Cards
+        // 3. Dark Bottom Sheet with Grouped Settings Cards
         item {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 520.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = PureWhite,
+                color = DarkSurface,
                 shadowElevation = 12.dp
             ) {
                 Column(
@@ -426,14 +426,14 @@ private fun ProfileScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(HairlineLight)
+                                .background(DarkBorder)
                         )
                     }
 
                     Text(
                         text = "Settings",
                         style = MaterialTheme.typography.titleMedium,
-                        color = InkPrimary
+                        color = TextLightPrimary
                     )
 
                     // Group 1: Account & Preferences
@@ -444,7 +444,7 @@ private fun ProfileScreenContent(
                             subtitle = "${state.userName} • Rate $currency${"%.2f".format(state.defaultHourlyRate)}/hr",
                             onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
                         )
-                        HorizontalDivider(color = HairlineLight, modifier = Modifier.padding(start = 66.dp))
+                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
                             icon = Icons.Outlined.CurrencyExchange,
                             title = "Currency",
@@ -454,7 +454,7 @@ private fun ProfileScreenContent(
                             iconTint = MintInkOnWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.CURRENCY) }
                         )
-                        HorizontalDivider(color = HairlineLight, modifier = Modifier.padding(start = 66.dp))
+                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
                         SettingsSwitchRow(
                             icon = Icons.Outlined.Notifications,
                             title = "Notifications",
@@ -478,7 +478,7 @@ private fun ProfileScreenContent(
                             trailingBadge = state.settings.payCycleSchedule,
                             onClick = { onOpenSheet(ActiveSettingsSheet.PAY_CYCLE) }
                         )
-                        HorizontalDivider(color = HairlineLight, modifier = Modifier.padding(start = 66.dp))
+                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
                             icon = Icons.Outlined.NightlightRound,
                             title = "Night Diff & Overtime Rules",
@@ -487,7 +487,7 @@ private fun ProfileScreenContent(
                             iconTint = MintInkOnWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.SHIFT_RULES) }
                         )
-                        HorizontalDivider(color = HairlineLight, modifier = Modifier.padding(start = 66.dp))
+                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
                             icon = Icons.Outlined.AccountBalanceWallet,
                             title = "Monthly & Category Budgets",
@@ -496,7 +496,7 @@ private fun ProfileScreenContent(
                             iconTint = CoralInkOnWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.BUDGETS) }
                         )
-                        HorizontalDivider(color = HairlineLight, modifier = Modifier.padding(start = 66.dp))
+                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
                             icon = Icons.Outlined.Savings,
                             title = "Savings Goals Setup",
@@ -515,7 +515,7 @@ private fun ProfileScreenContent(
                             subtitle = "Add, edit, or hide ($visibleCategoriesCount visible)",
                             onClick = { onOpenSheet(ActiveSettingsSheet.CATEGORIES) }
                         )
-                        HorizontalDivider(color = HairlineLight, modifier = Modifier.padding(start = 66.dp))
+                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
                             icon = Icons.Outlined.Repeat,
                             title = "Recurring Entries",
@@ -542,7 +542,7 @@ private fun ProfileScreenContent(
                             iconBg = AzureSoftContainer,
                             iconTint = AzureInkOnWhite
                         )
-                        HorizontalDivider(color = HairlineLight, modifier = Modifier.padding(start = 66.dp))
+                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
                             icon = Icons.Outlined.Backup,
                             title = "Data Export & Restore",

@@ -47,7 +47,9 @@ import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.theme.HairlineLight
+import com.example.shiftly.ui.theme.AzurePrimaryButton
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.InkBlack
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySerif
@@ -125,7 +127,7 @@ fun ExpenseScreenContent(
         contentPadding = PaddingValues(top = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Header + "+ Add" black pill button
+        // Header + "+ Add" primary pill button
         item {
             ShiftlyScreenHeader(
                 title = "Expenses",
@@ -136,7 +138,7 @@ fun ExpenseScreenContent(
                         onClick = onOpenAddSheet,
                         shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = InkBlack,
+                            containerColor = AzurePrimaryButton,
                             contentColor = PureWhite
                         ),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
@@ -161,7 +163,7 @@ fun ExpenseScreenContent(
             )
         }
 
-        // 1. "This month" Frosted Glass Summary Card
+        // 1. "This month" Summary Card
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ExpenseSummaryCard(
@@ -183,14 +185,14 @@ fun ExpenseScreenContent(
             )
         }
 
-        // 3. White Bottom Sheet Surface for Expense List / Empty State
+        // 3. Dark Bottom Sheet Surface for Expense List / Empty State
         item {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 620.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = PureWhite,
+                color = DarkSurface,
                 shadowElevation = 12.dp
             ) {
                 Column(
@@ -208,7 +210,7 @@ fun ExpenseScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(HairlineLight)
+                                .background(DarkBorder)
                         )
                     }
 
@@ -345,11 +347,11 @@ private fun AddExpenseSheetPreview() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(InkBlack.copy(alpha = 0.45f))
+                        .background(InkBlack.copy(alpha = 0.65f))
                 ) {
                     Surface(
                         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                        color = PureWhite,
+                        color = DarkSurface,
                         shadowElevation = 16.dp,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -364,7 +366,7 @@ private fun AddExpenseSheetPreview() {
                                     modifier = Modifier
                                         .size(width = 36.dp, height = 4.dp)
                                         .clip(RoundedCornerShape(50))
-                                        .background(HairlineLight)
+                                        .background(DarkBorder)
                                 )
                             }
                             Spacer(modifier = Modifier.height(6.dp))

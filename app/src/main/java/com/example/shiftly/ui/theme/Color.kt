@@ -3,68 +3,87 @@ package com.example.shiftly.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // =============================================================================
-// Shiftly 2.0 — Calm, Glassy, Sky-to-Azure Design Tokens
+// Shiftly Dark Mode Design Tokens
 // =============================================================================
 
-// Blue Gradient Background & Ambient Orbs
-val SkyBlueTop = Color(0xFF2173D6)         // Top gradient (4.68:1 with #FFFFFF)
-val AzureMid = Color(0xFF185EC2)           // Mid gradient (6.1:1 with #FFFFFF)
-val DeepAzureBottom = Color(0xFF0C3D91)    // Bottom gradient (9.8:1 with #FFFFFF)
-val OrbSkyLight = Color(0xFF68BEFF)        // Translucent ambient orb highlight
-val OrbAquaSoft = Color(0xFF7BE8D6)        // Subtle aqua ambient orb accent
+// Core Dark Surfaces & Borders
+val DarkBackground = Color(0xFF121212)       // Main screen background
+val DarkSurface = Color(0xFF1E1E1E)          // Secondary background, sheets, glass cards
+val DarkCard = Color(0xFF252525)             // Elevated cards, tiles, chips
+val DarkCardElevated = Color(0xFF2C2C2C)     // Nested elevated rows / hover-like containers
+val DarkBorder = Color(0xFF333333)           // Subtle dark gray borders and dividers
+val DarkDisabledContainer = Color(0xFF2C2F36)
+val DarkDisabledContent = Color(0xFF8A909A)
 
-// Core Neutrals
-val PureWhite = Color(0xFFFFFFFF)          // Welcome bg, bottom sheet, selected weekday
-val SoftCloudWhite = Color(0xFFF6FAFF)     // Elevated subtle surface
-val SurfaceTintLight = Color(0xFFEAF2FC)   // Soft blue-tinted card/chip surface
-val InkBlack = Color(0xFF0B0D12)           // Primary pill buttons & floating nav bar
-val InkPrimary = Color(0xFF0E1525)         // Primary text on white
-val InkSecondary = Color(0xFF4B5E78)       // Secondary text on white (>= 6.4:1)
-val InkMuted = Color(0xFF64748B)           // Muted captions on white (>= 4.7:1)
-val HairlineLight = Color(0xFFE2EBF5)      // 1dp subtle card border
+// Dark Mode Text Hierarchy
+val TextLightPrimary = Color(0xFFF5F5F5)     // Soft white primary text
+val TextLightSecondary = Color(0xFFA0A0A0)   // Muted gray secondary text
+val TextLightMuted = Color(0xFF8A8A8A)       // Subtle captions & placeholders
 
-// Frosted Glass Surfaces (Hero Card & Floating Elements on Blue)
-val GlassBacking = Color(0x38082D6E)       // Ensures WCAG AA >= 5.2:1 for white text
-val GlassFillTop = Color(0x40FFFFFF)       // Frosted top highlight
-val GlassFillBottom = Color(0x1CFFFFFF)    // Frosted bottom fade
-val GlassBorderTop = Color(0x88FFFFFF)     // Specular top rim
-val GlassBorderBottom = Color(0x28FFFFFF)  // Subtle bottom rim
+// Brand Azure Accents (Preserved & Adapted for Dark Mode)
+val SkyBlueTop = Color(0xFF2173D6)           // Brand azure accent
+val AzurePrimaryButton = Color(0xFF2173D6)   // Primary pill CTA button fill
+val AzureMid = Color(0xFF185EC2)
+val DeepAzureBottom = Color(0xFF0C3D91)
+val AzureAccent = Color(0xFF4C9AFF)          // High-contrast azure text/icons/borders on dark
+val AzureDarkContainer = Color(0xFF1A2B42)   // Dark tinted azure container
+val OrbSkyLight = Color(0xFF68BEFF)
+val OrbAquaSoft = Color(0xFF7BE8D6)
+
+// Core Neutrals (Kept for explicit semantic/foreground or contrast usage)
+val PureWhite = Color(0xFFFFFFFF)
+val SoftCloudWhite = DarkCard
+val SurfaceTintLight = DarkCard
+val InkBlack = Color(0xFF0B0D12)
+val InkPrimary = TextLightPrimary
+val InkSecondary = TextLightSecondary
+val InkMuted = TextLightMuted
+val HairlineLight = DarkBorder
+
+// Dark Frosted Glass & Bottom Bar Surfaces
+val GlassBacking = DarkSurface
+val GlassFillTop = Color(0x14FFFFFF)
+val GlassFillBottom = Color(0x05FFFFFF)
+val GlassBorderTop = Color(0x28FFFFFF)
+val GlassBorderBottom = Color(0x14FFFFFF)
+val GlassNavTop = Color(0xE024272E)
+val GlassNavBottom = Color(0xEB17191E)
 
 // Mint / Aqua Green — Charts, Progress, Income, Success ONLY
-val MintBright = Color(0xFF34E5B8)         // Bars, dots, selected nav indicator, progress safe
-val MintTextOnBlue = Color(0xFF7CF7D8)     // High-contrast mint on blue/glass (>= 7.2:1)
-val MintInkOnWhite = Color(0xFF098768)     // WCAG AA mint text/icon on white (4.65:1)
-val MintSoftContainer = Color(0xFFE3FBF3)  // Soft mint pill/icon well on white
+val MintBright = Color(0xFF34E5B8)           // Bars, dots, selected nav indicator, progress safe
+val MintTextOnBlue = Color(0xFF7CF7D8)       // High-contrast mint on dark
+val MintInkOnWhite = Color(0xFF34E5B8)       // High-contrast mint on dark cards
+val MintSoftContainer = Color(0xFF132B24)    // Dark tinted mint pill/icon well
 
 // Soft Coral / Red — Expenses & Near-Limit Budget ONLY
-val CoralBright = Color(0xFFFF6B6B)        // Dots, warning progress bar (>= 80% budget)
-val CoralTextOnBlue = Color(0xFFFFA69E)    // High-contrast coral on blue/glass (>= 4.9:1)
-val CoralInkOnWhite = Color(0xFFC93B3B)    // WCAG AA coral text/icon on white (4.95:1)
-val CoralSoftContainer = Color(0xFFFFECEB) // Soft coral pill/icon well on white
+val CoralBright = Color(0xFFFF6B6B)          // Bars, dots, warning progress (>= 80% budget)
+val CoralTextOnBlue = Color(0xFFFF9E96)      // High-contrast coral on dark
+val CoralInkOnWhite = Color(0xFFFF7A7A)      // High-contrast coral on dark cards
+val CoralSoftContainer = Color(0xFF331B1D)   // Dark tinted coral pill/icon well
 
-// Azure Accent for Neutral / Split Bill Chips on White
-val AzureInkOnWhite = Color(0xFF1557B8)
-val AzureSoftContainer = Color(0xFFE8F1FE)
+// Azure Accent for Neutral / Split Bill Chips
+val AzureInkOnWhite = AzureAccent
+val AzureSoftContainer = AzureDarkContainer
 
 // =============================================================================
-// Backwards-Compatible Token Aliases (for existing Duties/Expense/Split/Profile)
+// Token Aliases (Mapped to Dark Mode Hierarchy)
 // =============================================================================
-val ObsidianBackground = Color.Transparent
-val SlateSurface = PureWhite
-val SlateSurfaceElevated = SoftCloudWhite
-val SlateSurfaceVariant = SurfaceTintLight
+val ObsidianBackground = DarkBackground
+val SlateSurface = DarkCard
+val SlateSurfaceElevated = DarkCard
+val SlateSurfaceVariant = DarkSurface
 
-val ElectricBlue = AzureInkOnWhite
-val SoftBlue = AzureInkOnWhite
-val DeepBlueContainer = AzureSoftContainer
+val ElectricBlue = AzureAccent
+val SoftBlue = AzureAccent
+val DeepBlueContainer = AzureDarkContainer
 
-val TextPrimary = InkPrimary
-val TextSecondary = InkSecondary
-val BorderSubtle = HairlineLight
+val TextPrimary = TextLightPrimary
+val TextSecondary = TextLightSecondary
+val BorderSubtle = DarkBorder
 
-val EmeraldSuccess = MintInkOnWhite
+val EmeraldSuccess = MintBright
 val EmeraldContainer = MintSoftContainer
 val RoseAlert = CoralInkOnWhite
 val RoseContainer = CoralSoftContainer
-val AmberWarning = Color(0xFFB45309)
-val AmberContainer = Color(0xFFFEF3C7)
+val AmberWarning = Color(0xFFFBBF24)
+val AmberContainer = Color(0xFF332813)

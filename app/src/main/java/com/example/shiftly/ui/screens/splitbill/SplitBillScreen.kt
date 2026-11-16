@@ -41,8 +41,8 @@ import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.theme.HairlineLight
-import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
 import kotlinx.coroutines.launch
@@ -183,12 +183,12 @@ fun SplitBillScreenContent(
             }
         }
 
-        // 3. White Bottom Sheet Surface for Split Bills List / Empty State
+        // 3. Dark Bottom Sheet Surface for Split Bills List / Empty State
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = PureWhite,
+                color = DarkSurface,
                 shadowElevation = 12.dp
             ) {
                 Column(
@@ -206,7 +206,7 @@ fun SplitBillScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(HairlineLight)
+                                .background(DarkBorder)
                         )
                     }
 

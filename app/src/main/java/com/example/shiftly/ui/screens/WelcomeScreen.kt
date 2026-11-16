@@ -1,7 +1,6 @@
 package com.example.shiftly.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,7 +46,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
@@ -60,24 +58,26 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.theme.AzureAccent
 import com.example.shiftly.ui.theme.AzureInkOnWhite
+import com.example.shiftly.ui.theme.AzurePrimaryButton
 import com.example.shiftly.ui.theme.AzureSoftContainer
 import com.example.shiftly.ui.theme.CoralInkOnWhite
 import com.example.shiftly.ui.theme.CoralSoftContainer
-import com.example.shiftly.ui.theme.HairlineLight
+import com.example.shiftly.ui.theme.DarkBackground
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCard
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.InkPrimary
-import com.example.shiftly.ui.theme.InkSecondary
+import com.example.shiftly.ui.theme.MintBright
 import com.example.shiftly.ui.theme.MintInkOnWhite
 import com.example.shiftly.ui.theme.MintSoftContainer
-import com.example.shiftly.ui.theme.OrbAquaSoft
-import com.example.shiftly.ui.theme.OrbSkyLight
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.SkyBlueTop
-import com.example.shiftly.ui.theme.SoftCloudWhite
+import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,21 +91,8 @@ fun WelcomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(PureWhite)
+            .background(DarkBackground)
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                color = OrbSkyLight.copy(alpha = 0.14f),
-                radius = size.width * 0.45f,
-                center = Offset(x = size.width * 0.90f, y = size.height * 0.08f)
-            )
-            drawCircle(
-                color = OrbAquaSoft.copy(alpha = 0.14f),
-                radius = size.width * 0.34f,
-                center = Offset(x = size.width * 0.08f, y = size.height * 0.42f)
-            )
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -123,7 +110,7 @@ fun WelcomeScreen(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(SkyBlueTop),
+                        .background(AzurePrimaryButton),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -141,7 +128,7 @@ fun WelcomeScreen(
                         fontFamily = ShiftlySerif,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = InkPrimary
+                    color = TextLightPrimary
                 )
             }
 
@@ -154,7 +141,7 @@ fun WelcomeScreen(
                                 fontFamily = ShiftlySerif,
                                 fontStyle = FontStyle.Italic,
                                 fontWeight = FontWeight.Medium,
-                                color = SkyBlueTop
+                                color = AzureAccent
                             )
                         ) {
                             append("earned")
@@ -167,13 +154,13 @@ fun WelcomeScreen(
                         fontSize = 36.sp,
                         lineHeight = 43.sp
                     ),
-                    color = InkPrimary
+                    color = TextLightPrimary
                 )
 
                 Text(
                     text = "Log duty shifts in seconds, watch your pay add up automatically, and keep campus expenses and split bills effortless.",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = InkSecondary
+                    color = TextLightSecondary
                 )
 
                 FlowRow(
@@ -202,8 +189,8 @@ fun WelcomeScreen(
 
                 Surface(
                     shape = RoundedCornerShape(24.dp),
-                    color = SoftCloudWhite,
-                    border = BorderStroke(1.dp, HairlineLight),
+                    color = DarkSurface,
+                    border = BorderStroke(1.dp, DarkBorder),
                     shadowElevation = 6.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -218,13 +205,13 @@ fun WelcomeScreen(
                             Text(
                                 text = "Typical student shift",
                                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                                color = InkSecondary
+                                color = TextLightSecondary
                             )
                             Spacer(modifier = Modifier.height(3.dp))
                             Text(
                                 text = "4.0 hrs × ₱96.38/hr",
                                 style = MaterialTheme.typography.bodyMedium.tabular(),
-                                color = InkPrimary
+                                color = TextLightPrimary
                             )
                         }
                         Surface(
@@ -267,7 +254,7 @@ fun WelcomeScreen(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.Medium
                         ),
-                        color = InkSecondary
+                        color = TextLightSecondary
                     )
                 }
             }
@@ -283,7 +270,7 @@ fun WelcomeScreen(
         ModalBottomSheet(
             onDismissRequest = { showSetupSheet = false },
             sheetState = sheetState,
-            containerColor = PureWhite,
+            containerColor = DarkSurface,
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
         ) {
             Column(
@@ -297,12 +284,12 @@ fun WelcomeScreen(
                 Text(
                     text = "Set up your tracker",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = InkPrimary
+                    color = TextLightPrimary
                 )
                 Text(
                     text = "You can adjust your name, hourly rate, and monthly budget anytime in Profile.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = InkSecondary
+                    color = TextLightSecondary
                 )
 
                 OutlinedTextField(
@@ -312,8 +299,12 @@ fun WelcomeScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AzureInkOnWhite,
-                        unfocusedBorderColor = HairlineLight
+                        focusedBorderColor = AzureAccent,
+                        unfocusedBorderColor = DarkBorder,
+                        focusedLabelColor = AzureAccent,
+                        unfocusedLabelColor = TextLightSecondary,
+                        focusedTextColor = TextLightPrimary,
+                        unfocusedTextColor = TextLightPrimary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -327,16 +318,20 @@ fun WelcomeScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     shape = RoundedCornerShape(16.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AzureInkOnWhite,
-                        unfocusedBorderColor = HairlineLight
+                        focusedBorderColor = AzureAccent,
+                        unfocusedBorderColor = DarkBorder,
+                        focusedLabelColor = AzureAccent,
+                        unfocusedLabelColor = TextLightSecondary,
+                        focusedTextColor = TextLightPrimary,
+                        unfocusedTextColor = TextLightPrimary
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
                 Surface(
                     shape = RoundedCornerShape(18.dp),
-                    color = SoftCloudWhite,
-                    border = BorderStroke(1.dp, HairlineLight),
+                    color = DarkCard,
+                    border = BorderStroke(1.dp, DarkBorder),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(18.dp))
@@ -353,12 +348,12 @@ fun WelcomeScreen(
                             Text(
                                 text = "Include sample week",
                                 style = MaterialTheme.typography.titleSmall,
-                                color = InkPrimary
+                                color = TextLightPrimary
                             )
                             Text(
                                 text = "Preloads shifts, snacks, fare & split bills",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = InkSecondary
+                                color = TextLightSecondary
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
@@ -366,8 +361,11 @@ fun WelcomeScreen(
                             checked = seedSample,
                             onCheckedChange = { seedSample = it },
                             colors = SwitchDefaults.colors(
-                                checkedThumbColor = PureWhite,
-                                checkedTrackColor = MintInkOnWhite
+                                checkedThumbColor = InkBlack,
+                                checkedTrackColor = MintBright,
+                                uncheckedThumbColor = TextLightSecondary,
+                                uncheckedTrackColor = DarkSurface,
+                                uncheckedBorderColor = DarkBorder
                             )
                         )
                     }
@@ -396,15 +394,15 @@ private fun WelcomeFeaturePill(
 ) {
     Surface(
         shape = RoundedCornerShape(50),
-        color = PureWhite,
-        border = BorderStroke(1.dp, HairlineLight),
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
         modifier = Modifier
             .heightIn(min = 48.dp)
             .shadow(
-                elevation = 6.dp,
+                elevation = 4.dp,
                 shape = RoundedCornerShape(50),
-                ambientColor = SkyBlueTop.copy(alpha = 0.12f),
-                spotColor = InkBlack.copy(alpha = 0.08f)
+                ambientColor = InkBlack.copy(alpha = 0.45f),
+                spotColor = InkBlack.copy(alpha = 0.50f)
             )
     ) {
         Row(
@@ -432,7 +430,7 @@ private fun WelcomeFeaturePill(
                     fontFamily = ShiftlySerif,
                     fontWeight = FontWeight.Medium
                 ),
-                color = InkPrimary
+                color = TextLightPrimary
             )
         }
     }

@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -39,8 +40,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -61,14 +64,18 @@ import com.example.shiftly.ui.screens.duties.DutiesScreen
 import com.example.shiftly.ui.screens.expense.ExpenseScreen
 import com.example.shiftly.ui.screens.profile.ProfileScreen
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
-import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.DeepAzureBottom
-import com.example.shiftly.ui.theme.HairlineLight
+import com.example.shiftly.ui.theme.AzureAccent
+import com.example.shiftly.ui.theme.DarkBackground
+import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCard
+import com.example.shiftly.ui.theme.GlassNavBottom
+import com.example.shiftly.ui.theme.GlassNavTop
 import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.InkPrimary
 import com.example.shiftly.ui.theme.MintBright
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyTheme
+import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.ui.theme.TextLightSecondary
 import kotlinx.coroutines.launch
 
 @Composable
@@ -83,7 +90,7 @@ fun MainAppScreen(
 
     LaunchedEffect(hasCompletedOnboarding) {
         if (hasCompletedOnboarding != null) {
-            onLightBackgroundChanged(hasCompletedOnboarding == false)
+            onLightBackgroundChanged(false)
         }
     }
 
@@ -97,7 +104,7 @@ fun MainAppScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(PureWhite)
+                        .background(DarkBackground)
                 )
             }
 
@@ -171,15 +178,15 @@ private fun MainDashboardShell(
                     Surface(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         shape = RoundedCornerShape(50),
-                        color = PureWhite,
-                        border = BorderStroke(1.dp, HairlineLight),
+                        color = DarkCard,
+                        border = BorderStroke(1.dp, DarkBorder),
                         shadowElevation = 8.dp
                     ) {
                         Snackbar(
                             snackbarData = data,
-                            containerColor = PureWhite,
-                            contentColor = InkPrimary,
-                            actionColor = AzureInkOnWhite
+                            containerColor = DarkCard,
+                            contentColor = TextLightPrimary,
+                            actionColor = AzureAccent
                         )
                     }
                 }
@@ -248,7 +255,7 @@ private fun MainDashboardShell(
 }
 
 /**
- * Floating black pill bottom navigation bar with 5 icons and a crisp mint indicator.
+ * Floating dark-charcoal glassmorphism pill bottom navigation bar with 5 icons and a crisp mint indicator.
  */
 @Composable
 fun FloatingPillBottomBar(
@@ -257,6 +264,7 @@ fun FloatingPillBottomBar(
     onSelect: (Screen) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val pillShape = RoundedCornerShape(50)
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -264,20 +272,52 @@ fun FloatingPillBottomBar(
             .padding(horizontal = 20.dp, vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
-        Surface(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
                 .shadow(
-                    elevation = 18.dp,
-                    shape = RoundedCornerShape(50),
-                    ambientColor = DeepAzureBottom.copy(alpha = 0.45f),
-                    spotColor = InkBlack.copy(alpha = 0.45f)
-                ),
-            shape = RoundedCornerShape(50),
-            color = InkBlack,
-            border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.12f))
+                    elevation = 14.dp,
+                    shape = pillShape,
+                    ambientColor = InkBlack.copy(alpha = 0.55f),
+                    spotColor = InkBlack.copy(alpha = 0.65f)
+                )
+                .clip(pillShape)
         ) {
+            // Frosted dark charcoal glass backdrop layer (blurred softly without affecting icons)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(GlassNavTop, GlassNavBottom)
+                        )
+                    )
+                    .blur(12.dp)
+            )
+            // Specular highlight sheen + thin low-opacity light border
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                PureWhite.copy(alpha = 0.08f),
+                                Color.Transparent
+                            )
+                        )
+                    )
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                PureWhite.copy(alpha = 0.17f),
+                                PureWhite.copy(alpha = 0.07f)
+                            )
+                        ),
+                        shape = pillShape
+                    )
+            )
             Row(
                 modifier = Modifier
                     .fillMaxSize()
@@ -288,11 +328,15 @@ fun FloatingPillBottomBar(
                 items.forEach { screen ->
                     val selected = isSelected(screen)
                     val indicatorBg by animateColorAsState(
-                        targetValue = if (selected) MintBright else Color.Transparent,
+                        targetValue = if (selected) MintBright.copy(alpha = 0.18f) else Color.Transparent,
                         label = "navIndicatorBg"
                     )
+                    val indicatorBorder by animateColorAsState(
+                        targetValue = if (selected) MintBright.copy(alpha = 0.45f) else Color.Transparent,
+                        label = "navIndicatorBorder"
+                    )
                     val iconTint by animateColorAsState(
-                        targetValue = if (selected) InkBlack else PureWhite.copy(alpha = 0.68f),
+                        targetValue = if (selected) MintBright else TextLightSecondary,
                         label = "navIconTint"
                     )
 
@@ -312,7 +356,8 @@ fun FloatingPillBottomBar(
                             modifier = Modifier
                                 .size(width = 52.dp, height = 44.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(indicatorBg),
+                                .background(indicatorBg)
+                                .border(1.dp, indicatorBorder, RoundedCornerShape(50)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -335,7 +380,7 @@ private fun FloatingPillBottomBarPreview() {
     ShiftlyTheme {
         Box(
             modifier = Modifier
-                .background(PureWhite)
+                .background(DarkBackground)
                 .padding(vertical = 8.dp)
         ) {
             FloatingPillBottomBar(
