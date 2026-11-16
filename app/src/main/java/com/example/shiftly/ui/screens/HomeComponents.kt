@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,10 +41,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -71,13 +80,25 @@ import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 @Composable
 fun HomeGreetingHeader(
     userName: String,
+    pendingAlertsCount: Int = 0,
+    greetingHour: Int = LocalTime.now().hour,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit
 ) {
+    val greeting = remember(greetingHour) { greetingForHour(greetingHour) }
+    val notificationDescription = if (pendingAlertsCount > 0) {
+        "Notifications, $pendingAlertsCount pending split bill(s)"
+    } else {
+        "Notifications, no pending alerts"
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -85,33 +106,48 @@ fun HomeGreetingHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Good day,",
+                text = greeting,
                 style = MaterialTheme.typography.labelLarge.copy(fontFamily = ShiftlySerif),
                 color = TextLightSecondary
             )
             Text(
                 text = "Hello, $userName",
                 style = MaterialTheme.typography.headlineLarge,
-                color = TextLightPrimary
+                color = TextLightPrimary,
+                modifier = Modifier.semantics { heading() }
             )
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            IconButton(
-                onClick = onNotificationClick,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(DarkCard)
-                    .border(1.dp, DarkBorder, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Notifications,
-                    contentDescription = "Notifications",
-                    tint = TextLightPrimary
-                )
+            Box(contentAlignment = Alignment.Center) {
+                IconButton(
+                    onClick = onNotificationClick,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(DarkCard)
+                        .border(1.dp, DarkBorder, CircleShape)
+                        .semantics { contentDescription = notificationDescription }
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Notifications,
+                        contentDescription = null,
+                        tint = TextLightPrimary
+                    )
+                }
+                if (pendingAlertsCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 6.dp, end = 6.dp)
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(CoralBright)
+                            .border(1.5.dp, DarkCard, CircleShape)
+                    )
+                }
             }
             IconButton(
                 onClick = onProfileClick,
@@ -123,7 +159,7 @@ fun HomeGreetingHeader(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Person,
-                    contentDescription = "Profile",
+                    contentDescription = "Open Profile and Settings",
                     tint = AzureAccent
                 )
             }
@@ -134,11 +170,12 @@ fun HomeGreetingHeader(
 @Composable
 fun HomeHeroPager(state: HomeUiState) {
     val pagerState = rememberPagerState(pageCount = { 3 })
+    val scope = rememberCoroutineScope()
     val currency = state.currencySymbol
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         HorizontalPager(
             state = pagerState,
@@ -227,6 +264,7 @@ fun HomeHeroPager(state: HomeUiState) {
                         0f
                     }
                     val nearLimit = ratio >= 0.80f
+                    val pctUsed = (ratio * 100).toInt()
                     ShiftlyGlassCard(contentPadding = PaddingValues(20.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -239,7 +277,7 @@ fun HomeHeroPager(state: HomeUiState) {
                                 color = TextLightSecondary
                             )
                             Text(
-                                text = "${(ratio * 100).toInt()}% used",
+                                text = "$pctUsed% used",
                                 style = MaterialTheme.typography.labelMedium.tabular(),
                                 color = if (nearLimit) CoralTextOnBlue else MintTextOnBlue
                             )
@@ -259,6 +297,9 @@ fun HomeHeroPager(state: HomeUiState) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)
+                                .semantics {
+                                    contentDescription = "Month-to-date budget $pctUsed percent used"
+                                }
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
@@ -271,8 +312,11 @@ fun HomeHeroPager(state: HomeUiState) {
             }
         }
 
+        val pageLabels = listOf("Total Balance", "Safe to Spend", "Month-to-Date Budget")
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .selectableGroup(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -280,11 +324,27 @@ fun HomeHeroPager(state: HomeUiState) {
                 val active = pagerState.currentPage == index
                 Box(
                     modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .size(width = if (active) 20.dp else 7.dp, height = 7.dp)
-                        .clip(CircleShape)
-                        .background(if (active) AzureAccent else DarkBorder)
-                )
+                        .clip(RoundedCornerShape(50))
+                        .clickable(
+                            role = Role.Tab,
+                            onClick = {
+                                scope.launch { pagerState.animateScrollToPage(index) }
+                            }
+                        )
+                        .semantics {
+                            selected = active
+                            contentDescription = "${pageLabels[index]}, card ${index + 1} of 3"
+                        }
+                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(width = if (active) 20.dp else 7.dp, height = 7.dp)
+                            .clip(CircleShape)
+                            .background(if (active) AzureAccent else DarkBorder)
+                    )
+                }
             }
         }
     }
@@ -369,14 +429,30 @@ fun CircularWeekdaySelector(
     selectedDate: LocalDate,
     onSelectDate: (LocalDate) -> Unit
 ) {
+    val locale = LocalConfiguration.current.locales[0]
+    val fullDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE, MMM d", locale) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 20.dp)
+            .selectableGroup(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         slots.forEach { slot ->
             val selected = slot.date == selectedDate
+            val statusSuffix = buildList {
+                if (slot.hasShift) add("has shift")
+                if (slot.hasExpense) add("has expense")
+            }.joinToString(", ")
+            val slotDescription = buildString {
+                append(slot.date.format(fullDateFormatter))
+                if (statusSuffix.isNotEmpty()) {
+                    append(", ")
+                    append(statusSuffix)
+                }
+            }
+
             Column(
                 modifier = Modifier
                     .width(48.dp)
@@ -388,7 +464,11 @@ fun CircularWeekdaySelector(
                         color = if (selected) AzureAccent else DarkBorder,
                         shape = RoundedCornerShape(24.dp)
                     )
-                    .clickable { onSelectDate(slot.date) }
+                    .clickable(role = Role.Tab) { onSelectDate(slot.date) }
+                    .semantics(mergeDescendants = true) {
+                        this.selected = selected
+                        contentDescription = slotDescription
+                    }
                     .padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
@@ -472,12 +552,20 @@ fun NextShiftQuickCard(
                     contentColor = PureWhite
                 ),
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-                modifier = Modifier.heightIn(min = 48.dp)
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .semantics {
+                        contentDescription = if (isTimerRunning) {
+                            "Open live shift timer in Duties"
+                        } else {
+                            "Time in for quick shift"
+                        }
+                    }
             ) {
                 Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (isTimerRunning) "Running" else "Time In",
+                    text = if (isTimerRunning) "Open Timer" else "Time In",
                     style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
                     color = PureWhite
                 )
@@ -511,7 +599,7 @@ fun WeeklyEarningsSnapshotCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Weekly Earnings",
                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
@@ -558,7 +646,10 @@ fun WeeklyEarningsSnapshotCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp),
+                    .height(64.dp)
+                    .semantics {
+                        contentDescription = "Weekly earnings chart: $currencySymbol${"%,.2f".format(weeklyEarnings)} across ${"%.1f".format(weeklyHours)} hours"
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom
             ) {
@@ -651,7 +742,8 @@ fun PendingSplitsBanner(
 @Composable
 fun HomeTimelineRow(
     item: TimelineActivityItem,
-    currencySymbol: String
+    currencySymbol: String,
+    onClick: () -> Unit = {}
 ) {
     val isIncome = item is TimelineActivityItem.ShiftActivity || item is TimelineActivityItem.ExtraIncomeActivity
     val iconVector = when (item) {
@@ -662,7 +754,11 @@ fun HomeTimelineRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .heightIn(min = 56.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {}
+            .padding(horizontal = 4.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {

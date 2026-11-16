@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,8 +19,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,6 +65,7 @@ import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.AzureAccent
 import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCard
 import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.InkBlack
 import com.example.shiftly.ui.theme.ShiftlySerif
@@ -173,6 +177,8 @@ fun DutiesScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -212,7 +218,10 @@ fun DutiesScreen(
                         focusedLabelColor = AzureAccent,
                         unfocusedLabelColor = TextLightSecondary,
                         focusedTextColor = TextLightPrimary,
-                        unfocusedTextColor = TextLightPrimary
+                        unfocusedTextColor = TextLightPrimary,
+                        cursorColor = AzureAccent,
+                        focusedContainerColor = DarkCard,
+                        unfocusedContainerColor = DarkCard
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -280,6 +289,17 @@ fun DutiesScreen(
                 runCatching { DayType.valueOf(targetShift.dayType) }.getOrNull() ?: DayType.ORDINARY
             )
         }
+        val editFieldColors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = AzureAccent,
+            unfocusedBorderColor = DarkBorder,
+            focusedLabelColor = AzureAccent,
+            unfocusedLabelColor = TextLightSecondary,
+            focusedTextColor = TextLightPrimary,
+            unfocusedTextColor = TextLightPrimary,
+            cursorColor = AzureAccent,
+            focusedContainerColor = DarkCard,
+            unfocusedContainerColor = DarkCard
+        )
 
         ModalBottomSheet(
             onDismissRequest = { editingShift = null },
@@ -291,6 +311,8 @@ fun DutiesScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -329,6 +351,7 @@ fun DutiesScreen(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         shape = RoundedCornerShape(14.dp),
+                        colors = editFieldColors,
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
@@ -338,6 +361,7 @@ fun DutiesScreen(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         shape = RoundedCornerShape(14.dp),
+                        colors = editFieldColors,
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
@@ -347,6 +371,7 @@ fun DutiesScreen(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         shape = RoundedCornerShape(14.dp),
+                        colors = editFieldColors,
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
@@ -356,6 +381,7 @@ fun DutiesScreen(
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         shape = RoundedCornerShape(14.dp),
+                        colors = editFieldColors,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -366,6 +392,7 @@ fun DutiesScreen(
                     label = { Text("Note", fontFamily = ShiftlySerif) },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
+                    colors = editFieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 

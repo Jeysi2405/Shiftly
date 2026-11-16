@@ -14,19 +14,23 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
@@ -76,6 +80,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -89,6 +97,7 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.theme.AzureAccent
 import com.example.shiftly.ui.theme.AzureInkOnWhite
 import com.example.shiftly.ui.theme.AzurePrimaryButton
@@ -329,22 +338,27 @@ fun ExpenseCategoryFilterRow(
                 )
             }
             .horizontalScroll(rememberScrollState())
+            .selectableGroup()
             .padding(start = 20.dp, end = 36.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         categories.forEach { category ->
-            val selected = selectedCategory == category
+            val isSelected = selectedCategory == category
             Box(
                 modifier = Modifier
                     .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(50))
-                    .background(if (selected) AzurePrimaryButton else DarkSurface)
+                    .background(if (isSelected) AzurePrimaryButton else DarkSurface)
                     .border(
                         width = 1.dp,
-                        color = if (selected) AzureAccent else DarkBorder,
+                        color = if (isSelected) AzureAccent else DarkBorder,
                         shape = RoundedCornerShape(50)
                     )
-                    .clickable { onSelectCategory(category) }
+                    .clickable(role = Role.Tab) { onSelectCategory(category) }
+                    .semantics(mergeDescendants = true) {
+                        selected = isSelected
+                        contentDescription = "$category expenses filter"
+                    }
                     .padding(horizontal = 18.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -352,9 +366,9 @@ fun ExpenseCategoryFilterRow(
                     text = category,
                     style = MaterialTheme.typography.labelMedium.copy(
                         fontFamily = ShiftlySerif,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                     ),
-                    color = if (selected) PureWhite else TextLightSecondary
+                    color = if (isSelected) PureWhite else TextLightSecondary
                 )
             }
         }
@@ -485,31 +499,40 @@ fun ExpenseItemCard(
                 )
 
                 if (hasReceipt) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = AzureSoftContainer,
+                    Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .clickable { onViewReceipt(expense) }
+                            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable(onClickLabel = "View receipt for ${expense.title}") {
+                                onViewReceipt(expense)
+                            }
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = "View receipt for ${expense.title}"
+                            },
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = AzureSoftContainer
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.AttachFile,
-                                contentDescription = null,
-                                tint = AzureInkOnWhite,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Receipt",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = AzureInkOnWhite
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.AttachFile,
+                                    contentDescription = null,
+                                    tint = AzureInkOnWhite,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Receipt",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = AzureInkOnWhite
+                                )
+                            }
                         }
                     }
                 }
@@ -533,7 +556,7 @@ fun ExpenseItemCard(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete Expense",
+                        contentDescription = "Delete Expense ${expense.title}",
                         tint = CoralInkOnWhite.copy(alpha = 0.85f),
                         modifier = Modifier.size(20.dp)
                     )
@@ -580,7 +603,6 @@ fun AddExpenseBottomSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseSheetContent(
     currencySymbol: String,
@@ -595,6 +617,7 @@ fun AddExpenseSheetContent(
     initialDate: LocalDate = LocalDate.now()
 ) {
     val context = LocalContext.current
+    val suppressNextRelock = LocalSuppressNextRelock.current
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE, MMM d", locale) }
     val categoryOptions = remember(availableCategories) {
@@ -637,12 +660,14 @@ fun AddExpenseSheetContent(
     }
 
     val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
-    val isValid = title.isNotBlank() && parsedAmount > 0.0
+    val isValid = title.isNotBlank() && parsedAmount.isFinite() && parsedAmount > 0.0
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp)
             .padding(bottom = 26.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -668,7 +693,12 @@ fun AddExpenseSheetContent(
         // Large Amount Input
         OutlinedTextField(
             value = amountText,
-            onValueChange = { amountText = it },
+            onValueChange = { input ->
+                val filtered = input.filter { it.isDigit() || it == '.' }
+                if (filtered.count { it == '.' } <= 1) {
+                    amountText = filtered
+                }
+            },
             label = { Text("Amount", fontFamily = ShiftlySerif) },
             placeholder = {
                 Text(
@@ -733,22 +763,27 @@ fun AddExpenseSheetContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                    .horizontalScroll(rememberScrollState())
+                    .selectableGroup(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 categoryOptions.forEach { category ->
-                    val selected = selectedCategory == category
+                    val isSelected = selectedCategory == category
                     Box(
                         modifier = Modifier
                             .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(50))
-                            .background(if (selected) CoralSoftContainer else DarkCard)
+                            .background(if (isSelected) CoralSoftContainer else DarkCard)
                             .border(
                                 width = 1.dp,
-                                color = if (selected) CoralInkOnWhite else DarkBorder,
+                                color = if (isSelected) CoralInkOnWhite else DarkBorder,
                                 shape = RoundedCornerShape(50)
                             )
-                            .clickable { selectedCategory = category }
+                            .clickable(role = Role.Tab) { selectedCategory = category }
+                            .semantics(mergeDescendants = true) {
+                                selected = isSelected
+                                contentDescription = "$category category"
+                            }
                             .padding(horizontal = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -756,9 +791,9 @@ fun AddExpenseSheetContent(
                             text = category,
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontFamily = ShiftlySerif,
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                             ),
-                            color = if (selected) CoralInkOnWhite else TextLightSecondary
+                            color = if (isSelected) CoralInkOnWhite else TextLightSecondary
                         )
                     }
                 }
@@ -863,6 +898,7 @@ fun AddExpenseSheetContent(
                 ) {
                     OutlinedButton(
                         onClick = {
+                            suppressNextRelock()
                             galleryLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
@@ -885,9 +921,18 @@ fun AddExpenseSheetContent(
 
                     OutlinedButton(
                         onClick = {
-                            val (file, uri) = ReceiptStorageHelper.createCameraReceiptTarget(context)
-                            pendingCameraFile = file
-                            cameraLauncher.launch(uri)
+                            suppressNextRelock()
+                            val created = runCatching {
+                                ReceiptStorageHelper.createCameraReceiptTarget(context)
+                            }.getOrNull() ?: return@OutlinedButton
+                            pendingCameraFile = created.first
+                            val launched = runCatching {
+                                cameraLauncher.launch(created.second)
+                            }.isSuccess
+                            if (!launched) {
+                                created.first.delete()
+                                pendingCameraFile = null
+                            }
                         },
                         shape = RoundedCornerShape(50),
                         border = BorderStroke(1.dp, DarkBorder),

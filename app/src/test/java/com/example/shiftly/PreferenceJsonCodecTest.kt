@@ -23,6 +23,19 @@ class PreferenceJsonCodecTest {
     }
 
     @Test
+    fun categoryBudgets_emptyJsonArray_returnsEmptyListWhileNullUsesDefaults() {
+        assertTrue(PreferenceJsonCodec.decodeCategoryBudgets("[]").isEmpty())
+        assertEquals(
+            ShiftlySettingsSnapshot.DEFAULT_CATEGORY_BUDGETS,
+            PreferenceJsonCodec.decodeCategoryBudgets(null)
+        )
+        assertEquals(
+            ShiftlySettingsSnapshot.DEFAULT_CATEGORY_BUDGETS,
+            PreferenceJsonCodec.decodeCategoryBudgets("malformed-json")
+        )
+    }
+
+    @Test
     fun managedCategories_withPipesAndSemicolons_roundTripViaJson() {
         val input = listOf(
             ManagedCategorySetting("Books | Print; Lab", true),

@@ -50,6 +50,9 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses ORDER BY dateEpochDay DESC, id DESC")
     suspend fun getAllExpensesOnce(): List<ExpenseEntity>
 
+    @Query("SELECT * FROM expenses WHERE linkedSplitBillId = :billId")
+    suspend fun getExpensesByLinkedSplitBillIdOnce(billId: Long): List<ExpenseEntity>
+
     @Query("SELECT SUM(amount) FROM expenses")
     fun getTotalExpenseAmount(): Flow<Double?>
 

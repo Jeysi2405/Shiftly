@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -55,6 +56,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -90,6 +95,7 @@ import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.SplitBillMath
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 
 @Composable
 fun SplitBillSummaryCard(
@@ -169,6 +175,13 @@ fun SplitBillSummaryCard(
                     .height(8.dp)
                     .clip(RoundedCornerShape(50))
                     .background(DarkBorder)
+                    .semantics {
+                        contentDescription = if (totalParticipantsCount > 0) {
+                            "${(paidFraction * 100f).roundToInt()}% settled, $paidParticipantsCount of $totalParticipantsCount friend shares paid"
+                        } else {
+                            "No active split shares"
+                        }
+                    }
             ) {
                 if (paidFraction > 0f) {
                     Box(
@@ -216,7 +229,7 @@ fun SplitBillCalculatorCard(
 
     val totalAmount = amountInput.toDoubleOrNull() ?: 0.0
     val perPersonShare = SplitBillMath.distributeEqualShares(totalAmount, personCount).firstOrNull() ?: 0.0
-    val isValid = (totalAmount > 0.0) && (personCount >= 2)
+    val isValid = totalAmount.isFinite() && (totalAmount > 0.0) && (personCount >= 2)
     val quickCounts = listOf(2, 3, 4, 5, 6)
 
     val glassFieldColors = OutlinedTextFieldDefaults.colors(
@@ -250,7 +263,12 @@ fun SplitBillCalculatorCard(
             ) {
                 OutlinedTextField(
                     value = amountInput,
-                    onValueChange = { amountInput = it },
+                    onValueChange = { input ->
+                        val filtered = input.filter { it.isDigit() || it == '.' }
+                        if (filtered.count { it == '.' } <= 1) {
+                            amountInput = filtered
+                        }
+                    },
                     label = { Text("Total ($currencySymbol)", fontFamily = ShiftlySerif) },
                     placeholder = {
                         Text("0.00", color = TextLightMuted)
@@ -367,36 +385,46 @@ fun SplitBillCalculatorCard(
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    quickCounts.forEach { count ->
-                        val selected = personCount == count
-                        Box(
-                            modifier = Modifier
-                                .widthIn(min = 48.dp)
-                                .heightIn(min = 48.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(
-                                    if (selected) AzurePrimaryButton else DarkCard
+                    Row(
+                        modifier = Modifier.selectableGroup(),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        quickCounts.forEach { count ->
+                            val isSelected = personCount == count
+                            Box(
+                                modifier = Modifier
+                                    .widthIn(min = 48.dp)
+                                    .heightIn(min = 48.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(
+                                        if (isSelected) AzurePrimaryButton else DarkCard
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (isSelected) AzureAccent else DarkBorder,
+                                        shape = RoundedCornerShape(50)
+                                    )
+                                    .clickable(role = Role.Tab) {
+                                        personCount = count
+                                        ensureNameCapacity(count)
+                                    }
+                                    .semantics(mergeDescendants = true) {
+                                        selected = isSelected
+                                        contentDescription = "$count people"
+                                    }
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${count}p",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontFamily = ShiftlySans,
+                                        fontWeight = FontWeight.Bold
+                                    ).tabular(),
+                                    color = if (isSelected) PureWhite else TextLightPrimary
                                 )
-                                .border(
-                                    width = 1.dp,
-                                    color = if (selected) AzureAccent else DarkBorder,
-                                    shape = RoundedCornerShape(50)
-                                )
-                                .clickable {
-                                    personCount = count
-                                    ensureNameCapacity(count)
-                                }
-                                .padding(horizontal = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "${count}p",
-                                style = MaterialTheme.typography.labelMedium.copy(
-                                    fontFamily = ShiftlySans,
-                                    fontWeight = FontWeight.Bold
-                                ).tabular(),
-                                color = if (selected) PureWhite else TextLightPrimary
-                            )
+                            }
                         }
                     }
 
@@ -706,7 +734,7 @@ fun SplitBillLogItemCard(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete Split Bill",
+                        contentDescription = "Delete Split Bill ${bill.title}",
                         tint = CoralInkOnWhite,
                         modifier = Modifier.size(20.dp)
                     )
@@ -718,6 +746,15 @@ fun SplitBillLogItemCard(
             // Participant Rows with 48dp Min Height Paid / Mark Paid Actions
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 participants.forEach { participant ->
+                    val displayLabel = if (
+                        participant.isCurrentUser &&
+                        !participant.personLabel.equals("You", ignoreCase = true)
+                    ) {
+                        "${participant.personLabel} (You)"
+                    } else {
+                        participant.personLabel
+                    }
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -747,14 +784,6 @@ fun SplitBillLogItemCard(
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
-                                val displayLabel = if (
-                                    participant.isCurrentUser &&
-                                    !participant.personLabel.equals("You", ignoreCase = true)
-                                ) {
-                                    "${participant.personLabel} (You)"
-                                } else {
-                                    participant.personLabel
-                                }
                                 Text(
                                     text = displayLabel,
                                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -804,7 +833,12 @@ fun SplitBillLogItemCard(
                                 modifier = Modifier
                                     .heightIn(min = 48.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .clickable { onToggleParticipantPaid(participant) }
+                                    .clickable(onClickLabel = "Mark $displayLabel as unpaid") {
+                                        onToggleParticipantPaid(participant)
+                                    }
+                                    .semantics(mergeDescendants = true) {
+                                        contentDescription = "$displayLabel, paid. Tap to mark unpaid"
+                                    }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 14.dp),
@@ -833,7 +867,11 @@ fun SplitBillLogItemCard(
                                 shape = RoundedCornerShape(50),
                                 border = BorderStroke(1.dp, AzureInkOnWhite),
                                 contentPadding = PaddingValues(horizontal = 14.dp),
-                                modifier = Modifier.heightIn(min = 48.dp)
+                                modifier = Modifier
+                                    .heightIn(min = 48.dp)
+                                    .semantics(mergeDescendants = true) {
+                                        contentDescription = "Mark $displayLabel as paid"
+                                    }
                             ) {
                                 Text(
                                     text = "Mark Paid",

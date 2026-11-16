@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -51,6 +52,10 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -123,7 +128,7 @@ fun MainAppScreen() {
                     suppressRelockOnce = false
                 }
                 Lifecycle.Event.ON_STOP -> {
-                    if (settings?.appLockEnabled == true && !suppressRelockOnce) {
+                    if ((settings?.appLockEnabled == true) && !suppressRelockOnce) {
                         isSessionUnlocked = false
                     }
                 }
@@ -136,10 +141,10 @@ fun MainAppScreen() {
 
     val loadedSettings = settings
     val isReady = hasCompletedOnboarding != null && loadedSettings != null
-    val shouldShowLockGate = isReady && loadedSettings?.appLockEnabled == true && !isSessionUnlocked
+    val shouldShowLockGate = isReady && loadedSettings.appLockEnabled && !isSessionUnlocked
 
     CompositionLocalProvider(
-        LocalSuppressNextRelock provides { suppressRelockOnce = true }
+        LocalSuppressNextRelock provides { suppressRelockOnce = true },
     ) {
         if (!isReady) {
             Box(
@@ -147,7 +152,7 @@ fun MainAppScreen() {
                     .fillMaxSize()
                     .background(DarkBackground)
             )
-        } else if (shouldShowLockGate && loadedSettings != null) {
+        } else if (shouldShowLockGate) {
             AppLockGateScreen(
                 method = loadedSettings.appLockMethod,
                 pinHash = loadedSettings.appLockPinHash,
@@ -285,6 +290,8 @@ private fun MainDashboardShell(
                 composable(Screen.Home.route) {
                     HomeScreen(
                         repository = repository,
+                        onNavigateToDuties = { navigateToTab(Screen.Duties) },
+                        onNavigateToExpense = { navigateToTab(Screen.Expense) },
                         onNavigateToSplitBill = { navigateToTab(Screen.SplitBill) },
                         onNavigateToProfile = { navigateToTab(Screen.Profile) },
                         onNavigateToAnalytics = {
@@ -300,7 +307,7 @@ private fun MainDashboardShell(
                         repository = repository,
                         onBack = { navController.popBackStack() },
                         onNavigateToSplitBill = { navigateToTab(Screen.SplitBill) },
-                        onShowMessage = showMessage
+                        onNavigateToProfile = { navigateToTab(Screen.Profile) }
                     )
                 }
                 composable(Screen.Duties.route) {
@@ -388,6 +395,7 @@ fun FloatingPillBottomBar(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
+                    .selectableGroup()
                     .padding(horizontal = 8.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
@@ -415,8 +423,13 @@ fun FloatingPillBottomBar(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
+                                role = Role.Tab,
                                 onClick = { onSelect(screen) }
-                            ),
+                            )
+                            .semantics {
+                                this.selected = selected
+                                contentDescription = screen.label
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
@@ -429,7 +442,7 @@ fun FloatingPillBottomBar(
                         ) {
                             Icon(
                                 imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
-                                contentDescription = screen.label,
+                                contentDescription = null,
                                 tint = iconTint,
                                 modifier = Modifier.size(23.dp)
                             )
@@ -441,7 +454,7 @@ fun FloatingPillBottomBar(
     }
 }
 
-@Preview(showBackground = false, widthDp = 393, name = "Floating Pill Bottom Bar")
+@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "Floating Pill Bottom Bar")
 @Composable
 private fun FloatingPillBottomBarPreview() {
     ShiftlyTheme {

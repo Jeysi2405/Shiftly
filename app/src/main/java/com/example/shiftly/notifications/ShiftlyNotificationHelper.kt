@@ -21,39 +21,33 @@ object ShiftlyNotificationHelper {
     private const val NOTIFICATION_ID_SHIFT = 1002
 
     fun ensureChannels(context: Context) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-                ?: return
-            val paydayChannel = NotificationChannel(
-                CHANNEL_PAYDAY,
-                "Payday Reminders",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Cut-off and payday alerts based on your pay cycle."
-            }
-            val shiftChannel = NotificationChannel(
-                CHANNEL_SHIFT,
-                "Shift Check-In Reminders",
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = "Daily reminders to log or clock in for your shift."
-            }
-            manager.createNotificationChannel(paydayChannel)
-            manager.createNotificationChannel(shiftChannel)
+        val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            ?: return
+        val paydayChannel = NotificationChannel(
+            CHANNEL_PAYDAY,
+            "Payday Reminders",
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = "Cut-off and payday alerts based on your pay cycle."
         }
+        val shiftChannel = NotificationChannel(
+            CHANNEL_SHIFT,
+            "Shift Check-In Reminders",
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply {
+            description = "Daily reminders to log or clock in for your shift."
+        }
+        manager.createNotificationChannel(paydayChannel)
+        manager.createNotificationChannel(shiftChannel)
     }
 
     fun canPostNotifications(context: Context): Boolean {
-        val managerEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
-        if (!managerEnabled) return false
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
+        return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
-        } else {
-            true
-        }
     }
 
     private fun launchAppPendingIntent(context: Context): PendingIntent {
@@ -72,31 +66,35 @@ object ShiftlyNotificationHelper {
         if (!canPostNotifications(context)) return false
         ensureChannels(context)
         val notification = NotificationCompat.Builder(context, CHANNEL_PAYDAY)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_shiftly)
             .setContentTitle("Payday Cutoff ($schedule)")
             .setContentText("Review your logged shifts and confirm your payout total in Shiftly.")
             .setAutoCancel(true)
             .setContentIntent(launchAppPendingIntent(context))
             .build()
-        return runCatching {
+        return try {
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_PAYDAY, notification)
             true
-        }.getOrDefault(false)
+        } catch (_: SecurityException) {
+            false
+        }
     }
 
     fun showShiftReminder(context: Context): Boolean {
         if (!canPostNotifications(context)) return false
         ensureChannels(context)
         val notification = NotificationCompat.Builder(context, CHANNEL_SHIFT)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_shiftly)
             .setContentTitle("Did you work a shift today?")
             .setContentText("Tap to clock in or log today's duty hours in Shiftly.")
             .setAutoCancel(true)
             .setContentIntent(launchAppPendingIntent(context))
             .build()
-        return runCatching {
+        return try {
             NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_SHIFT, notification)
             true
-        }.getOrDefault(false)
+        } catch (_: SecurityException) {
+            false
+        }
     }
 }

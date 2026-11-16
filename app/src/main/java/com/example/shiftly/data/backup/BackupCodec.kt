@@ -12,7 +12,8 @@ import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitParticipantEntity
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.io.File
+import java.time.LocalDate
+import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -57,12 +58,12 @@ data class BackupPayload(
 }
 
 /**
- * Pure Kotlin/JVM codec for Shiftly JSON and ZIP backups (including Split Bills,
- * participant payment states, extra incomes, settings, and receipt images).
+ * Pure Kotlin/JVM codec for Shiftly JSON, ZIP, and CSV backups/exports.
  */
 object BackupCodec {
     private const val BACKUP_JSON_ENTRY = "shiftly_backup.json"
     private const val RECEIPTS_DIR_PREFIX = "receipts/"
+    private const val MAX_ZIP_ENTRY_BYTES = 15 * 1024 * 1024 // 15 MB per entry safety cap
 
     fun encodeJson(payload: BackupPayload): String {
         val root = JSONObject().apply {
@@ -71,9 +72,15 @@ object BackupCodec {
             put("exportedAtMillis", payload.exportedAtMillis)
             if (!payload.userName.isNullOrBlank()) put("userName", payload.userName)
             if (!payload.currencySymbol.isNullOrBlank()) put("currencySymbol", payload.currencySymbol)
-            if (payload.defaultHourlyRate != null) put("defaultHourlyRate", payload.defaultHourlyRate)
-            if (payload.monthlyBudget != null) put("monthlyBudget", payload.monthlyBudget)
-            if (payload.savingsBuffer != null) put("savingsBuffer", payload.savingsBuffer)
+            payload.defaultHourlyRate?.takeIf { it.isFinite() && it > 0.0 }?.let {
+                put("defaultHourlyRate", it)
+            }
+            payload.monthlyBudget?.takeIf { it.isFinite() && it >= 0.0 }?.let {
+                put("monthlyBudget", it)
+            }
+            payload.savingsBuffer?.takeIf { it.isFinite() && it >= 0.0 }?.let {
+                put("savingsBuffer", it)
+            }
 
             payload.settings?.let { s ->
                 put(
@@ -130,8 +137,9 @@ object BackupCodec {
                                 if (e.linkedSplitBillId != null) {
                                     put("linkedSplitBillId", e.linkedSplitBillId)
                                 }
-                                val receiptName = record.receiptFileName
-                                    ?: e.receiptImagePath?.let { File(it).name }
+                                val receiptName = sanitizeReceiptFileName(
+                                    record.receiptFileName ?: e.receiptImagePath
+                                )
                                 if (!receiptName.isNullOrBlank()) {
                                     put("receiptFileName", receiptName)
                                 }
@@ -209,23 +217,32 @@ object BackupCodec {
         val exportedAt = root.optLong("exportedAtMillis", System.currentTimeMillis())
         val userName = root.optString("userName", "").trim().takeIf { it.isNotEmpty() }
         val currency = root.optString("currencySymbol", "").trim().takeIf { it.isNotEmpty() }
-        val rate = root.optDouble("defaultHourlyRate", Double.NaN).takeIf { !it.isNaN() && it > 0.0 }
-        val monthlyBudget = root.optDouble("monthlyBudget", Double.NaN).takeIf { !it.isNaN() && it >= 0.0 }
-        val savingsBuffer = root.optDouble("savingsBuffer", Double.NaN).takeIf { !it.isNaN() && it >= 0.0 }
+        val rate = root.optDouble("defaultHourlyRate", Double.NaN)
+            .takeIf { it.isFinite() && it > 0.0 }
+        val monthlyBudget = root.optDouble("monthlyBudget", Double.NaN)
+            .takeIf { it.isFinite() && it >= 0.0 }
+        val savingsBuffer = root.optDouble("savingsBuffer", Double.NaN)
+            .takeIf { it.isFinite() && it >= 0.0 }
 
         val settingsObj = root.optJSONObject("settings")
         val settings = settingsObj?.let { s ->
+            val ndMult = s.optDouble("nightDiffMultiplier", 1.10)
+                .takeIf { it.isFinite() } ?: 1.10
+            val otMult = s.optDouble("overtimeMultiplier", 1.25)
+                .takeIf { it.isFinite() } ?: 1.25
+            val goalTarget = s.optDouble("savingsGoalTarget", 5000.0)
+                .takeIf { it.isFinite() } ?: 5000.0
             ShiftlySettingsSnapshot(
                 payCycleSchedule = s.optString("payCycleSchedule", "15th & 30th"),
                 paydayReminderEnabled = s.optBoolean("paydayReminderEnabled", true),
                 shiftReminderEnabled = s.optBoolean("shiftReminderEnabled", true),
                 notificationsEnabled = s.optBoolean("notificationsEnabled", true),
                 nightDiffStartHour = s.optInt("nightDiffStartHour", 22).coerceIn(18, 23),
-                nightDiffMultiplier = s.optDouble("nightDiffMultiplier", 1.10).coerceIn(1.0, 2.0),
-                overtimeMultiplier = s.optDouble("overtimeMultiplier", 1.25).coerceIn(1.0, 3.0),
+                nightDiffMultiplier = ndMult.coerceIn(1.0, 2.0),
+                overtimeMultiplier = otMult.coerceIn(1.0, 3.0),
                 savingsGoalTitle = s.optString("savingsGoalTitle", "Tuition & Laptop Fund")
                     .ifBlank { "Tuition & Laptop Fund" },
-                savingsGoalTarget = s.optDouble("savingsGoalTarget", 5000.0).coerceAtLeast(100.0),
+                savingsGoalTarget = goalTarget.coerceAtLeast(1.0),
                 categoryBudgets = parseCategoryBudgetArray(s.optJSONArray("categoryBudgets")),
                 managedCategories = parseManagedCategoryArray(s.optJSONArray("managedCategories")),
                 recurringEntries = parseRecurringEntryArray(s.optJSONArray("recurringEntries"))
@@ -236,14 +253,23 @@ object BackupCodec {
         val shifts = buildList {
             for (i in 0 until shiftsArray.length()) {
                 val obj = shiftsArray.optJSONObject(i) ?: continue
+                val durationMinutes = obj.getInt("durationMinutes")
+                val lockedRate = obj.getDouble("lockedHourlyRate")
+                val totalEarned = obj.getDouble("totalEarned")
+                if (durationMinutes < 0 ||
+                    !lockedRate.isFinite() || lockedRate < 0.0 ||
+                    !totalEarned.isFinite() || totalEarned < 0.0
+                ) {
+                    continue
+                }
                 add(
                     ShiftEntity(
                         dateEpochDay = obj.getLong("dateEpochDay"),
                         timeInMillis = obj.getLong("timeInMillis"),
                         timeOutMillis = obj.getLong("timeOutMillis"),
-                        durationMinutes = obj.getInt("durationMinutes"),
-                        lockedHourlyRate = obj.getDouble("lockedHourlyRate"),
-                        totalEarned = obj.getDouble("totalEarned"),
+                        durationMinutes = durationMinutes,
+                        lockedHourlyRate = lockedRate,
+                        totalEarned = totalEarned,
                         overtimeNote = obj.optString("overtimeNote", ""),
                         dayType = obj.optString("dayType", "ORDINARY")
                     )
@@ -255,21 +281,21 @@ object BackupCodec {
         val expenses = buildList {
             for (i in 0 until expensesArray.length()) {
                 val obj = expensesArray.optJSONObject(i) ?: continue
+                val title = obj.getString("title").trim()
+                val amount = obj.getDouble("amount")
+                if (title.isEmpty() || !amount.isFinite() || amount <= 0.0) continue
                 val linkedId = if (obj.has("linkedSplitBillId") && !obj.isNull("linkedSplitBillId")) {
                     obj.getLong("linkedSplitBillId")
                 } else {
                     null
                 }
-                val receiptFileName = obj.optString("receiptFileName", "")
-                    .trim()
-                    .takeIf { it.isNotEmpty() }
-                    ?.let { File(it).name }
+                val receiptFileName = sanitizeReceiptFileName(obj.optString("receiptFileName", ""))
                 add(
                     BackupExpenseRecord(
                         expense = ExpenseEntity(
-                            title = obj.getString("title"),
-                            amount = obj.getDouble("amount"),
-                            category = obj.optString("category", "Other"),
+                            title = title,
+                            amount = amount,
+                            category = obj.optString("category", "Other").ifBlank { "Other" },
                             dateEpochDay = obj.getLong("dateEpochDay"),
                             linkedSplitBillId = linkedId,
                             createdAtMillis = obj.optLong("createdAtMillis", 0L)
@@ -284,10 +310,13 @@ object BackupCodec {
         val extraIncomes = buildList {
             for (i in 0 until extraIncomesArray.length()) {
                 val obj = extraIncomesArray.optJSONObject(i) ?: continue
+                val title = obj.getString("title").trim()
+                val amount = obj.getDouble("amount")
+                if (title.isEmpty() || !amount.isFinite() || amount <= 0.0) continue
                 add(
                     ExtraIncomeEntity(
-                        title = obj.getString("title"),
-                        amount = obj.getDouble("amount"),
+                        title = title,
+                        amount = amount,
                         dateEpochDay = obj.getLong("dateEpochDay"),
                         sourceRuleId = obj.optString("sourceRuleId", "").takeIf { it.isNotBlank() },
                         createdAtMillis = obj.optLong("createdAtMillis", 0L)
@@ -300,12 +329,21 @@ object BackupCodec {
         val splitBills = buildList {
             for (i in 0 until billsArray.length()) {
                 val obj = billsArray.optJSONObject(i) ?: continue
+                val totalAmount = obj.getDouble("totalAmount")
+                val personCount = obj.getInt("personCount")
+                val perPersonAmount = obj.getDouble("perPersonAmount")
+                if (!totalAmount.isFinite() || totalAmount <= 0.0 ||
+                    personCount < 2 ||
+                    !perPersonAmount.isFinite() || perPersonAmount < 0.0
+                ) {
+                    continue
+                }
                 val origId = obj.optLong("id", (i + 1).toLong())
                 val bill = SplitBillEntity(
-                    title = obj.getString("title"),
-                    totalAmount = obj.getDouble("totalAmount"),
-                    personCount = obj.getInt("personCount"),
-                    perPersonAmount = obj.getDouble("perPersonAmount"),
+                    title = obj.getString("title").trim().ifEmpty { "Split Bill" },
+                    totalAmount = totalAmount,
+                    personCount = personCount,
+                    perPersonAmount = perPersonAmount,
                     dateEpochDay = obj.getLong("dateEpochDay"),
                     isLoggedToExpense = obj.optBoolean("isLoggedToExpense", false)
                 )
@@ -313,17 +351,19 @@ object BackupCodec {
                 val participants = buildList {
                     for (j in 0 until pArray.length()) {
                         val pObj = pArray.optJSONObject(j) ?: continue
-                        val label = pObj.getString("personLabel")
+                        val label = pObj.getString("personLabel").trim()
+                        val amountOwed = pObj.getDouble("amountOwed")
+                        if (label.isEmpty() || !amountOwed.isFinite() || amountOwed < 0.0) continue
                         val isSelf = if (pObj.has("isCurrentUser")) {
                             pObj.optBoolean("isCurrentUser", false)
                         } else {
-                            label.trim().equals("You", ignoreCase = true)
+                            label.equals("You", ignoreCase = true)
                         }
                         add(
                             SplitParticipantEntity(
                                 billId = 0L,
                                 personLabel = label,
-                                amountOwed = pObj.getDouble("amountOwed"),
+                                amountOwed = amountOwed,
                                 hasPaid = pObj.optBoolean("hasPaid", false),
                                 isCurrentUser = isSelf
                             )
@@ -359,8 +399,8 @@ object BackupCodec {
             zos.closeEntry()
 
             payload.receiptFiles.forEach { (rawName, bytes) ->
-                val safeName = File(rawName).name
-                if (safeName.isNotBlank() && bytes.isNotEmpty()) {
+                val safeName = sanitizeReceiptFileName(rawName)
+                if (safeName != null && bytes.isNotEmpty()) {
                     zos.putNextEntry(ZipEntry("$RECEIPTS_DIR_PREFIX$safeName"))
                     zos.write(bytes)
                     zos.closeEntry()
@@ -380,11 +420,15 @@ object BackupCodec {
                     if (!entry.isDirectory) {
                         val name = entry.name
                         if (name == BACKUP_JSON_ENTRY) {
-                            jsonContent = zis.readBytes().toString(Charsets.UTF_8)
+                            jsonContent = readBoundedEntryBytes(zis).toString(Charsets.UTF_8)
                         } else if (name.startsWith(RECEIPTS_DIR_PREFIX)) {
-                            val safeName = File(name).name
-                            if (safeName.isNotBlank()) {
-                                receipts[safeName] = zis.readBytes()
+                            val relative = name.removePrefix(RECEIPTS_DIR_PREFIX)
+                            val safeName = sanitizeReceiptFileName(relative)
+                            if (safeName != null) {
+                                val bytes = readBoundedEntryBytes(zis)
+                                if (bytes.isNotEmpty()) {
+                                    receipts[safeName] = bytes
+                                }
                             }
                         }
                     }
@@ -398,6 +442,72 @@ object BackupCodec {
         }
         val text = rawBytes.toString(Charsets.UTF_8)
         return decodeJson(text)
+    }
+
+    fun sanitizeReceiptFileName(rawName: String?): String? {
+        if (rawName.isNullOrBlank()) return null
+        val fileName = rawName.trim().replace('\\', '/').substringAfterLast('/').trim()
+        if (fileName.isEmpty() || fileName == "." || fileName == "..") return null
+        if (fileName.contains('\u0000')) return null
+        return fileName
+    }
+
+    fun escapeCsvField(value: String): String {
+        val needsQuotes = value.contains(',') ||
+            value.contains('"') ||
+            value.contains('\n') ||
+            value.contains('\r')
+        return if (needsQuotes) {
+            "\"" + value.replace("\"", "\"\"") + "\""
+        } else {
+            value
+        }
+    }
+
+    fun buildCsvExport(
+        shifts: List<ShiftEntity>,
+        extraIncomes: List<ExtraIncomeEntity>,
+        expenses: List<ExpenseEntity>,
+        currencySymbol: String,
+        locale: Locale = Locale.US
+    ): String = buildString {
+        appendLine("Type,Date,Title_Or_Note,Category_Or_DayType,Duration_Min,${escapeCsvField("Amount ($currencySymbol)")}")
+        shifts.forEach { s ->
+            val date = LocalDate.ofEpochDay(s.dateEpochDay)
+            val note = escapeCsvField(s.overtimeNote)
+            val dayType = escapeCsvField(s.dayType)
+            val amount = String.format(locale, "%.2f", s.totalEarned)
+            appendLine("Shift,$date,$note,$dayType,${s.durationMinutes},$amount")
+        }
+        extraIncomes.forEach { inc ->
+            val date = LocalDate.ofEpochDay(inc.dateEpochDay)
+            val title = escapeCsvField(inc.title)
+            val amount = String.format(locale, "%.2f", inc.amount)
+            appendLine("ExtraIncome,$date,$title,Recurring,0,$amount")
+        }
+        expenses.forEach { e ->
+            val date = LocalDate.ofEpochDay(e.dateEpochDay)
+            val title = escapeCsvField(e.title)
+            val category = escapeCsvField(e.category)
+            val amount = String.format(locale, "%.2f", e.amount)
+            appendLine("Expense,$date,$title,$category,0,-$amount")
+        }
+    }
+
+    private fun readBoundedEntryBytes(zis: ZipInputStream): ByteArray {
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        var totalRead = 0
+        while (true) {
+            val read = zis.read(buffer)
+            if (read <= 0) break
+            totalRead += read
+            if (totalRead > MAX_ZIP_ENTRY_BYTES) {
+                throw IllegalArgumentException("Backup entry exceeds maximum allowed size.")
+            }
+            out.write(buffer, 0, read)
+        }
+        return out.toByteArray()
     }
 
     fun shiftSignature(s: ShiftEntity): String =

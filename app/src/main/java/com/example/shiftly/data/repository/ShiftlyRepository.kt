@@ -14,6 +14,7 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
+import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlyDatabase
@@ -61,7 +62,6 @@ class ShiftlyRepository(private val context: Context) {
     val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = prefs.settingsSnapshot
 
     suspend fun updateDefaultHourlyRate(rate: Double) = prefs.setDefaultHourlyRate(rate)
-    suspend fun updateCurrencySymbol(symbol: String) = prefs.setCurrencySymbol(symbol)
     suspend fun setOnboardingCompleted(completed: Boolean) = prefs.setOnboardingCompleted(completed)
     suspend fun updateUserName(name: String) = prefs.setUserName(name)
     suspend fun updateMonthlyBudget(budget: Double) = prefs.setMonthlyBudget(budget)
@@ -81,13 +81,13 @@ class ShiftlyRepository(private val context: Context) {
     suspend fun markShiftNotified(epochDay: Long) = prefs.markShiftNotified(epochDay)
 
     suspend fun changeCurrency(newSymbol: String, conversionRate: Double?) = withContext(Dispatchers.IO) {
-        if (conversionRate != null && conversionRate > 0.0) {
+        if ((conversionRate != null) && conversionRate.isFinite() && (conversionRate > 0.0)) {
             db.withTransaction {
                 shiftDao.getAllShiftsOnce().forEach { s ->
                     shiftDao.updateShift(
                         s.copy(
                             lockedHourlyRate = round2(s.lockedHourlyRate * conversionRate),
-                            totalEarned = round2(s.totalEarned * conversionRate)
+                            totalEarned = round2(s.totalEarned * conversionRate),
                         )
                     )
                 }
@@ -101,20 +101,20 @@ class ShiftlyRepository(private val context: Context) {
                         inc.copy(amount = round2(inc.amount * conversionRate))
                     )
                 }
-                splitBillDao.getAllBillsWithParticipantsOnce().forEach { entry ->
-                    val newTotal = round2(entry.bill.totalAmount * conversionRate)
+                splitBillDao.getAllBillsWithParticipantsOnce().forEach { (bill, participants) ->
+                    val newTotal = round2(bill.totalAmount * conversionRate)
                     val shares = SplitBillMath.distributeEqualShares(
                         totalAmount = newTotal,
-                        personCount = entry.participants.size.coerceAtLeast(entry.bill.personCount)
+                        personCount = participants.size.coerceAtLeast(bill.personCount)
                     )
-                    val newPerPerson = shares.firstOrNull() ?: round2(entry.bill.perPersonAmount * conversionRate)
+                    val newPerPerson = shares.firstOrNull() ?: round2(bill.perPersonAmount * conversionRate)
                     splitBillDao.updateBill(
-                        entry.bill.copy(
+                        bill.copy(
                             totalAmount = newTotal,
                             perPersonAmount = newPerPerson
                         )
                     )
-                    entry.participants.forEachIndexed { idx, p ->
+                    participants.forEachIndexed { idx, p ->
                         val scaledOwed = shares.getOrElse(idx) { round2(p.amountOwed * conversionRate) }
                         splitBillDao.updateParticipant(p.copy(amountOwed = scaledOwed))
                     }
@@ -143,9 +143,6 @@ class ShiftlyRepository(private val context: Context) {
     val totalMinutesWorked: Flow<Int?> = shiftDao.getTotalMinutesWorked()
     val totalLifetimeEarnings: Flow<Double?> = shiftDao.getTotalLifetimeEarnings()
 
-    fun getShiftsBetween(startEpochDay: Long, endEpochDay: Long): Flow<List<ShiftEntity>> =
-        shiftDao.getShiftsBetween(startEpochDay, endEpochDay)
-
     suspend fun insertShift(shift: ShiftEntity): Long = shiftDao.insertShift(shift)
     suspend fun updateShift(shift: ShiftEntity) = shiftDao.updateShift(shift)
     suspend fun deleteShift(shift: ShiftEntity) = shiftDao.deleteShift(shift)
@@ -154,20 +151,20 @@ class ShiftlyRepository(private val context: Context) {
     val allExtraIncomes: Flow<List<ExtraIncomeEntity>> = extraIncomeDao.getAllExtraIncomes()
     val totalExtraIncomeAmount: Flow<Double?> = extraIncomeDao.getTotalExtraIncomeAmount()
 
-    suspend fun insertExtraIncome(income: ExtraIncomeEntity): Long = extraIncomeDao.insertExtraIncome(income)
-    suspend fun deleteExtraIncome(income: ExtraIncomeEntity) = extraIncomeDao.deleteExtraIncome(income)
-
     // Expenses
     val allExpenses: Flow<List<ExpenseEntity>> = expenseDao.getAllExpenses()
     val totalExpenseAmount: Flow<Double?> = expenseDao.getTotalExpenseAmount()
 
     suspend fun insertExpense(expense: ExpenseEntity): Long = expenseDao.insertExpense(expense)
-    suspend fun updateExpense(expense: ExpenseEntity) = expenseDao.updateExpense(expense)
-    suspend fun deleteExpense(expense: ExpenseEntity) = db.withTransaction {
-        expenseDao.deleteExpense(expense)
-        expense.linkedSplitBillId?.let { billId ->
-            splitBillDao.setBillLoggedToExpense(billId, false)
+
+    suspend fun deleteExpense(expense: ExpenseEntity) = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            expenseDao.deleteExpense(expense)
+            expense.linkedSplitBillId?.let { billId ->
+                splitBillDao.setBillLoggedToExpense(billId, isLogged = false)
+            }
         }
+        ReceiptStorageHelper.deleteReceiptFile(expense.receiptImagePath)
     }
 
     // Split Bills
@@ -199,18 +196,28 @@ class ShiftlyRepository(private val context: Context) {
                     createdAtMillis = System.currentTimeMillis()
                 )
             )
-            splitBillDao.setBillLoggedToExpense(bill.id, true)
+            splitBillDao.setBillLoggedToExpense(bill.id, isLogged = true)
         }
     }
 
-    suspend fun deleteSplitBill(bill: SplitBillEntity, deleteLinkedExpense: Boolean = false) = db.withTransaction {
-        if (deleteLinkedExpense) {
-            expenseDao.deleteExpensesByLinkedSplitBillId(bill.id)
-        } else {
-            expenseDao.unlinkExpensesBySplitBillId(bill.id)
+    suspend fun deleteSplitBill(bill: SplitBillEntity, deleteLinkedExpense: Boolean = false) =
+        withContext(Dispatchers.IO) {
+            val linkedReceiptPaths = if (deleteLinkedExpense) {
+                expenseDao.getExpensesByLinkedSplitBillIdOnce(bill.id)
+                    .mapNotNull { it.receiptImagePath }
+            } else {
+                emptyList()
+            }
+            db.withTransaction {
+                if (deleteLinkedExpense) {
+                    expenseDao.deleteExpensesByLinkedSplitBillId(bill.id)
+                } else {
+                    expenseDao.unlinkExpensesBySplitBillId(bill.id)
+                }
+                splitBillDao.deleteBill(bill)
+            }
+            linkedReceiptPaths.forEach { ReceiptStorageHelper.deleteReceiptFile(it) }
         }
-        splitBillDao.deleteBill(bill)
-    }
 
     /**
      * Evaluates recurring rules via [RecurringEngine] and atomically inserts due
@@ -413,11 +420,14 @@ class ShiftlyRepository(private val context: Context) {
             val file = if (!path.isNullOrBlank()) File(path) else null
             val validName = if (includeReceipts && file != null && file.exists() && file.isFile) {
                 runCatching {
-                    receiptMap[file.name] = file.readBytes()
-                    file.name
+                    val safeName = BackupCodec.sanitizeReceiptFileName(file.name)
+                    if (safeName != null) {
+                        receiptMap[safeName] = file.readBytes()
+                    }
+                    safeName
                 }.getOrNull()
             } else {
-                file?.name
+                BackupCodec.sanitizeReceiptFileName(file?.name)
             }
             BackupExpenseRecord(expense = e, receiptFileName = validName)
         }
@@ -483,11 +493,27 @@ class ShiftlyRepository(private val context: Context) {
 
     private suspend fun applyBackupPayload(payload: BackupPayload, mode: RestoreMode): String {
         val receiptsDir = File(context.filesDir, "receipts").apply { mkdirs() }
+        val existingReceiptFiles = if (mode == RestoreMode.REPLACE) {
+            receiptsDir.listFiles()?.toList().orEmpty()
+        } else {
+            emptyList()
+        }
+
         var restoredShiftsCount = 0
         var restoredExpensesCount = 0
         var restoredExtraIncomesCount = 0
         var restoredBillsCount = 0
-        var restoredReceiptsCount = 0
+
+        val receiptsToWrite = mutableListOf<Pair<File, ByteArray>>()
+        val restoredReceiptPaths = mutableMapOf<String, String>()
+        payload.receiptFiles.forEach { (fileName, bytes) ->
+            val safeName = BackupCodec.sanitizeReceiptFileName(fileName)
+            if (safeName != null && bytes.isNotEmpty()) {
+                val target = File(receiptsDir, safeName)
+                restoredReceiptPaths[safeName] = target.absolutePath
+                receiptsToWrite.add(target to bytes)
+            }
+        }
 
         db.withTransaction {
             if (mode == RestoreMode.REPLACE) {
@@ -495,23 +521,12 @@ class ShiftlyRepository(private val context: Context) {
                 extraIncomeDao.deleteAllExtraIncomes()
                 shiftDao.deleteAllShifts()
                 splitBillDao.deleteAllSplitBills()
-                receiptsDir.listFiles()?.forEach { it.delete() }
-            }
-
-            // Restore receipt files first so restored expenses point to valid paths
-            val restoredReceiptPaths = mutableMapOf<String, String>()
-            payload.receiptFiles.forEach { (fileName, bytes) ->
-                val safeName = File(fileName).name
-                if (safeName.isNotBlank() && bytes.isNotEmpty()) {
-                    val target = File(receiptsDir, safeName)
-                    target.writeBytes(bytes)
-                    restoredReceiptPaths[safeName] = target.absolutePath
-                    restoredReceiptsCount++
-                }
             }
 
             val existingShifts = if (mode == RestoreMode.MERGE) {
-                shiftDao.getAllShiftsOnce().map { BackupCodec.shiftSignature(it) }.toMutableSet()
+                shiftDao.getAllShiftsOnce().asSequence()
+                    .map { BackupCodec.shiftSignature(it) }
+                    .toMutableSet()
             } else {
                 mutableSetOf()
             }
@@ -525,7 +540,9 @@ class ShiftlyRepository(private val context: Context) {
             }
 
             val existingExtraIncomes = if (mode == RestoreMode.MERGE) {
-                extraIncomeDao.getAllExtraIncomesOnce().map { BackupCodec.extraIncomeSignature(it) }.toMutableSet()
+                extraIncomeDao.getAllExtraIncomesOnce().asSequence()
+                    .map { BackupCodec.extraIncomeSignature(it) }
+                    .toMutableSet()
             } else {
                 mutableSetOf()
             }
@@ -540,7 +557,10 @@ class ShiftlyRepository(private val context: Context) {
 
             val existingBillsMap = if (mode == RestoreMode.MERGE) {
                 splitBillDao.getAllBillsWithParticipantsOnce()
-                    .associate { BackupCodec.splitBillSignature(it.bill) to it.bill.id }
+                    .associateBy(
+                        keySelector = { BackupCodec.splitBillSignature(it.bill) },
+                        valueTransform = { it.bill.id }
+                    )
                     .toMutableMap()
             } else {
                 mutableMapOf()
@@ -566,7 +586,9 @@ class ShiftlyRepository(private val context: Context) {
             }
 
             val existingExpenses = if (mode == RestoreMode.MERGE) {
-                expenseDao.getAllExpensesOnce().map { BackupCodec.expenseSignature(it) }.toMutableSet()
+                expenseDao.getAllExpensesOnce().asSequence()
+                    .map { BackupCodec.expenseSignature(it) }
+                    .toMutableSet()
             } else {
                 mutableSetOf()
             }
@@ -588,6 +610,20 @@ class ShiftlyRepository(private val context: Context) {
                 }
             }
         }
+
+        // Only mutate receipt files on disk after the Room transaction succeeds.
+        val keptPaths = restoredReceiptPaths.values.toSet()
+        if (mode == RestoreMode.REPLACE) {
+            existingReceiptFiles.forEach { oldFile ->
+                if (oldFile.absolutePath !in keptPaths) {
+                    oldFile.delete()
+                }
+            }
+        }
+        receiptsToWrite.forEach { (target, bytes) ->
+            target.writeBytes(bytes)
+        }
+        val restoredReceiptsCount = receiptsToWrite.size
 
         prefs.applyRestoredSettings(
             userName = payload.userName,
@@ -612,25 +648,12 @@ class ShiftlyRepository(private val context: Context) {
         val currency = currencySymbol.first()
         val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
         val csvFile = File(exportDir, "shiftly_export.csv")
-
-        val csvContent = buildString {
-            appendLine("Type,Date,Title_Or_Note,Category_Or_DayType,Duration_Min,Amount ($currency)")
-            shifts.forEach { s ->
-                val date = LocalDate.ofEpochDay(s.dateEpochDay)
-                val note = s.overtimeNote.replace(",", " ")
-                appendLine("Shift,$date,$note,${s.dayType},${s.durationMinutes},${"%.2f".format(s.totalEarned)}")
-            }
-            extraIncomes.forEach { inc ->
-                val date = LocalDate.ofEpochDay(inc.dateEpochDay)
-                val title = inc.title.replace(",", " ")
-                appendLine("ExtraIncome,$date,$title,Recurring,0,${"%.2f".format(inc.amount)}")
-            }
-            expenses.forEach { e ->
-                val date = LocalDate.ofEpochDay(e.dateEpochDay)
-                val title = e.title.replace(",", " ")
-                appendLine("Expense,$date,$title,${e.category},0,-${"%.2f".format(e.amount)}")
-            }
-        }
+        val csvContent = BackupCodec.buildCsvExport(
+            shifts = shifts,
+            extraIncomes = extraIncomes,
+            expenses = expenses,
+            currencySymbol = currency
+        )
         csvFile.writeText(csvContent)
         csvFile
     }
@@ -643,61 +666,125 @@ class ShiftlyRepository(private val context: Context) {
         val name = userName.first()
         val totalIncome = shifts.sumOf { it.totalEarned } + extraIncomes.sumOf { it.amount }
         val totalExpense = expenses.sumOf { it.amount }
+        val netBalance = totalIncome - totalExpense
         val totalHours = shifts.sumOf { it.durationMinutes } / 60.0
 
         val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
         val pdfFile = File(exportDir, "shiftly_statement.pdf")
 
-        val doc = PdfDocument()
-        val pageInfo = PdfDocument.PageInfo.Builder(595, 842, 1).create()
-        val page = doc.startPage(pageInfo)
-        val canvas = page.canvas
+        val pageWidth = 595
+        val pageHeight = 842
+        val marginX = 40f
+        val usableWidth = pageWidth - marginX * 2f
+        val maxY = pageHeight - 48f
 
         val titlePaint = Paint().apply { textSize = 20f; isFakeBoldText = true }
         val headerPaint = Paint().apply { textSize = 13f; isFakeBoldText = true }
         val bodyPaint = Paint().apply { textSize = 11f }
 
-        var y = 52f
-        canvas.drawText("Shiftly Statement — $name", 40f, y, titlePaint)
-        y += 24f
-        canvas.drawText(
-            "Shifts: ${shifts.size} (${"%.1f".format(totalHours)}h)   |   Earnings: $currency${"%,.2f".format(totalIncome)}   |   Expenses: $currency${"%,.2f".format(totalExpense)}",
-            40f,
-            y,
-            bodyPaint
-        )
-        y += 28f
-        canvas.drawText("Recent Shifts", 40f, y, headerPaint)
-        y += 18f
-        shifts.take(12).forEach { s ->
-            val date = LocalDate.ofEpochDay(s.dateEpochDay)
-            canvas.drawText(
-                "$date  •  ${s.durationMinutes}m  •  +$currency${"%,.2f".format(s.totalEarned)}  ${s.overtimeNote}",
-                40f,
-                y,
-                bodyPaint
-            )
-            y += 16f
-        }
-        y += 16f
-        canvas.drawText("Recent Expenses", 40f, y, headerPaint)
-        y += 18f
-        expenses.take(14).forEach { e ->
-            val date = LocalDate.ofEpochDay(e.dateEpochDay)
-            canvas.drawText(
-                "$date  •  ${e.category}  •  -$currency${"%,.2f".format(e.amount)}  ${e.title}",
-                40f,
-                y,
-                bodyPaint
-            )
-            y += 16f
+        fun fitText(raw: String, paint: Paint): String {
+            val cleaned = raw.replace('\n', ' ').replace('\r', ' ').trim()
+            if (paint.measureText(cleaned) <= usableWidth) return cleaned
+            val ellipsis = "..."
+            val allowed = (usableWidth - paint.measureText(ellipsis)).coerceAtLeast(24f)
+            val count = paint.breakText(cleaned, true, allowed, null)
+            return if (count <= 0) ellipsis else cleaned.substring(0, count).trimEnd() + ellipsis
         }
 
-        doc.finishPage(page)
-        FileOutputStream(pdfFile).use { out ->
-            doc.writeTo(out)
+        val doc = PdfDocument()
+        try {
+            var pageNumber = 1
+            var page = doc.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+            var canvas = page.canvas
+            var y = 52f
+
+            fun ensureSpace(neededHeight: Float) {
+                if (y + neededHeight > maxY) {
+                    doc.finishPage(page)
+                    pageNumber++
+                    page = doc.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
+                    canvas = page.canvas
+                    y = 52f
+                    canvas.drawText(
+                        fitText("Shiftly Statement — $name (Page $pageNumber)", headerPaint),
+                        marginX,
+                        y,
+                        headerPaint
+                    )
+                    y += 24f
+                }
+            }
+
+            fun drawLine(text: String, paint: Paint, lineHeight: Float) {
+                ensureSpace(lineHeight)
+                canvas.drawText(fitText(text, paint), marginX, y, paint)
+                y += lineHeight
+            }
+
+            drawLine("Shiftly Statement — $name", titlePaint, 24f)
+            drawLine(
+                "Shifts: ${shifts.size} (${"%.1f".format(totalHours)}h)   |   " +
+                    "Income: $currency${"%,.2f".format(totalIncome)}   |   " +
+                    "Expenses: $currency${"%,.2f".format(totalExpense)}",
+                bodyPaint,
+                16f
+            )
+            drawLine(
+                "Net Balance: $currency${"%,.2f".format(netBalance)}",
+                bodyPaint,
+                26f
+            )
+
+            drawLine("Logged Shifts (${shifts.size})", headerPaint, 18f)
+            if (shifts.isEmpty()) {
+                drawLine("No shifts logged yet.", bodyPaint, 16f)
+            } else {
+                shifts.forEach { s ->
+                    val date = LocalDate.ofEpochDay(s.dateEpochDay)
+                    val noteSuffix = if (s.overtimeNote.isNotBlank()) "  ${s.overtimeNote}" else ""
+                    drawLine(
+                        "$date  •  ${s.durationMinutes}m  •  +$currency${"%,.2f".format(s.totalEarned)}$noteSuffix",
+                        bodyPaint,
+                        16f
+                    )
+                }
+            }
+
+            if (extraIncomes.isNotEmpty()) {
+                y += 10f
+                drawLine("Extra Incomes (${extraIncomes.size})", headerPaint, 18f)
+                extraIncomes.forEach { inc ->
+                    val date = LocalDate.ofEpochDay(inc.dateEpochDay)
+                    drawLine(
+                        "$date  •  +$currency${"%,.2f".format(inc.amount)}  •  ${inc.title}",
+                        bodyPaint,
+                        16f
+                    )
+                }
+            }
+
+            y += 10f
+            drawLine("Logged Expenses (${expenses.size})", headerPaint, 18f)
+            if (expenses.isEmpty()) {
+                drawLine("No expenses logged yet.", bodyPaint, 16f)
+            } else {
+                expenses.forEach { e ->
+                    val date = LocalDate.ofEpochDay(e.dateEpochDay)
+                    drawLine(
+                        "$date  •  ${e.category}  •  -$currency${"%,.2f".format(e.amount)}  ${e.title}",
+                        bodyPaint,
+                        16f
+                    )
+                }
+            }
+
+            doc.finishPage(page)
+            FileOutputStream(pdfFile).use { out ->
+                doc.writeTo(out)
+            }
+        } finally {
+            doc.close()
         }
-        doc.close()
         pdfFile
     }
 }

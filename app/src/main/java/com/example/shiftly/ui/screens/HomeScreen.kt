@@ -21,10 +21,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,14 +50,17 @@ import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun HomeScreen(
     repository: ShiftlyRepository,
+    onNavigateToDuties: () -> Unit = {},
+    onNavigateToExpense: () -> Unit = {},
     onNavigateToSplitBill: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
     onNavigateToAnalytics: () -> Unit = {},
-    onShowMessage: (String) -> Unit = {}
+    onShowMessage: (String) -> Unit = {},
 ) {
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -61,9 +68,10 @@ fun HomeScreen(
     HomeScreenContent(
         state = state,
         onSelectDate = { viewModel.selectDate(it) },
+        onResetToToday = { viewModel.resetDateToToday() },
         onQuickTimeIn = {
             if (state.activeTimer.isRunning) {
-                onShowMessage("Shift timer is already running in Duties")
+                onNavigateToDuties()
             } else {
                 viewModel.startQuickShift()
                 onShowMessage("Shift started at ${state.currencySymbol}${"%.2f".format(state.hourlyRate)}/hr")
@@ -71,6 +79,7 @@ fun HomeScreen(
         },
         onNotificationClick = {
             if (state.pendingSplitsOwed > 0) {
+                onNavigateToSplitBill()
                 onShowMessage("${state.currencySymbol}${"%,.0f".format(state.pendingSplitsOwed)} pending from classmates")
             } else {
                 onShowMessage("All caught up — no pending alerts")
@@ -78,7 +87,14 @@ fun HomeScreen(
         },
         onProfileClick = onNavigateToProfile,
         onOpenPendingSplits = onNavigateToSplitBill,
-        onViewInsights = onNavigateToAnalytics
+        onViewInsights = onNavigateToAnalytics,
+        onTimelineItemClick = { item ->
+            when (item) {
+                is TimelineActivityItem.ShiftActivity -> onNavigateToDuties()
+                is TimelineActivityItem.ExpenseActivity -> onNavigateToExpense()
+                is TimelineActivityItem.ExtraIncomeActivity -> onNavigateToProfile()
+            }
+        }
     )
 }
 
@@ -86,13 +102,20 @@ fun HomeScreen(
 fun HomeScreenContent(
     state: HomeUiState,
     onSelectDate: (LocalDate) -> Unit,
+    onResetToToday: () -> Unit = {},
     onQuickTimeIn: () -> Unit,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
     onOpenPendingSplits: () -> Unit,
-    onViewInsights: () -> Unit
+    onViewInsights: () -> Unit,
+    onTimelineItemClick: (TimelineActivityItem) -> Unit = {},
+    todayOverride: LocalDate? = null,
+    greetingHourOverride: Int? = null
 ) {
     val currency = state.currencySymbol
+    val locale = LocalConfiguration.current.locales[0]
+    val dateHeaderFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
+    val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
 
     LazyColumn(
         modifier = Modifier
@@ -102,11 +125,22 @@ fun HomeScreenContent(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            HomeGreetingHeader(
-                userName = state.userName,
-                onNotificationClick = onNotificationClick,
-                onProfileClick = onProfileClick
-            )
+            if (greetingHourOverride != null) {
+                HomeGreetingHeader(
+                    userName = state.userName,
+                    pendingAlertsCount = state.pendingSplitBillCount,
+                    greetingHour = greetingHourOverride,
+                    onNotificationClick = onNotificationClick,
+                    onProfileClick = onProfileClick
+                )
+            } else {
+                HomeGreetingHeader(
+                    userName = state.userName,
+                    pendingAlertsCount = state.pendingSplitBillCount,
+                    onNotificationClick = onNotificationClick,
+                    onProfileClick = onProfileClick
+                )
+            }
         }
 
         item {
@@ -162,6 +196,7 @@ fun HomeScreenContent(
                         0f
                     }
                     val nearLimit = budgetRatio >= 0.80f
+                    val budgetPct = (budgetRatio * 100).toInt()
 
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
@@ -187,6 +222,9 @@ fun HomeScreenContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp)
+                                .semantics {
+                                    contentDescription = "Monthly budget $budgetPct percent used"
+                                }
                         )
                     }
 
@@ -207,9 +245,25 @@ fun HomeScreenContent(
                         onViewInsights = onViewInsights
                     )
 
+                    val selectedLabel = state.selectedDate.format(dateHeaderFormatter)
+                    val isDifferentDay = state.selectedDate != today
+                    val timelineTitle = when {
+                        isDifferentDay && state.selectedDateHasLogs -> "Activity • $selectedLabel"
+                        !isDifferentDay && state.selectedDateHasLogs -> "Today's Activity"
+                        else -> "Recent Activity"
+                    }
+                    val timelineTrailing = when {
+                        isDifferentDay && state.selectedDateHasLogs -> "Today"
+                        isDifferentDay -> "None on $selectedLabel • Today"
+                        !state.selectedDateHasLogs && state.timelineItems.isNotEmpty() -> "Latest logs"
+                        else -> null
+                    }
+
                     ShiftlySectionHeader(
-                        title = "Recent Activity",
+                        title = timelineTitle,
                         count = state.timelineItems.size,
+                        trailingText = timelineTrailing,
+                        onTrailingClick = if (isDifferentDay) onResetToToday else null,
                         onLightSurface = true
                     )
 
@@ -223,7 +277,10 @@ fun HomeScreenContent(
                     } else {
                         Column {
                             state.timelineItems.forEachIndexed { idx, item ->
-                                HomeTimelineRow(item = item, currencySymbol = currency)
+                                HomeTimelineRow(
+                                    item = item,
+                                    currencySymbol = currency,
+                                ) { onTimelineItemClick(item) }
                                 if (idx < state.timelineItems.lastIndex) {
                                     HorizontalDivider(color = DarkBorder)
                                 }
@@ -266,6 +323,8 @@ private fun HomeScreenPreview() {
             WeeklyBarData("S", 0.0)
         ),
         selectedDate = today,
+        isShowingSelectedDateOnly = true,
+        selectedDateHasLogs = true,
         weekdaySlots = listOf(
             WeekdaySlot(today.minusDays(3), "M", "13", hasShift = true, hasExpense = false),
             WeekdaySlot(today.minusDays(2), "T", "14", hasShift = false, hasExpense = true),
@@ -316,7 +375,9 @@ private fun HomeScreenPreview() {
                     onNotificationClick = {},
                     onProfileClick = {},
                     onOpenPendingSplits = {},
-                    onViewInsights = {}
+                    onViewInsights = {},
+                    todayOverride = today,
+                    greetingHourOverride = 10
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,

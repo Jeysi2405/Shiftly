@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.shiftly.data.local.ExpenseEntity
-import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.data.repository.ShiftlyRepository
 import java.time.LocalDate
 import java.time.YearMonth
@@ -142,7 +141,7 @@ class ExpenseViewModel(
         date: LocalDate,
         receiptImagePath: String?
     ) {
-        if (title.isBlank() || amount <= 0.0) return
+        if (title.isBlank() || !amount.isFinite() || amount <= 0.0) return
         viewModelScope.launch {
             repository.insertExpense(
                 ExpenseEntity(
@@ -159,7 +158,6 @@ class ExpenseViewModel(
 
     fun deleteExpense(expense: ExpenseEntity) {
         viewModelScope.launch {
-            ReceiptStorageHelper.deleteReceiptFile(expense.receiptImagePath)
             repository.deleteExpense(expense)
         }
     }

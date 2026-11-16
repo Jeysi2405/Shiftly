@@ -13,9 +13,13 @@ import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitParticipantEntity
+import java.io.ByteArrayOutputStream
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -177,5 +181,116 @@ class BackupCodecTest {
     @Test(expected = IllegalArgumentException::class)
     fun nonShiftlyJson_throwsHelpfulError() {
         BackupCodec.decodeJson("""{"app":"OtherApp","shifts":[]}""")
+    }
+
+    @Test
+    fun csvExport_escapesRfc4180FieldsAndIncludesExtraIncomes() {
+        val csv = BackupCodec.buildCsvExport(
+            currencySymbol = "₱",
+            shifts = listOf(
+                ShiftEntity(
+                    id = 1L,
+                    dateEpochDay = 20400L,
+                    timeInMillis = 1000L,
+                    timeOutMillis = 7201000L,
+                    durationMinutes = 120,
+                    lockedHourlyRate = 100.0,
+                    totalEarned = 200.5,
+                    overtimeNote = "Late, \"Desk\"\nNote",
+                    dayType = "ORDINARY"
+                )
+            ),
+            expenses = listOf(
+                ExpenseEntity(
+                    id = 1L,
+                    title = "Cafe, \"Morning\"\nSnack",
+                    amount = 125.75,
+                    category = "Food",
+                    dateEpochDay = 20400L
+                )
+            ),
+            extraIncomes = listOf(
+                ExtraIncomeEntity(
+                    id = 2L,
+                    title = "Bonus, \"Q4\"",
+                    amount = 1500.0,
+                    dateEpochDay = 20400L,
+                    sourceRuleId = "r1"
+                )
+            )
+        )
+
+        assertTrue(csv.contains("Type,Date,Title_Or_Note,Category_Or_DayType,Duration_Min,Amount (₱)"))
+        assertTrue(csv.contains("\"Cafe, \"\"Morning\"\"\nSnack\""))
+        assertTrue(csv.contains("\"Late, \"\"Desk\"\"\nNote\""))
+        assertTrue(csv.contains("\"Bonus, \"\"Q4\"\"\""))
+        assertTrue(csv.contains("ExtraIncome,"))
+        assertTrue(csv.contains("125.75"))
+        assertTrue(csv.contains("1500.00"))
+    }
+
+    @Test
+    fun decodeJson_filtersInvalidRecordsAndPreservesSmallSavingsGoalTarget() {
+        val json = """
+            {
+              "app": "Shiftly",
+              "version": 3,
+              "userName": "Jeyzi",
+              "currencySymbol": "$",
+              "defaultHourlyRate": 15.0,
+              "settings": {
+                "savingsGoalTarget": 50.0
+              },
+              "shifts": [
+                { "dateEpochDay": 20400, "timeInMillis": 1000, "timeOutMillis": 7201000, "durationMinutes": 120, "lockedHourlyRate": 15.0, "totalEarned": 30.0 },
+                { "dateEpochDay": 20400, "timeInMillis": 1000, "timeOutMillis": 2000, "durationMinutes": 60, "lockedHourlyRate": 15.0, "totalEarned": -10.0 }
+              ],
+              "expenses": [
+                { "title": "Lunch", "amount": 12.5, "category": "Food", "dateEpochDay": 20400 },
+                { "title": "Invalid", "amount": -50.0, "category": "Food", "dateEpochDay": 20400 }
+              ],
+              "splitBills": [
+                { "originalId": 1, "title": "Bad", "totalAmount": 200.0, "personCount": 1, "perPersonAmount": 200.0, "dateEpochDay": 20400 }
+              ]
+            }
+        """.trimIndent()
+
+        val decoded = BackupCodec.decodeJson(json)
+        assertEquals(50.0, decoded.settings?.savingsGoalTarget ?: 0.0, 0.001)
+        assertEquals(1, decoded.shifts.size)
+        assertEquals(1, decoded.expenses.size)
+        assertEquals("Lunch", decoded.expenses.first().expense.title)
+        assertEquals(0, decoded.splitBills.size)
+    }
+
+    @Test
+    fun sanitizeReceiptFileName_andZipDecode_preventPathTraversal() {
+        assertEquals("evil.jpg", BackupCodec.sanitizeReceiptFileName("../../evil.jpg"))
+        assertEquals("photo.png", BackupCodec.sanitizeReceiptFileName("receipts\\nested\\photo.png"))
+        assertNull(BackupCodec.sanitizeReceiptFileName(".."))
+        assertNull(BackupCodec.sanitizeReceiptFileName("."))
+
+        val jsonBytes = """{"app":"Shiftly","version":3}""".toByteArray(Charsets.UTF_8)
+        val imageBytes = byteArrayOf(9, 8, 7)
+        val zipBytes = ByteArrayOutputStream().use { baos ->
+            ZipOutputStream(baos).use { zos ->
+                zos.putNextEntry(ZipEntry("shiftly_backup.json"))
+                zos.write(jsonBytes)
+                zos.closeEntry()
+
+                zos.putNextEntry(ZipEntry("receipts/../../traversal.jpg"))
+                zos.write(imageBytes)
+                zos.closeEntry()
+
+                zos.putNextEntry(ZipEntry("receipts/.."))
+                zos.write(imageBytes)
+                zos.closeEntry()
+            }
+            baos.toByteArray()
+        }
+
+        val decoded = BackupCodec.decodeZipOrJsonBytes(zipBytes)
+        assertEquals(setOf("traversal.jpg"), decoded.receiptFiles.keys)
+        assertArrayEquals(imageBytes, decoded.receiptFiles["traversal.jpg"])
     }
 }

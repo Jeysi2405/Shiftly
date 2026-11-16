@@ -13,13 +13,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarToday
@@ -64,6 +67,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -231,9 +237,12 @@ fun DutiesRateSettingsCard(
             ) {
                 OutlinedTextField(
                     value = rateInput,
-                    onValueChange = {
-                        rateInput = it
-                        savedBanner = false
+                    onValueChange = { input ->
+                        val filtered = input.filter { it.isDigit() || it == '.' }
+                        if (filtered.count { it == '.' } <= 1) {
+                            rateInput = filtered
+                            savedBanner = false
+                        }
                     },
                     label = {
                         Text(
@@ -267,6 +276,12 @@ fun DutiesRateSettingsCard(
 
                 Button(
                     onClick = {
+                        val parsed = rateInput.toDoubleOrNull()
+                        if (parsed == null || !parsed.isFinite() || parsed <= 0.0) {
+                            savedBanner = false
+                            onShowMessage("Enter an hourly rate above 0")
+                            return@Button
+                        }
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onSaveRate(rateInput)
                         savedBanner = true
@@ -767,6 +782,9 @@ fun ShiftCalendarCard(
     val monthTitle = remember(displayedMonth, locale) {
         "${displayedMonth.month.getDisplayName(TextStyle.FULL, locale)} ${displayedMonth.year}"
     }
+    val fullDateFormatter = remember(locale) {
+        DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", locale)
+    }
 
     ShiftlyGlassCard(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -887,6 +905,12 @@ fun ShiftCalendarCard(
                                 val hasLoggedShift = loggedEpochDays.contains(cellDate.toEpochDay())
                                 val isSelected = selectedCalendarDate == cellDate
                                 val isToday = cellDate == today
+                                val cellDescription = buildString {
+                                    append(cellDate.format(fullDateFormatter))
+                                    if (isToday) append(", today")
+                                    if (hasLoggedShift) append(", has logged shift")
+                                    if (isSelected) append(", selected")
+                                }
 
                                 Box(
                                     modifier = Modifier
@@ -917,7 +941,11 @@ fun ShiftCalendarCard(
                                                 Modifier
                                             }
                                         )
-                                        .clickable { onSelectDate(cellDate) },
+                                        .clickable { onSelectDate(cellDate) }
+                                        .semantics(mergeDescendants = true) {
+                                            selected = isSelected
+                                            contentDescription = cellDescription
+                                        },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1242,6 +1270,18 @@ fun ManualShiftSheetContent(
     var manualNote by remember { mutableStateOf("Campus Café Shift") }
     var selectedDayType by remember { mutableStateOf(DayType.ORDINARY) }
 
+    val sheetFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = AzureAccent,
+        unfocusedBorderColor = DarkBorder,
+        focusedLabelColor = AzureAccent,
+        unfocusedLabelColor = TextLightSecondary,
+        focusedTextColor = TextLightPrimary,
+        unfocusedTextColor = TextLightPrimary,
+        cursorColor = AzureAccent,
+        focusedContainerColor = DarkCard,
+        unfocusedContainerColor = DarkCard
+    )
+
     // Live Income Preview Calculation (hours × rate + ND/OT multipliers)
     val sH = (startHour.toIntOrNull() ?: 14).coerceIn(0, 23)
     val sM = (startMin.toIntOrNull() ?: 0).coerceIn(0, 59)
@@ -1272,6 +1312,8 @@ fun ManualShiftSheetContent(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp)
             .padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1359,6 +1401,10 @@ fun ManualShiftSheetContent(
                             endHour = times[2]
                             endMin = times[3]
                         }
+                        .semantics(mergeDescendants = true) {
+                            selected = active
+                            contentDescription = "Preset shift $label"
+                        }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
@@ -1383,6 +1429,7 @@ fun ManualShiftSheetContent(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = RoundedCornerShape(14.dp),
+                colors = sheetFieldColors,
                 modifier = Modifier.weight(1f)
             )
             OutlinedTextField(
@@ -1392,6 +1439,7 @@ fun ManualShiftSheetContent(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = RoundedCornerShape(14.dp),
+                colors = sheetFieldColors,
                 modifier = Modifier.weight(1f)
             )
             OutlinedTextField(
@@ -1401,6 +1449,7 @@ fun ManualShiftSheetContent(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = RoundedCornerShape(14.dp),
+                colors = sheetFieldColors,
                 modifier = Modifier.weight(1f)
             )
             OutlinedTextField(
@@ -1410,6 +1459,7 @@ fun ManualShiftSheetContent(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 shape = RoundedCornerShape(14.dp),
+                colors = sheetFieldColors,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -1425,6 +1475,7 @@ fun ManualShiftSheetContent(
             label = { Text("Shift Note (optional)", fontFamily = ShiftlySerif) },
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
+            colors = sheetFieldColors,
             modifier = Modifier.fillMaxWidth()
         )
 

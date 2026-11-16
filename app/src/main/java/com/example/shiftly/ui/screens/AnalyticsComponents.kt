@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,6 +41,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -130,19 +135,24 @@ fun AnalyticsRangeSegmentedControl(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .selectableGroup()
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             AnalyticsRange.entries.forEach { range ->
-                val selected = range == selectedRange
+                val isSelected = range == selectedRange
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(50))
-                        .background(if (selected) AzurePrimaryButton else Color.Transparent)
-                        .clickable { onSelectRange(range) },
+                        .background(if (isSelected) AzurePrimaryButton else Color.Transparent)
+                        .clickable(role = Role.Tab) { onSelectRange(range) }
+                        .semantics(mergeDescendants = true) {
+                            selected = isSelected
+                            contentDescription = range.fullLabel
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -151,7 +161,7 @@ fun AnalyticsRangeSegmentedControl(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
-                        color = if (selected) PureWhite else TextLightSecondary
+                        color = if (isSelected) PureWhite else TextLightSecondary
                     )
                 }
             }
@@ -169,6 +179,11 @@ fun IncomeVsExpenseGlassChartCard(
         .maxOfOrNull { maxOf(it.income, it.expense) }
         ?.coerceAtLeast(100.0)
         ?: 100.0
+    val chartDescription = buildString {
+        append("Income versus expenses bar chart for ${state.selectedRange.fullLabel}. ")
+        append("Total income $currency${"%,.0f".format(state.periodIncome)}, ")
+        append("total expenses $currency${"%,.0f".format(state.periodExpenses)}.")
+    }
 
     ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -245,6 +260,9 @@ fun IncomeVsExpenseGlassChartCard(
                     .clip(RoundedCornerShape(18.dp))
                     .background(DarkCard)
                     .border(1.dp, DarkBorder, RoundedCornerShape(18.dp))
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = chartDescription
+                    }
                     .padding(horizontal = 12.dp, vertical = 14.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -429,14 +447,15 @@ fun TopSpendingCategoriesCard(
     onToggleShowAll: () -> Unit
 ) {
     val displayed = if (showAll) categories else categories.take(3)
+    val canToggle = categories.size > 3
     InsightCardContainer(
         title = "Top Spending Categories",
-        trailingActionText = if (categories.size > 3) {
+        trailingActionText = if (canToggle) {
             if (showAll) "Show Less" else "Show All"
         } else {
-            "Show All"
+            null
         },
-        onTrailingAction = onToggleShowAll
+        onTrailingAction = if (canToggle) onToggleShowAll else null
     ) {
         if (displayed.isEmpty()) {
             Text(
@@ -501,6 +520,9 @@ fun TopSpendingCategoriesCard(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(7.dp)
+                                .semantics {
+                                    contentDescription = "${item.category}, ${item.percentage}% of period spending"
+                                }
                         )
                     }
                 }
@@ -547,7 +569,10 @@ fun EarningsHoursBreakdownCard(
                 .fillMaxWidth()
                 .height(8.dp)
                 .clip(RoundedCornerShape(50))
-                .background(DarkBorder),
+                .background(DarkBorder)
+                .semantics {
+                    contentDescription = "Hours split: ${"%.1f".format(regularHours)} regular, ${"%.1f".format(nightDiffHours)} night diff, ${"%.1f".format(overtimeHours)} overtime"
+                },
             horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             if (regularHours > 0.0) {
@@ -653,11 +678,16 @@ fun HoursOfWorkCostCard(
 ) {
     val visibleItems = if (showAll) items else items.take(2)
     val maxHours = (items.maxOfOrNull { it.dutyHours } ?: 1.0).coerceAtLeast(1.0)
+    val canToggle = items.size > 2
 
     InsightCardContainer(
         title = "Hours of Work This Cost",
-        trailingActionText = if (items.size > 2 && !showAll) "Show All" else null,
-        onTrailingAction = onToggleShowAll
+        trailingActionText = if (canToggle) {
+            if (showAll) "Show Less" else "Show All"
+        } else {
+            null
+        },
+        onTrailingAction = if (canToggle) onToggleShowAll else null
     ) {
         if (visibleItems.isEmpty()) {
             Text(
@@ -713,6 +743,9 @@ fun HoursOfWorkCostCard(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(7.dp)
+                                    .semantics {
+                                        contentDescription = "${entry.category} equals ${"%.1f".format(entry.dutyHours)} hours of duty"
+                                    }
                             )
                         }
                     }
@@ -778,6 +811,9 @@ fun SavingsGoalProgressCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp)
+                .semantics {
+                    contentDescription = "$goalTitle savings goal, $pct% funded"
+                }
         )
     }
 }
@@ -858,6 +894,9 @@ fun UnderBudgetStreakAndTipsCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
+                    .semantics {
+                        contentDescription = "$streakDays of $streakTargetDays days under budget"
+                    }
             )
         }
 
@@ -868,7 +907,7 @@ fun UnderBudgetStreakAndTipsCard(
             } else {
                 null
             },
-            onTrailingAction = onToggleShowAll
+            onTrailingAction = if (tips.size > 1) onToggleShowAll else null
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 visibleTips.forEach { tip ->
@@ -1002,6 +1041,13 @@ fun UnsettledSplitsTrackerCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp)
+                .semantics {
+                    contentDescription = if (unsettledAmount > 0.0) {
+                        "$currencySymbol${"%,.2f".format(unsettledAmount)} unsettled across $unsettledCount friend share(s)"
+                    } else {
+                        "All split bills settled"
+                    }
+                }
         )
     }
 }

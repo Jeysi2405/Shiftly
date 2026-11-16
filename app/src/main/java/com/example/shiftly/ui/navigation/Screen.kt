@@ -1,9 +1,14 @@
 package com.example.shiftly.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.CallSplit
+import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
@@ -33,35 +38,35 @@ sealed class Screen(
     data object Analytics : Screen(
         route = "analytics",
         label = "Analytics",
-        selectedIcon = Icons.Outlined.BarChart,
+        selectedIcon = Icons.Filled.BarChart,
         unselectedIcon = Icons.Outlined.BarChart
     )
 
     data object Duties : Screen(
         route = "duties",
         label = "Duties",
-        selectedIcon = Icons.Outlined.Schedule,
+        selectedIcon = Icons.Filled.Schedule,
         unselectedIcon = Icons.Outlined.Schedule
     )
 
     data object Expense : Screen(
         route = "expense",
         label = "Expense",
-        selectedIcon = Icons.AutoMirrored.Outlined.ReceiptLong,
+        selectedIcon = Icons.AutoMirrored.Filled.ReceiptLong,
         unselectedIcon = Icons.AutoMirrored.Outlined.ReceiptLong
     )
 
     data object SplitBill : Screen(
         route = "split_bill",
         label = "Split Bill",
-        selectedIcon = Icons.AutoMirrored.Outlined.CallSplit,
+        selectedIcon = Icons.AutoMirrored.Filled.CallSplit,
         unselectedIcon = Icons.AutoMirrored.Outlined.CallSplit
     )
 
     data object Profile : Screen(
         route = "profile",
         label = "Profile",
-        selectedIcon = Icons.Outlined.Person,
+        selectedIcon = Icons.Filled.Person,
         unselectedIcon = Icons.Outlined.Person
     )
 

@@ -156,53 +156,95 @@ fun ProfileScreen(
     }
 
     val triggerZipShare: () -> Unit = {
-        viewModel.exportBackupZip { zipFile ->
-            suppressNextRelock()
-            shareExportFile(
-                context = context,
-                file = zipFile,
-                mimeType = "application/zip",
-                chooserTitle = "Export Full Shiftly Backup (.zip)"
+        viewModel.exportBackupZip { result ->
+            result.fold(
+                onSuccess = { zipFile ->
+                    suppressNextRelock()
+                    val launched = shareExportFile(
+                        context = context,
+                        file = zipFile,
+                        mimeType = "application/zip",
+                        chooserTitle = "Export Full Shiftly Backup (.zip)"
+                    )
+                    onShowMessage(
+                        if (launched) "Full backup archive ready to share"
+                        else "No app available to share this file"
+                    )
+                },
+                onFailure = { err ->
+                    onShowMessage("Export failed: ${err.message ?: "storage error"}")
+                }
             )
-            onShowMessage("Full backup archive ready to share")
         }
     }
 
     val triggerJsonShare: () -> Unit = {
-        viewModel.exportBackup { backupJson ->
-            suppressNextRelock()
-            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, "Shiftly Backup JSON")
-                putExtra(Intent.EXTRA_TEXT, backupJson)
-            }
-            context.startActivity(Intent.createChooser(sendIntent, "Export Shiftly Backup JSON"))
+        viewModel.exportBackup { result ->
+            result.fold(
+                onSuccess = { backupJson ->
+                    suppressNextRelock()
+                    val launched = runCatching {
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, "Shiftly Backup JSON")
+                            putExtra(Intent.EXTRA_TEXT, backupJson)
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Export Shiftly Backup JSON"))
+                    }.isSuccess
+                    if (!launched) {
+                        onShowMessage("No app available to share this backup")
+                    }
+                },
+                onFailure = { err ->
+                    onShowMessage("Export failed: ${err.message ?: "storage error"}")
+                }
+            )
         }
     }
 
     val triggerCsvShare: () -> Unit = {
-        viewModel.exportCsv { csvFile ->
-            suppressNextRelock()
-            shareExportFile(
-                context = context,
-                file = csvFile,
-                mimeType = "text/csv",
-                chooserTitle = "Export Shiftly CSV"
+        viewModel.exportCsv { result ->
+            result.fold(
+                onSuccess = { csvFile ->
+                    suppressNextRelock()
+                    val launched = shareExportFile(
+                        context = context,
+                        file = csvFile,
+                        mimeType = "text/csv",
+                        chooserTitle = "Export Shiftly CSV"
+                    )
+                    onShowMessage(
+                        if (launched) "CSV report ready to share"
+                        else "No app available to share this file"
+                    )
+                },
+                onFailure = { err ->
+                    onShowMessage("Export failed: ${err.message ?: "storage error"}")
+                }
             )
-            onShowMessage("CSV report ready to share")
         }
     }
 
     val triggerPdfShare: () -> Unit = {
-        viewModel.exportPdf { pdfFile ->
-            suppressNextRelock()
-            shareExportFile(
-                context = context,
-                file = pdfFile,
-                mimeType = "application/pdf",
-                chooserTitle = "Export Shiftly PDF Statement"
+        viewModel.exportPdf { result ->
+            result.fold(
+                onSuccess = { pdfFile ->
+                    suppressNextRelock()
+                    val launched = shareExportFile(
+                        context = context,
+                        file = pdfFile,
+                        mimeType = "application/pdf",
+                        chooserTitle = "Export Shiftly PDF Statement"
+                    )
+                    onShowMessage(
+                        if (launched) "PDF statement ready to share"
+                        else "No app available to share this file"
+                    )
+                },
+                onFailure = { err ->
+                    onShowMessage("Export failed: ${err.message ?: "storage error"}")
+                }
             )
-            onShowMessage("PDF statement ready to share")
         }
     }
 
@@ -705,18 +747,20 @@ private fun shareExportFile(
     file: File,
     mimeType: String,
     chooserTitle: String
-) {
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file
-    )
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = mimeType
-        putExtra(Intent.EXTRA_STREAM, uri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    context.startActivity(Intent.createChooser(intent, chooserTitle))
+): Boolean {
+    return runCatching {
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = mimeType
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, chooserTitle))
+    }.isSuccess
 }
 
 // =============================================================================

@@ -25,6 +25,15 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+fun greetingForHour(hourOfDay: Int): String {
+    val normalized = ((hourOfDay % 24) + 24) % 24
+    return when (normalized) {
+        in 5..11 -> "Good morning,"
+        in 12..17 -> "Good afternoon,"
+        else -> "Good evening,"
+    }
+}
+
 data class WeekdaySlot(
     val date: LocalDate,
     val dayLetter: String,
@@ -90,6 +99,8 @@ data class HomeUiState(
     val weeklyHours: Double = 0.0,
     val weeklyBars: List<WeeklyBarData> = emptyList(),
     val selectedDate: LocalDate = LocalDate.now(),
+    val isShowingSelectedDateOnly: Boolean = false,
+    val selectedDateHasLogs: Boolean = false,
     val weekdaySlots: List<WeekdaySlot> = emptyList(),
     val timelineItems: List<TimelineActivityItem> = emptyList(),
     val activeTimer: ActiveTimerState = ActiveTimerState()
@@ -197,7 +208,8 @@ class HomeViewModel(
         val dayExtra = extraByDay[selectedEpoch].orEmpty()
         val dayExpenses = expensesByDay[selectedEpoch].orEmpty()
 
-        val showAllRecent = dayShifts.isEmpty() && dayExtra.isEmpty() && dayExpenses.isEmpty()
+        val hasDayLogs = dayShifts.isNotEmpty() || dayExtra.isNotEmpty() || dayExpenses.isNotEmpty()
+        val showAllRecent = !hasDayLogs
         val timelineShifts = if (showAllRecent) shifts.take(5) else dayShifts
         val timelineExtra = if (showAllRecent) extraIncomes.take(3) else dayExtra
         val timelineExpenses = if (showAllRecent) expenses.take(5) else dayExpenses
@@ -265,6 +277,8 @@ class HomeViewModel(
             weeklyHours = weeklyMinutes / 60.0,
             weeklyBars = weeklyBars,
             selectedDate = selectedDate,
+            isShowingSelectedDateOnly = hasDayLogs,
+            selectedDateHasLogs = hasDayLogs,
             weekdaySlots = weekdaySlots,
             timelineItems = combinedTimeline,
             activeTimer = activeTimer
@@ -277,6 +291,10 @@ class HomeViewModel(
 
     fun selectDate(date: LocalDate) {
         _selectedDate.value = date
+    }
+
+    fun resetDateToToday() {
+        _selectedDate.value = LocalDate.now()
     }
 
     fun startQuickShift() {

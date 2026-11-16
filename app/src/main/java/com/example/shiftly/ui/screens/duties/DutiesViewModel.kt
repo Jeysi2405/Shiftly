@@ -328,7 +328,8 @@ class DutiesViewModel(
     }
 
     fun saveDefaultRate(rateText: String) {
-        val parsed = rateText.toDoubleOrNull() ?: return
+        val parsed = rateText.toDoubleOrNull()
+        if (parsed == null || !parsed.isFinite() || parsed <= 0.0) return
         viewModelScope.launch {
             repository.updateDefaultHourlyRate(parsed)
         }

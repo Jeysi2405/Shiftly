@@ -97,7 +97,10 @@ object PreferenceJsonCodec {
                 put(
                     JSONObject().apply {
                         put("category", item.category.trim())
-                        put("monthlyLimit", item.monthlyLimit.coerceAtLeast(0.0))
+                        put(
+                            "monthlyLimit",
+                            item.monthlyLimit.takeIf { it.isFinite() }?.coerceAtLeast(0.0) ?: 0.0
+                        )
                     }
                 )
             }
@@ -114,20 +117,21 @@ object PreferenceJsonCodec {
                         val obj = array.optJSONObject(i) ?: continue
                         val cat = obj.optString("category", "").trim()
                         val limit = obj.optDouble("monthlyLimit", Double.NaN)
-                        if (cat.isNotEmpty() && !limit.isNaN() && limit >= 0.0) {
+                        if (cat.isNotEmpty() && limit.isFinite() && limit >= 0.0) {
                             add(CategoryBudgetSetting(cat, limit))
                         }
                     }
                 }
             }.getOrNull()
-            if (!parsed.isNullOrEmpty()) return parsed
+            if (parsed != null) return parsed
         }
         // Legacy fallback: "Food:1200.0;Transport:500.0"
         return trimmed.split(";").mapNotNull { entry ->
             val idx = entry.lastIndexOf(':')
             if (idx <= 0 || idx >= entry.length - 1) return@mapNotNull null
             val cat = entry.substring(0, idx).trim()
-            val amount = entry.substring(idx + 1).toDoubleOrNull() ?: return@mapNotNull null
+            val amount = entry.substring(idx + 1).toDoubleOrNull()?.takeIf { it.isFinite() }
+                ?: return@mapNotNull null
             if (cat.isEmpty()) null else CategoryBudgetSetting(cat, amount.coerceAtLeast(0.0))
         }.ifEmpty { ShiftlySettingsSnapshot.DEFAULT_CATEGORY_BUDGETS }
     }
@@ -179,7 +183,10 @@ object PreferenceJsonCodec {
                     JSONObject().apply {
                         put("id", item.id)
                         put("title", item.title.trim())
-                        put("amount", item.amount.coerceAtLeast(0.0))
+                        put(
+                            "amount",
+                            item.amount.takeIf { it.isFinite() }?.coerceAtLeast(0.0) ?: 0.0
+                        )
                         put("frequency", item.frequency)
                         put("isIncome", item.isIncome)
                         put("isEnabled", item.isEnabled)
@@ -202,7 +209,7 @@ object PreferenceJsonCodec {
                         val id = obj.optString("id", "").trim()
                         val title = obj.optString("title", "").trim()
                         val amount = obj.optDouble("amount", Double.NaN)
-                        if (id.isNotEmpty() && title.isNotEmpty() && !amount.isNaN() && amount > 0.0) {
+                        if (id.isNotEmpty() && title.isNotEmpty() && amount.isFinite() && amount > 0.0) {
                             add(
                                 RecurringEntrySetting(
                                     id = id,
@@ -224,7 +231,8 @@ object PreferenceJsonCodec {
         return trimmed.split(";").mapNotNull { entry ->
             val parts = entry.split("|")
             if (parts.size == 6) {
-                val amount = parts[2].toDoubleOrNull() ?: return@mapNotNull null
+                val amount = parts[2].toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
+                    ?: return@mapNotNull null
                 RecurringEntrySetting(
                     id = parts[0],
                     title = parts[1],
@@ -276,7 +284,8 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_LAST_SHIFT_NOTIFIED_DAY = longPreferencesKey("last_shift_notified_day")
     }
 
-    private fun round2(value: Double): Double = (value * 100.0).roundToLong() / 100.0
+    private fun round2(value: Double): Double =
+        if (value.isFinite()) (value * 100.0).roundToLong() / 100.0 else 0.0
 
     val defaultHourlyRate: Flow<Double> = context.dataStore.data.map { prefs ->
         prefs[KEY_DEFAULT_HOURLY_RATE] ?: 96.38
@@ -362,7 +371,7 @@ class UserPreferencesManager(private val context: Context) {
         val cleanSymbol = newSymbol.trim().ifEmpty { "₱" }
         context.dataStore.edit { prefs ->
             prefs[KEY_CURRENCY_SYMBOL] = cleanSymbol
-            if (conversionRate != null && conversionRate > 0.0) {
+            if (conversionRate != null && conversionRate.isFinite() && conversionRate > 0.0) {
                 val baseRate = prefs[KEY_DEFAULT_HOURLY_RATE] ?: 96.38
                 prefs[KEY_DEFAULT_HOURLY_RATE] = round2(baseRate * conversionRate).coerceAtLeast(0.01)
 
@@ -373,7 +382,7 @@ class UserPreferencesManager(private val context: Context) {
                 prefs[KEY_SAVINGS_BUFFER] = round2(buffer * conversionRate).coerceAtLeast(0.0)
 
                 val goalTarget = prefs[KEY_SAVINGS_GOAL_TARGET] ?: 5000.0
-                prefs[KEY_SAVINGS_GOAL_TARGET] = round2(goalTarget * conversionRate).coerceAtLeast(100.0)
+                prefs[KEY_SAVINGS_GOAL_TARGET] = round2(goalTarget * conversionRate).coerceAtLeast(1.0)
 
                 val activeRate = prefs[KEY_ACTIVE_TIMER_RATE]
                 if (activeRate != null && activeRate > 0.0) {
@@ -396,14 +405,9 @@ class UserPreferencesManager(private val context: Context) {
     }
 
     suspend fun setDefaultHourlyRate(rate: Double) {
+        if (!rate.isFinite()) return
         context.dataStore.edit { prefs ->
             prefs[KEY_DEFAULT_HOURLY_RATE] = rate.coerceAtLeast(0.0)
-        }
-    }
-
-    suspend fun setCurrencySymbol(symbol: String) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_CURRENCY_SYMBOL] = symbol
         }
     }
 
@@ -423,12 +427,14 @@ class UserPreferencesManager(private val context: Context) {
     }
 
     suspend fun setMonthlyBudget(budget: Double) {
+        if (!budget.isFinite()) return
         context.dataStore.edit { prefs ->
             prefs[KEY_MONTHLY_BUDGET] = budget.coerceAtLeast(0.0)
         }
     }
 
     suspend fun setSavingsBuffer(buffer: Double) {
+        if (!buffer.isFinite()) return
         context.dataStore.edit { prefs ->
             prefs[KEY_SAVINGS_BUFFER] = buffer.coerceAtLeast(0.0)
         }
@@ -451,15 +457,16 @@ class UserPreferencesManager(private val context: Context) {
     suspend fun setShiftRules(ndStartHour: Int, ndMultiplier: Double, otMultiplier: Double) {
         context.dataStore.edit { prefs ->
             prefs[KEY_ND_START_HOUR] = ndStartHour.coerceIn(18, 23)
-            prefs[KEY_ND_MULTIPLIER] = ndMultiplier.coerceIn(1.0, 2.0)
-            prefs[KEY_OT_MULTIPLIER] = otMultiplier.coerceIn(1.0, 3.0)
+            prefs[KEY_ND_MULTIPLIER] = (ndMultiplier.takeIf { it.isFinite() } ?: 1.10).coerceIn(1.0, 2.0)
+            prefs[KEY_OT_MULTIPLIER] = (otMultiplier.takeIf { it.isFinite() } ?: 1.25).coerceIn(1.0, 3.0)
         }
     }
 
     suspend fun setSavingsGoal(title: String, target: Double) {
+        val safeTarget = (target.takeIf { it.isFinite() } ?: 5000.0).coerceAtLeast(1.0)
         context.dataStore.edit { prefs ->
             prefs[KEY_SAVINGS_GOAL_TITLE] = title.trim().ifEmpty { "Tuition & Laptop Fund" }
-            prefs[KEY_SAVINGS_GOAL_TARGET] = target.coerceAtLeast(100.0)
+            prefs[KEY_SAVINGS_GOAL_TARGET] = safeTarget
         }
     }
 
@@ -506,13 +513,13 @@ class UserPreferencesManager(private val context: Context) {
         context.dataStore.edit { prefs ->
             if (!userName.isNullOrBlank()) prefs[KEY_USER_NAME] = userName.trim()
             if (!currencySymbol.isNullOrBlank()) prefs[KEY_CURRENCY_SYMBOL] = currencySymbol.trim()
-            if (defaultHourlyRate != null && defaultHourlyRate > 0.0) {
+            if (defaultHourlyRate != null && defaultHourlyRate.isFinite() && defaultHourlyRate > 0.0) {
                 prefs[KEY_DEFAULT_HOURLY_RATE] = defaultHourlyRate
             }
-            if (monthlyBudget != null && monthlyBudget >= 0.0) {
+            if (monthlyBudget != null && monthlyBudget.isFinite() && monthlyBudget >= 0.0) {
                 prefs[KEY_MONTHLY_BUDGET] = monthlyBudget
             }
-            if (savingsBuffer != null && savingsBuffer >= 0.0) {
+            if (savingsBuffer != null && savingsBuffer.isFinite() && savingsBuffer >= 0.0) {
                 prefs[KEY_SAVINGS_BUFFER] = savingsBuffer
             }
             if (settings != null) {
@@ -524,7 +531,7 @@ class UserPreferencesManager(private val context: Context) {
                 prefs[KEY_ND_MULTIPLIER] = settings.nightDiffMultiplier.coerceIn(1.0, 2.0)
                 prefs[KEY_OT_MULTIPLIER] = settings.overtimeMultiplier.coerceIn(1.0, 3.0)
                 prefs[KEY_SAVINGS_GOAL_TITLE] = settings.savingsGoalTitle
-                prefs[KEY_SAVINGS_GOAL_TARGET] = settings.savingsGoalTarget.coerceAtLeast(100.0)
+                prefs[KEY_SAVINGS_GOAL_TARGET] = settings.savingsGoalTarget.coerceAtLeast(1.0)
                 prefs[KEY_CATEGORY_BUDGETS] = PreferenceJsonCodec.encodeCategoryBudgets(settings.categoryBudgets)
                 prefs[KEY_MANAGED_CATEGORIES] = PreferenceJsonCodec.encodeManagedCategories(settings.managedCategories)
                 prefs[KEY_RECURRING_ENTRIES] = PreferenceJsonCodec.encodeRecurringEntries(settings.recurringEntries)

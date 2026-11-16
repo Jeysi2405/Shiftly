@@ -28,6 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,7 +51,7 @@ fun AnalyticsScreen(
     repository: ShiftlyRepository,
     onBack: () -> Unit = {},
     onNavigateToSplitBill: () -> Unit = {},
-    onShowMessage: (String) -> Unit = {}
+    onNavigateToProfile: () -> Unit = {},
 ) {
     val viewModel: AnalyticsViewModel = viewModel(factory = AnalyticsViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -59,9 +61,7 @@ fun AnalyticsScreen(
         onBack = onBack,
         onSelectRange = { viewModel.selectRange(it) },
         onOpenSplitBill = onNavigateToSplitBill,
-        onOpenGoalMessage = {
-            onShowMessage("Update your savings goal anytime in Profile & Settings")
-        }
+        onOpenGoalSettings = onNavigateToProfile
     )
 }
 
@@ -71,7 +71,7 @@ fun AnalyticsScreenContent(
     onBack: () -> Unit,
     onSelectRange: (AnalyticsRange) -> Unit,
     onOpenSplitBill: () -> Unit,
-    onOpenGoalMessage: () -> Unit = {},
+    onOpenGoalSettings: () -> Unit = {},
     listState: LazyListState = rememberLazyListState()
 ) {
     var showAllInsights by remember { mutableStateOf(false) }
@@ -145,7 +145,8 @@ fun AnalyticsScreenContent(
                         Text(
                             text = "Insights (${state.selectedRange.fullLabel})",
                             style = MaterialTheme.typography.titleMedium,
-                            color = TextLightPrimary
+                            color = TextLightPrimary,
+                            modifier = Modifier.semantics { heading() }
                         )
                         Box(
                             modifier = Modifier
@@ -170,8 +171,7 @@ fun AnalyticsScreenContent(
                         categories = state.categoryInsights,
                         currencySymbol = state.currencySymbol,
                         showAll = showAllInsights,
-                        onToggleShowAll = { showAllInsights = !showAllInsights }
-                    )
+                    ) { showAllInsights = !showAllInsights }
 
                     EarningsHoursBreakdownCard(
                         periodLabel = state.selectedRange.fullLabel,
@@ -197,7 +197,7 @@ fun AnalyticsScreenContent(
                         savedAmount = state.savedProgressAmount,
                         targetAmount = state.savingsGoalTarget,
                         currencySymbol = state.currencySymbol,
-                        onShowAllClick = onOpenGoalMessage
+                        onShowAllClick = onOpenGoalSettings
                     )
 
                     UnderBudgetStreakAndTipsCard(

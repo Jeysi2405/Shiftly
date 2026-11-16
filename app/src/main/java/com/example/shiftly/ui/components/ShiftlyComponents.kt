@@ -3,6 +3,7 @@ package com.example.shiftly.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -36,11 +37,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.example.shiftly.ui.theme.AzureInkOnWhite
 import com.example.shiftly.ui.theme.AzurePrimaryButton
 import com.example.shiftly.ui.theme.BorderSubtle
 import com.example.shiftly.ui.theme.CoralBright
@@ -50,14 +52,12 @@ import com.example.shiftly.ui.theme.DarkCard
 import com.example.shiftly.ui.theme.DarkDisabledContainer
 import com.example.shiftly.ui.theme.DarkDisabledContent
 import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.DeepBlueContainer
 import com.example.shiftly.ui.theme.InkBlack
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.RoseAlert
 import com.example.shiftly.ui.theme.RoseContainer
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.SlateSurface
-import com.example.shiftly.ui.theme.SoftBlue
 import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.TextPrimary
@@ -69,7 +69,7 @@ import com.example.shiftly.ui.theme.TextSecondary
 @Composable
 fun ShiftlyBlueGradientBackground(
     modifier: Modifier = Modifier,
-    content: @Composable BoxScope.() -> Unit
+    content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
         modifier = modifier
@@ -190,8 +190,8 @@ fun ShiftlyCard(
 @Composable
 fun ShiftlyScreenHeader(
     title: String,
-    subtitle: String = "",
     modifier: Modifier = Modifier,
+    subtitle: String = "",
     trailing: (@Composable () -> Unit)? = null
 ) {
     Row(
@@ -203,7 +203,8 @@ fun ShiftlyScreenHeader(
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineSmall,
-                color = TextLightPrimary
+                color = TextLightPrimary,
+                modifier = Modifier.semantics { heading() }
             )
             if (subtitle.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
@@ -222,7 +223,7 @@ fun ShiftlyScreenHeader(
 }
 
 /**
- * Consistent section header with optional count badge or trailing label.
+ * Consistent section header with optional count badge or trailing label/action.
  */
 @Composable
 fun ShiftlySectionHeader(
@@ -230,6 +231,7 @@ fun ShiftlySectionHeader(
     modifier: Modifier = Modifier,
     count: Int? = null,
     trailingText: String? = null,
+    onTrailingClick: (() -> Unit)? = null,
     onLightSurface: Boolean = false
 ) {
     val titleColor = TextPrimary
@@ -243,12 +245,14 @@ fun ShiftlySectionHeader(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f, fill = false)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = titleColor
+                color = titleColor,
+                modifier = Modifier.semantics { heading() }
             )
             if (count != null) {
                 Surface(
@@ -266,96 +270,29 @@ fun ShiftlySectionHeader(
             }
         }
         if (trailingText != null) {
-            Text(
-                text = trailingText,
-                style = MaterialTheme.typography.labelMedium,
-                color = TextSecondary
-            )
-        }
-    }
-}
-
-/**
- * Compact pill badge for semantic states (LIVE, Paid, Unpaid, Logged, etc.).
- */
-@Composable
-fun ShiftlyStatusBadge(
-    label: String,
-    containerColor: Color,
-    contentColor: Color,
-    modifier: Modifier = Modifier,
-    leadingContent: (@Composable () -> Unit)? = null
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(50),
-        color = containerColor
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            if (leadingContent != null) {
-                leadingContent()
-            }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = contentColor
-            )
-        }
-    }
-}
-
-/**
- * Centered empty state with a tinted circular outline icon well and title.
- */
-@Composable
-fun ShiftlyEmptyState(
-    icon: ImageVector,
-    title: String,
-    subtitle: String = "",
-    modifier: Modifier = Modifier,
-    iconTint: Color = SoftBlue,
-    iconContainerColor: Color = DeepBlueContainer
-) {
-    ShiftlyCard(
-        modifier = modifier,
-        contentPadding = 24.dp
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(iconContainerColor),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall,
-                color = TextPrimary,
-                textAlign = TextAlign.Center
-            )
-            if (subtitle.isNotBlank()) {
+            if (onTrailingClick != null) {
+                Box(
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(50))
+                        .clickable(onClick = onTrailingClick)
+                        .padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = trailingText,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = AzureInkOnWhite
+                    )
+                }
+            } else {
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary,
-                    textAlign = TextAlign.Center
+                    text = trailingText,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TextSecondary
                 )
             }
         }

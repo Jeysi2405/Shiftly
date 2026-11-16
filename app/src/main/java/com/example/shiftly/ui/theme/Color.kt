@@ -18,34 +18,19 @@ val DarkDisabledContent = Color(0xFF8A909A)
 // Dark Mode Text Hierarchy
 val TextLightPrimary = Color(0xFFF5F5F5)     // Soft white primary text
 val TextLightSecondary = Color(0xFFA0A0A0)   // Muted gray secondary text
-val TextLightMuted = Color(0xFF8A8A8A)       // Subtle captions & placeholders
+val TextLightMuted = Color(0xFF9399A2)       // Subtle captions & placeholders (WCAG AA >= 4.5:1 on DarkCard)
 
 // Brand Azure Accents (Preserved & Adapted for Dark Mode)
-val SkyBlueTop = Color(0xFF2173D6)           // Brand azure accent
 val AzurePrimaryButton = Color(0xFF2173D6)   // Primary pill CTA button fill
-val AzureMid = Color(0xFF185EC2)
-val DeepAzureBottom = Color(0xFF0C3D91)
 val AzureAccent = Color(0xFF4C9AFF)          // High-contrast azure text/icons/borders on dark
 val AzureDarkContainer = Color(0xFF1A2B42)   // Dark tinted azure container
 val OrbSkyLight = Color(0xFF68BEFF)
-val OrbAquaSoft = Color(0xFF7BE8D6)
 
 // Core Neutrals (Kept for explicit semantic/foreground or contrast usage)
 val PureWhite = Color(0xFFFFFFFF)
-val SoftCloudWhite = DarkCard
-val SurfaceTintLight = DarkCard
 val InkBlack = Color(0xFF0B0D12)
-val InkPrimary = TextLightPrimary
-val InkSecondary = TextLightSecondary
-val InkMuted = TextLightMuted
-val HairlineLight = DarkBorder
 
-// Dark Frosted Glass & Bottom Bar Surfaces
-val GlassBacking = DarkSurface
-val GlassFillTop = Color(0x14FFFFFF)
-val GlassFillBottom = Color(0x05FFFFFF)
-val GlassBorderTop = Color(0x28FFFFFF)
-val GlassBorderBottom = Color(0x14FFFFFF)
+// Dark Frosted Bottom Bar Surfaces
 val GlassNavTop = Color(0xE024272E)
 val GlassNavBottom = Color(0xEB17191E)
 
@@ -68,22 +53,9 @@ val AzureSoftContainer = AzureDarkContainer
 // =============================================================================
 // Token Aliases (Mapped to Dark Mode Hierarchy)
 // =============================================================================
-val ObsidianBackground = DarkBackground
 val SlateSurface = DarkCard
-val SlateSurfaceElevated = DarkCard
-val SlateSurfaceVariant = DarkSurface
-
-val ElectricBlue = AzureAccent
-val SoftBlue = AzureAccent
-val DeepBlueContainer = AzureDarkContainer
-
 val TextPrimary = TextLightPrimary
 val TextSecondary = TextLightSecondary
 val BorderSubtle = DarkBorder
-
-val EmeraldSuccess = MintBright
-val EmeraldContainer = MintSoftContainer
 val RoseAlert = CoralInkOnWhite
 val RoseContainer = CoralSoftContainer
-val AmberWarning = Color(0xFFFBBF24)
-val AmberContainer = Color(0xFF332813)

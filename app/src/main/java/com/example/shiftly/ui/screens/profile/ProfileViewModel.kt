@@ -128,16 +128,15 @@ class ProfileViewModel(
         viewModelScope.launch { repository.updateAppLock(enabled, method, newPin) }
     }
 
-    fun exportBackup(onReady: (String) -> Unit) {
+    fun exportBackup(onResult: (Result<String>) -> Unit) {
         viewModelScope.launch {
-            val report = repository.generateOfflineBackupSummary()
-            onReady(report)
+            onResult(runCatching { repository.generateOfflineBackupSummary() })
         }
     }
 
-    fun exportBackupZip(onReady: (File) -> Unit) {
+    fun exportBackupZip(onResult: (Result<File>) -> Unit) {
         viewModelScope.launch {
-            onReady(repository.generateBackupZipFile())
+            onResult(runCatching { repository.generateBackupZipFile() })
         }
     }
 
@@ -153,15 +152,15 @@ class ProfileViewModel(
         }
     }
 
-    fun exportCsv(onReady: (File) -> Unit) {
+    fun exportCsv(onResult: (Result<File>) -> Unit) {
         viewModelScope.launch {
-            onReady(repository.generateCsvExportFile())
+            onResult(runCatching { repository.generateCsvExportFile() })
         }
     }
 
-    fun exportPdf(onReady: (File) -> Unit) {
+    fun exportPdf(onResult: (Result<File>) -> Unit) {
         viewModelScope.launch {
-            onReady(repository.generatePdfSummaryFile())
+            onResult(runCatching { repository.generatePdfSummaryFile() })
         }
     }
 
