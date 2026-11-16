@@ -52,6 +52,7 @@ import com.example.shiftly.ui.theme.TextSecondary
 import com.example.shiftly.utils.DayType
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
@@ -68,8 +69,12 @@ fun DutiesScreen(
     var showDutyDatePicker by remember { mutableStateOf(false) }
     var showCheckOutDialog by remember { mutableStateOf(false) }
     var showManualShiftDialog by remember { mutableStateOf(false) }
-    var editingNoteShift by remember { mutableStateOf<ShiftEntity?>(null) }
+    var editingShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var pendingDeleteShift by remember { mutableStateOf<ShiftEntity?>(null) }
+
+    val hasShiftForSelectedDate = remember(state.loggedEpochDays, state.selectedDutyDate) {
+        state.loggedEpochDays.contains(state.selectedDutyDate.toEpochDay())
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -100,20 +105,26 @@ fun DutiesScreen(
                 selectedDutyDate = state.selectedDutyDate,
                 defaultHourlyRate = state.defaultHourlyRate,
                 currencySymbol = state.currencySymbol,
+                hasShiftForSelectedDate = hasShiftForSelectedDate,
                 onPickDutyDate = { showDutyDatePicker = true },
                 onTimeIn = { viewModel.startTimer() },
                 onRequestCheckOut = { showCheckOutDialog = true },
                 onCancelTimer = { viewModel.cancelActiveTimer() },
-                onOpenManualEntry = { showManualShiftDialog = true }
+                onOpenManualEntry = { showManualShiftDialog = true },
+                onEditExistingShift = { 
+                    val existingShift = state.displayedShifts.find { it.dateEpochDay == state.selectedDutyDate.toEpochDay() }
+                                        ?: state.displayedShifts.firstOrNull() // Fallback just in case
+                    if (existingShift != null) editingShift = existingShift
+                }
             )
         }
 
-        // 2. Weekly Earnings Bar Chart Summary
+        // 2. Weekly Time Breakdown Summary
         item {
-            WeeklyEarningsCard(
+            TimeBreakdownCard(
                 weeklyTotalEarnings = state.weeklyTotalEarnings,
                 weeklyTotalHours = state.weeklyTotalHours,
-                weeklyBars = state.weeklyBars,
+                timeBreakdown = state.weeklyTimeBreakdown,
                 currencySymbol = state.currencySymbol
             )
         }
@@ -161,7 +172,7 @@ fun DutiesScreen(
                 ShiftHistoryItemCard(
                     shift = shift,
                     currencySymbol = state.currencySymbol,
-                    onEditNote = { editingNoteShift = shift },
+                    onEditNote = { editingShift = shift },
                     onDelete = { pendingDeleteShift = shift }
                 )
             }
@@ -257,38 +268,120 @@ fun DutiesScreen(
         )
     }
 
-    // Edit Existing Shift Overtime Note Dialog
-    editingNoteShift?.let { targetShift ->
+    // Edit Existing Shift Dialog
+    editingShift?.let { targetShift ->
+        val zone = ZoneId.systemDefault()
+        val startLocalTime = Instant.ofEpochMilli(targetShift.timeInMillis).atZone(zone).toLocalTime()
+        val endLocalTime = Instant.ofEpochMilli(targetShift.timeOutMillis).atZone(zone).toLocalTime()
+
+        var startHour by remember(targetShift.id) { mutableStateOf(startLocalTime.hour.toString()) }
+        var startMin by remember(targetShift.id) { mutableStateOf(startLocalTime.minute.toString().padStart(2, '0')) }
+        var endHour by remember(targetShift.id) { mutableStateOf(endLocalTime.hour.toString()) }
+        var endMin by remember(targetShift.id) { mutableStateOf(endLocalTime.minute.toString().padStart(2, '0')) }
+        
         var updatedNote by remember(targetShift.id) { mutableStateOf(targetShift.overtimeNote) }
+        var selectedDayType by remember(targetShift.id) { 
+            mutableStateOf(runCatching { DayType.valueOf(targetShift.dayType) }.getOrNull() ?: DayType.ORDINARY) 
+        }
 
         AlertDialog(
-            onDismissRequest = { editingNoteShift = null },
+            onDismissRequest = { editingShift = null },
             containerColor = SlateSurface,
             title = {
-                Text("Shift Note", color = TextPrimary, fontWeight = FontWeight.Bold)
+                Text(
+                    text = "Edit Shift (${LocalDate.ofEpochDay(targetShift.dateEpochDay).format(DateTimeFormatter.ofPattern("MMM d"))})", 
+                    color = TextPrimary, 
+                    fontWeight = FontWeight.Bold
+                )
             },
             text = {
-                OutlinedTextField(
-                    value = updatedNote,
-                    onValueChange = { updatedNote = it },
-                    label = { Text("Note") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ElectricBlue,
-                        unfocusedBorderColor = BorderSubtle,
-                        focusedLabelColor = SoftBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    DayTypeSelector(
+                        selectedDayType = selectedDayType,
+                        onDayTypeSelected = { selectedDayType = it }
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = startHour,
+                            onValueChange = { startHour = it.take(2) },
+                            label = { Text("In Hr") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = startMin,
+                            onValueChange = { startMin = it.take(2) },
+                            label = { Text("In Min") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = endHour,
+                            onValueChange = { endHour = it.take(2) },
+                            label = { Text("Out Hr") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = endMin,
+                            onValueChange = { endMin = it.take(2) },
+                            label = { Text("Out Min") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = updatedNote,
+                        onValueChange = { updatedNote = it },
+                        label = { Text("Note") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ElectricBlue,
+                            unfocusedBorderColor = BorderSubtle,
+                            focusedLabelColor = SoftBlue,
+                            unfocusedLabelColor = TextSecondary,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        viewModel.updateOvertimeNote(targetShift, updatedNote)
-                        editingNoteShift = null
-                        onShowMessage("Note updated")
+                        val sH = (startHour.toIntOrNull() ?: 9).coerceIn(0, 23)
+                        val sM = (startMin.toIntOrNull() ?: 0).coerceIn(0, 59)
+                        val eH = (endHour.toIntOrNull() ?: 17).coerceIn(0, 23)
+                        val eM = (endMin.toIntOrNull() ?: 0).coerceIn(0, 59)
+                        
+                        viewModel.editShift(
+                            shift = targetShift,
+                            startHour = sH,
+                            startMinute = sM,
+                            endHour = eH,
+                            endMinute = eM,
+                            dayType = selectedDayType,
+                            overtimeNote = updatedNote
+                        )
+                        editingShift = null
+                        onShowMessage("Shift updated")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
                 ) {
@@ -296,7 +389,7 @@ fun DutiesScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { editingNoteShift = null }) {
+                TextButton(onClick = { editingShift = null }) {
                     Text("Cancel", color = TextSecondary)
                 }
             }

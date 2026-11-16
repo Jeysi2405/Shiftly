@@ -281,11 +281,13 @@ fun LiveShiftTimerCard(
     selectedDutyDate: LocalDate,
     defaultHourlyRate: Double,
     currencySymbol: String,
+    hasShiftForSelectedDate: Boolean,
     onPickDutyDate: () -> Unit,
     onTimeIn: () -> Unit,
     onRequestCheckOut: () -> Unit,
     onCancelTimer: () -> Unit,
-    onOpenManualEntry: () -> Unit
+    onOpenManualEntry: () -> Unit,
+    onEditExistingShift: () -> Unit
 ) {
     val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
     val haptics = LocalHapticFeedback.current
@@ -488,36 +490,54 @@ fun LiveShiftTimerCard(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Button(
-                        onClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onTimeIn()
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                    ) {
-                        Icon(Icons.Outlined.PlayArrow, contentDescription = null)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Time In", fontWeight = FontWeight.Bold)
-                    }
+                    if (hasShiftForSelectedDate) {
+                        Button(
+                            onClick = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onEditExistingShift()
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = DeepBlueContainer),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                        ) {
+                            Icon(Icons.Outlined.EditNote, contentDescription = null, tint = ElectricBlue)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Edit Existing Shift", fontWeight = FontWeight.Bold, color = ElectricBlue)
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onTimeIn()
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                        ) {
+                            Icon(Icons.Outlined.PlayArrow, contentDescription = null)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Time In", fontWeight = FontWeight.Bold)
+                        }
 
-                    OutlinedButton(
-                        onClick = onOpenManualEntry,
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, BorderSubtle),
-                        modifier = Modifier.height(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Add,
-                            contentDescription = "Manual Shift",
-                            tint = SoftBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Manual", color = TextPrimary)
+                        OutlinedButton(
+                            onClick = onOpenManualEntry,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, BorderSubtle),
+                            modifier = Modifier.height(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Add,
+                                contentDescription = "Manual Shift",
+                                tint = SoftBlue,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Manual", color = TextPrimary)
+                        }
                     }
                 }
             }
@@ -526,10 +546,10 @@ fun LiveShiftTimerCard(
 }
 
 @Composable
-fun WeeklyEarningsCard(
+fun TimeBreakdownCard(
     weeklyTotalEarnings: Double,
     weeklyTotalHours: Double,
-    weeklyBars: List<DailyEarningsBar>,
+    timeBreakdown: TimeBreakdown,
     currencySymbol: String
 ) {
     Surface(
@@ -568,7 +588,7 @@ fun WeeklyEarningsCard(
                     color = SlateSurfaceVariant
                 ) {
                     Text(
-                        text = "${"%.1f".format(weeklyTotalHours)}h",
+                        text = "${"%.1f".format(weeklyTotalHours)}h total",
                         style = MaterialTheme.typography.labelMedium.tabular(),
                         color = TextSecondary,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
@@ -576,59 +596,62 @@ fun WeeklyEarningsCard(
                 }
             }
 
-            // 7-Day Mon-Sun Bar Chart
+            // Time breakdown indicators
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(104.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.Bottom
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                weeklyBars.forEach { bar ->
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        // Bar Track
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(74.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(SlateSurfaceVariant.copy(alpha = 0.45f)),
-                            contentAlignment = Alignment.BottomCenter
-                        ) {
-                            val barHeightFraction = if (bar.earned > 0.0) {
-                                bar.fillFraction.coerceAtLeast(0.12f)
-                            } else {
-                                0.04f
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .fillMaxHeight(barHeightFraction)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        when {
-                                            bar.earned > 0.0 && bar.isToday -> ElectricBlue
-                                            bar.earned > 0.0 -> SoftBlue
-                                            else -> BorderSubtle
-                                        }
-                                    )
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        Text(
-                            text = bar.dayLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (bar.isToday) FontWeight.Bold else FontWeight.Normal,
-                            color = if (bar.isToday) ElectricBlue else TextSecondary
-                        )
-                    }
-                }
+                TimeBreakdownItem(
+                    label = "Regular",
+                    hours = timeBreakdown.regularHours,
+                    color = ElectricBlue,
+                    modifier = Modifier.weight(1f)
+                )
+                TimeBreakdownItem(
+                    label = "Night Diff",
+                    hours = timeBreakdown.nightDiffHours,
+                    color = SoftBlue,
+                    modifier = Modifier.weight(1f)
+                )
+                TimeBreakdownItem(
+                    label = "Overtime",
+                    hours = timeBreakdown.overtimeHours,
+                    color = EmeraldSuccess,
+                    modifier = Modifier.weight(1f)
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun TimeBreakdownItem(
+    label: String,
+    hours: Double,
+    color: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = SlateSurfaceVariant.copy(alpha = 0.5f),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "${"%.1f".format(hours)}h",
+                style = MaterialTheme.typography.titleMedium.tabular(),
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = TextSecondary
+            )
         }
     }
 }

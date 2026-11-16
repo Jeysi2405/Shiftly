@@ -2,7 +2,6 @@ package com.example.shiftly.utils
 
 import java.time.Instant
 import java.time.ZoneId
-import java.time.ZonedDateTime
 
 enum class DayType(val label: String) {
     ORDINARY("Ordinary Working Day"),
@@ -15,6 +14,13 @@ enum class DayType(val label: String) {
     SPECIAL_WORKING_REST("Special Working + Rest Day")
 }
 
+data class WageDetails(
+    val totalEarned: Double,
+    val regularMinutes: Long,
+    val nightDiffMinutes: Long,
+    val overtimeMinutes: Long
+)
+
 object WageCalculator {
 
     fun calculateTotalEarned(
@@ -22,7 +28,7 @@ object WageCalculator {
         endMillis: Long,
         hourlyRate: Double,
         dayTypeStr: String
-    ): Double {
+    ): WageDetails {
         val type = try {
             DayType.valueOf(dayTypeStr)
         } catch (e: Exception) {
@@ -49,17 +55,18 @@ object WageCalculator {
             DayType.SPECIAL_NON_WORKING_REST -> 1.50 * 1.30 // 1.95
             DayType.REGULAR_HOLIDAY -> 2.00 * 1.30 // 2.60
             DayType.REGULAR_HOLIDAY_REST -> 2.60 * 1.30 // 3.38
-            DayType.SPECIAL_WORKING -> 1.25 // Ordinary overtime rate? Wait, markdown says nothing special about special working overtime. Let's assume ordinary * 1.25, or 1.0 * 1.25
+            DayType.SPECIAL_WORKING -> 1.25
             DayType.SPECIAL_WORKING_REST -> 1.30 * 1.30 // Rest day overtime
         }
 
         val totalMinutes = ((endMillis - startMillis) / 60_000L).coerceAtLeast(0L)
 
-        // We will calculate minute by minute to accurately apply night differential
-        // 10:00 PM to 6:00 AM (22:00 to 06:00) is night differential
         var totalPay = 0.0
-        val perMinuteRate = hourlyRate / 60.0
+        var regularMins = 0L
+        var nightDiffMins = 0L
+        var overtimeMins = 0L
 
+        val perMinuteRate = hourlyRate / 60.0
         val zoneId = ZoneId.systemDefault()
 
         var currentMillis = startMillis
@@ -80,6 +87,15 @@ object WageCalculator {
             if (isNightShift) {
                 // Night shift adds 10% to the *applicable* hourly rate
                 minutePay *= 1.10
+                nightDiffMins++
+            }
+
+            if (isOvertime) {
+                overtimeMins++
+            }
+
+            if (!isOvertime && !isNightShift) {
+                regularMins++
             }
 
             totalPay += minutePay
@@ -87,6 +103,11 @@ object WageCalculator {
             minutesProcessed++
         }
 
-        return totalPay
+        return WageDetails(
+            totalEarned = totalPay,
+            regularMinutes = regularMins,
+            nightDiffMinutes = nightDiffMins,
+            overtimeMinutes = overtimeMins
+        )
     }
 }

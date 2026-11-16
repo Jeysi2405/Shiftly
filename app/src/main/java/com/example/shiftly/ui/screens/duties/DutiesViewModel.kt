@@ -23,13 +23,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-data class DailyEarningsBar(
-    val date: LocalDate,
-    val dayLabel: String,
-    val earned: Double,
-    val hours: Double,
-    val fillFraction: Float,
-    val isToday: Boolean
+data class TimeBreakdown(
+    val regularHours: Double = 0.0,
+    val nightDiffHours: Double = 0.0,
+    val overtimeHours: Double = 0.0
 )
 
 data class DutiesUiState(
@@ -41,7 +38,7 @@ data class DutiesUiState(
     val selectedCalendarDate: LocalDate? = null,
     val weeklyTotalEarnings: Double = 0.0,
     val weeklyTotalHours: Double = 0.0,
-    val weeklyBars: List<DailyEarningsBar> = emptyList(),
+    val weeklyTimeBreakdown: TimeBreakdown = TimeBreakdown(),
     val loggedEpochDays: Set<Long> = emptySet(),
     val displayedShifts: List<ShiftEntity> = emptyList(),
     val totalAllShiftsCount: Int = 0
@@ -81,28 +78,37 @@ class DutiesViewModel(
         val shiftsByDay = allShifts.groupBy { it.dateEpochDay }
 
         // Build Mon-Sun weekly chart data
-        val rawDays = (0..6).map { offset ->
+        var weekTotalEarned = 0.0
+        var weekTotalHours = 0.0
+        var weekRegMins = 0L
+        var weekNightMins = 0L
+        var weekOtMins = 0L
+
+        (0..6).forEach { offset ->
             val date = startOfWeek.plusDays(offset.toLong())
             val dayShifts = shiftsByDay[date.toEpochDay()].orEmpty()
-            val earned = dayShifts.sumOf { it.totalEarned }
-            val hours = dayShifts.sumOf { it.durationMinutes } / 60.0
-            Triple(date, earned, hours)
+            
+            dayShifts.forEach { shift ->
+                val details = WageCalculator.calculateTotalEarned(
+                    shift.timeInMillis,
+                    shift.timeOutMillis,
+                    shift.lockedHourlyRate,
+                    shift.dayType
+                )
+                weekTotalEarned += shift.totalEarned
+                weekTotalHours += shift.durationMinutes / 60.0
+                weekRegMins += details.regularMinutes
+                weekNightMins += details.nightDiffMinutes
+                weekOtMins += details.overtimeMinutes
+            }
         }
 
-        val maxDailyEarned = rawDays.maxOfOrNull { it.second }?.takeIf { it > 0.0 } ?: 1.0
-        val weeklyBars = rawDays.map { (date, earned, hours) ->
-            DailyEarningsBar(
-                date = date,
-                dayLabel = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.getDefault()).take(3),
-                earned = earned,
-                hours = hours,
-                fillFraction = (earned / maxDailyEarned).toFloat().coerceIn(0f, 1f),
-                isToday = date == today
-            )
-        }
+        val weeklyTimeBreakdown = TimeBreakdown(
+            regularHours = weekRegMins / 60.0,
+            nightDiffHours = weekNightMins / 60.0,
+            overtimeHours = weekOtMins / 60.0
+        )
 
-        val weeklyTotalEarnings = rawDays.sumOf { it.second }
-        val weeklyTotalHours = rawDays.sumOf { it.third }
         val loggedEpochDays = shiftsByDay.keys
 
         val filteredShifts = if (filterDate != null) {
@@ -118,9 +124,9 @@ class DutiesViewModel(
             selectedDutyDate = dutyDate,
             displayedMonth = month,
             selectedCalendarDate = filterDate,
-            weeklyTotalEarnings = weeklyTotalEarnings,
-            weeklyTotalHours = weeklyTotalHours,
-            weeklyBars = weeklyBars,
+            weeklyTotalEarnings = weekTotalEarned,
+            weeklyTotalHours = weekTotalHours,
+            weeklyTimeBreakdown = weeklyTimeBreakdown,
             loggedEpochDays = loggedEpochDays,
             displayedShifts = filteredShifts,
             totalAllShiftsCount = allShifts.size
@@ -162,7 +168,7 @@ class DutiesViewModel(
             endMillis = nowMillis,
             hourlyRate = timer.lockedRate,
             dayTypeStr = dayType.name
-        )
+        ).totalEarned
 
         viewModelScope.launch {
             try {
@@ -218,7 +224,7 @@ class DutiesViewModel(
             endMillis = endMillis,
             hourlyRate = lockedRate,
             dayTypeStr = dayType.name
-        )
+        ).totalEarned
 
         viewModelScope.launch {
             repository.insertShift(
@@ -236,9 +242,46 @@ class DutiesViewModel(
         }
     }
 
-    fun updateOvertimeNote(shift: ShiftEntity, updatedNote: String) {
+    fun editShift(
+        shift: ShiftEntity,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        dayType: DayType,
+        overtimeNote: String
+    ) {
+        val zone = ZoneId.systemDefault()
+        val shiftDate = LocalDate.ofEpochDay(shift.dateEpochDay)
+        
+        val startDateTime = shiftDate.atTime(LocalTime.of(startHour, startMinute))
+        var endDateTime = shiftDate.atTime(LocalTime.of(endHour, endMinute))
+        if (!endDateTime.isAfter(startDateTime)) {
+            endDateTime = endDateTime.plusDays(1)
+        }
+
+        val startMillis = startDateTime.atZone(zone).toInstant().toEpochMilli()
+        val endMillis = endDateTime.atZone(zone).toInstant().toEpochMilli()
+        val durationMinutes = ((endMillis - startMillis) / 60_000L).toInt().coerceAtLeast(1)
+        
+        val totalEarned = WageCalculator.calculateTotalEarned(
+            startMillis = startMillis,
+            endMillis = endMillis,
+            hourlyRate = shift.lockedHourlyRate,
+            dayTypeStr = dayType.name
+        ).totalEarned
+
         viewModelScope.launch {
-            repository.updateShift(shift.copy(overtimeNote = updatedNote.trim()))
+            repository.updateShift(
+                shift.copy(
+                    timeInMillis = startMillis,
+                    timeOutMillis = endMillis,
+                    durationMinutes = durationMinutes,
+                    totalEarned = totalEarned,
+                    dayType = dayType.name,
+                    overtimeNote = overtimeNote.trim()
+                )
+            )
         }
     }
 
@@ -253,7 +296,12 @@ class DutiesViewModel(
     }
 
     fun toggleCalendarDateFilter(date: LocalDate) {
-        _selectedCalendarDate.value = if (_selectedCalendarDate.value == date) null else date
+        if (_selectedCalendarDate.value == date) {
+            _selectedCalendarDate.value = null
+        } else {
+            _selectedCalendarDate.value = date
+            _selectedDutyDate.value = date
+        }
     }
 
     fun clearCalendarFilter() {
