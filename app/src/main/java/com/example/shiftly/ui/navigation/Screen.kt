@@ -6,10 +6,12 @@ import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Schedule
@@ -42,6 +44,13 @@ sealed class Screen(
         unselectedIcon = Icons.Outlined.BarChart
     )
 
+    data object Tools : Screen(
+        route = "tools",
+        label = "Tools",
+        selectedIcon = Icons.Filled.GridView,
+        unselectedIcon = Icons.Outlined.GridView
+    )
+
     data object Duties : Screen(
         route = "duties",
         label = "Duties",
@@ -71,6 +80,6 @@ sealed class Screen(
     )
 
     companion object {
-        val bottomNavItems = listOf(Home, Duties, Expense, SplitBill, Profile)
+        val bottomNavItems = listOf(Home, Analytics, Tools, Profile)
     }
 }

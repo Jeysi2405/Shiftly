@@ -1,1 +1,10 @@
 /build
+/schemas/com.example.shiftly.data.local.ShiftlyDatabase/5.json
+/src/main/java/com/example/shiftly/utils/CutoffCalculator.kt
+/src/test/java/com/example/shiftly/CutoffCalculatorTest.kt
+/src/main/java/com/example/shiftly/data/local/ProfilePhotoHelper.kt
+/src/main/java/com/example/shiftly/utils/SavingsGoalMath.kt
+/src/test/java/com/example/shiftly/SavingsGoalMathTest.kt
+/src/main/java/com/example/shiftly/ui/screens/savings/SavingsGoalSheets.kt
+/src/main/java/com/example/shiftly/utils/ShiftlyFormatters.kt
+/src/test/java/com/example/shiftly/ShiftlyFormattersTest.kt

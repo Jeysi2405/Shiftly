@@ -361,7 +361,7 @@ private fun SplitBillEmptyPreview() {
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.SplitBill },
+                    isSelected = { it == Screen.Tools },
                     onSelect = {},
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
@@ -397,7 +397,7 @@ private fun SplitBillFilledPreview() {
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.SplitBill },
+                    isSelected = { it == Screen.Tools },
                     onSelect = {},
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
@@ -473,7 +473,7 @@ private fun SplitBillListPreview() {
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.SplitBill },
+                    isSelected = { it == Screen.Tools },
                     onSelect = {},
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
@@ -501,7 +501,7 @@ private fun SplitBillEmptySheetPreview() {
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.SplitBill },
+                    isSelected = { it == Screen.Tools },
                     onSelect = {},
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )

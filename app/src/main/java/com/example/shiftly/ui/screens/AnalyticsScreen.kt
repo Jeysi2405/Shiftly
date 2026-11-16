@@ -341,7 +341,7 @@ private fun AnalyticsWeeklyPreview() {
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.Home },
+                    isSelected = { it == Screen.Analytics },
                     onSelect = {},
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
@@ -409,7 +409,7 @@ private fun AnalyticsMonthlyPreview() {
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.Home },
+                    isSelected = { it == Screen.Analytics },
                     onSelect = {},
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )

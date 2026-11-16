@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.Color
 
 // Core Dark Surfaces & Borders
 val DarkBackground = Color(0xFF121212)       // Main screen background
-val DarkSurface = Color(0xFF1E1E1E)          // Secondary background, sheets, glass cards
+val DarkSurface = Color(0xFF1E1E1E)          // Secondary background, sheets, cards
 val DarkCard = Color(0xFF252525)             // Elevated cards, tiles, chips
 val DarkCardElevated = Color(0xFF2C2C2C)     // Nested elevated rows / hover-like containers
 val DarkBorder = Color(0xFF333333)           // Subtle dark gray borders and dividers
@@ -40,8 +40,12 @@ val MintTextOnBlue = Color(0xFF7CF7D8)       // High-contrast mint on dark
 val MintInkOnWhite = Color(0xFF34E5B8)       // High-contrast mint on dark cards
 val MintSoftContainer = Color(0xFF132B24)    // Dark tinted mint pill/icon well
 
-// Soft Coral / Red — Expenses & Near-Limit Budget ONLY
-val CoralBright = Color(0xFFFF6B6B)          // Bars, dots, warning progress (>= 80% budget)
+// Purple — Night Differential Pay & Hours
+val NightDiffPurple = Color(0xFFC084FC)      // High-contrast violet/purple for Night Diff on dark
+val NightDiffPurpleContainer = Color(0xFF2B1F3D)
+
+// Soft Coral / Red — Expenses, Overtime Pay/Hours & Near-Limit Budget
+val CoralBright = Color(0xFFFF6B6B)          // Bars, dots, warning progress, Overtime red
 val CoralTextOnBlue = Color(0xFFFF9E96)      // High-contrast coral on dark
 val CoralInkOnWhite = Color(0xFFFF7A7A)      // High-contrast coral on dark cards
 val CoralSoftContainer = Color(0xFF331B1D)   // Dark tinted coral pill/icon well

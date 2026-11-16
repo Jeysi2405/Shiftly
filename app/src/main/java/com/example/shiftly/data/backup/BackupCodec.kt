@@ -51,6 +51,7 @@ data class BackupPayload(
     val userName: String? = null,
     val currencySymbol: String? = null,
     val defaultHourlyRate: Double? = null,
+    val minimumWagePerDay: Double? = null,
     val monthlyBudget: Double? = null,
     val savingsBuffer: Double? = null,
     val settings: ShiftlySettingsSnapshot? = null,
@@ -84,6 +85,9 @@ object BackupCodec {
             payload.defaultHourlyRate?.takeIf { it.isFinite() && it > 0.0 }?.let {
                 put("defaultHourlyRate", it)
             }
+            payload.minimumWagePerDay?.takeIf { it.isFinite() && it >= 0.0 }?.let {
+                put("minimumWagePerDay", it)
+            }
             payload.monthlyBudget?.takeIf { it.isFinite() && it >= 0.0 }?.let {
                 put("monthlyBudget", it)
             }
@@ -98,6 +102,8 @@ object BackupCodec {
                         put("payCycleSchedule", s.payCycleSchedule)
                         put("paydayReminderEnabled", s.paydayReminderEnabled)
                         put("shiftReminderEnabled", s.shiftReminderEnabled)
+                        put("billReminderEnabled", s.billReminderEnabled)
+                        put("savingsReminderEnabled", s.savingsReminderEnabled)
                         put("notificationsEnabled", s.notificationsEnabled)
                         put("nightDiffStartHour", s.nightDiffStartHour)
                         put("nightDiffMultiplier", s.nightDiffMultiplier)
@@ -107,6 +113,7 @@ object BackupCodec {
                         put("categoryBudgets", JSONArray(PreferenceJsonCodec.encodeCategoryBudgets(s.categoryBudgets)))
                         put("managedCategories", JSONArray(PreferenceJsonCodec.encodeManagedCategories(s.managedCategories)))
                         put("recurringEntries", JSONArray(PreferenceJsonCodec.encodeRecurringEntries(s.recurringEntries)))
+                        put("shiftTimePresets", JSONArray(PreferenceJsonCodec.encodeShiftTimePresets(s.shiftTimePresets)))
                     }
                 )
             }
@@ -265,6 +272,8 @@ object BackupCodec {
         val currency = root.optString("currencySymbol", "").trim().takeIf { it.isNotEmpty() }
         val rate = root.optDouble("defaultHourlyRate", Double.NaN)
             .takeIf { it.isFinite() && it > 0.0 }
+        val minWage = root.optDouble("minimumWagePerDay", Double.NaN)
+            .takeIf { it.isFinite() && it >= 0.0 }
         val monthlyBudget = root.optDouble("monthlyBudget", Double.NaN)
             .takeIf { it.isFinite() && it >= 0.0 }
         val savingsBuffer = root.optDouble("savingsBuffer", Double.NaN)
@@ -272,25 +281,25 @@ object BackupCodec {
 
         val settingsObj = root.optJSONObject("settings")
         val settings = settingsObj?.let { s ->
-            val ndMult = s.optDouble("nightDiffMultiplier", 1.10)
-                .takeIf { it.isFinite() } ?: 1.10
-            val otMult = s.optDouble("overtimeMultiplier", 1.25)
-                .takeIf { it.isFinite() } ?: 1.25
             val goalTarget = s.optDouble("savingsGoalTarget", 0.0)
                 .takeIf { it.isFinite() } ?: 0.0
+            val legacyPayday = s.optBoolean("paydayReminderEnabled", true)
             ShiftlySettingsSnapshot(
                 payCycleSchedule = s.optString("payCycleSchedule", "15th & 30th"),
-                paydayReminderEnabled = s.optBoolean("paydayReminderEnabled", true),
+                paydayReminderEnabled = legacyPayday,
                 shiftReminderEnabled = s.optBoolean("shiftReminderEnabled", true),
+                billReminderEnabled = s.optBoolean("billReminderEnabled", true),
+                savingsReminderEnabled = s.optBoolean("savingsReminderEnabled", legacyPayday),
                 notificationsEnabled = s.optBoolean("notificationsEnabled", true),
-                nightDiffStartHour = s.optInt("nightDiffStartHour", 22).coerceIn(18, 23),
-                nightDiffMultiplier = ndMult.coerceIn(1.0, 2.0),
-                overtimeMultiplier = otMult.coerceIn(1.0, 3.0),
+                nightDiffStartHour = 22,
+                nightDiffMultiplier = 1.10,
+                overtimeMultiplier = 1.25,
                 savingsGoalTitle = s.optString("savingsGoalTitle", ""),
                 savingsGoalTarget = goalTarget.coerceAtLeast(0.0),
                 categoryBudgets = parseCategoryBudgetArray(s.optJSONArray("categoryBudgets")),
                 managedCategories = parseManagedCategoryArray(s.optJSONArray("managedCategories")),
-                recurringEntries = parseRecurringEntryArray(s.optJSONArray("recurringEntries"))
+                recurringEntries = parseRecurringEntryArray(s.optJSONArray("recurringEntries")),
+                shiftTimePresets = PreferenceJsonCodec.decodeShiftTimePresets(s.optJSONArray("shiftTimePresets")?.toString())
             )
         }
 
@@ -469,6 +478,7 @@ object BackupCodec {
             userName = userName,
             currencySymbol = currency,
             defaultHourlyRate = rate,
+            minimumWagePerDay = minWage,
             monthlyBudget = monthlyBudget,
             savingsBuffer = savingsBuffer,
             settings = settings,

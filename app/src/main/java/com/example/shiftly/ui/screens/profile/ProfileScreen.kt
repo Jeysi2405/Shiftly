@@ -31,11 +31,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Backup
-import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.CurrencyExchange
 import androidx.compose.material.icons.outlined.Fingerprint
-import androidx.compose.material.icons.outlined.NightlightRound
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Repeat
@@ -102,8 +100,7 @@ import java.time.LocalDate
 private enum class ActiveSettingsSheet {
     ACCOUNT,
     CURRENCY,
-    PAY_CYCLE,
-    SHIFT_RULES,
+    NOTIFICATIONS,
     BUDGETS,
     CATEGORIES,
     RECURRING,
@@ -292,10 +289,10 @@ fun ProfileScreen(
     ProfileScreenContent(
         state = state,
         onAvatarClick = launchProfilePhotoPicker,
-        onExportBackup = triggerZipShare,
-        onOpenRestore = { activeSheet = ActiveSettingsSheet.BACKUP_EXPORT },
-        onExportCsv = triggerCsvShare,
-        onExportPdf = triggerPdfShare,
+        onSaveWageRates = { hourlyRate, minWagePerDay ->
+            viewModel.updateWageRates(hourlyRate, minWagePerDay)
+        },
+        onShowMessage = onShowMessage,
         onOpenSheet = { activeSheet = it },
         onOpenSavingsGoals = {
             if (state.savingsGoals.isEmpty()) {
@@ -420,45 +417,28 @@ fun ProfileScreen(
             }
         }
 
-        ActiveSettingsSheet.PAY_CYCLE -> {
+        ActiveSettingsSheet.NOTIFICATIONS -> {
             SettingsSheetContainer(
-                title = "Pay Cycle & Reminders",
+                title = "Notifications",
                 onDismiss = { activeSheet = null }
             ) {
-                PayCycleSheetContent(
-                    currentSchedule = state.settings.payCycleSchedule,
-                    currentPaydayReminder = state.settings.paydayReminderEnabled,
-                    currentShiftReminder = state.settings.shiftReminderEnabled,
-                    onSave = { schedule, paydayRem, shiftRem ->
-                        if ((paydayRem || shiftRem) && state.settings.notificationsEnabled) {
+                NotificationsSheetContent(
+                    notificationsEnabled = state.settings.notificationsEnabled,
+                    billReminderEnabled = state.settings.billReminderEnabled,
+                    shiftReminderEnabled = state.settings.shiftReminderEnabled,
+                    savingsReminderEnabled = state.settings.savingsReminderEnabled,
+                    onSave = { enabled, bills, shifts, savings ->
+                        if (enabled && (bills || shifts || savings)) {
                             ensureNotificationPermissionThen {
-                                viewModel.updatePayCycle(schedule, paydayRem, shiftRem)
+                                viewModel.updateNotificationPreferences(enabled, bills, shifts, savings)
                                 activeSheet = null
-                                onShowMessage("Pay cycle saved ($schedule)")
+                                onShowMessage("Notification preferences saved")
                             }
                         } else {
-                            viewModel.updatePayCycle(schedule, paydayRem, shiftRem)
+                            viewModel.updateNotificationPreferences(enabled, bills, shifts, savings)
                             activeSheet = null
-                            onShowMessage("Pay cycle saved ($schedule)")
+                            onShowMessage("Notification preferences saved")
                         }
-                    }
-                )
-            }
-        }
-
-        ActiveSettingsSheet.SHIFT_RULES -> {
-            SettingsSheetContainer(
-                title = "Night Diff & Overtime Rules",
-                onDismiss = { activeSheet = null }
-            ) {
-                ShiftRulesSheetContent(
-                    currentNdStartHour = state.settings.nightDiffStartHour,
-                    currentNdMultiplier = state.settings.nightDiffMultiplier,
-                    currentOtMultiplier = state.settings.overtimeMultiplier,
-                    onSave = { ndStart, ndMult, otMult ->
-                        viewModel.updateShiftRules(ndStart, ndMult, otMult)
-                        activeSheet = null
-                        onShowMessage("Shift wage rules updated")
                     }
                 )
             }
@@ -596,10 +576,8 @@ fun ProfileScreen(
 private fun ProfileScreenContent(
     state: ProfileUiState,
     onAvatarClick: () -> Unit,
-    onExportBackup: () -> Unit,
-    onOpenRestore: () -> Unit,
-    onExportCsv: () -> Unit,
-    onExportPdf: () -> Unit,
+    onSaveWageRates: (hourlyRate: Double, minimumWagePerDay: Double) -> Unit,
+    onShowMessage: (String) -> Unit,
     onOpenSheet: (ActiveSettingsSheet) -> Unit,
     onOpenSavingsGoals: () -> Unit,
     onToggleNotifications: (Boolean) -> Unit,
@@ -607,11 +585,6 @@ private fun ProfileScreenContent(
     listState: LazyListState = rememberLazyListState()
 ) {
     val currency = state.currencySymbol
-    val ndHourFormatted = formatRuleHour(state.settings.nightDiffStartHour)
-    val ndBonusPct = ((state.settings.nightDiffMultiplier - 1.0) * 100).toInt()
-    val visibleCategoriesCount = state.settings.managedCategories.count { it.isVisible }
-    val activeRecurringCount = state.settings.recurringEntries.count { it.isEnabled }
-    val activeGoal = state.savingsGoals.firstOrNull { it.goal.isActive } ?: state.savingsGoals.firstOrNull()
     val hasPhoto = !state.profilePhotoPath.isNullOrBlank() && File(state.profilePhotoPath).exists()
 
     LazyColumn(
@@ -679,7 +652,6 @@ private fun ProfileScreenContent(
 
                 ShiftlyScreenHeader(
                     title = "Profile & Settings",
-                    subtitle = "${state.userName.ifBlank { "Personal account" }} • Offline tracker",
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -699,11 +671,12 @@ private fun ProfileScreenContent(
 
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                ProfileBackupGlassCard(
-                    onExportBackup = onExportBackup,
-                    onOpenRestore = onOpenRestore,
-                    onExportCsv = onExportCsv,
-                    onExportPdf = onExportPdf
+                ProfileWageRateCard(
+                    defaultHourlyRate = state.defaultHourlyRate,
+                    minimumWagePerDay = state.minimumWagePerDay,
+                    currencySymbol = currency,
+                    onSaveRates = onSaveWageRates,
+                    onShowMessage = onShowMessage
                 )
             }
         }
@@ -746,14 +719,12 @@ private fun ProfileScreenContent(
                         SettingsChevronRow(
                             icon = Icons.Outlined.Person,
                             title = "Account",
-                            subtitle = "${state.userName.ifBlank { "Set display name" }} • Rate ${ShiftlyFormatters.formatCurrency(currency, state.defaultHourlyRate)}/hr",
                             onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
                         )
                         HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
                             icon = Icons.Outlined.CurrencyExchange,
                             title = "Currency",
-                            subtitle = "Active display & input currency",
                             trailingBadge = currency,
                             iconBg = MintSoftContainer,
                             iconTint = MintInkOnWhite,
@@ -763,58 +734,24 @@ private fun ProfileScreenContent(
                         SettingsSwitchRow(
                             icon = Icons.Outlined.Notifications,
                             title = "Notifications",
-                            subtitle = if (state.settings.notificationsEnabled) {
-                                "Shift reminders & payday alerts active"
-                            } else {
-                                "All reminders muted"
-                            },
                             checked = state.settings.notificationsEnabled,
                             onCheckedChange = onToggleNotifications,
-                            onRowClick = { onOpenSheet(ActiveSettingsSheet.PAY_CYCLE) }
+                            onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) }
                         )
                     }
 
-                    SettingsGroupCard(groupTitle = "PAY, RULES & BUDGETS") {
-                        SettingsChevronRow(
-                            icon = Icons.Outlined.CalendarMonth,
-                            title = "Pay Cycle",
-                            subtitle = buildPayCycleSubtitle(state.settings),
-                            trailingBadge = state.settings.payCycleSchedule,
-                            onClick = { onOpenSheet(ActiveSettingsSheet.PAY_CYCLE) }
-                        )
-                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
-                        SettingsChevronRow(
-                            icon = Icons.Outlined.NightlightRound,
-                            title = "Night Diff & Overtime Rules",
-                            subtitle = "Starts $ndHourFormatted • ND +$ndBonusPct% • OT ${"%.2f".format(state.settings.overtimeMultiplier)}x",
-                            iconBg = MintSoftContainer,
-                            iconTint = MintInkOnWhite,
-                            onClick = { onOpenSheet(ActiveSettingsSheet.SHIFT_RULES) }
-                        )
-                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
+                    SettingsGroupCard(groupTitle = "PAY & BUDGETS") {
                         SettingsChevronRow(
                             icon = Icons.Outlined.AccountBalanceWallet,
                             title = "Monthly & Category Budgets",
-                            subtitle = if (state.monthlyBudget > 0.0) {
-                                "Monthly cap ${ShiftlyFormatters.formatCurrency(currency, state.monthlyBudget)} • ${state.settings.categoryBudgets.size} limits"
-                            } else {
-                                "No monthly cap set • ${state.settings.categoryBudgets.size} limits"
-                            },
                             iconBg = CoralSoftContainer,
                             iconTint = CoralInkOnWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.BUDGETS) }
                         )
                         HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
-                        val savingsSubtitle = if (activeGoal != null) {
-                            val countSuffix = if (state.savingsGoals.size > 1) " (${state.savingsGoals.size} goals)" else ""
-                            "${activeGoal.goal.title} • Target ${ShiftlyFormatters.formatCurrency(currency, activeGoal.goal.targetAmount)}$countSuffix"
-                        } else {
-                            "Tap to create a savings goal"
-                        }
                         SettingsChevronRow(
                             icon = Icons.Outlined.Savings,
                             title = "Savings Goals Setup",
-                            subtitle = savingsSubtitle,
                             iconBg = MintSoftContainer,
                             iconTint = MintInkOnWhite,
                             onClick = onOpenSavingsGoals
@@ -825,14 +762,12 @@ private fun ProfileScreenContent(
                         SettingsChevronRow(
                             icon = Icons.Outlined.Category,
                             title = "Manage Categories",
-                            subtitle = "Add, edit, or hide ($visibleCategoriesCount visible)",
                             onClick = { onOpenSheet(ActiveSettingsSheet.CATEGORIES) }
                         )
                         HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
                             icon = Icons.Outlined.Repeat,
                             title = "Recurring Entries",
-                            subtitle = if (activeRecurringCount > 0) "$activeRecurringCount active rules" else "Tap to add weekly or monthly rules",
                             iconBg = MintSoftContainer,
                             iconTint = MintInkOnWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.RECURRING) }
@@ -843,11 +778,6 @@ private fun ProfileScreenContent(
                         SettingsSwitchRow(
                             icon = Icons.Outlined.Fingerprint,
                             title = "App Lock",
-                            subtitle = if (state.settings.appLockEnabled) {
-                                "${state.settings.appLockMethod} enabled"
-                            } else {
-                                "Protect balances with PIN or fingerprint"
-                            },
                             checked = state.settings.appLockEnabled,
                             onCheckedChange = onToggleAppLock,
                             onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },
@@ -858,7 +788,6 @@ private fun ProfileScreenContent(
                         SettingsChevronRow(
                             icon = Icons.Outlined.Backup,
                             title = "Data Export & Restore",
-                            subtitle = "ZIP + receipts, JSON backup, CSV sheet & PDF",
                             trailingBadge = "ZIP • PDF",
                             onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }
                         )
@@ -867,24 +796,6 @@ private fun ProfileScreenContent(
             }
         }
     }
-}
-
-private fun formatRuleHour(hour24: Int): String {
-    val normalized = ((hour24 % 24) + 24) % 24
-    return when {
-        normalized == 0 -> "12 AM"
-        normalized < 12 -> "$normalized AM"
-        normalized == 12 -> "12 PM"
-        else -> "${normalized - 12} PM"
-    }
-}
-
-private fun buildPayCycleSubtitle(settings: ShiftlySettingsSnapshot): String {
-    val active = buildList {
-        if (settings.paydayReminderEnabled) add("Payday")
-        if (settings.shiftReminderEnabled) add("Shift alerts")
-    }
-    return if (active.isEmpty()) "Reminders off" else active.joinToString(" & ") + " active"
 }
 
 private fun shareExportFile(
@@ -915,6 +826,7 @@ private fun shareExportFile(
 private fun previewProfileState(): ProfileUiState = ProfileUiState(
     userName = "James",
     defaultHourlyRate = 96.38,
+    minimumWagePerDay = 645.0,
     currencySymbol = "₱",
     monthlyBudget = 3000.0,
     savingsBuffer = 0.0,
@@ -939,9 +851,8 @@ private fun previewProfileState(): ProfileUiState = ProfileUiState(
         payCycleSchedule = "15th & 30th",
         paydayReminderEnabled = true,
         shiftReminderEnabled = true,
-        nightDiffStartHour = 22,
-        nightDiffMultiplier = 1.10,
-        overtimeMultiplier = 1.25,
+        billReminderEnabled = true,
+        savingsReminderEnabled = true,
         savingsGoalTitle = "Laptop Fund",
         savingsGoalTarget = 5000.0,
         categoryBudgets = listOf(
@@ -969,7 +880,7 @@ private fun previewProfileState(): ProfileUiState = ProfileUiState(
     )
 )
 
-@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "3. Profile Snapshot & Backup")
+@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "3. Profile Snapshot & Wage")
 @Composable
 private fun ProfileSnapshotAndBackupPreview() {
     ShiftlyTheme {
@@ -978,10 +889,8 @@ private fun ProfileSnapshotAndBackupPreview() {
                 ProfileScreenContent(
                     state = previewProfileState(),
                     onAvatarClick = {},
-                    onExportBackup = {},
-                    onOpenRestore = {},
-                    onExportCsv = {},
-                    onExportPdf = {},
+                    onSaveWageRates = { _, _ -> },
+                    onShowMessage = {},
                     onOpenSheet = {},
                     onOpenSavingsGoals = {},
                     onToggleNotifications = {},
@@ -1007,10 +916,8 @@ private fun ProfileSettingsListPreview() {
                 ProfileScreenContent(
                     state = previewProfileState(),
                     onAvatarClick = {},
-                    onExportBackup = {},
-                    onOpenRestore = {},
-                    onExportCsv = {},
-                    onExportPdf = {},
+                    onSaveWageRates = { _, _ -> },
+                    onShowMessage = {},
                     onOpenSheet = {},
                     onOpenSavingsGoals = {},
                     onToggleNotifications = {},

@@ -78,6 +78,56 @@ class RecurringEngineTest {
     }
 
     @Test
+    fun findBillsDueWithinOneDay_includesZeroOrOneDayBillsAndSkipsOthers() {
+        val today = LocalDate.of(2026, 5, 18)
+
+        val dueTodayBill = RecurringEntrySetting(
+            id = "b_today",
+            title = "Water Bill",
+            amount = 450.0,
+            frequency = "Weekly",
+            isIncome = false,
+            isEnabled = true,
+            lastAppliedEpochDay = today.minusDays(7).toEpochDay() // due today
+        )
+        val dueTomorrowBill = RecurringEntrySetting(
+            id = "b_tomorrow",
+            title = "Internet Bill",
+            amount = 999.0,
+            frequency = "Weekly",
+            isIncome = false,
+            isEnabled = true,
+            lastAppliedEpochDay = today.minusDays(6).toEpochDay() // due tomorrow (+1 day)
+        )
+        val dueInTwoDaysBill = RecurringEntrySetting(
+            id = "b_later",
+            title = "Phone Plan",
+            amount = 599.0,
+            frequency = "Weekly",
+            isIncome = false,
+            isEnabled = true,
+            lastAppliedEpochDay = today.minusDays(5).toEpochDay() // due in 2 days
+        )
+        val incomeRuleDueTomorrow = RecurringEntrySetting(
+            id = "inc_tomorrow",
+            title = "Allowance",
+            amount = 1500.0,
+            frequency = "Weekly",
+            isIncome = true,
+            isEnabled = true,
+            lastAppliedEpochDay = today.minusDays(6).toEpochDay()
+        )
+        val disabledBill = dueTodayBill.copy(id = "b_disabled", isEnabled = false)
+
+        val result = RecurringEngine.findBillsDueWithinOneDay(
+            entries = listOf(dueTodayBill, dueTomorrowBill, dueInTwoDaysBill, incomeRuleDueTomorrow, disabledBill),
+            today = today
+        )
+
+        assertEquals(listOf("b_today", "b_tomorrow"), result.map { it.id })
+    }
+
+    @Test
     fun isPaydayToday_handlesSchedulesIncludingFebruaryCutoff() {
         assertTrue(RecurringEngine.isPaydayToday("Weekly (Fri)", LocalDate.of(2026, 5, 15))) // Friday
         assertFalse(RecurringEngine.isPaydayToday("Weekly (Fri)", LocalDate.of(2026, 5, 18))) // Monday
@@ -99,5 +149,17 @@ class RecurringEngineTest {
         assertFalse(RecurringEngine.shouldSendShiftReminder(enabled, hasLoggedShiftToday = false, isTimerRunning = true, hourOfDay = 15))
         assertFalse(RecurringEngine.shouldSendShiftReminder(enabled, hasLoggedShiftToday = false, isTimerRunning = false, hourOfDay = 9))
         assertFalse(RecurringEngine.shouldSendShiftReminder(enabled.copy(notificationsEnabled = false), hasLoggedShiftToday = false, isTimerRunning = false, hourOfDay = 15))
+    }
+
+    @Test
+    fun shouldSendSavingsDepositReminder_respectsPaydayDailyWindowAndDepositState() {
+        val enabled = ShiftlySettingsSnapshot(notificationsEnabled = true, savingsReminderEnabled = true)
+
+        assertTrue(RecurringEngine.shouldSendSavingsDepositReminder(enabled, isPaydayToday = true, hasDepositedToday = false, hourOfDay = 8))
+        assertTrue(RecurringEngine.shouldSendSavingsDepositReminder(enabled, isPaydayToday = false, hasDepositedToday = false, hourOfDay = 15))
+        assertFalse(RecurringEngine.shouldSendSavingsDepositReminder(enabled, isPaydayToday = false, hasDepositedToday = false, hourOfDay = 9))
+        assertFalse(RecurringEngine.shouldSendSavingsDepositReminder(enabled, isPaydayToday = true, hasDepositedToday = true, hourOfDay = 15))
+        assertFalse(RecurringEngine.shouldSendSavingsDepositReminder(enabled.copy(savingsReminderEnabled = false), isPaydayToday = true, hasDepositedToday = false, hourOfDay = 15))
+        assertFalse(RecurringEngine.shouldSendSavingsDepositReminder(enabled.copy(notificationsEnabled = false), isPaydayToday = true, hasDepositedToday = false, hourOfDay = 15))
     }
 }

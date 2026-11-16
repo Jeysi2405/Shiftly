@@ -47,10 +47,27 @@ data class RecurringEntrySetting(
     val lastAppliedEpochDay: Long = 0L
 )
 
+data class ShiftTimePreset(
+    val id: String,
+    val label: String,
+    val startHour24: Int,
+    val startMinute: Int,
+    val endHour24: Int,
+    val endMinute: Int
+)
+
+data class NotificationLastDays(
+    val lastBillDay: Long = 0L,
+    val lastShiftDay: Long = 0L,
+    val lastSavingsDay: Long = 0L
+)
+
 data class ShiftlySettingsSnapshot(
     val payCycleSchedule: String = "15th & 30th",
     val paydayReminderEnabled: Boolean = true,
     val shiftReminderEnabled: Boolean = true,
+    val billReminderEnabled: Boolean = true,
+    val savingsReminderEnabled: Boolean = true,
     val notificationsEnabled: Boolean = true,
     val nightDiffStartHour: Int = 22,
     val nightDiffMultiplier: Double = 1.10,
@@ -60,6 +77,7 @@ data class ShiftlySettingsSnapshot(
     val categoryBudgets: List<CategoryBudgetSetting> = DEFAULT_CATEGORY_BUDGETS,
     val managedCategories: List<ManagedCategorySetting> = DEFAULT_MANAGED_CATEGORIES,
     val recurringEntries: List<RecurringEntrySetting> = DEFAULT_RECURRING_ENTRIES,
+    val shiftTimePresets: List<ShiftTimePreset> = DEFAULT_SHIFT_TIME_PRESETS,
     val appLockEnabled: Boolean = false,
     val appLockMethod: String = "PIN & Fingerprint",
     val hasAppLockPin: Boolean = false,
@@ -79,6 +97,13 @@ data class ShiftlySettingsSnapshot(
         )
 
         val DEFAULT_RECURRING_ENTRIES: List<RecurringEntrySetting> = emptyList()
+
+        val DEFAULT_SHIFT_TIME_PRESETS = listOf(
+            ShiftTimePreset("p_12am_6am", "12 AM – 6 AM", 0, 0, 6, 0),
+            ShiftTimePreset("p_9am_1pm", "9 AM – 1 PM", 9, 0, 13, 0),
+            ShiftTimePreset("p_2pm_6pm", "2 PM – 6 PM", 14, 0, 18, 0),
+            ShiftTimePreset("p_6pm_11pm", "6 PM – 11 PM", 18, 0, 23, 0)
+        )
     }
 }
 
@@ -239,12 +264,58 @@ object PreferenceJsonCodec {
             }
         }
     }
+
+    fun encodeShiftTimePresets(items: List<ShiftTimePreset>): String =
+        JSONArray().apply {
+            items.forEach { item ->
+                put(
+                    JSONObject().apply {
+                        put("id", item.id)
+                        put("label", item.label.trim())
+                        put("startHour24", item.startHour24.coerceIn(0, 23))
+                        put("startMinute", item.startMinute.coerceIn(0, 59))
+                        put("endHour24", item.endHour24.coerceIn(0, 23))
+                        put("endMinute", item.endMinute.coerceIn(0, 59))
+                    }
+                )
+            }
+        }.toString()
+
+    fun decodeShiftTimePresets(raw: String?): List<ShiftTimePreset> {
+        if (raw.isNullOrBlank()) return ShiftlySettingsSnapshot.DEFAULT_SHIFT_TIME_PRESETS
+        val trimmed = raw.trim()
+        if (!trimmed.startsWith("[")) return ShiftlySettingsSnapshot.DEFAULT_SHIFT_TIME_PRESETS
+        val parsed = runCatching {
+            val array = JSONArray(trimmed)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val id = obj.optString("id", "").trim()
+                    val label = obj.optString("label", "").trim()
+                    if (id.isNotEmpty() && label.isNotEmpty()) {
+                        add(
+                            ShiftTimePreset(
+                                id = id,
+                                label = label,
+                                startHour24 = obj.optInt("startHour24", 0).coerceIn(0, 23),
+                                startMinute = obj.optInt("startMinute", 0).coerceIn(0, 59),
+                                endHour24 = obj.optInt("endHour24", 6).coerceIn(0, 23),
+                                endMinute = obj.optInt("endMinute", 0).coerceIn(0, 59)
+                            )
+                        )
+                    }
+                }
+            }
+        }.getOrNull()
+        return parsed ?: ShiftlySettingsSnapshot.DEFAULT_SHIFT_TIME_PRESETS
+    }
 }
 
 class UserPreferencesManager(private val context: Context) {
 
     companion object {
         private val KEY_DEFAULT_HOURLY_RATE = doublePreferencesKey("default_hourly_rate")
+        private val KEY_MINIMUM_WAGE_PER_DAY = doublePreferencesKey("minimum_wage_per_day")
         private val KEY_CURRENCY_SYMBOL = stringPreferencesKey("currency_symbol")
         private val KEY_ACTIVE_TIMER_START = longPreferencesKey("active_timer_start")
         private val KEY_ACTIVE_TIMER_DATE = longPreferencesKey("active_timer_date")
@@ -261,6 +332,8 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_PAY_CYCLE_SCHEDULE = stringPreferencesKey("pay_cycle_schedule")
         private val KEY_PAYDAY_REMINDER = booleanPreferencesKey("payday_reminder")
         private val KEY_SHIFT_REMINDER = booleanPreferencesKey("shift_reminder")
+        private val KEY_BILL_REMINDER = booleanPreferencesKey("bill_reminder")
+        private val KEY_SAVINGS_REMINDER = booleanPreferencesKey("savings_reminder")
         private val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         private val KEY_ND_START_HOUR = intPreferencesKey("night_diff_start_hour")
         private val KEY_ND_MULTIPLIER = doublePreferencesKey("night_diff_multiplier")
@@ -270,12 +343,15 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_CATEGORY_BUDGETS = stringPreferencesKey("category_budgets_serialized")
         private val KEY_MANAGED_CATEGORIES = stringPreferencesKey("managed_categories_serialized")
         private val KEY_RECURRING_ENTRIES = stringPreferencesKey("recurring_entries_serialized")
+        private val KEY_SHIFT_TIME_PRESETS = stringPreferencesKey("shift_time_presets_serialized")
         private val KEY_APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
         private val KEY_APP_LOCK_METHOD = stringPreferencesKey("app_lock_method")
         private val KEY_APP_LOCK_PIN = stringPreferencesKey("app_lock_pin")
         private val KEY_APP_LOCK_PIN_HASH = stringPreferencesKey("app_lock_pin_hash")
+        private val KEY_LAST_BILL_NOTIFIED_DAY = longPreferencesKey("last_bill_notified_day")
         private val KEY_LAST_PAYDAY_NOTIFIED_DAY = longPreferencesKey("last_payday_notified_day")
         private val KEY_LAST_SHIFT_NOTIFIED_DAY = longPreferencesKey("last_shift_notified_day")
+        private val KEY_LAST_SAVINGS_NOTIFIED_DAY = longPreferencesKey("last_savings_notified_day")
     }
 
     private fun round2(value: Double): Double =
@@ -283,6 +359,10 @@ class UserPreferencesManager(private val context: Context) {
 
     val defaultHourlyRate: Flow<Double> = context.dataStore.data.map { prefs ->
         prefs[KEY_DEFAULT_HOURLY_RATE] ?: 0.0
+    }
+
+    val minimumWagePerDay: Flow<Double> = context.dataStore.data.map { prefs ->
+        prefs[KEY_MINIMUM_WAGE_PER_DAY] ?: 0.0
     }
 
     val currencySymbol: Flow<String> = context.dataStore.data.map { prefs ->
@@ -313,19 +393,23 @@ class UserPreferencesManager(private val context: Context) {
         val pinHash = prefs[KEY_APP_LOCK_PIN_HASH].orEmpty().ifBlank {
             prefs[KEY_APP_LOCK_PIN].orEmpty()
         }
+        val legacyPayday = prefs[KEY_PAYDAY_REMINDER] ?: true
         ShiftlySettingsSnapshot(
             payCycleSchedule = prefs[KEY_PAY_CYCLE_SCHEDULE] ?: "15th & 30th",
-            paydayReminderEnabled = prefs[KEY_PAYDAY_REMINDER] ?: true,
+            paydayReminderEnabled = legacyPayday,
             shiftReminderEnabled = prefs[KEY_SHIFT_REMINDER] ?: true,
+            billReminderEnabled = prefs[KEY_BILL_REMINDER] ?: true,
+            savingsReminderEnabled = prefs[KEY_SAVINGS_REMINDER] ?: legacyPayday,
             notificationsEnabled = prefs[KEY_NOTIFICATIONS_ENABLED] ?: true,
-            nightDiffStartHour = prefs[KEY_ND_START_HOUR] ?: 22,
-            nightDiffMultiplier = prefs[KEY_ND_MULTIPLIER] ?: 1.10,
-            overtimeMultiplier = prefs[KEY_OT_MULTIPLIER] ?: 1.25,
+            nightDiffStartHour = 22,
+            nightDiffMultiplier = 1.10,
+            overtimeMultiplier = 1.25,
             savingsGoalTitle = prefs[KEY_SAVINGS_GOAL_TITLE] ?: "",
             savingsGoalTarget = prefs[KEY_SAVINGS_GOAL_TARGET] ?: 0.0,
             categoryBudgets = PreferenceJsonCodec.decodeCategoryBudgets(prefs[KEY_CATEGORY_BUDGETS]),
             managedCategories = PreferenceJsonCodec.decodeManagedCategories(prefs[KEY_MANAGED_CATEGORIES]),
             recurringEntries = PreferenceJsonCodec.decodeRecurringEntries(prefs[KEY_RECURRING_ENTRIES]),
+            shiftTimePresets = PreferenceJsonCodec.decodeShiftTimePresets(prefs[KEY_SHIFT_TIME_PRESETS]),
             appLockEnabled = prefs[KEY_APP_LOCK_ENABLED] ?: false,
             appLockMethod = prefs[KEY_APP_LOCK_METHOD] ?: "PIN & Fingerprint",
             hasAppLockPin = pinHash.isNotBlank(),
@@ -347,21 +431,33 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    suspend fun getLastNotifiedDays(): Pair<Long, Long> {
+    suspend fun getNotificationLastDays(): NotificationLastDays {
         val prefs = context.dataStore.data.first()
-        return (prefs[KEY_LAST_PAYDAY_NOTIFIED_DAY] ?: 0L) to
-            (prefs[KEY_LAST_SHIFT_NOTIFIED_DAY] ?: 0L)
+        val legacyPayday = prefs[KEY_LAST_PAYDAY_NOTIFIED_DAY] ?: 0L
+        val savedSavings = prefs[KEY_LAST_SAVINGS_NOTIFIED_DAY] ?: 0L
+        return NotificationLastDays(
+            lastBillDay = prefs[KEY_LAST_BILL_NOTIFIED_DAY] ?: 0L,
+            lastShiftDay = prefs[KEY_LAST_SHIFT_NOTIFIED_DAY] ?: 0L,
+            lastSavingsDay = maxOf(legacyPayday, savedSavings)
+        )
     }
 
-    suspend fun markPaydayNotified(epochDay: Long) {
+    suspend fun markBillNotified(epochDay: Long) {
         context.dataStore.edit { prefs ->
-            prefs[KEY_LAST_PAYDAY_NOTIFIED_DAY] = epochDay
+            prefs[KEY_LAST_BILL_NOTIFIED_DAY] = epochDay
         }
     }
 
     suspend fun markShiftNotified(epochDay: Long) {
         context.dataStore.edit { prefs ->
             prefs[KEY_LAST_SHIFT_NOTIFIED_DAY] = epochDay
+        }
+    }
+
+    suspend fun markSavingsNotified(epochDay: Long) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_LAST_SAVINGS_NOTIFIED_DAY] = epochDay
+            prefs[KEY_LAST_PAYDAY_NOTIFIED_DAY] = epochDay
         }
     }
 
@@ -373,6 +469,11 @@ class UserPreferencesManager(private val context: Context) {
                 val baseRate = prefs[KEY_DEFAULT_HOURLY_RATE] ?: 0.0
                 if (baseRate > 0.0) {
                     prefs[KEY_DEFAULT_HOURLY_RATE] = round2(baseRate * conversionRate).coerceAtLeast(0.01)
+                }
+
+                val minWage = prefs[KEY_MINIMUM_WAGE_PER_DAY] ?: 0.0
+                if (minWage > 0.0) {
+                    prefs[KEY_MINIMUM_WAGE_PER_DAY] = round2(minWage * conversionRate).coerceAtLeast(0.01)
                 }
 
                 val monthly = prefs[KEY_MONTHLY_BUDGET] ?: 0.0
@@ -417,6 +518,13 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
+    suspend fun setMinimumWagePerDay(amount: Double) {
+        if (!amount.isFinite()) return
+        context.dataStore.edit { prefs ->
+            prefs[KEY_MINIMUM_WAGE_PER_DAY] = amount.coerceAtLeast(0.0)
+        }
+    }
+
     suspend fun setOnboardingCompleted(completed: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[KEY_ONBOARDING_COMPLETED] = completed
@@ -456,25 +564,30 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    suspend fun setPayCycleSettings(schedule: String, paydayReminder: Boolean, shiftReminder: Boolean) {
+    suspend fun setPayCycleSchedule(schedule: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_PAY_CYCLE_SCHEDULE] = schedule
-            prefs[KEY_PAYDAY_REMINDER] = paydayReminder
-            prefs[KEY_SHIFT_REMINDER] = shiftReminder
+        }
+    }
+
+    suspend fun setNotificationPreferences(
+        notificationsEnabled: Boolean,
+        billReminderEnabled: Boolean,
+        shiftReminderEnabled: Boolean,
+        savingsReminderEnabled: Boolean
+    ) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_NOTIFICATIONS_ENABLED] = notificationsEnabled
+            prefs[KEY_BILL_REMINDER] = billReminderEnabled
+            prefs[KEY_SHIFT_REMINDER] = shiftReminderEnabled
+            prefs[KEY_SAVINGS_REMINDER] = savingsReminderEnabled
+            prefs[KEY_PAYDAY_REMINDER] = savingsReminderEnabled
         }
     }
 
     suspend fun setNotificationsEnabled(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[KEY_NOTIFICATIONS_ENABLED] = enabled
-        }
-    }
-
-    suspend fun setShiftRules(ndStartHour: Int, ndMultiplier: Double, otMultiplier: Double) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_ND_START_HOUR] = ndStartHour.coerceIn(18, 23)
-            prefs[KEY_ND_MULTIPLIER] = (ndMultiplier.takeIf { it.isFinite() } ?: 1.10).coerceIn(1.0, 2.0)
-            prefs[KEY_OT_MULTIPLIER] = (otMultiplier.takeIf { it.isFinite() } ?: 1.25).coerceIn(1.0, 3.0)
         }
     }
 
@@ -507,6 +620,13 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
+    suspend fun setShiftTimePresets(items: List<ShiftTimePreset>) {
+        val serialized = PreferenceJsonCodec.encodeShiftTimePresets(items)
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SHIFT_TIME_PRESETS] = serialized
+        }
+    }
+
     suspend fun setAppLock(enabled: Boolean, method: String, pinHash: String?) {
         context.dataStore.edit { prefs ->
             prefs[KEY_APP_LOCK_ENABLED] = enabled
@@ -522,6 +642,7 @@ class UserPreferencesManager(private val context: Context) {
         userName: String?,
         currencySymbol: String?,
         defaultHourlyRate: Double?,
+        minimumWagePerDay: Double? = null,
         monthlyBudget: Double?,
         savingsBuffer: Double?,
         settings: ShiftlySettingsSnapshot?,
@@ -532,6 +653,9 @@ class UserPreferencesManager(private val context: Context) {
             if (!currencySymbol.isNullOrBlank()) prefs[KEY_CURRENCY_SYMBOL] = currencySymbol.trim()
             if (defaultHourlyRate != null && defaultHourlyRate.isFinite() && defaultHourlyRate > 0.0) {
                 prefs[KEY_DEFAULT_HOURLY_RATE] = defaultHourlyRate
+            }
+            if (minimumWagePerDay != null && minimumWagePerDay.isFinite() && minimumWagePerDay >= 0.0) {
+                prefs[KEY_MINIMUM_WAGE_PER_DAY] = minimumWagePerDay
             }
             if (monthlyBudget != null && monthlyBudget.isFinite() && monthlyBudget >= 0.0) {
                 prefs[KEY_MONTHLY_BUDGET] = monthlyBudget
@@ -546,15 +670,18 @@ class UserPreferencesManager(private val context: Context) {
                 prefs[KEY_PAY_CYCLE_SCHEDULE] = settings.payCycleSchedule
                 prefs[KEY_PAYDAY_REMINDER] = settings.paydayReminderEnabled
                 prefs[KEY_SHIFT_REMINDER] = settings.shiftReminderEnabled
+                prefs[KEY_BILL_REMINDER] = settings.billReminderEnabled
+                prefs[KEY_SAVINGS_REMINDER] = settings.savingsReminderEnabled
                 prefs[KEY_NOTIFICATIONS_ENABLED] = settings.notificationsEnabled
-                prefs[KEY_ND_START_HOUR] = settings.nightDiffStartHour.coerceIn(18, 23)
-                prefs[KEY_ND_MULTIPLIER] = settings.nightDiffMultiplier.coerceIn(1.0, 2.0)
-                prefs[KEY_OT_MULTIPLIER] = settings.overtimeMultiplier.coerceIn(1.0, 3.0)
+                prefs[KEY_ND_START_HOUR] = 22
+                prefs[KEY_ND_MULTIPLIER] = 1.10
+                prefs[KEY_OT_MULTIPLIER] = 1.25
                 prefs[KEY_SAVINGS_GOAL_TITLE] = settings.savingsGoalTitle
                 prefs[KEY_SAVINGS_GOAL_TARGET] = settings.savingsGoalTarget.coerceAtLeast(0.0)
                 prefs[KEY_CATEGORY_BUDGETS] = PreferenceJsonCodec.encodeCategoryBudgets(settings.categoryBudgets)
                 prefs[KEY_MANAGED_CATEGORIES] = PreferenceJsonCodec.encodeManagedCategories(settings.managedCategories)
                 prefs[KEY_RECURRING_ENTRIES] = PreferenceJsonCodec.encodeRecurringEntries(settings.recurringEntries)
+                prefs[KEY_SHIFT_TIME_PRESETS] = PreferenceJsonCodec.encodeShiftTimePresets(settings.shiftTimePresets)
             }
         }
     }

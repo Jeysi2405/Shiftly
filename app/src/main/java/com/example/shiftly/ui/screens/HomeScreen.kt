@@ -28,7 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -61,7 +60,6 @@ import com.example.shiftly.utils.CutoffWindow
 import com.example.shiftly.utils.SavingsGoalMath
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 @Composable
 fun HomeScreen(
@@ -82,8 +80,6 @@ fun HomeScreen(
 
     HomeScreenContent(
         state = state,
-        onSelectDate = { viewModel.selectDate(it) },
-        onResetToToday = { viewModel.resetDateToToday() },
         onNotificationClick = {
             if (state.pendingSplitsOwed > 0) {
                 onNavigateToSplitBill()
@@ -152,8 +148,6 @@ fun HomeScreen(
 @Composable
 fun HomeScreenContent(
     state: HomeUiState,
-    onSelectDate: (LocalDate) -> Unit,
-    onResetToToday: () -> Unit = {},
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
     onOpenPendingSplits: () -> Unit,
@@ -166,9 +160,6 @@ fun HomeScreenContent(
     greetingHourOverride: Int? = null
 ) {
     val currency = state.currencySymbol
-    val locale = LocalConfiguration.current.locales[0]
-    val dateHeaderFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
-    val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
 
     LazyColumn(
         modifier = Modifier
@@ -185,6 +176,19 @@ fun HomeScreenContent(
                 onNotificationClick = onNotificationClick,
                 onProfileClick = onProfileClick
             )
+        }
+
+        item {
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                if (greetingHourOverride != null) {
+                    DashboardGreetingBanner(
+                        userName = state.userName,
+                        greetingHour = greetingHourOverride
+                    )
+                } else {
+                    DashboardGreetingBanner(userName = state.userName)
+                }
+            }
         }
 
         item {
@@ -220,15 +224,6 @@ fun HomeScreenContent(
                                 .clip(RoundedCornerShape(50))
                                 .background(DarkBorder)
                         )
-                    }
-
-                    if (greetingHourOverride != null) {
-                        DashboardGreetingBanner(
-                            userName = state.userName,
-                            greetingHour = greetingHourOverride
-                        )
-                    } else {
-                        DashboardGreetingBanner(userName = state.userName)
                     }
 
                     val budgetRatio = if (state.monthlyBudget > 0.0) {
@@ -290,33 +285,14 @@ fun HomeScreenContent(
                         onViewInsights = onViewInsights
                     )
 
-                    SwipeableMonthDateSelector(
-                        selectedDate = state.selectedDate,
-                        shiftEpochDays = state.shiftEpochDays,
-                        expenseEpochDays = state.expenseEpochDays,
-                        onSelectDate = onSelectDate,
-                        todayOverride = todayOverride
+                    MonthlyHoursIndicatorCard(
+                        monthName = state.currentMonthName,
+                        summary = state.monthlyHoursSummary
                     )
 
-                    val selectedLabel = state.selectedDate.format(dateHeaderFormatter)
-                    val isDifferentDay = state.selectedDate != today
-                    val timelineTitle = when {
-                        isDifferentDay && state.selectedDateHasLogs -> "Activity • $selectedLabel"
-                        !isDifferentDay && state.selectedDateHasLogs -> "Today's Activity"
-                        else -> "Recent Activity"
-                    }
-                    val timelineTrailing = when {
-                        isDifferentDay && state.selectedDateHasLogs -> "Today"
-                        isDifferentDay -> "None on $selectedLabel • Today"
-                        !state.selectedDateHasLogs && state.timelineItems.isNotEmpty() -> "Latest logs"
-                        else -> null
-                    }
-
                     ShiftlySectionHeader(
-                        title = timelineTitle,
+                        title = "Recent Activity",
                         count = state.timelineItems.size,
-                        trailingText = timelineTrailing,
-                        onTrailingClick = if (isDifferentDay) onResetToToday else null,
                         onLightSurface = true
                     )
 
@@ -352,7 +328,7 @@ private fun HomeScreenPreview() {
     val today = LocalDate.of(2026, 11, 17)
     val goal = SavingsGoalEntity(
         id = 1L,
-        title = "Laptop Fund",
+        title = "Motor",
         targetAmount = 5000.0,
         targetDateEpochDay = today.plusDays(20).toEpochDay(),
         isActive = true
@@ -393,11 +369,11 @@ private fun HomeScreenPreview() {
             CategorySpendSummary("Transport", 150.0, 0.25f),
             CategorySpendSummary("Supplies", 121.38, 0.21f)
         ),
-        selectedDate = today,
-        isShowingSelectedDateOnly = true,
-        selectedDateHasLogs = true,
-        shiftEpochDays = setOf(today.toEpochDay(), today.minusDays(1).toEpochDay()),
-        expenseEpochDays = setOf(today.toEpochDay()),
+        monthlyHoursSummary = MonthlyHoursSummary(
+            totalHours = 42.5,
+            nightDiffHours = 6.0,
+            overtimeHours = 3.5
+        ),
         timelineItems = listOf(
             TimelineActivityItem.ShiftActivity(
                 id = 1,
@@ -425,7 +401,6 @@ private fun HomeScreenPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 HomeScreenContent(
                     state = sampleState,
-                    onSelectDate = {},
                     onNotificationClick = {},
                     onProfileClick = {},
                     onOpenPendingSplits = {},

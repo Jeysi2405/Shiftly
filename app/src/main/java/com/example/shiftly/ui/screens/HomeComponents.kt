@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.selectableGroup
@@ -85,6 +84,7 @@ import com.example.shiftly.ui.theme.MintBright
 import com.example.shiftly.ui.theme.MintInkOnWhite
 import com.example.shiftly.ui.theme.MintSoftContainer
 import com.example.shiftly.ui.theme.MintTextOnBlue
+import com.example.shiftly.ui.theme.NightDiffPurple
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
@@ -95,14 +95,13 @@ import com.example.shiftly.utils.ShiftlyFormatters
 import java.io.File
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 /**
- * Top header displaying the current date, notifications, and the user's profile avatar.
+ * Top header displaying the day name on top and numeric date (MM / dd / yyyy) below,
+ * plus notifications and profile avatar.
  */
 @Composable
 fun HomeGreetingHeader(
@@ -114,8 +113,8 @@ fun HomeGreetingHeader(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
-    val dayOfWeekYearFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE, yyyy", locale) }
-    val monthDayFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMMM d", locale) }
+    val dayNameFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE", locale) }
+    val numericDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MM / dd / yyyy", locale) }
 
     val notificationDescription = if (pendingAlertsCount > 0) {
         "Notifications, $pendingAlertsCount pending split bill(s)"
@@ -132,13 +131,13 @@ fun HomeGreetingHeader(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = today.format(dayOfWeekYearFormatter),
+                text = today.format(dayNameFormatter),
                 style = MaterialTheme.typography.labelLarge.copy(fontFamily = ShiftlySerif),
                 color = TextLightSecondary
             )
             Text(
-                text = today.format(monthDayFormatter),
-                style = MaterialTheme.typography.headlineLarge,
+                text = today.format(numericDateFormatter),
+                style = MaterialTheme.typography.headlineLarge.tabular(),
                 color = TextLightPrimary,
                 modifier = Modifier.semantics { heading() }
             )
@@ -243,6 +242,7 @@ fun HomeHeroPager(
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val currency = state.currencySymbol
+    val uniformHeroHeight = 198.dp
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -255,88 +255,112 @@ fun HomeHeroPager(
         ) { page ->
             when (page) {
                 0 -> {
-                    ShiftlyGlassCard(contentPadding = PaddingValues(20.dp)) {
-                        Text(
-                            text = "Total Balance",
-                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                            color = TextLightSecondary
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = ShiftlyFormatters.formatCurrency(currency, state.totalBalance),
-                            style = MaterialTheme.typography.displayMedium.copy(
-                                fontFamily = ShiftlySans,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 36.sp
-                            ).tabular(),
-                            color = TextLightPrimary
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ShiftlyGlassCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(uniformHeroHeight),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            HeroMetricPill(
-                                label = "Income",
-                                amount = ShiftlyFormatters.formatCurrency(currency, state.totalIncome, showPlus = true),
-                                isIncome = true,
-                                modifier = Modifier.weight(1f)
-                            )
-                            HeroMetricPill(
-                                label = "Expenses",
-                                amount = ShiftlyFormatters.formatCurrency(currency, state.totalExpenses, showMinus = true),
-                                isIncome = false,
-                                modifier = Modifier.weight(1f)
-                            )
+                            Column {
+                                Text(
+                                    text = "Total Balance",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                                    color = TextLightSecondary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = ShiftlyFormatters.formatCurrency(currency, state.totalBalance),
+                                    style = MaterialTheme.typography.displayMedium.copy(
+                                        fontFamily = ShiftlySans,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 32.sp
+                                    ).tabular(),
+                                    color = TextLightPrimary
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                HeroMetricPill(
+                                    label = "Income",
+                                    amount = ShiftlyFormatters.formatCurrency(currency, state.totalIncome, showPlus = true),
+                                    isIncome = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                HeroMetricPill(
+                                    label = "Expenses",
+                                    amount = ShiftlyFormatters.formatCurrency(currency, state.totalExpenses, showMinus = true),
+                                    isIncome = false,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
 
                 1 -> {
                     val cutoff = state.cutoffSummary
-                    ShiftlyGlassCard(contentPadding = PaddingValues(20.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    ShiftlyGlassCard(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(uniformHeroHeight),
+                        contentPadding = PaddingValues(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(
-                                text = "Shift Earnings",
-                                style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                                color = TextLightSecondary
-                            )
-                            Text(
-                                text = cutoff.window.label,
-                                style = MaterialTheme.typography.labelSmall.tabular(),
-                                color = MintTextOnBlue
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = ShiftlyFormatters.formatCurrency(currency, cutoff.totalEarnings),
-                            style = MaterialTheme.typography.displayMedium.copy(
-                                fontFamily = ShiftlySans,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 36.sp
-                            ).tabular(),
-                            color = MintTextOnBlue
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            val daysLabel = if (cutoff.shiftDaysCount == 1) "1 day" else "${cutoff.shiftDaysCount} days"
-                            GlassSubStatPill(
-                                label = "Shift Days",
-                                value = daysLabel,
-                                modifier = Modifier.weight(1f)
-                            )
-                            GlassSubStatPill(
-                                label = "Shift Hours",
-                                value = ShiftlyFormatters.formatHours(cutoff.totalHours),
-                                modifier = Modifier.weight(1f)
-                            )
+                            Column {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Shift Earnings",
+                                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                                        color = TextLightSecondary
+                                    )
+                                    Text(
+                                        text = cutoff.window.label,
+                                        style = MaterialTheme.typography.labelSmall.tabular(),
+                                        color = MintTextOnBlue
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = ShiftlyFormatters.formatCurrency(currency, cutoff.totalEarnings),
+                                    style = MaterialTheme.typography.displayMedium.copy(
+                                        fontFamily = ShiftlySans,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 32.sp
+                                    ).tabular(),
+                                    color = MintTextOnBlue
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                val daysLabel = if (cutoff.shiftDaysCount == 1) "1 day" else "${cutoff.shiftDaysCount} days"
+                                GlassSubStatPill(
+                                    label = "Shift Days",
+                                    value = daysLabel,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                GlassSubStatPill(
+                                    label = "Shift Hours",
+                                    value = ShiftlyFormatters.formatHours(cutoff.totalHours),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }
@@ -347,7 +371,10 @@ fun HomeHeroPager(
                         currencySymbol = currency,
                         onOpenGoalDetail = onOpenGoalDetail,
                         onOpenAddGoal = onOpenAddGoal,
-                        onSelectActiveGoal = onSelectActiveGoal
+                        onSelectActiveGoal = onSelectActiveGoal,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(uniformHeroHeight)
                     )
                 }
             }
@@ -376,7 +403,7 @@ fun HomeHeroPager(
                             selected = active
                             contentDescription = "${pageLabels[index]}, card ${index + 1} of 3"
                         }
-                        .padding(horizontal = 6.dp, vertical = 6.dp),
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
@@ -397,7 +424,8 @@ private fun SavingsGoalsHeroCard(
     currencySymbol: String,
     onOpenGoalDetail: (goalId: Long?) -> Unit,
     onOpenAddGoal: () -> Unit,
-    onSelectActiveGoal: (Long) -> Unit
+    onSelectActiveGoal: (Long) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
@@ -405,40 +433,50 @@ private fun SavingsGoalsHeroCard(
     val safeIdx = goalIndex.coerceIn(0, (goals.size - 1).coerceAtLeast(0))
     val current = goals.getOrNull(safeIdx)
 
-    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+    ShiftlyGlassCard(
+        modifier = modifier,
+        contentPadding = PaddingValues(16.dp)
+    ) {
         if (current == null) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Savings Goals",
+                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                            color = TextLightSecondary
+                        )
+                        Icon(
+                            imageVector = Icons.Outlined.Savings,
+                            contentDescription = null,
+                            tint = MintTextOnBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                     Text(
-                        text = "Savings Goals",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                        color = TextLightSecondary
+                        text = ShiftlyFormatters.formatCurrency(currencySymbol, 0.0),
+                        style = MaterialTheme.typography.displayMedium.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 30.sp
+                        ).tabular(),
+                        color = TextLightPrimary
                     )
-                    Icon(
-                        imageVector = Icons.Outlined.Savings,
-                        contentDescription = null,
-                        tint = MintTextOnBlue,
-                        modifier = Modifier.size(20.dp)
+                    Text(
+                        text = "Set a target amount and date goal to track daily savings.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextLightSecondary,
+                        maxLines = 2
                     )
                 }
-                Text(
-                    text = ShiftlyFormatters.formatCurrency(currencySymbol, 0.0),
-                    style = MaterialTheme.typography.displayMedium.copy(
-                        fontFamily = ShiftlySans,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 34.sp
-                    ).tabular(),
-                    color = TextLightPrimary
-                )
-                Text(
-                    text = "Set a target amount and date goal to track daily savings.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextLightSecondary
-                )
+
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = AzurePrimaryButton,
@@ -447,7 +485,7 @@ private fun SavingsGoalsHeroCard(
                         .clickable(onClick = onOpenAddGoal)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
@@ -470,168 +508,176 @@ private fun SavingsGoalsHeroCard(
             val progress = current.progress
             val targetDateLabel = current.targetDate.format(dateFormatter)
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = goal.title,
+                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                            color = TextLightSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (goals.size > 1) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(DarkCard)
+                                        .border(1.dp, DarkBorder, CircleShape)
+                                        .clickable {
+                                            val prev = if (safeIdx > 0) safeIdx - 1 else goals.lastIndex
+                                            goalIndex = prev
+                                            onSelectActiveGoal(goals[prev].goalWithDeposits.goal.id)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.ChevronLeft,
+                                        contentDescription = "Previous goal",
+                                        tint = TextLightPrimary,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                                Text(
+                                    text = "${safeIdx + 1}/${goals.size}",
+                                    style = MaterialTheme.typography.labelSmall.tabular(),
+                                    color = TextLightSecondary
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(DarkCard)
+                                        .border(1.dp, DarkBorder, CircleShape)
+                                        .clickable {
+                                            val next = if (safeIdx < goals.lastIndex) safeIdx + 1 else 0
+                                            goalIndex = next
+                                            onSelectActiveGoal(goals[next].goalWithDeposits.goal.id)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.ChevronRight,
+                                        contentDescription = "Next goal",
+                                        tint = TextLightPrimary,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "Goal • $targetDateLabel",
+                                    style = MaterialTheme.typography.labelSmall.tabular(),
+                                    color = MintTextOnBlue
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = goal.title,
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                        color = TextLightSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        text = ShiftlyFormatters.formatCurrency(currencySymbol, progress.savedAmount),
+                        style = MaterialTheme.typography.displayMedium.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 28.sp
+                        ).tabular(),
+                        color = MintTextOnBlue
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { progress.progressFraction },
+                        color = MintBright,
+                        trackColor = DarkBorder,
+                        strokeCap = StrokeCap.Round,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(5.dp)
                     )
                 }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    if (goals.size > 1) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(DarkCard)
-                                .border(1.dp, DarkBorder, CircleShape)
-                                .clickable {
-                                    val prev = if (safeIdx > 0) safeIdx - 1 else goals.lastIndex
-                                    goalIndex = prev
-                                    onSelectActiveGoal(goals[prev].goalWithDeposits.goal.id)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ChevronLeft,
-                                contentDescription = "Previous goal",
-                                tint = TextLightPrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        Text(
-                            text = "${safeIdx + 1}/${goals.size}",
-                            style = MaterialTheme.typography.labelSmall.tabular(),
-                            color = TextLightSecondary
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        GlassSubStatPill(
+                            label = "Left to Save",
+                            value = ShiftlyFormatters.formatCurrency(currencySymbol, progress.leftToSave),
+                            modifier = Modifier.weight(1f),
+                            compact = true
                         )
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(DarkCard)
-                                .border(1.dp, DarkBorder, CircleShape)
-                                .clickable {
-                                    val next = if (safeIdx < goals.lastIndex) safeIdx + 1 else 0
-                                    goalIndex = next
-                                    onSelectActiveGoal(goals[next].goalWithDeposits.goal.id)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.ChevronRight,
-                                contentDescription = "Next goal",
-                                tint = TextLightPrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
+                        val perDayValue = if (progress.isCompleted) {
+                            "Goal reached"
+                        } else {
+                            ShiftlyFormatters.formatCurrency(currencySymbol, progress.neededPerDay)
                         }
-                    } else {
-                        Text(
-                            text = "Goal • $targetDateLabel",
-                            style = MaterialTheme.typography.labelSmall.tabular(),
-                            color = MintTextOnBlue
+                        GlassSubStatPill(
+                            label = "Per Day",
+                            value = perDayValue,
+                            modifier = Modifier.weight(1f),
+                            compact = true
                         )
                     }
-                }
-            }
 
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = ShiftlyFormatters.formatCurrency(currencySymbol, progress.savedAmount),
-                style = MaterialTheme.typography.displayMedium.copy(
-                    fontFamily = ShiftlySans,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 34.sp
-                ).tabular(),
-                color = MintTextOnBlue
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            LinearProgressIndicator(
-                progress = { progress.progressFraction },
-                color = MintBright,
-                trackColor = DarkBorder,
-                strokeCap = StrokeCap.Round,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(6.dp)
-            )
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                GlassSubStatPill(
-                    label = "Left to Save",
-                    value = ShiftlyFormatters.formatCurrency(currencySymbol, progress.leftToSave),
-                    modifier = Modifier.weight(1f)
-                )
-                val perDayLabel = if (progress.isCompleted) {
-                    "Goal reached"
-                } else {
-                    "${ShiftlyFormatters.formatCurrency(currencySymbol, progress.neededPerDay)}/day ($targetDateLabel)"
-                }
-                GlassSubStatPill(
-                    label = "Per Day",
-                    value = perDayLabel,
-                    modifier = Modifier.weight(1.2f)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = DarkCard,
-                    border = BorderStroke(1.dp, DarkBorder),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(50))
-                        .clickable { onOpenGoalDetail(goal.id) }
-                ) {
-                    Text(
-                        text = "View Goal",
-                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                        color = TextLightPrimary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = AzurePrimaryButton,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .clickable(onClick = onOpenAddGoal)
-                ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Add,
-                            contentDescription = null,
-                            tint = PureWhite,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Text(
-                            text = "Add Goal",
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                            color = PureWhite
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = DarkCard,
+                            border = BorderStroke(1.dp, DarkBorder),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(50))
+                                .clickable { onOpenGoalDetail(goal.id) }
+                        ) {
+                            Text(
+                                text = "View Goal",
+                                style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                                color = TextLightPrimary,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 6.dp)
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = AzurePrimaryButton,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .clickable(onClick = onOpenAddGoal)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Add,
+                                    contentDescription = null,
+                                    tint = PureWhite,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Add Goal",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                                    color = PureWhite
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -648,12 +694,12 @@ private fun HeroMetricPill(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = DarkCard,
         border = BorderStroke(1.dp, DarkBorder)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -661,7 +707,7 @@ private fun HeroMetricPill(
                 imageVector = if (isIncome) Icons.AutoMirrored.Outlined.TrendingUp else Icons.AutoMirrored.Outlined.TrendingDown,
                 contentDescription = null,
                 tint = if (isIncome) MintTextOnBlue else CoralTextOnBlue,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(17.dp)
             )
             Column {
                 Text(
@@ -686,15 +732,21 @@ private fun HeroMetricPill(
 private fun GlassSubStatPill(
     label: String,
     value: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = DarkCard,
         border = BorderStroke(1.dp, DarkBorder)
     ) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+        Column(
+            modifier = Modifier.padding(
+                horizontal = 11.dp,
+                vertical = if (compact) 6.dp else 8.dp
+            )
+        ) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
@@ -715,178 +767,128 @@ private fun GlassSubStatPill(
 }
 
 /**
- * Swipeable full-month date selector with zero background/outline on day cells.
+ * Monthly top expense categories analytics card with "View insights" placed at the top-right corner.
  */
 @Composable
-fun SwipeableMonthDateSelector(
-    selectedDate: LocalDate,
-    shiftEpochDays: Set<Long>,
-    expenseEpochDays: Set<Long>,
-    onSelectDate: (LocalDate) -> Unit,
-    todayOverride: LocalDate? = null
+fun MonthlyTopCategoriesCard(
+    monthName: String,
+    monthlyTotalSpent: Double,
+    topCategories: List<CategorySpendSummary>,
+    currencySymbol: String,
+    onViewInsights: () -> Unit
 ) {
-    val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
-    val baseMonth = remember(today) { YearMonth.from(today) }
-    val totalPages = 25 // -12 months .. +12 months
-    val centerPage = 12
-    val pagerState = rememberPagerState(initialPage = centerPage, pageCount = { totalPages })
-    val scope = rememberCoroutineScope()
-    val locale = LocalConfiguration.current.locales[0]
-
-    val displayedMonth = remember(pagerState.currentPage, baseMonth) {
-        baseMonth.plusMonths((pagerState.currentPage - centerPage).toLong())
-    }
-    val monthTitle = remember(displayedMonth, locale) {
-        "${displayedMonth.month.getDisplayName(TextStyle.FULL, locale)} ${displayedMonth.year}"
-    }
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = monthTitle,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = ShiftlySerif,
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = TextLightPrimary
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                IconButton(
-                    onClick = {
-                        if (pagerState.currentPage > 0) {
-                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
-                        }
-                    },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.ChevronLeft,
-                        contentDescription = "Previous month",
-                        tint = TextLightSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                IconButton(
-                    onClick = {
-                        if (pagerState.currentPage < totalPages - 1) {
-                            scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
-                        }
-                    },
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.ChevronRight,
-                        contentDescription = "Next month",
-                        tint = TextLightSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-
-        // Weekday column headers
-        Row(modifier = Modifier.fillMaxWidth()) {
-            listOf("M", "T", "W", "T", "F", "S", "S").forEach { letter ->
+        Box(modifier = Modifier.fillMaxWidth()) {
+            // Far top-right corner View insights action (no background pill)
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 6.dp, end = 6.dp)
+                    .heightIn(min = 40.dp)
+                    .clip(RoundedCornerShape(50))
+                    .clickable(onClick = onViewInsights)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.BarChart,
+                    contentDescription = null,
+                    tint = AzureInkOnWhite,
+                    modifier = Modifier.size(16.dp)
+                )
                 Text(
-                    text = letter,
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                    color = TextLightSecondary,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f)
+                    text = "View insights",
+                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                    color = AzureInkOnWhite
                 )
             }
-        }
 
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxWidth()
-        ) { page ->
-            val ym = baseMonth.plusMonths((page - centerPage).toLong())
-            val firstDayOfWeek = ym.atDay(1).dayOfWeek.value // 1=Mon .. 7=Sun
-            val leadingBlanks = firstDayOfWeek - 1
-            val daysInMonth = ym.lengthOfMonth()
-            val totalCells = leadingBlanks + daysInMonth
-            val rowsCount = (totalCells + 6) / 7
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Column(modifier = Modifier.padding(end = 118.dp)) {
+                    Text(
+                        text = "Top Spending • $monthName",
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                        color = TextLightSecondary
+                    )
+                    Text(
+                        text = ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotalSpent),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.Bold
+                        ).tabular(),
+                        color = TextLightPrimary
+                    )
+                }
 
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                for (rowIdx in 0 until rowsCount) {
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        for (colIdx in 0 until 7) {
-                            val cellIdx = rowIdx * 7 + colIdx
-                            val dayNum = cellIdx - leadingBlanks + 1
-                            if (dayNum in 1..daysInMonth) {
-                                val date = ym.atDay(dayNum)
-                                val epoch = date.toEpochDay()
-                                val isSelected = date == selectedDate
-                                val isToday = date == today
-                                val hasShift = epoch in shiftEpochDays
-                                val hasExpense = epoch in expenseEpochDays
-
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .heightIn(min = 42.dp)
-                                        .clickable(role = Role.Tab) { onSelectDate(date) }
-                                        .semantics(mergeDescendants = true) {
-                                            selected = isSelected
-                                            contentDescription = date.toString()
-                                        }
-                                        .padding(vertical = 2.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
+                if (topCategories.isEmpty()) {
+                    Text(
+                        text = "No expenses logged in $monthName yet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextLightSecondary
+                    )
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        topCategories.take(3).forEach { item ->
+                            val pct = (item.fraction * 100f).roundToInt()
+                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isSelected) AzurePrimaryButton else Color.Transparent),
-                                        contentAlignment = Alignment.Center
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(28.dp)
+                                                .clip(CircleShape)
+                                                .background(CoralSoftContainer),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = categoryIcon(item.category),
+                                                contentDescription = null,
+                                                tint = CoralInkOnWhite,
+                                                modifier = Modifier.size(15.dp)
+                                            )
+                                        }
                                         Text(
-                                            text = dayNum.toString(),
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                fontFamily = ShiftlySans,
-                                                fontWeight = if (isSelected || isToday) FontWeight.Bold else FontWeight.Medium
-                                            ).tabular(),
-                                            color = when {
-                                                isSelected -> PureWhite
-                                                isToday -> AzureAccent
-                                                else -> TextLightPrimary
-                                            }
+                                            text = item.category,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = TextLightPrimary
                                         )
                                     }
-                                    Row(
-                                        modifier = Modifier.height(6.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        if (hasShift) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(4.dp)
-                                                    .clip(CircleShape)
-                                                    .background(MintBright)
-                                            )
-                                        }
-                                        if (hasExpense) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(4.dp)
-                                                    .clip(CircleShape)
-                                                    .background(CoralBright)
-                                            )
-                                        }
-                                    }
+                                    Text(
+                                        text = "$pct% • ${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)}",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontFamily = ShiftlySans,
+                                            fontWeight = FontWeight.Bold
+                                        ).tabular(),
+                                        color = TextLightPrimary
+                                    )
                                 }
-                            } else {
-                                Spacer(modifier = Modifier.weight(1f))
+                                LinearProgressIndicator(
+                                    progress = { item.fraction.coerceIn(0.05f, 1f) },
+                                    color = CoralBright,
+                                    trackColor = DarkBorder,
+                                    strokeCap = StrokeCap.Round,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp)
+                                )
                             }
                         }
                     }
@@ -897,15 +899,12 @@ fun SwipeableMonthDateSelector(
 }
 
 /**
- * Monthly top expense categories analytics card with borderless "View insights" CTA.
+ * Full-month hours indicator card placed below Top Spending (Regular/Total = White, Night Diff = Purple, Overtime = Red).
  */
 @Composable
-fun MonthlyTopCategoriesCard(
+fun MonthlyHoursIndicatorCard(
     monthName: String,
-    monthlyTotalSpent: Double,
-    topCategories: List<CategorySpendSummary>,
-    currencySymbol: String,
-    onViewInsights: () -> Unit
+    summary: MonthlyHoursSummary
 ) {
     Surface(
         shape = RoundedCornerShape(22.dp),
@@ -922,107 +921,78 @@ fun MonthlyTopCategoriesCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Top Spending • $monthName",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                        color = TextLightSecondary
-                    )
-                    Text(
-                        text = ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotalSpent),
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontFamily = ShiftlySans,
-                            fontWeight = FontWeight.Bold
-                        ).tabular(),
-                        color = TextLightPrimary
-                    )
-                }
-
-                Row(
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(50))
-                        .clickable(onClick = onViewInsights)
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.BarChart,
-                        contentDescription = null,
-                        tint = AzureInkOnWhite,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = "View insights",
-                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                        color = AzureInkOnWhite
-                    )
-                }
-            }
-
-            if (topCategories.isEmpty()) {
                 Text(
-                    text = "No expenses logged in $monthName yet.",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = "Shift Hours • $monthName",
+                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
                     color = TextLightSecondary
                 )
-            } else {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    topCategories.take(3).forEach { item ->
-                        val pct = (item.fraction * 100f).roundToInt()
-                        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .clip(CircleShape)
-                                            .background(CoralSoftContainer),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = categoryIcon(item.category),
-                                            contentDescription = null,
-                                            tint = CoralInkOnWhite,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    }
-                                    Text(
-                                        text = item.category,
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = TextLightPrimary
-                                    )
-                                }
-                                Text(
-                                    text = "$pct% • ${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)}",
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontFamily = ShiftlySans,
-                                        fontWeight = FontWeight.Bold
-                                    ).tabular(),
-                                    color = TextLightPrimary
-                                )
-                            }
-                            LinearProgressIndicator(
-                                progress = { item.fraction.coerceIn(0.05f, 1f) },
-                                color = CoralBright,
-                                trackColor = DarkBorder,
-                                strokeCap = StrokeCap.Round,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(6.dp)
-                            )
-                        }
-                    }
-                }
+                Text(
+                    text = "Full month",
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                    color = TextLightSecondary
+                )
             }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MonthlyHoursMetricTile(
+                    label = "Total Hours",
+                    hours = summary.totalHours,
+                    valueColor = PureWhite,
+                    modifier = Modifier.weight(1f)
+                )
+                MonthlyHoursMetricTile(
+                    label = "Night Diff",
+                    hours = summary.nightDiffHours,
+                    valueColor = NightDiffPurple,
+                    modifier = Modifier.weight(1f)
+                )
+                MonthlyHoursMetricTile(
+                    label = "Overtime",
+                    hours = summary.overtimeHours,
+                    valueColor = CoralBright,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthlyHoursMetricTile(
+    label: String,
+    hours: Double,
+    valueColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = DarkSurface,
+        border = BorderStroke(1.dp, DarkBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = ShiftlyFormatters.formatHours(hours, compact = true),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = ShiftlySans,
+                    fontWeight = FontWeight.Bold
+                ).tabular(),
+                color = valueColor
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                color = TextLightSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

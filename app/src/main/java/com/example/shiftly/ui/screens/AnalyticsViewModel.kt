@@ -9,7 +9,6 @@ import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
-import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.utils.SavingsGoalMath
@@ -99,23 +98,20 @@ class AnalyticsViewModel(
         val range: AnalyticsRange,
         val currency: String,
         val rate: Double,
-        val monthlyBudget: Double,
-        val settings: ShiftlySettingsSnapshot
+        val monthlyBudget: Double
     )
 
     private val prefsFlow = combine(
         _selectedRange,
         repository.currencySymbol,
         repository.defaultHourlyRate,
-        repository.monthlyBudget,
-        repository.settingsSnapshot
-    ) { range, currency, rate, budget, settings ->
+        repository.monthlyBudget
+    ) { range, currency, rate, budget ->
         AnalyticsPrefsBundle(
             range = range,
             currency = currency,
             rate = rate,
-            monthlyBudget = budget,
-            settings = settings
+            monthlyBudget = budget
         )
     }
 
@@ -132,7 +128,6 @@ class AnalyticsViewModel(
         val currency = prefs.currency
         val rate = prefs.rate
         val monthlyBudget = prefs.monthlyBudget
-        val settings = prefs.settings
         @Suppress("UNCHECKED_CAST")
         val shifts = values[1] as List<ShiftEntity>
         @Suppress("UNCHECKED_CAST")
@@ -169,10 +164,7 @@ class AnalyticsViewModel(
                 startMillis = s.timeInMillis,
                 endMillis = s.timeOutMillis,
                 hourlyRate = s.lockedHourlyRate,
-                dayTypeStr = s.dayType,
-                nightDiffStartHour = settings.nightDiffStartHour,
-                nightDiffMultiplier = settings.nightDiffMultiplier,
-                ordinaryOvertimeMultiplier = settings.overtimeMultiplier
+                dayTypeStr = s.dayType
             )
             regMins += d.regularMinutes
             ndMins += d.nightDiffMinutes

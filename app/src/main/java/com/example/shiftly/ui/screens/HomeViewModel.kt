@@ -19,6 +19,7 @@ import com.example.shiftly.utils.CutoffWindow
 import com.example.shiftly.utils.SavingsGoalMath
 import com.example.shiftly.utils.SavingsGoalProgress
 import com.example.shiftly.utils.SplitBillMath
+import com.example.shiftly.utils.WageCalculator
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -26,7 +27,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -46,6 +46,12 @@ data class SavingsGoalCardItem(
     val goalWithDeposits: SavingsGoalWithDeposits,
     val progress: SavingsGoalProgress,
     val targetDate: LocalDate
+)
+
+data class MonthlyHoursSummary(
+    val totalHours: Double = 0.0,
+    val nightDiffHours: Double = 0.0,
+    val overtimeHours: Double = 0.0
 )
 
 sealed class TimelineActivityItem(
@@ -109,11 +115,7 @@ data class HomeUiState(
     val savingsGoals: List<SavingsGoalCardItem> = emptyList(),
     val currentMonthName: String = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
     val monthlyTopCategories: List<CategorySpendSummary> = emptyList(),
-    val selectedDate: LocalDate = LocalDate.now(),
-    val isShowingSelectedDateOnly: Boolean = false,
-    val selectedDateHasLogs: Boolean = false,
-    val shiftEpochDays: Set<Long> = emptySet(),
-    val expenseEpochDays: Set<Long> = emptySet(),
+    val monthlyHoursSummary: MonthlyHoursSummary = MonthlyHoursSummary(),
     val timelineItems: List<TimelineActivityItem> = emptyList(),
     val activeTimer: ActiveTimerState = ActiveTimerState()
 )
@@ -121,8 +123,6 @@ data class HomeUiState(
 class HomeViewModel(
     private val repository: ShiftlyRepository
 ) : ViewModel() {
-
-    private val _selectedDate = MutableStateFlow(LocalDate.now())
 
     private data class CorePrefs(
         val userName: String,
@@ -133,21 +133,30 @@ class HomeViewModel(
         val activeTimer: ActiveTimerState
     )
 
-    private val corePrefsFlow = combine(
+    private val identityPrefsFlow = combine(
         repository.userName,
         repository.profilePhotoPath,
-        repository.currencySymbol,
+        repository.currencySymbol
+    ) { userName, photoPath, currency ->
+        Triple(userName, photoPath, currency)
+    }
+
+    private val financePrefsFlow = combine(
         repository.defaultHourlyRate,
         repository.monthlyBudget,
         repository.activeTimerState
-    ) { values ->
+    ) { rate, budget, activeTimer ->
+        Triple(rate, budget, activeTimer)
+    }
+
+    private val corePrefsFlow = combine(identityPrefsFlow, financePrefsFlow) { id, fin ->
         CorePrefs(
-            userName = values[0] as String,
-            profilePhotoPath = values[1] as String?,
-            currency = values[2] as String,
-            rate = values[3] as Double,
-            budget = values[4] as Double,
-            activeTimer = values[5] as ActiveTimerState
+            userName = id.first,
+            profilePhotoPath = id.second,
+            currency = id.third,
+            rate = fin.first,
+            budget = fin.second,
+            activeTimer = fin.third
         )
     }
 
@@ -157,8 +166,7 @@ class HomeViewModel(
         repository.allExtraIncomes,
         repository.allExpenses,
         repository.allSplitBills,
-        repository.allSavingsGoals,
-        _selectedDate
+        repository.allSavingsGoals
     ) { values ->
         val prefs = values[0] as CorePrefs
         @Suppress("UNCHECKED_CAST")
@@ -171,7 +179,6 @@ class HomeViewModel(
         val splitBills = values[4] as List<SplitBillWithParticipants>
         @Suppress("UNCHECKED_CAST")
         val rawGoals = values[5] as List<SavingsGoalWithDeposits>
-        val selectedDate = values[6] as LocalDate
 
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
@@ -183,14 +190,31 @@ class HomeViewModel(
         val totalExpenses = expenses.sumOf { it.amount }
         val totalBalance = totalIncome - totalExpenses
 
-        val mtdIncome = shifts
-            .filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
-            .sumOf { it.totalEarned } +
+        val monthShifts = shifts.filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
+        val mtdIncome = monthShifts.sumOf { it.totalEarned } +
             extraIncomes
                 .filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
                 .sumOf { it.amount }
         val mtdExpensesList = expenses.filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
         val mtdExpenses = mtdExpensesList.sumOf { it.amount }
+
+        var monthNdMins = 0L
+        var monthOtMins = 0L
+        monthShifts.forEach { shift ->
+            val details = WageCalculator.calculateTotalEarned(
+                startMillis = shift.timeInMillis,
+                endMillis = shift.timeOutMillis,
+                hourlyRate = shift.lockedHourlyRate,
+                dayTypeStr = shift.dayType
+            )
+            monthNdMins += details.nightDiffMinutes
+            monthOtMins += details.overtimeMinutes
+        }
+        val monthlyHoursSummary = MonthlyHoursSummary(
+            totalHours = monthShifts.sumOf { it.durationMinutes } / 60.0,
+            nightDiffHours = monthNdMins / 60.0,
+            overtimeHours = monthOtMins / 60.0
+        )
 
         val splitSummary = SplitBillMath.summarizeFriendsOwed(splitBills)
         val pendingSplitsOwed = splitSummary.pendingFriendsAmount
@@ -222,27 +246,10 @@ class HomeViewModel(
             }
             .sortedByDescending { it.totalAmount }
 
-        val shiftsByDay = shifts.groupBy { it.dateEpochDay }
-        val extraByDay = extraIncomes.groupBy { it.dateEpochDay }
-        val expensesByDay = expenses.groupBy { it.dateEpochDay }
-
-        val shiftEpochDays = shiftsByDay.keys + extraByDay.keys
-        val expenseEpochDays = expensesByDay.keys
-
         val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
         val monthDayFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
-        val selectedEpoch = selectedDate.toEpochDay()
-        val dayShifts = shiftsByDay[selectedEpoch].orEmpty()
-        val dayExtra = extraByDay[selectedEpoch].orEmpty()
-        val dayExpenses = expensesByDay[selectedEpoch].orEmpty()
 
-        val hasDayLogs = dayShifts.isNotEmpty() || dayExtra.isNotEmpty() || dayExpenses.isNotEmpty()
-        val showAllRecent = !hasDayLogs
-        val timelineShifts = if (showAllRecent) shifts.take(5) else dayShifts
-        val timelineExtra = if (showAllRecent) extraIncomes.take(3) else dayExtra
-        val timelineExpenses = if (showAllRecent) expenses.take(5) else dayExpenses
-
-        val shiftItems = timelineShifts.map { shift ->
+        val shiftItems = shifts.take(6).map { shift ->
             val startStr = Instant.ofEpochMilli(shift.timeInMillis).atZone(zone).toLocalTime().format(timeFormatter)
             val endStr = Instant.ofEpochMilli(shift.timeOutMillis).atZone(zone).toLocalTime().format(timeFormatter)
             val hrs = shift.durationMinutes / 60
@@ -259,7 +266,7 @@ class HomeViewModel(
             )
         }
 
-        val extraItems = timelineExtra.map { inc ->
+        val extraItems = extraIncomes.take(4).map { inc ->
             val dateLabel = LocalDate.ofEpochDay(inc.dateEpochDay).format(monthDayFormatter)
             TimelineActivityItem.ExtraIncomeActivity(
                 id = inc.id,
@@ -271,7 +278,7 @@ class HomeViewModel(
             )
         }
 
-        val expenseItems = timelineExpenses.map { exp ->
+        val expenseItems = expenses.take(6).map { exp ->
             val dateLabel = LocalDate.ofEpochDay(exp.dateEpochDay).format(monthDayFormatter)
             TimelineActivityItem.ExpenseActivity(
                 id = exp.id,
@@ -304,11 +311,7 @@ class HomeViewModel(
             savingsGoals = savingsGoalItems,
             currentMonthName = today.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
             monthlyTopCategories = monthlyTopCategories,
-            selectedDate = selectedDate,
-            isShowingSelectedDateOnly = hasDayLogs,
-            selectedDateHasLogs = hasDayLogs,
-            shiftEpochDays = shiftEpochDays,
-            expenseEpochDays = expenseEpochDays,
+            monthlyHoursSummary = monthlyHoursSummary,
             timelineItems = combinedTimeline,
             activeTimer = prefs.activeTimer
         )
@@ -317,14 +320,6 @@ class HomeViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = HomeUiState()
     )
-
-    fun selectDate(date: LocalDate) {
-        _selectedDate.value = date
-    }
-
-    fun resetDateToToday() {
-        _selectedDate.value = LocalDate.now()
-    }
 
     fun createSavingsGoal(title: String, targetAmount: Double, targetDateEpochDay: Long) {
         viewModelScope.launch {

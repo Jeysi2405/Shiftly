@@ -9,12 +9,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,13 +28,26 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.CallSplit
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -49,17 +63,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -70,20 +91,34 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
+import com.example.shiftly.ui.screens.ToolsScreen
 import com.example.shiftly.ui.screens.WelcomeScreen
 import com.example.shiftly.ui.screens.duties.DutiesScreen
+import com.example.shiftly.ui.screens.duties.DutiesViewModel
+import com.example.shiftly.ui.screens.duties.ManualShiftBottomSheet
+import com.example.shiftly.ui.screens.expense.AddExpenseBottomSheet
 import com.example.shiftly.ui.screens.expense.ExpenseScreen
+import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.lock.AppLockGateScreen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.ProfileScreen
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
 import com.example.shiftly.ui.theme.AzureAccent
+import com.example.shiftly.ui.theme.AzureInkOnWhite
+import com.example.shiftly.ui.theme.AzurePrimaryButton
+import com.example.shiftly.ui.theme.AzureSoftContainer
+import com.example.shiftly.ui.theme.CoralInkOnWhite
+import com.example.shiftly.ui.theme.CoralSoftContainer
 import com.example.shiftly.ui.theme.DarkBackground
 import com.example.shiftly.ui.theme.DarkBorder
 import com.example.shiftly.ui.theme.DarkCard
 import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.InkBlack
 import com.example.shiftly.ui.theme.MintBright
+import com.example.shiftly.ui.theme.MintInkOnWhite
+import com.example.shiftly.ui.theme.MintSoftContainer
+import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
@@ -200,9 +235,19 @@ private fun MainDashboardShell(
     repository: ShiftlyRepository
 ) {
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    val dutiesViewModel: DutiesViewModel = viewModel(factory = DutiesViewModel.Factory(repository))
+    val dutiesState by dutiesViewModel.uiState.collectAsStateWithLifecycle()
+    val expenseViewModel: ExpenseViewModel = viewModel(factory = ExpenseViewModel.Factory(repository))
+    val expenseState by expenseViewModel.uiState.collectAsStateWithLifecycle()
+
+    var showQuickActionSheet by remember { mutableStateOf(false) }
+    var showQuickLogShiftSheet by remember { mutableStateOf(false) }
+    var showQuickAddExpenseSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         repository.processDueRecurringEntries()
@@ -231,6 +276,23 @@ private fun MainDashboardShell(
         }
     }
 
+    fun onBottomBarSelect(screen: Screen) {
+        val currentRoute = currentDestination?.route
+        if (screen == Screen.Tools && (
+                currentRoute == Screen.Duties.route ||
+                currentRoute == Screen.Expense.route ||
+                currentRoute == Screen.SplitBill.route
+            )
+        ) {
+            val popped = navController.popBackStack(Screen.Tools.route, inclusive = false)
+            if (!popped) {
+                navigateToTab(Screen.Tools)
+            }
+        } else {
+            navigateToTab(screen)
+        }
+    }
+
     ShiftlyBlueGradientBackground {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -239,7 +301,7 @@ private fun MainDashboardShell(
             snackbarHost = {
                 SnackbarHost(
                     hostState = snackbarHostState,
-                    modifier = Modifier.padding(bottom = 86.dp)
+                    modifier = Modifier.padding(bottom = 92.dp)
                 ) { data ->
                     Surface(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -261,10 +323,17 @@ private fun MainDashboardShell(
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
                     isSelected = { screen ->
-                        currentDestination?.hierarchy?.any { it.route == screen.route } == true ||
-                            (screen == Screen.Home && currentDestination?.route == Screen.Analytics.route)
+                        val currentRoute = currentDestination?.route
+                        when (screen) {
+                            Screen.Tools -> currentRoute == Screen.Tools.route ||
+                                currentRoute == Screen.Duties.route ||
+                                currentRoute == Screen.Expense.route ||
+                                currentRoute == Screen.SplitBill.route
+                            else -> currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                        }
                     },
-                    onSelect = ::navigateToTab
+                    onSelect = ::onBottomBarSelect,
+                    onFabClick = { showQuickActionSheet = true }
                 )
             }
         ) { innerPadding ->
@@ -286,11 +355,7 @@ private fun MainDashboardShell(
                         onNavigateToExpense = { navigateToTab(Screen.Expense) },
                         onNavigateToSplitBill = { navigateToTab(Screen.SplitBill) },
                         onNavigateToProfile = { navigateToTab(Screen.Profile) },
-                        onNavigateToAnalytics = {
-                            navController.navigate(Screen.Analytics.route) {
-                                launchSingleTop = true
-                            }
-                        },
+                        onNavigateToAnalytics = { navigateToTab(Screen.Analytics) },
                         onShowMessage = showMessage
                     )
                 }
@@ -300,6 +365,22 @@ private fun MainDashboardShell(
                         onBack = { navController.popBackStack() },
                         onNavigateToSplitBill = { navigateToTab(Screen.SplitBill) },
                         onShowMessage = showMessage
+                    )
+                }
+                composable(Screen.Tools.route) {
+                    ToolsScreen(
+                        repository = repository,
+                        onOpenDuties = {
+                            navController.navigate(Screen.Duties.route) { launchSingleTop = true }
+                        },
+                        onOpenExpense = {
+                            navController.navigate(Screen.Expense.route) { launchSingleTop = true }
+                        },
+                        onOpenSplitBill = {
+                            navController.navigate(Screen.SplitBill.route) { launchSingleTop = true }
+                        },
+                        onQuickLogShift = { showQuickLogShiftSheet = true },
+                        onQuickAddExpense = { showQuickAddExpenseSheet = true }
                     )
                 }
                 composable(Screen.Duties.route) {
@@ -320,30 +401,234 @@ private fun MainDashboardShell(
             }
         }
     }
+
+    if (showQuickActionSheet) {
+        QuickAddActionSheet(
+            onDismiss = { showQuickActionSheet = false },
+            onLogShift = {
+                showQuickActionSheet = false
+                showQuickLogShiftSheet = true
+            },
+            onAddExpense = {
+                showQuickActionSheet = false
+                showQuickAddExpenseSheet = true
+            },
+            onSplitBill = {
+                showQuickActionSheet = false
+                navigateToTab(Screen.SplitBill)
+            }
+        )
+    }
+
+    if (showQuickLogShiftSheet) {
+        ManualShiftBottomSheet(
+            selectedDate = dutiesState.selectedDutyDate,
+            hourlyRate = dutiesState.defaultHourlyRate,
+            currencySymbol = dutiesState.currencySymbol,
+            presets = dutiesState.shiftTimePresets,
+            title = "Log Shift",
+            confirmButtonText = "Save Shift",
+            onSavePreset = { sH, sM, eH, eM ->
+                dutiesViewModel.saveShiftTimePreset(sH, sM, eH, eM)
+                showMessage("Preset saved")
+            },
+            onDeletePreset = { presetId ->
+                dutiesViewModel.deleteShiftTimePreset(presetId)
+            },
+            onDismiss = { showQuickLogShiftSheet = false },
+            onSave = { date, sH, sM, eH, eM, note, dayType ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                dutiesViewModel.logManualShift(
+                    date = date,
+                    startHour = sH,
+                    startMinute = sM,
+                    endHour = eH,
+                    endMinute = eM,
+                    overtimeNote = note,
+                    dayType = dayType
+                )
+                showQuickLogShiftSheet = false
+                showMessage("Shift logged")
+            }
+        )
+    }
+
+    if (showQuickAddExpenseSheet) {
+        AddExpenseBottomSheet(
+            currencySymbol = expenseState.currencySymbol,
+            availableCategories = expenseState.availableCategories,
+            onDismiss = { showQuickAddExpenseSheet = false },
+            onSaveExpense = { title, amount, category, date, receiptPath ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                expenseViewModel.addExpense(title, amount, category, date, receiptPath)
+                showMessage("Expense saved")
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuickAddActionSheet(
+    onDismiss: () -> Unit,
+    onLogShift: () -> Unit,
+    onAddExpense: () -> Unit,
+    onSplitBill: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = DarkSurface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Quick Add",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = TextLightPrimary
+                )
+                IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Close",
+                        tint = TextLightSecondary
+                    )
+                }
+            }
+
+            QuickAddOptionRow(
+                title = "Log Shift",
+                subtitle = "Record shift hours, night diff & overtime",
+                icon = Icons.Outlined.Schedule,
+                iconBg = MintSoftContainer,
+                iconTint = MintInkOnWhite,
+                onClick = onLogShift
+            )
+            QuickAddOptionRow(
+                title = "Add Expense",
+                subtitle = "Log daily spend or attach a receipt",
+                icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                iconBg = CoralSoftContainer,
+                iconTint = CoralInkOnWhite,
+                onClick = onAddExpense
+            )
+            QuickAddOptionRow(
+                title = "Split Bill",
+                subtitle = "Divide a bill equally with friends",
+                icon = Icons.AutoMirrored.Outlined.CallSplit,
+                iconBg = AzureSoftContainer,
+                iconTint = AzureInkOnWhite,
+                onClick = onSplitBill
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickAddOptionRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconBg: Color,
+    iconTint: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(iconBg),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontFamily = ShiftlySerif,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = TextLightPrimary
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextLightSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Icon(
+                imageVector = Icons.Outlined.ChevronRight,
+                contentDescription = null,
+                tint = TextLightSecondary
+            )
+        }
+    }
 }
 
 /**
- * Floating dark-charcoal pill bottom navigation bar matching app container colors (DarkSurface + DarkBorder).
+ * Floating dark-charcoal pill bottom navigation bar:
+ * Home | Analytics | Round (+) FAB | Tools | Profile, with labels.
  */
 @Composable
 fun FloatingPillBottomBar(
     items: List<Screen>,
     isSelected: (Screen) -> Boolean,
     onSelect: (Screen) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFabClick: () -> Unit = {}
 ) {
     val pillShape = RoundedCornerShape(50)
+    val leftItems = items.take(2)
+    val rightItems = items.drop(2)
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(68.dp)
                 .shadow(
                     elevation = 10.dp,
                     shape = pillShape,
@@ -362,56 +647,114 @@ fun FloatingPillBottomBar(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                items.forEach { screen ->
-                    val selected = isSelected(screen)
-                    val indicatorBg by animateColorAsState(
-                        targetValue = if (selected) MintBright.copy(alpha = 0.18f) else Color.Transparent,
-                        label = "navIndicatorBg"
+                leftItems.forEach { screen ->
+                    BottomNavItemSlot(
+                        screen = screen,
+                        selected = isSelected(screen),
+                        onClick = { onSelect(screen) },
+                        modifier = Modifier.weight(1f)
                     )
-                    val indicatorBorder by animateColorAsState(
-                        targetValue = if (selected) MintBright.copy(alpha = 0.45f) else Color.Transparent,
-                        label = "navIndicatorBorder"
-                    )
-                    val iconTint by animateColorAsState(
-                        targetValue = if (selected) MintBright else TextLightSecondary,
-                        label = "navIconTint"
-                    )
+                }
 
-                    Box(
+                // Center Round "+" FAB
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 52.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = AzurePrimaryButton,
+                        border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.65f)),
+                        shadowElevation = 6.dp,
                         modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .weight(1f)
+                            .size(50.dp)
                             .clip(CircleShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                role = Role.Tab,
-                                onClick = { onSelect(screen) }
-                            )
+                            .clickable(onClick = onFabClick)
                             .semantics {
-                                this.selected = selected
-                                contentDescription = screen.label
-                            },
-                        contentAlignment = Alignment.Center
+                                contentDescription = "Quick add action"
+                            }
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(width = 52.dp, height = 44.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(indicatorBg)
-                                .border(1.dp, indicatorBorder, RoundedCornerShape(50)),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
+                                imageVector = Icons.Outlined.Add,
                                 contentDescription = null,
-                                tint = iconTint,
-                                modifier = Modifier.size(23.dp)
+                                tint = PureWhite,
+                                modifier = Modifier.size(26.dp)
                             )
                         }
                     }
                 }
+
+                rightItems.forEach { screen ->
+                    BottomNavItemSlot(
+                        screen = screen,
+                        selected = isSelected(screen),
+                        onClick = { onSelect(screen) },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItemSlot(
+    screen: Screen,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val indicatorBg by animateColorAsState(
+        targetValue = if (selected) MintBright.copy(alpha = 0.14f) else Color.Transparent,
+        label = "navIndicatorBg"
+    )
+    val contentTint by animateColorAsState(
+        targetValue = if (selected) MintBright else TextLightSecondary,
+        label = "navContentTint"
+    )
+
+    Box(
+        modifier = modifier
+            .heightIn(min = 52.dp)
+            .clip(RoundedCornerShape(22.dp))
+            .background(indicatorBg)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                role = Role.Tab,
+                onClick = onClick
+            )
+            .semantics(mergeDescendants = true) {
+                this.selected = selected
+                contentDescription = screen.label
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
+                contentDescription = null,
+                tint = contentTint,
+                modifier = Modifier.size(21.dp)
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = screen.label,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = ShiftlySerif,
+                    fontSize = 10.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                ),
+                color = contentTint,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

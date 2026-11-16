@@ -313,7 +313,7 @@ private fun ExpenseListPreview() {
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.Expense },
+                    isSelected = { it == Screen.Tools },
                     onSelect = {},
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
@@ -405,7 +405,7 @@ private fun ExpenseEmptyPreview() {
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.Expense },
+                    isSelected = { it == Screen.Tools },
                     onSelect = {},
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )

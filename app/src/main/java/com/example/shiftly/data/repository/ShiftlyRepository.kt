@@ -15,6 +15,7 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
+import com.example.shiftly.data.local.NotificationLastDays
 import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.data.local.RecurringEntrySetting
@@ -22,6 +23,7 @@ import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlyDatabase
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillEntity
@@ -59,6 +61,7 @@ class ShiftlyRepository(private val context: Context) {
 
     // Preferences & Active Timer
     val defaultHourlyRate: Flow<Double> = prefs.defaultHourlyRate
+    val minimumWagePerDay: Flow<Double> = prefs.minimumWagePerDay
     val currencySymbol: Flow<String> = prefs.currencySymbol
     val activeTimerState: Flow<ActiveTimerState> = prefs.activeTimerState
     val hasCompletedOnboarding: Flow<Boolean> = prefs.hasCompletedOnboarding
@@ -69,6 +72,7 @@ class ShiftlyRepository(private val context: Context) {
     val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = prefs.settingsSnapshot
 
     suspend fun updateDefaultHourlyRate(rate: Double) = prefs.setDefaultHourlyRate(rate)
+    suspend fun updateMinimumWagePerDay(amount: Double) = prefs.setMinimumWagePerDay(amount)
     suspend fun setOnboardingCompleted(completed: Boolean) = prefs.setOnboardingCompleted(completed)
     suspend fun updateUserName(name: String) = prefs.setUserName(name)
     suspend fun updateProfilePhotoPath(path: String?) {
@@ -81,19 +85,29 @@ class ShiftlyRepository(private val context: Context) {
 
     suspend fun updateMonthlyBudget(budget: Double) = prefs.setMonthlyBudget(budget)
     suspend fun updateSavingsBuffer(buffer: Double) = prefs.setSavingsBuffer(buffer)
-    suspend fun updatePayCycleSettings(schedule: String, paydayReminder: Boolean, shiftReminder: Boolean) =
-        prefs.setPayCycleSettings(schedule, paydayReminder, shiftReminder)
+    suspend fun updatePayCycleSchedule(schedule: String) = prefs.setPayCycleSchedule(schedule)
+    suspend fun updateNotificationPreferences(
+        notificationsEnabled: Boolean,
+        billReminderEnabled: Boolean,
+        shiftReminderEnabled: Boolean,
+        savingsReminderEnabled: Boolean
+    ) = prefs.setNotificationPreferences(
+        notificationsEnabled = notificationsEnabled,
+        billReminderEnabled = billReminderEnabled,
+        shiftReminderEnabled = shiftReminderEnabled,
+        savingsReminderEnabled = savingsReminderEnabled
+    )
     suspend fun updateNotificationsEnabled(enabled: Boolean) = prefs.setNotificationsEnabled(enabled)
-    suspend fun updateShiftRules(ndStartHour: Int, ndMultiplier: Double, otMultiplier: Double) =
-        prefs.setShiftRules(ndStartHour, ndMultiplier, otMultiplier)
     suspend fun updateSavingsGoal(title: String, target: Double) = prefs.setSavingsGoal(title, target)
     suspend fun updateCategoryBudgets(items: List<CategoryBudgetSetting>) = prefs.setCategoryBudgets(items)
     suspend fun updateManagedCategories(items: List<ManagedCategorySetting>) = prefs.setManagedCategories(items)
     suspend fun updateRecurringEntries(items: List<RecurringEntrySetting>) = prefs.setRecurringEntries(items)
+    suspend fun updateShiftTimePresets(items: List<ShiftTimePreset>) = prefs.setShiftTimePresets(items)
 
-    suspend fun getLastNotifiedDays(): Pair<Long, Long> = prefs.getLastNotifiedDays()
-    suspend fun markPaydayNotified(epochDay: Long) = prefs.markPaydayNotified(epochDay)
+    suspend fun getNotificationLastDays(): NotificationLastDays = prefs.getNotificationLastDays()
+    suspend fun markBillNotified(epochDay: Long) = prefs.markBillNotified(epochDay)
     suspend fun markShiftNotified(epochDay: Long) = prefs.markShiftNotified(epochDay)
+    suspend fun markSavingsNotified(epochDay: Long) = prefs.markSavingsNotified(epochDay)
 
     suspend fun changeCurrency(newSymbol: String, conversionRate: Double?) = withContext(Dispatchers.IO) {
         if ((conversionRate != null) && conversionRate.isFinite() && (conversionRate > 0.0)) {
@@ -431,6 +445,7 @@ class ShiftlyRepository(private val context: Context) {
         val settings = settingsSnapshot.first()
         val currency = currencySymbol.first()
         val rate = defaultHourlyRate.first()
+        val minWage = minimumWagePerDay.first()
         val name = userName.first()
         val budget = monthlyBudget.first()
         val buffer = savingsBuffer.first()
@@ -473,6 +488,7 @@ class ShiftlyRepository(private val context: Context) {
             userName = name,
             currencySymbol = currency,
             defaultHourlyRate = rate,
+            minimumWagePerDay = minWage,
             monthlyBudget = budget,
             savingsBuffer = buffer,
             settings = settings,
@@ -694,6 +710,7 @@ class ShiftlyRepository(private val context: Context) {
             userName = payload.userName,
             currencySymbol = payload.currencySymbol,
             defaultHourlyRate = payload.defaultHourlyRate,
+            minimumWagePerDay = payload.minimumWagePerDay,
             monthlyBudget = payload.monthlyBudget,
             savingsBuffer = payload.savingsBuffer,
             settings = payload.settings

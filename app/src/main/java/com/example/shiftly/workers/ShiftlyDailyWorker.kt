@@ -11,8 +11,10 @@ import androidx.work.WorkerParameters
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.notifications.ShiftlyNotificationHelper
 import com.example.shiftly.utils.RecurringEngine
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.flow.first
 
@@ -25,45 +27,87 @@ class ShiftlyDailyWorker(
         val repository = ShiftlyRepository(applicationContext)
         val today = LocalDate.now()
         val todayEpoch = today.toEpochDay()
+        val zone = ZoneId.systemDefault()
 
         // 1. Auto-post any due recurring income/expense entries
         runCatching {
             repository.processDueRecurringEntries(today)
         }
 
-        // 2. Evaluate Payday & Shift reminders
+        // 2. Evaluate the 3 allowed reminders:
+        //    (a) Recurring bills < 1 day before due date
+        //    (b) Log shift reminder
+        //    (c) Log saving & add deposit reminder
         val settings = repository.settingsSnapshot.first()
         if (!settings.notificationsEnabled) return Result.success()
         if (!ShiftlyNotificationHelper.canPostNotifications(applicationContext)) {
             return Result.success()
         }
 
-        val (lastPaydayDay, lastShiftDay) = repository.getLastNotifiedDays()
+        val lastDays = repository.getNotificationLastDays()
 
-        if (settings.paydayReminderEnabled &&
-            lastPaydayDay < todayEpoch &&
-            RecurringEngine.isPaydayToday(settings.payCycleSchedule, today)
-        ) {
-            if (ShiftlyNotificationHelper.showPaydayReminder(applicationContext, settings.payCycleSchedule)) {
-                repository.markPaydayNotified(todayEpoch)
+        // (a) Recurring bills due within < 1 day
+        if (settings.billReminderEnabled && lastDays.lastBillDay < todayEpoch) {
+            val dueSoonBills = RecurringEngine.findBillsDueWithinOneDay(
+                entries = settings.recurringEntries,
+                today = today
+            )
+            if (dueSoonBills.isNotEmpty()) {
+                val currency = repository.currencySymbol.first()
+                if (ShiftlyNotificationHelper.showRecurringBillReminder(
+                        context = applicationContext,
+                        dueBills = dueSoonBills,
+                        currencySymbol = currency
+                    )
+                ) {
+                    repository.markBillNotified(todayEpoch)
+                }
             }
         }
 
+        // (b) Log shift reminder
         val shifts = repository.allShifts.first()
-        val timer = repository.activeTimerState.first()
         val hasLoggedToday = shifts.any { it.dateEpochDay == todayEpoch }
         val hour = LocalTime.now().hour
 
-        if (lastShiftDay < todayEpoch &&
+        if (lastDays.lastShiftDay < todayEpoch &&
             RecurringEngine.shouldSendShiftReminder(
                 settings = settings,
                 hasLoggedShiftToday = hasLoggedToday,
-                isTimerRunning = timer.isRunning,
+                isTimerRunning = false,
                 hourOfDay = hour
             )
         ) {
             if (ShiftlyNotificationHelper.showShiftReminder(applicationContext)) {
                 repository.markShiftNotified(todayEpoch)
+            }
+        }
+
+        // (c) Log saving & add deposit reminder (payday cutoff or daily reminder)
+        val goals = repository.allSavingsGoals.first()
+        val activeGoal = goals.firstOrNull { it.goal.isActive } ?: goals.firstOrNull()
+        val hasDepositedToday = goals.any { g ->
+            g.deposits.any { dep ->
+                Instant.ofEpochMilli(dep.timestampMillis).atZone(zone).toLocalDate() == today
+            }
+        }
+        val isPayday = RecurringEngine.isPaydayToday(settings.payCycleSchedule, today)
+
+        if (lastDays.lastSavingsDay < todayEpoch &&
+            RecurringEngine.shouldSendSavingsDepositReminder(
+                settings = settings,
+                isPaydayToday = isPayday,
+                hasDepositedToday = hasDepositedToday,
+                hourOfDay = hour
+            )
+        ) {
+            if (ShiftlyNotificationHelper.showSavingsDepositReminder(
+                    context = applicationContext,
+                    activeGoalTitle = activeGoal?.goal?.title.orEmpty(),
+                    isPayday = isPayday
+                )
+            ) {
+                repository.markSavingsNotified(todayEpoch)
             }
         }
 

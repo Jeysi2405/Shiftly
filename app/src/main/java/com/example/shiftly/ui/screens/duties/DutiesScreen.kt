@@ -5,37 +5,28 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,40 +39,33 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.theme.AzureAccent
+import com.example.shiftly.ui.theme.AzurePrimaryButton
 import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCard
 import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.InkBlack
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.utils.DayType
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DutiesScreen(
     repository: ShiftlyRepository,
@@ -92,164 +76,37 @@ fun DutiesScreen(
     val haptics = LocalHapticFeedback.current
     val locale = LocalConfiguration.current.locales[0]
 
-    var showDutyDatePicker by remember { mutableStateOf(false) }
-    var showCheckOutSheet by remember { mutableStateOf(false) }
-    var showManualShiftSheet by remember { mutableStateOf(false) }
+    var showLogShiftSheet by remember { mutableStateOf(false) }
     var editingShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var pendingDeleteShift by remember { mutableStateOf<ShiftEntity?>(null) }
 
     DutiesScreenContent(
         state = state,
-        onSaveRate = { viewModel.saveDefaultRate(it) },
-        onPickDutyDate = { showDutyDatePicker = true },
-        onTimeIn = { viewModel.startTimer() },
-        onRequestCheckOut = { showCheckOutSheet = true },
-        onCancelTimer = { viewModel.cancelActiveTimer() },
-        onOpenManualEntry = { showManualShiftSheet = true },
-        onEditExistingShift = {
-            val existingShift = state.displayedShifts.find {
-                it.dateEpochDay == state.selectedDutyDate.toEpochDay()
-            } ?: state.displayedShifts.firstOrNull()
-            if (existingShift != null) editingShift = existingShift
-        },
+        onOpenLogShift = { showLogShiftSheet = true },
         onPreviousMonth = { viewModel.changeCalendarMonth(-1) },
         onNextMonth = { viewModel.changeCalendarMonth(1) },
         onSelectCalendarDate = { viewModel.toggleCalendarDateFilter(it) },
         onClearCalendarFilter = { viewModel.clearCalendarFilter() },
         onEditShift = { editingShift = it },
-        onDeleteShift = { pendingDeleteShift = it },
-        onShowMessage = onShowMessage
+        onDeleteShift = { pendingDeleteShift = it }
     )
 
-    // Duty Date Picker Dialog
-    if (showDutyDatePicker) {
-        val initialMillis = state.selectedDutyDate
-            .atStartOfDay(ZoneOffset.UTC)
-            .toInstant()
-            .toEpochMilli()
-        val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
-
-        DatePickerDialog(
-            onDismissRequest = { showDutyDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            val picked = Instant.ofEpochMilli(millis)
-                                .atZone(ZoneOffset.UTC)
-                                .toLocalDate()
-                            viewModel.setDutyDate(picked)
-                        }
-                        showDutyDatePicker = false
-                    }
-                ) {
-                    Text(
-                        text = "Select",
-                        color = AzureAccent,
-                        fontFamily = ShiftlySerif,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDutyDatePicker = false }) {
-                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
-                }
-            }
-        ) {
-            DatePicker(state = datePickerState)
-        }
-    }
-
-    // Check-Out & Overtime Note Bottom Sheet
-    if (showCheckOutSheet) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        var noteText by remember { mutableStateOf("") }
-        var selectedDayType by remember { mutableStateOf(DayType.ORDINARY) }
-
-        ModalBottomSheet(
-            onDismissRequest = { showCheckOutSheet = false },
-            sheetState = sheetState,
-            containerColor = DarkSurface,
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Check Out Shift",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = TextLightPrimary
-                    )
-                    TextButton(
-                        onClick = { showCheckOutSheet = false },
-                        modifier = Modifier.heightIn(min = 48.dp)
-                    ) {
-                        Text("Cancel", fontFamily = ShiftlySerif, color = TextLightSecondary)
-                    }
-                }
-
-                DayTypeSelector(
-                    selectedDayType = selectedDayType,
-                    onDayTypeSelected = { selectedDayType = it }
-                )
-
-                OutlinedTextField(
-                    value = noteText,
-                    onValueChange = { noteText = it },
-                    label = { Text("Shift Note (optional)", fontFamily = ShiftlySerif) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AzureAccent,
-                        unfocusedBorderColor = DarkBorder,
-                        focusedLabelColor = AzureAccent,
-                        unfocusedLabelColor = TextLightSecondary,
-                        focusedTextColor = TextLightPrimary,
-                        unfocusedTextColor = TextLightPrimary,
-                        cursorColor = AzureAccent,
-                        focusedContainerColor = DarkCard,
-                        unfocusedContainerColor = DarkCard
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                ShiftlyPrimaryPillButton(
-                    text = "Save Shift",
-                    onClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.checkOutAndSave(noteText, selectedDayType)
-                        showCheckOutSheet = false
-                        onShowMessage("Shift saved to history")
-                    }
-                )
-            }
-        }
-    }
-
-    // Manual Past Shift Bottom Sheet
-    if (showManualShiftSheet) {
+    if (showLogShiftSheet) {
         ManualShiftBottomSheet(
             selectedDate = state.selectedDutyDate,
             hourlyRate = state.defaultHourlyRate,
             currencySymbol = state.currencySymbol,
-            nightDiffStartHour = state.nightDiffStartHour,
-            nightDiffMultiplier = state.nightDiffMultiplier,
-            overtimeMultiplier = state.overtimeMultiplier,
-            onPickDate = { showDutyDatePicker = true },
-            onDismiss = { showManualShiftSheet = false },
+            presets = state.shiftTimePresets,
+            title = "Log Shift",
+            confirmButtonText = "Save Shift",
+            onSavePreset = { sH, sM, eH, eM ->
+                viewModel.saveShiftTimePreset(sH, sM, eH, eM)
+                onShowMessage("Preset saved")
+            },
+            onDeletePreset = { presetId ->
+                viewModel.deleteShiftTimePreset(presetId)
+            },
+            onDismiss = { showLogShiftSheet = false },
             onSave = { date, sH, sM, eH, eM, note, dayType ->
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 viewModel.logManualShift(
@@ -261,167 +118,57 @@ fun DutiesScreen(
                     overtimeNote = note,
                     dayType = dayType
                 )
-                showManualShiftSheet = false
-                onShowMessage("Manual shift logged")
+                showLogShiftSheet = false
+                onShowMessage("Shift logged")
             }
         )
     }
 
-    // Edit Existing Shift Bottom Sheet
     editingShift?.let { targetShift ->
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val zone = remember { ZoneId.systemDefault() }
-        val startLocalTime = Instant.ofEpochMilli(targetShift.timeInMillis).atZone(zone).toLocalTime()
-        val endLocalTime = Instant.ofEpochMilli(targetShift.timeOutMillis).atZone(zone).toLocalTime()
-        val shiftDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
-
-        var startHour by remember(targetShift.id) { mutableStateOf(startLocalTime.hour.toString()) }
-        var startMin by remember(targetShift.id) {
-            mutableStateOf(startLocalTime.minute.toString().padStart(2, '0'))
+        val startLocalTime = remember(targetShift.id, targetShift.timeInMillis) {
+            Instant.ofEpochMilli(targetShift.timeInMillis).atZone(zone).toLocalTime()
         }
-        var endHour by remember(targetShift.id) { mutableStateOf(endLocalTime.hour.toString()) }
-        var endMin by remember(targetShift.id) {
-            mutableStateOf(endLocalTime.minute.toString().padStart(2, '0'))
+        val endLocalTime = remember(targetShift.id, targetShift.timeOutMillis) {
+            Instant.ofEpochMilli(targetShift.timeOutMillis).atZone(zone).toLocalTime()
         }
-        var updatedNote by remember(targetShift.id) { mutableStateOf(targetShift.overtimeNote) }
-        var selectedDayType by remember(targetShift.id) {
-            mutableStateOf(
-                runCatching { DayType.valueOf(targetShift.dayType) }.getOrNull() ?: DayType.ORDINARY
-            )
+        val initialDayType = remember(targetShift.id, targetShift.dayType) {
+            runCatching { DayType.valueOf(targetShift.dayType) }.getOrNull() ?: DayType.ORDINARY
         }
-        val editFieldColors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = AzureAccent,
-            unfocusedBorderColor = DarkBorder,
-            focusedLabelColor = AzureAccent,
-            unfocusedLabelColor = TextLightSecondary,
-            focusedTextColor = TextLightPrimary,
-            unfocusedTextColor = TextLightPrimary,
-            cursorColor = AzureAccent,
-            focusedContainerColor = DarkCard,
-            unfocusedContainerColor = DarkCard
-        )
 
-        ModalBottomSheet(
-            onDismissRequest = { editingShift = null },
-            sheetState = sheetState,
-            containerColor = DarkSurface,
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Edit Shift (${LocalDate.ofEpochDay(targetShift.dateEpochDay).format(shiftDateFormatter)})",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = TextLightPrimary
-                    )
-                    TextButton(
-                        onClick = { editingShift = null },
-                        modifier = Modifier.heightIn(min = 48.dp)
-                    ) {
-                        Text("Cancel", fontFamily = ShiftlySerif, color = TextLightSecondary)
-                    }
-                }
-
-                DayTypeSelector(
-                    selectedDayType = selectedDayType,
-                    onDayTypeSelected = { selectedDayType = it }
+        ManualShiftBottomSheet(
+            selectedDate = LocalDate.ofEpochDay(targetShift.dateEpochDay),
+            hourlyRate = targetShift.lockedHourlyRate,
+            currencySymbol = state.currencySymbol,
+            presets = state.shiftTimePresets,
+            title = "Edit Shift",
+            confirmButtonText = "Update Shift",
+            initialStartHour24 = startLocalTime.hour,
+            initialStartMinute = startLocalTime.minute,
+            initialEndHour24 = endLocalTime.hour,
+            initialEndMinute = endLocalTime.minute,
+            initialNote = targetShift.overtimeNote,
+            initialDayType = initialDayType,
+            showPresets = false,
+            onDismiss = { editingShift = null },
+            onSave = { date, sH, sM, eH, eM, note, dayType ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                viewModel.editShift(
+                    shift = targetShift,
+                    date = date,
+                    startHour = sH,
+                    startMinute = sM,
+                    endHour = eH,
+                    endMinute = eM,
+                    dayType = dayType,
+                    overtimeNote = note
                 )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = startHour,
-                        onValueChange = { startHour = it.filter(Char::isDigit).take(2) },
-                        label = { Text("In Hr") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = editFieldColors,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = startMin,
-                        onValueChange = { startMin = it.filter(Char::isDigit).take(2) },
-                        label = { Text("Min") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = editFieldColors,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = endHour,
-                        onValueChange = { endHour = it.filter(Char::isDigit).take(2) },
-                        label = { Text("Out Hr") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = editFieldColors,
-                        modifier = Modifier.weight(1f)
-                    )
-                    OutlinedTextField(
-                        value = endMin,
-                        onValueChange = { endMin = it.filter(Char::isDigit).take(2) },
-                        label = { Text("Min") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = editFieldColors,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                OutlinedTextField(
-                    value = updatedNote,
-                    onValueChange = { updatedNote = it },
-                    label = { Text("Note", fontFamily = ShiftlySerif) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = editFieldColors,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                ShiftlyPrimaryPillButton(
-                    text = "Update Shift",
-                    onClick = {
-                        val sH = (startHour.toIntOrNull() ?: 9).coerceIn(0, 23)
-                        val sM = (startMin.toIntOrNull() ?: 0).coerceIn(0, 59)
-                        val eH = (endHour.toIntOrNull() ?: 17).coerceIn(0, 23)
-                        val eM = (endMin.toIntOrNull() ?: 0).coerceIn(0, 59)
-
-                        viewModel.editShift(
-                            shift = targetShift,
-                            startHour = sH,
-                            startMinute = sM,
-                            endHour = eH,
-                            endMinute = eM,
-                            dayType = selectedDayType,
-                            overtimeNote = updatedNote
-                        )
-                        editingShift = null
-                        onShowMessage("Shift updated")
-                    }
-                )
+                editingShift = null
+                onShowMessage("Shift updated")
             }
-        }
+        )
     }
 
-    // Delete Shift Confirmation Dialog
     pendingDeleteShift?.let { shiftToDelete ->
         val deleteFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
         ShiftlyConfirmDeleteDialog(
@@ -443,29 +190,18 @@ fun DutiesScreen(
 @Composable
 fun DutiesScreenContent(
     state: DutiesUiState,
-    onSaveRate: (String) -> Unit,
-    onPickDutyDate: () -> Unit,
-    onTimeIn: () -> Unit,
-    onRequestCheckOut: () -> Unit,
-    onCancelTimer: () -> Unit,
-    onOpenManualEntry: () -> Unit,
-    onEditExistingShift: () -> Unit,
+    onOpenLogShift: () -> Unit,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onSelectCalendarDate: (LocalDate) -> Unit,
     onClearCalendarFilter: () -> Unit,
     onEditShift: (ShiftEntity) -> Unit,
     onDeleteShift: (ShiftEntity) -> Unit,
-    onShowMessage: (String) -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
-    previewElapsedSecondsOverride: Long? = null,
     todayOverride: LocalDate? = null
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val filterDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
-    val hasShiftForSelectedDate = remember(state.loggedEpochDays, state.selectedDutyDate) {
-        state.loggedEpochDays.contains(state.selectedDutyDate.toEpochDay())
-    }
 
     LazyColumn(
         state = listState,
@@ -475,60 +211,56 @@ fun DutiesScreenContent(
         contentPadding = PaddingValues(top = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 0. Screen Header
+        // 0. Screen Header with + Log Shift CTA
         item {
             ShiftlyScreenHeader(
                 title = "Duties",
-                subtitle = "Log shifts & auto-compute pay",
-                modifier = Modifier.padding(horizontal = 20.dp)
+                subtitle = "Monthly summary & shift logs",
+                modifier = Modifier.padding(horizontal = 20.dp),
+                trailing = {
+                    Button(
+                        onClick = onOpenLogShift,
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AzurePrimaryButton,
+                            contentColor = PureWhite
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Log Shift",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontFamily = ShiftlySerif,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = PureWhite
+                        )
+                    }
+                }
             )
         }
 
-        // 1. Live Time-In / Check-Out Timer Card (reachable primary action)
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                LiveShiftTimerCard(
-                    activeTimer = state.activeTimer,
-                    selectedDutyDate = state.selectedDutyDate,
-                    defaultHourlyRate = state.defaultHourlyRate,
-                    currencySymbol = state.currencySymbol,
-                    hasShiftForSelectedDate = hasShiftForSelectedDate,
-                    onPickDutyDate = onPickDutyDate,
-                    onTimeIn = onTimeIn,
-                    onRequestCheckOut = onRequestCheckOut,
-                    onCancelTimer = onCancelTimer,
-                    onOpenManualEntry = onOpenManualEntry,
-                    onEditExistingShift = onEditExistingShift,
-                    previewElapsedSecondsOverride = previewElapsedSecondsOverride
-                )
-            }
-        }
-
-        // 2. Default Hourly Rate Card
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                DutiesRateSettingsCard(
-                    defaultHourlyRate = state.defaultHourlyRate,
-                    currencySymbol = state.currencySymbol,
-                    onSaveRate = onSaveRate,
-                    onShowMessage = onShowMessage
-                )
-            }
-        }
-
-        // 3. Weekly Earnings & Time Breakdown Card
+        // 1. Monthly Earnings & Time Breakdown Card (Regular=White, ND=Purple, OT=Red)
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 TimeBreakdownCard(
-                    weeklyTotalEarnings = state.weeklyTotalEarnings,
-                    weeklyTotalHours = state.weeklyTotalHours,
-                    timeBreakdown = state.weeklyTimeBreakdown,
-                    currencySymbol = state.currencySymbol
+                    monthlyTotalEarnings = state.monthlyTotalEarnings,
+                    monthlyTotalHours = state.monthlyTotalHours,
+                    timeBreakdown = state.monthlyTimeBreakdown,
+                    currencySymbol = state.currencySymbol,
+                    displayedMonth = state.displayedMonth
                 )
             }
         }
 
-        // 4. Monthly Shift Calendar
+        // 2. Monthly Shift Calendar
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ShiftCalendarCard(
@@ -544,7 +276,7 @@ fun DutiesScreenContent(
             }
         }
 
-        // 5. Dark Bottom Sheet Surface for Shift History
+        // 3. Dark Bottom Sheet Surface for Shift History
         item {
             val filterDate = state.selectedCalendarDate
             val headerTitle = if (filterDate != null) {
@@ -554,7 +286,9 @@ fun DutiesScreenContent(
             }
 
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 460.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                 color = DarkSurface,
                 shadowElevation = 12.dp
@@ -587,7 +321,7 @@ fun DutiesScreenContent(
                     if (state.displayedShifts.isEmpty()) {
                         ShiftHistoryEmptyCard(
                             isFiltered = filterDate != null,
-                            onLogFirstShift = onOpenManualEntry,
+                            onLogFirstShift = onOpenLogShift,
                             onClearFilter = onClearCalendarFilter
                         )
                     } else {
@@ -613,7 +347,7 @@ fun DutiesScreenContent(
 }
 
 // =============================================================================
-// High-Fidelity Previews (Default, Timer Running, Manual Sheet, History Filled)
+// High-Fidelity Previews
 // =============================================================================
 
 @Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "1. Duties Default")
@@ -625,8 +359,8 @@ private fun DutiesDefaultPreview() {
         currencySymbol = "₱",
         selectedDutyDate = today,
         displayedMonth = YearMonth.from(today),
-        weeklyTotalEarnings = 0.0,
-        weeklyTotalHours = 0.0
+        monthlyTotalEarnings = 0.0,
+        monthlyTotalHours = 0.0
     )
 
     ShiftlyTheme {
@@ -634,13 +368,7 @@ private fun DutiesDefaultPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 DutiesScreenContent(
                     state = state,
-                    onSaveRate = {},
-                    onPickDutyDate = {},
-                    onTimeIn = {},
-                    onRequestCheckOut = {},
-                    onCancelTimer = {},
-                    onOpenManualEntry = {},
-                    onEditExistingShift = {},
+                    onOpenLogShift = {},
                     onPreviousMonth = {},
                     onNextMonth = {},
                     onSelectCalendarDate = {},
@@ -651,7 +379,7 @@ private fun DutiesDefaultPreview() {
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.Duties },
+                    isSelected = { it == Screen.Tools },
                     onSelect = {},
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )
@@ -660,68 +388,12 @@ private fun DutiesDefaultPreview() {
     }
 }
 
-@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "2. Duties Timer Running")
+@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "2. Log Shift Sheet")
 @Composable
-private fun DutiesTimerRunningPreview() {
+private fun DutiesLogShiftSheetPreview() {
     val today = LocalDate.of(2026, 5, 16)
     val state = DutiesUiState(
-        activeTimer = ActiveTimerState(
-            isRunning = true,
-            startTimeMillis = 1_778_900_000_000L,
-            shiftDateEpochDay = today.toEpochDay(),
-            lockedRate = 96.38
-        ),
-        defaultHourlyRate = 96.38,
-        currencySymbol = "₱",
-        selectedDutyDate = today,
-        displayedMonth = YearMonth.from(today),
-        weeklyTotalEarnings = 1493.89,
-        weeklyTotalHours = 15.5,
-        weeklyTimeBreakdown = TimeBreakdown(
-            regularHours = 12.0,
-            nightDiffHours = 2.0,
-            overtimeHours = 1.5
-        )
-    )
-
-    ShiftlyTheme {
-        ShiftlyBlueGradientBackground {
-            Box(modifier = Modifier.fillMaxSize()) {
-                DutiesScreenContent(
-                    state = state,
-                    onSaveRate = {},
-                    onPickDutyDate = {},
-                    onTimeIn = {},
-                    onRequestCheckOut = {},
-                    onCancelTimer = {},
-                    onOpenManualEntry = {},
-                    onEditExistingShift = {},
-                    onPreviousMonth = {},
-                    onNextMonth = {},
-                    onSelectCalendarDate = {},
-                    onClearCalendarFilter = {},
-                    onEditShift = {},
-                    onDeleteShift = {},
-                    previewElapsedSecondsOverride = 8_130L, // 02:15:30 -> +₱217.66 so far
-                    todayOverride = today
-                )
-                FloatingPillBottomBar(
-                    items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.Duties },
-                    onSelect = {},
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
-        }
-    }
-}
-
-@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "3. Duties Manual Entry Sheet")
-@Composable
-private fun DutiesManualEntrySheetPreview() {
-    val today = LocalDate.of(2026, 5, 16)
-    val state = DutiesUiState(
-        defaultHourlyRate = 96.38,
+        defaultHourlyRate = 100.0,
         currencySymbol = "₱",
         selectedDutyDate = today,
         displayedMonth = YearMonth.from(today)
@@ -732,13 +404,7 @@ private fun DutiesManualEntrySheetPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 DutiesScreenContent(
                     state = state,
-                    onSaveRate = {},
-                    onPickDutyDate = {},
-                    onTimeIn = {},
-                    onRequestCheckOut = {},
-                    onCancelTimer = {},
-                    onOpenManualEntry = {},
-                    onEditExistingShift = {},
+                    onOpenLogShift = {},
                     onPreviousMonth = {},
                     onNextMonth = {},
                     onSelectCalendarDate = {},
@@ -747,7 +413,6 @@ private fun DutiesManualEntrySheetPreview() {
                     onDeleteShift = {},
                     todayOverride = today
                 )
-                // Scrim + Modal Bottom Sheet content
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -776,9 +441,10 @@ private fun DutiesManualEntrySheetPreview() {
                             Spacer(modifier = Modifier.height(6.dp))
                             ManualShiftSheetContent(
                                 selectedDate = today,
-                                hourlyRate = 96.38,
+                                hourlyRate = 100.0,
                                 currencySymbol = "₱",
-                                onPickDate = {},
+                                initialStartHour24 = 22,
+                                initialEndHour24 = 8,
                                 onDismiss = {},
                                 onSave = { _, _, _, _, _, _, _ -> }
                             )
@@ -790,7 +456,7 @@ private fun DutiesManualEntrySheetPreview() {
     }
 }
 
-@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "4. Duties Shift History Filled")
+@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "3. Duties History Filled")
 @Composable
 private fun DutiesHistoryFilledPreview() {
     val today = LocalDate.of(2026, 5, 16)
@@ -845,9 +511,9 @@ private fun DutiesHistoryFilledPreview() {
         selectedDutyDate = today,
         displayedMonth = YearMonth.from(today),
         selectedCalendarDate = day1,
-        weeklyTotalEarnings = 1821.59,
-        weeklyTotalHours = 18.5,
-        weeklyTimeBreakdown = TimeBreakdown(
+        monthlyTotalEarnings = 1821.59,
+        monthlyTotalHours = 18.5,
+        monthlyTimeBreakdown = TimeBreakdown(
             regularHours = 13.0,
             nightDiffHours = 3.5,
             overtimeHours = 2.0
@@ -862,68 +528,19 @@ private fun DutiesHistoryFilledPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 DutiesScreenContent(
                     state = state,
-                    onSaveRate = {},
-                    onPickDutyDate = {},
-                    onTimeIn = {},
-                    onRequestCheckOut = {},
-                    onCancelTimer = {},
-                    onOpenManualEntry = {},
-                    onEditExistingShift = {},
+                    onOpenLogShift = {},
                     onPreviousMonth = {},
                     onNextMonth = {},
                     onSelectCalendarDate = {},
                     onClearCalendarFilter = {},
                     onEditShift = {},
                     onDeleteShift = {},
-                    listState = rememberLazyListState(initialFirstVisibleItemIndex = 3),
+                    listState = rememberLazyListState(initialFirstVisibleItemIndex = 2),
                     todayOverride = today
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.Duties },
-                    onSelect = {},
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
-        }
-    }
-}
-
-@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "5. Duties Empty History Sheet")
-@Composable
-private fun DutiesEmptyHistoryPreview() {
-    val today = LocalDate.of(2026, 5, 16)
-    val state = DutiesUiState(
-        defaultHourlyRate = 96.38,
-        currencySymbol = "₱",
-        selectedDutyDate = today,
-        displayedMonth = YearMonth.from(today)
-    )
-
-    ShiftlyTheme {
-        ShiftlyBlueGradientBackground {
-            Box(modifier = Modifier.fillMaxSize()) {
-                DutiesScreenContent(
-                    state = state,
-                    onSaveRate = {},
-                    onPickDutyDate = {},
-                    onTimeIn = {},
-                    onRequestCheckOut = {},
-                    onCancelTimer = {},
-                    onOpenManualEntry = {},
-                    onEditExistingShift = {},
-                    onPreviousMonth = {},
-                    onNextMonth = {},
-                    onSelectCalendarDate = {},
-                    onClearCalendarFilter = {},
-                    onEditShift = {},
-                    onDeleteShift = {},
-                    listState = rememberLazyListState(initialFirstVisibleItemIndex = 4),
-                    todayOverride = today
-                )
-                FloatingPillBottomBar(
-                    items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.Duties },
+                    isSelected = { it == Screen.Tools },
                     onSelect = {},
                     modifier = Modifier.align(Alignment.BottomCenter)
                 )

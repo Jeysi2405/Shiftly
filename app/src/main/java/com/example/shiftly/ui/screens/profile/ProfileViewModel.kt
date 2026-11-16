@@ -23,6 +23,7 @@ data class ProfileUiState(
     val userName: String = "",
     val profilePhotoPath: String? = null,
     val defaultHourlyRate: Double = 0.0,
+    val minimumWagePerDay: Double = 0.0,
     val currencySymbol: String = "₱",
     val monthlyBudget: Double = 0.0,
     val savingsBuffer: Double = 0.0,
@@ -42,6 +43,7 @@ class ProfileViewModel(
         val userName: String,
         val profilePhotoPath: String?,
         val defaultHourlyRate: Double,
+        val minimumWagePerDay: Double,
         val currencySymbol: String,
         val monthlyBudget: Double,
         val savingsBuffer: Double
@@ -57,9 +59,10 @@ class ProfileViewModel(
     private val identityPrefsFlow = combine(
         repository.userName,
         repository.profilePhotoPath,
-        repository.defaultHourlyRate
-    ) { userName, photoPath, rate ->
-        Triple(userName, photoPath, rate)
+        repository.defaultHourlyRate,
+        repository.minimumWagePerDay
+    ) { userName, photoPath, rate, minWage ->
+        listOf(userName, photoPath, rate, minWage)
     }
 
     private val financePrefsFlow = combine(
@@ -75,9 +78,10 @@ class ProfileViewModel(
         financePrefsFlow
     ) { identity, finance ->
         ProfileCorePrefs(
-            userName = identity.first,
-            profilePhotoPath = identity.second,
-            defaultHourlyRate = identity.third,
+            userName = identity[0] as String,
+            profilePhotoPath = identity[1] as String?,
+            defaultHourlyRate = identity[2] as Double,
+            minimumWagePerDay = identity[3] as Double,
             currencySymbol = finance.first,
             monthlyBudget = finance.second,
             savingsBuffer = finance.third
@@ -109,6 +113,7 @@ class ProfileViewModel(
             userName = core.userName,
             profilePhotoPath = core.profilePhotoPath,
             defaultHourlyRate = core.defaultHourlyRate,
+            minimumWagePerDay = core.minimumWagePerDay,
             currencySymbol = core.currencySymbol,
             monthlyBudget = core.monthlyBudget,
             savingsBuffer = core.savingsBuffer,
@@ -133,6 +138,17 @@ class ProfileViewModel(
         viewModelScope.launch { repository.updateProfilePhotoPath(path) }
     }
 
+    fun updateWageRates(hourlyRate: Double, minimumWagePerDay: Double) {
+        viewModelScope.launch {
+            if (hourlyRate.isFinite() && hourlyRate > 0.0) {
+                repository.updateDefaultHourlyRate(hourlyRate)
+            }
+            if (minimumWagePerDay.isFinite() && minimumWagePerDay >= 0.0) {
+                repository.updateMinimumWagePerDay(minimumWagePerDay)
+            }
+        }
+    }
+
     fun changeCurrency(symbol: String, conversionRate: Double?) {
         viewModelScope.launch {
             repository.changeCurrency(symbol, conversionRate)
@@ -143,12 +159,20 @@ class ProfileViewModel(
         viewModelScope.launch { repository.updateNotificationsEnabled(enabled) }
     }
 
-    fun updatePayCycle(schedule: String, paydayReminder: Boolean, shiftReminder: Boolean) {
-        viewModelScope.launch { repository.updatePayCycleSettings(schedule, paydayReminder, shiftReminder) }
-    }
-
-    fun updateShiftRules(ndStartHour: Int, ndMultiplier: Double, otMultiplier: Double) {
-        viewModelScope.launch { repository.updateShiftRules(ndStartHour, ndMultiplier, otMultiplier) }
+    fun updateNotificationPreferences(
+        notificationsEnabled: Boolean,
+        billReminderEnabled: Boolean,
+        shiftReminderEnabled: Boolean,
+        savingsReminderEnabled: Boolean
+    ) {
+        viewModelScope.launch {
+            repository.updateNotificationPreferences(
+                notificationsEnabled = notificationsEnabled,
+                billReminderEnabled = billReminderEnabled,
+                shiftReminderEnabled = shiftReminderEnabled,
+                savingsReminderEnabled = savingsReminderEnabled
+            )
+        }
     }
 
     fun updateBudgets(monthlyBudget: Double, categoryBudgets: List<CategoryBudgetSetting>) {

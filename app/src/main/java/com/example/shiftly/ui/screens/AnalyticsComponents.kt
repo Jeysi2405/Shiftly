@@ -67,6 +67,8 @@ import com.example.shiftly.ui.theme.MintBright
 import com.example.shiftly.ui.theme.MintInkOnWhite
 import com.example.shiftly.ui.theme.MintSoftContainer
 import com.example.shiftly.ui.theme.MintTextOnBlue
+import com.example.shiftly.ui.theme.NightDiffPurple
+import com.example.shiftly.ui.theme.NightDiffPurpleContainer
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
@@ -581,7 +583,7 @@ fun EarningsHoursBreakdownCard(
                         .weight((regularHours / totalSplitHours).toFloat().coerceAtLeast(0.08f))
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(50))
-                        .background(MintBright)
+                        .background(PureWhite)
                 )
             }
             if (nightDiffHours > 0.0) {
@@ -590,7 +592,7 @@ fun EarningsHoursBreakdownCard(
                         .weight((nightDiffHours / totalSplitHours).toFloat().coerceAtLeast(0.08f))
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(50))
-                        .background(AzureInkOnWhite)
+                        .background(NightDiffPurple)
                 )
             }
             if (overtimeHours > 0.0) {
@@ -599,7 +601,7 @@ fun EarningsHoursBreakdownCard(
                         .weight((overtimeHours / totalSplitHours).toFloat().coerceAtLeast(0.08f))
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(50))
-                        .background(MintTextOnBlue)
+                        .background(CoralBright)
                 )
             }
         }
@@ -611,22 +613,22 @@ fun EarningsHoursBreakdownCard(
             HoursSplitMiniTile(
                 label = "Regular",
                 hours = regularHours,
-                containerColor = MintSoftContainer,
-                accentColor = MintInkOnWhite,
+                containerColor = DarkSurface,
+                accentColor = PureWhite,
                 modifier = Modifier.weight(1f)
             )
             HoursSplitMiniTile(
                 label = "Night Diff",
                 hours = nightDiffHours,
-                containerColor = AzureSoftContainer,
-                accentColor = AzureInkOnWhite,
+                containerColor = NightDiffPurpleContainer,
+                accentColor = NightDiffPurple,
                 modifier = Modifier.weight(1f)
             )
             HoursSplitMiniTile(
                 label = "Overtime",
                 hours = overtimeHours,
-                containerColor = DarkSurface,
-                accentColor = TextLightPrimary,
+                containerColor = CoralSoftContainer,
+                accentColor = CoralBright,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -691,7 +693,7 @@ fun HoursOfWorkCostCard(
     ) {
         if (hourlyRate <= 0.0) {
             Text(
-                text = "Set your hourly rate on the Duties tab to translate spending into work hours.",
+                text = "Set your hourly rate in Profile to translate spending into work hours.",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextLightSecondary
             )

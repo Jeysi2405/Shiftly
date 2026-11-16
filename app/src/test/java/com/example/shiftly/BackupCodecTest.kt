@@ -13,14 +13,17 @@ import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitParticipantEntity
+import com.example.shiftly.utils.WageCalculator
 import java.io.ByteArrayOutputStream
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -36,12 +39,15 @@ class BackupCodecTest {
             userName = "Jeyzi",
             currencySymbol = "₱",
             defaultHourlyRate = 110.0,
+            minimumWagePerDay = 645.0,
             monthlyBudget = 4500.0,
             savingsBuffer = 1500.0,
             settings = ShiftlySettingsSnapshot(
                 payCycleSchedule = "Weekly (Fri)",
                 paydayReminderEnabled = true,
+                billReminderEnabled = true,
                 shiftReminderEnabled = false,
+                savingsReminderEnabled = false,
                 notificationsEnabled = true,
                 nightDiffStartHour = 21,
                 nightDiffMultiplier = 1.15,
@@ -52,6 +58,9 @@ class BackupCodecTest {
                 managedCategories = listOf(ManagedCategorySetting("Food", true)),
                 recurringEntries = listOf(
                     RecurringEntrySetting("r1", "Allowance", 1200.0, "Weekly", isIncome = true, isEnabled = true)
+                ),
+                shiftTimePresets = listOf(
+                    ShiftTimePreset("p1", "12 AM – 6 AM", 0, 0, 6, 0)
                 )
             ),
             shifts = listOf(
@@ -150,10 +159,20 @@ class BackupCodecTest {
 
         assertEquals("Jeyzi", decoded.userName)
         assertEquals("₱", decoded.currencySymbol)
+        assertEquals(645.0, decoded.minimumWagePerDay ?: 0.0, 0.001)
         assertEquals(4500.0, decoded.monthlyBudget ?: 0.0, 0.001)
         assertEquals(1500.0, decoded.savingsBuffer ?: 0.0, 0.001)
         assertNotNull(decoded.settings)
-        assertEquals(21, decoded.settings?.nightDiffStartHour)
+        // Fixed DOLE shift calculation rules enforced regardless of legacy fields
+        assertEquals(WageCalculator.FIXED_NIGHT_DIFF_START_HOUR, decoded.settings?.nightDiffStartHour)
+        assertEquals(WageCalculator.FIXED_NIGHT_DIFF_MULTIPLIER, decoded.settings?.nightDiffMultiplier ?: 0.0, 0.001)
+        assertEquals(WageCalculator.FIXED_ORDINARY_OVERTIME_MULTIPLIER, decoded.settings?.overtimeMultiplier ?: 0.0, 0.001)
+        // Notification toggles round-trip cleanly
+        assertTrue(decoded.settings?.billReminderEnabled == true)
+        assertFalse(decoded.settings?.shiftReminderEnabled ?: true)
+        assertFalse(decoded.settings?.savingsReminderEnabled ?: true)
+        assertEquals(1, decoded.settings?.shiftTimePresets?.size)
+        assertEquals("12 AM – 6 AM", decoded.settings?.shiftTimePresets?.firstOrNull()?.label)
         assertEquals(1, decoded.shifts.size)
         assertEquals("Evening Café", decoded.shifts.first().overtimeNote)
         assertEquals(2, decoded.expenses.size)
