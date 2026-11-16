@@ -34,9 +34,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Check
+import com.example.shiftly.ui.theme.DarkCardElevated
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import java.time.LocalTime
 import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DirectionsCar
@@ -46,9 +54,11 @@ import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.ShoppingBag
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -58,12 +68,18 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -665,6 +681,7 @@ fun AddExpenseBottomSheet(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseSheetContent(
     currencySymbol: String,
@@ -696,8 +713,16 @@ fun AddExpenseSheetContent(
         )
     }
     var selectedDate by remember { mutableStateOf(initialDate) }
+    var selectedTime by remember { mutableStateOf(LocalTime.now()) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+    var showCategoryPrompt by remember { mutableStateOf(false) }
     var pendingCameraFile by remember { mutableStateOf<File?>(null) }
+
+    val amountFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        amountFocusRequester.requestFocus()
+    }
 
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -770,7 +795,7 @@ fun AddExpenseSheetContent(
             },
             prefix = {
                 Text(
-                    text = currencySymbol,
+                    text = "$currencySymbol ",
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold
@@ -793,7 +818,9 @@ fun AddExpenseSheetContent(
                 focusedTextColor = TextLightPrimary,
                 unfocusedTextColor = TextLightPrimary
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(amountFocusRequester)
         )
 
         OutlinedTextField(
@@ -814,61 +841,16 @@ fun AddExpenseSheetContent(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = "Category",
-                style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                color = TextLightSecondary
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .selectableGroup(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                categoryOptions.forEach { category ->
-                    val isSelected = selectedCategory == category
-                    Box(
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(if (isSelected) CoralSoftContainer else DarkCard)
-                            .border(
-                                width = 1.dp,
-                                color = if (isSelected) CoralInkOnWhite else DarkBorder,
-                                shape = RoundedCornerShape(50)
-                            )
-                            .clickable(role = Role.Tab) { selectedCategory = category }
-                            .semantics(mergeDescendants = true) {
-                                selected = isSelected
-                                contentDescription = "$category category"
-                            }
-                            .padding(horizontal = 16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = category,
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontFamily = ShiftlySerif,
-                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
-                            ),
-                            color = if (isSelected) CoralInkOnWhite else TextLightSecondary
-                        )
-                    }
-                }
-            }
-        }
-
+        // Category selection prompt card
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = DarkCard,
             border = BorderStroke(1.dp, DarkBorder),
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 48.dp)
+                .heightIn(min = 52.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .clickable { showDatePicker = true }
+                .clickable { showCategoryPrompt = true }
         ) {
             Row(
                 modifier = Modifier
@@ -877,25 +859,109 @@ fun AddExpenseSheetContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(CoralSoftContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = categoryIcon(selectedCategory),
+                            contentDescription = null,
+                            tint = CoralInkOnWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "Category",
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                            color = TextLightSecondary
+                        )
+                        Text(
+                            text = selectedCategory,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = ShiftlySerif,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = TextLightPrimary
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = Icons.Outlined.ChevronRight,
+                    contentDescription = "Select Category",
+                    tint = TextLightSecondary
+                )
+            }
+        }
+
+        // Date and Time selection row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = DarkCard,
+                border = BorderStroke(1.dp, DarkBorder),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { showDatePicker = true }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.CalendarToday,
                         contentDescription = null,
                         tint = AzureInkOnWhite,
                         modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = selectedDate.format(dateFormatter),
                         style = MaterialTheme.typography.titleSmall,
                         color = TextLightPrimary
                     )
                 }
-                Text(
-                    text = "Change",
-                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                    color = AzureInkOnWhite
-                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = DarkCard,
+                border = BorderStroke(1.dp, DarkBorder),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { showTimePicker = true }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AccessTime,
+                        contentDescription = null,
+                        tint = AzureInkOnWhite,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = selectedTime.format(DateTimeFormatter.ofPattern("hh:mm a", locale)),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextLightPrimary
+                    )
+                }
             }
         }
 
@@ -1028,12 +1094,74 @@ fun AddExpenseSheetContent(
                 .heightIn(min = 56.dp)
         ) {
             Text(
-                text = if (isValid) "Save Expense" else "Enter amount & title to save",
+                text = "Add Expense",
                 style = MaterialTheme.typography.labelLarge.copy(
                     fontFamily = ShiftlySerif,
                     fontWeight = FontWeight.SemiBold
                 )
             )
+        }
+    }
+
+    if (showCategoryPrompt) {
+        CategoryPromptSheet(
+            categoryOptions = categoryOptions,
+            selectedCategory = selectedCategory,
+            onSelectCategory = { selectedCategory = it },
+            onDismiss = { showCategoryPrompt = false }
+        )
+    }
+
+    if (showTimePicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = selectedTime.hour,
+            initialMinute = selectedTime.minute,
+            is24Hour = false
+        )
+        DatePickerDialog(
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                        showTimePicker = false
+                    }
+                ) {
+                    Text("OK", color = AzureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
+                }
+            }
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                TimePicker(
+                    state = timePickerState,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = DarkSurface,
+                        clockDialSelectedContentColor = PureWhite,
+                        clockDialUnselectedContentColor = TextLightSecondary,
+                        selectorColor = AzurePrimaryButton,
+                        containerColor = DarkSurface,
+                        periodSelectorBorderColor = DarkBorder,
+                        periodSelectorSelectedContainerColor = AzurePrimaryButton,
+                        periodSelectorUnselectedContainerColor = DarkSurface,
+                        periodSelectorSelectedContentColor = PureWhite,
+                        periodSelectorUnselectedContentColor = TextLightSecondary,
+                        timeSelectorSelectedContainerColor = DarkCardElevated,
+                        timeSelectorUnselectedContainerColor = DarkSurface,
+                        timeSelectorSelectedContentColor = PureWhite,
+                        timeSelectorUnselectedContentColor = TextLightSecondary
+                    )
+                )
+            }
         }
     }
 
@@ -1068,7 +1196,146 @@ fun AddExpenseSheetContent(
                 }
             }
         ) {
-            DatePicker(state = datePickerState)
+            DatePicker(
+                state = datePickerState,
+                colors = DatePickerDefaults.colors(
+                    containerColor = DarkSurface,
+                    titleContentColor = TextLightPrimary,
+                    headlineContentColor = TextLightPrimary,
+                    weekdayContentColor = TextLightSecondary,
+                    subheadContentColor = TextLightSecondary,
+                    yearContentColor = TextLightPrimary,
+                    currentYearContentColor = AzureAccent,
+                    selectedYearContentColor = PureWhite,
+                    selectedYearContainerColor = AzurePrimaryButton,
+                    dayContentColor = TextLightPrimary,
+                    disabledDayContentColor = TextLightMuted,
+                    selectedDayContentColor = PureWhite,
+                    selectedDayContainerColor = AzurePrimaryButton,
+                    todayContentColor = AzureAccent,
+                    todayDateBorderColor = AzureAccent
+                )
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CategoryPromptSheet(
+    categoryOptions: List<String>,
+    selectedCategory: String,
+    onSelectCategory: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = DarkSurface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Select Category",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = ShiftlySerif),
+                    color = TextLightPrimary
+                )
+                IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Close",
+                        tint = TextLightSecondary
+                    )
+                }
+            }
+
+            categoryOptions.forEach { category ->
+                val isSelected = category.equals(selectedCategory, ignoreCase = true)
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isSelected) CoralSoftContainer else DarkCard,
+                    border = BorderStroke(
+                        width = if (isSelected) 1.5.dp else 1.dp,
+                        color = if (isSelected) CoralInkOnWhite else DarkBorder
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable(role = Role.RadioButton) {
+                            onSelectCategory(category)
+                            onDismiss()
+                        }
+                        .semantics(mergeDescendants = true) {
+                            this.selected = isSelected
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) CoralInkOnWhite.copy(alpha = 0.2f) else DarkSurface),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = categoryIcon(category),
+                                    contentDescription = null,
+                                    tint = if (isSelected) CoralInkOnWhite else TextLightSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Text(
+                                text = category,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontFamily = ShiftlySans,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = if (isSelected) PureWhite else TextLightPrimary
+                            )
+                        }
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .background(CoralInkOnWhite),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Check,
+                                    contentDescription = "Selected",
+                                    tint = PureWhite,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

@@ -35,7 +35,6 @@ enum class AnalyticsRange(val shortLabel: String, val fullLabel: String) {
     DAY("D", "Today"),
     WEEK("W", "This Week"),
     MONTH("M", "This Month"),
-    SIX_MONTHS("6M", "Last 6 Months"),
     YEAR("Y", "This Year")
 }
 
@@ -323,10 +322,6 @@ class AnalyticsViewModel(
                 val ym = YearMonth.from(today)
                 ym.atDay(1) to ym.atEndOfMonth()
             }
-            AnalyticsRange.SIX_MONTHS -> {
-                val start = YearMonth.from(today).minusMonths(5).atDay(1)
-                start to YearMonth.from(today).atEndOfMonth()
-            }
             AnalyticsRange.YEAR -> {
                 LocalDate.of(today.year, 1, 1) to LocalDate.of(today.year, 12, 31)
             }
@@ -351,12 +346,20 @@ class AnalyticsViewModel(
                 val dayShifts = shiftsByDay[todayEpoch].orEmpty()
                 val dayExtra = extraByDay[todayEpoch].orEmpty()
                 val dayExpenses = expensesByDay[todayEpoch].orEmpty()
-                val slots = listOf("AM" to (0..11), "PM" to (12..17), "Eve" to (18..23))
+                val slots = listOf(
+                    "12am" to (0..5),
+                    "6am" to (6..11),
+                    "12pm" to (12..17),
+                    "6pm" to (18..22),
+                    "11pm" to (23..23)
+                )
                 slots.mapIndexed { index, (label, hours) ->
                     val inc = dayShifts.filter {
                         Instant.ofEpochMilli(it.timeInMillis).atZone(zone).hour in hours
                     }.sumOf { it.totalEarned } + if (index == 0) dayExtra.sumOf { it.amount } else 0.0
-                    val exp = if (index == 1) dayExpenses.sumOf { it.amount } else 0.0
+                    val exp = dayExpenses.filter {
+                        Instant.ofEpochMilli(it.dateEpochDay * 86400000L).atZone(zone).hour in hours
+                    }.sumOf { it.amount }
                     IncomeExpenseBarBucket(label, inc, exp)
                 }
             }
@@ -379,11 +382,17 @@ class AnalyticsViewModel(
             AnalyticsRange.MONTH -> {
                 val ym = YearMonth.from(today)
                 val endDay = ym.lengthOfMonth()
-                val ranges = listOf(1..7, 8..14, 15..21, 22..endDay)
-                ranges.mapIndexed { idx, dayRange ->
+                val slots = listOf(
+                    "1" to (1..6),
+                    "7" to (7..13),
+                    "14" to (14..20),
+                    "21" to (21 until endDay),
+                    "$endDay" to (endDay..endDay)
+                )
+                slots.map { (label, dayRange) ->
                     val eps = dayRange.map { ym.atDay(it).toEpochDay() }
                     IncomeExpenseBarBucket(
-                        label = "W${idx + 1}",
+                        label = label,
                         income = eps.sumOf { ep ->
                             shiftsByDay[ep].orEmpty().sumOf { it.totalEarned } +
                                 extraByDay[ep].orEmpty().sumOf { it.amount }
@@ -393,29 +402,15 @@ class AnalyticsViewModel(
                 }
             }
 
-            AnalyticsRange.SIX_MONTHS -> {
-                val currentMonth = YearMonth.from(today)
-                (5 downTo 0).map { offset ->
-                    val ym = currentMonth.minusMonths(offset.toLong())
-                    val startEp = ym.atDay(1).toEpochDay()
-                    val endEp = ym.atEndOfMonth().toEpochDay()
-                    IncomeExpenseBarBucket(
-                        label = ym.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
-                        income = shifts.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.totalEarned } +
-                            extraIncomes.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount },
-                        expense = expenses.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount }
-                    )
-                }
-            }
-
             AnalyticsRange.YEAR -> {
                 val currentYear = today.year
-                listOf(1..3, 4..6, 7..9, 10..12).mapIndexed { idx, qMonths ->
-                    val startEp = LocalDate.of(currentYear, qMonths.first, 1).toEpochDay()
-                    val endYm = YearMonth.of(currentYear, qMonths.last)
-                    val endEp = endYm.atEndOfMonth().toEpochDay()
+                (1..12).map { month ->
+                    val ym = YearMonth.of(currentYear, month)
+                    val startEp = ym.atDay(1).toEpochDay()
+                    val endEp = ym.atEndOfMonth().toEpochDay()
+                    val label = ym.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
                     IncomeExpenseBarBucket(
-                        label = "Q${idx + 1}",
+                        label = label,
                         income = shifts.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.totalEarned } +
                             extraIncomes.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount },
                         expense = expenses.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount }
@@ -457,7 +452,6 @@ class AnalyticsViewModel(
                 AnalyticsRange.DAY -> 1L
                 AnalyticsRange.WEEK -> 7L
                 AnalyticsRange.MONTH -> 30L
-                AnalyticsRange.SIX_MONTHS -> 180L
                 AnalyticsRange.YEAR -> 365L
             }
             val (curStart, _) = resolvePeriodBounds(range, today)

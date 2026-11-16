@@ -123,12 +123,10 @@ fun AnalyticsScreenContent(
     state: AnalyticsUiState,
     onBack: () -> Unit,
     onSelectRange: (AnalyticsRange) -> Unit,
-    onOpenSplitBill: () -> Unit,
+    onOpenSplitBill: () -> Unit = {},
     onOpenGoalSettings: () -> Unit = {},
     listState: LazyListState = rememberLazyListState()
 ) {
-    var showAllInsights by remember { mutableStateOf(false) }
-
     LazyColumn(
         state = listState,
         modifier = Modifier
@@ -186,44 +184,26 @@ fun AnalyticsScreenContent(
                         )
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Insights (${state.selectedRange.fullLabel})",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = TextLightPrimary,
-                            modifier = Modifier.semantics { heading() }
-                        )
-                        Box(
-                            modifier = Modifier
-                                .heightIn(min = 48.dp)
-                                .clip(RoundedCornerShape(50))
-                                .clickable { showAllInsights = !showAllInsights }
-                                .padding(horizontal = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (showAllInsights) "Show Compact" else "Show All",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = ShiftlySerif,
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = AzureInkOnWhite
-                            )
-                        }
-                    }
+                    Text(
+                        text = "Insights",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextLightPrimary,
+                        modifier = Modifier.semantics { heading() }
+                    )
+
+                    OnBudgetStreakCard(
+                        streakDays = state.underBudgetStreakDays,
+                        streakTargetDays = state.streakTargetDays,
+                        dailyAllowance = state.dailyBudgetAllowance,
+                        currencySymbol = state.currencySymbol
+                    )
 
                     TopSpendingCategoriesCard(
                         categories = state.categoryInsights,
-                        currencySymbol = state.currencySymbol,
-                        showAll = showAllInsights,
-                    ) { showAllInsights = !showAllInsights }
+                        currencySymbol = state.currencySymbol
+                    )
 
                     EarningsHoursBreakdownCard(
-                        periodLabel = state.selectedRange.fullLabel,
                         currencySymbol = state.currencySymbol,
                         earnings = state.periodIncome,
                         totalHours = state.totalWorkedHours,
@@ -233,41 +213,9 @@ fun AnalyticsScreenContent(
                     )
 
                     HoursOfWorkCostCard(
-                        periodLabel = state.selectedRange.fullLabel,
                         currencySymbol = state.currencySymbol,
                         hourlyRate = state.hourlyRate,
-                        items = state.workHoursCosts,
-                        showAll = showAllInsights,
-                        onToggleShowAll = { showAllInsights = !showAllInsights }
-                    )
-
-                    SavingsGoalProgressCard(
-                        goalTitle = state.savingsGoalTitle,
-                        savedAmount = state.savedProgressAmount,
-                        targetAmount = state.savingsGoalTarget,
-                        targetDateEpochDay = state.savingsGoalTargetEpochDay,
-                        neededPerDay = state.savingsGoalNeededPerDay,
-                        goalsCount = state.savingsGoals.size,
-                        currencySymbol = state.currencySymbol,
-                        onActionClick = onOpenGoalSettings
-                    )
-
-                    UnderBudgetStreakAndTipsCard(
-                        streakDays = state.underBudgetStreakDays,
-                        streakTargetDays = state.streakTargetDays,
-                        dailyAllowance = state.dailyBudgetAllowance,
-                        currencySymbol = state.currencySymbol,
-                        tips = state.plainLanguageTips,
-                        showAllTips = showAllInsights,
-                        onToggleShowAll = { showAllInsights = !showAllInsights }
-                    )
-
-                    UnsettledSplitsTrackerCard(
-                        unsettledAmount = state.unsettledSplitsAmount,
-                        totalSplitAmount = state.totalSplitsAmount,
-                        unsettledCount = state.unsettledFriendsCount,
-                        currencySymbol = state.currencySymbol,
-                        onOpenSplitBill = onOpenSplitBill
+                        items = state.workHoursCosts
                     )
                 }
             }

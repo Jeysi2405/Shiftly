@@ -3,15 +3,31 @@ package com.example.shiftly.utils
 import java.time.Instant
 import java.time.ZoneId
 
-enum class DayType(val label: String, val multiplierSummary: String) {
-    ORDINARY("Ordinary Working Day", "1.0x base • 1.25x OT"),
-    REST_DAY("Rest Day", "1.3x base • 1.69x OT"),
-    SPECIAL_NON_WORKING("Special Non-Working Day", "1.3x base • 1.69x OT"),
-    SPECIAL_NON_WORKING_REST("Special Non-Working + Rest Day", "1.5x base • 1.95x OT"),
-    REGULAR_HOLIDAY("Regular Holiday", "2.0x base • 2.6x OT"),
-    REGULAR_HOLIDAY_REST("Regular Holiday + Rest Day", "2.6x base • 3.38x OT"),
-    SPECIAL_WORKING("Special Working Day", "1.0x base • 1.25x OT"),
-    SPECIAL_WORKING_REST("Special Working + Rest Day", "1.3x base • 1.69x OT")
+enum class DayType(
+    val label: String,
+    val multiplierSummary: String,
+    val holidayBadge: String? = null
+) {
+    ORDINARY("Regular Day", "", null),
+    SPECIAL_NON_WORKING("Special Non-Working Holiday", "", "30%"),
+    REGULAR_HOLIDAY("Regular Holiday", "", "Double Pay"),
+    SPECIAL_WORKING("Special Working Holiday", "", null),
+    SPECIAL_WORKING_REST("Special Working + Rest Day", "", "30%"),
+    SPECIAL_NON_WORKING_REST("Special Non-Working + Rest Day", "", "50%"),
+    REGULAR_HOLIDAY_REST("Regular Holiday + Rest Day", "", "160%"),
+    REST_DAY("Rest Day", "", null);
+
+    companion object {
+        val orderedForSelection: List<DayType> = listOf(
+            ORDINARY,
+            SPECIAL_NON_WORKING,
+            REGULAR_HOLIDAY,
+            SPECIAL_WORKING,
+            SPECIAL_WORKING_REST,
+            SPECIAL_NON_WORKING_REST,
+            REGULAR_HOLIDAY_REST
+        )
+    }
 }
 
 data class WageDetails(

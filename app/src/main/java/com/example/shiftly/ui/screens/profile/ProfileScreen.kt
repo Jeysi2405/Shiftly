@@ -740,37 +740,11 @@ private fun ProfileScreenContent(
                         )
                     }
 
-                    SettingsGroupCard(groupTitle = "PAY & BUDGETS") {
-                        SettingsChevronRow(
-                            icon = Icons.Outlined.AccountBalanceWallet,
-                            title = "Monthly & Category Budgets",
-                            iconBg = CoralSoftContainer,
-                            iconTint = CoralInkOnWhite,
-                            onClick = { onOpenSheet(ActiveSettingsSheet.BUDGETS) }
-                        )
-                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
-                        SettingsChevronRow(
-                            icon = Icons.Outlined.Savings,
-                            title = "Savings Goals Setup",
-                            iconBg = MintSoftContainer,
-                            iconTint = MintInkOnWhite,
-                            onClick = onOpenSavingsGoals
-                        )
-                    }
-
-                    SettingsGroupCard(groupTitle = "CATEGORIES & RECURRING") {
+                    SettingsGroupCard(groupTitle = "CATEGORIES & PREFERENCES") {
                         SettingsChevronRow(
                             icon = Icons.Outlined.Category,
                             title = "Manage Categories",
                             onClick = { onOpenSheet(ActiveSettingsSheet.CATEGORIES) }
-                        )
-                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
-                        SettingsChevronRow(
-                            icon = Icons.Outlined.Repeat,
-                            title = "Recurring Entries",
-                            iconBg = MintSoftContainer,
-                            iconTint = MintInkOnWhite,
-                            onClick = { onOpenSheet(ActiveSettingsSheet.RECURRING) }
                         )
                     }
 

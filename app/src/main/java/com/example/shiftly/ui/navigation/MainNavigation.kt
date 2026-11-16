@@ -25,21 +25,30 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.rememberScrollState
+import com.example.shiftly.utils.ShiftlyFormatters
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
@@ -48,6 +57,13 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.text.input.KeyboardType
+import com.example.shiftly.data.local.SavingsGoalEntity
+import com.example.shiftly.data.local.SavingsGoalWithDeposits
+import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
+import com.example.shiftly.ui.theme.AzureAccent
+import com.example.shiftly.ui.theme.TextLightMuted
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -248,6 +264,11 @@ private fun MainDashboardShell(
     var showQuickActionSheet by remember { mutableStateOf(false) }
     var showQuickLogShiftSheet by remember { mutableStateOf(false) }
     var showQuickAddExpenseSheet by remember { mutableStateOf(false) }
+    var showQuickAddGoalSheet by remember { mutableStateOf(false) }
+    var showQuickDepositSheet by remember { mutableStateOf(false) }
+
+    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
+    val savingsGoals by repository.allSavingsGoals.collectAsStateWithLifecycle(initialValue = emptyList())
 
     LaunchedEffect(Unit) {
         repository.processDueRecurringEntries()
@@ -380,11 +401,16 @@ private fun MainDashboardShell(
                             navController.navigate(Screen.SplitBill.route) { launchSingleTop = true }
                         },
                         onQuickLogShift = { showQuickLogShiftSheet = true },
-                        onQuickAddExpense = { showQuickAddExpenseSheet = true }
+                        onQuickAddExpense = { showQuickAddExpenseSheet = true },
+                        onShowMessage = showMessage
                     )
                 }
                 composable(Screen.Duties.route) {
-                    DutiesScreen(repository = repository, onShowMessage = showMessage)
+                    DutiesScreen(
+                        repository = repository,
+                        onBack = { navController.popBackStack() },
+                        onShowMessage = showMessage
+                    )
                 }
                 composable(Screen.Expense.route) {
                     ExpenseScreen(repository = repository, onShowMessage = showMessage)
@@ -416,6 +442,14 @@ private fun MainDashboardShell(
             onSplitBill = {
                 showQuickActionSheet = false
                 navigateToTab(Screen.SplitBill)
+            },
+            onAddSavingsGoal = {
+                showQuickActionSheet = false
+                showQuickAddGoalSheet = true
+            },
+            onAddDeposit = {
+                showQuickActionSheet = false
+                showQuickDepositSheet = true
             }
         )
     }
@@ -465,6 +499,35 @@ private fun MainDashboardShell(
             }
         )
     }
+
+    if (showQuickAddGoalSheet) {
+        AddSavingsGoalSheet(
+            currencySymbol = currencySymbol,
+            onDismiss = { showQuickAddGoalSheet = false },
+            onCreateGoal = { title, targetAmount, targetDateEpochDay ->
+                scope.launch {
+                    repository.createSavingsGoal(title, targetAmount, targetDateEpochDay)
+                    showQuickAddGoalSheet = false
+                    showMessage("Savings goal \"$title\" added")
+                }
+            }
+        )
+    }
+
+    if (showQuickDepositSheet) {
+        QuickDepositPromptSheet(
+            currencySymbol = currencySymbol,
+            savingsGoals = savingsGoals,
+            onDismiss = { showQuickDepositSheet = false },
+            onSaveDeposit = { goal, amount, note ->
+                scope.launch {
+                    repository.addSavingsDeposit(goal = goal, amount = amount, note = note)
+                    showQuickDepositSheet = false
+                    showMessage("Saved ${ShiftlyFormatters.formatCurrency(currencySymbol, amount)} deposit for ${goal.title}")
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -473,7 +536,9 @@ private fun QuickAddActionSheet(
     onDismiss: () -> Unit,
     onLogShift: () -> Unit,
     onAddExpense: () -> Unit,
-    onSplitBill: () -> Unit
+    onSplitBill: () -> Unit,
+    onAddSavingsGoal: () -> Unit,
+    onAddDeposit: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -511,7 +576,6 @@ private fun QuickAddActionSheet(
 
             QuickAddOptionRow(
                 title = "Log Shift",
-                subtitle = "Record shift hours, night diff & overtime",
                 icon = Icons.Outlined.Schedule,
                 iconBg = MintSoftContainer,
                 iconTint = MintInkOnWhite,
@@ -519,7 +583,6 @@ private fun QuickAddActionSheet(
             )
             QuickAddOptionRow(
                 title = "Add Expense",
-                subtitle = "Log daily spend or attach a receipt",
                 icon = Icons.AutoMirrored.Outlined.ReceiptLong,
                 iconBg = CoralSoftContainer,
                 iconTint = CoralInkOnWhite,
@@ -527,11 +590,24 @@ private fun QuickAddActionSheet(
             )
             QuickAddOptionRow(
                 title = "Split Bill",
-                subtitle = "Divide a bill equally with friends",
                 icon = Icons.AutoMirrored.Outlined.CallSplit,
                 iconBg = AzureSoftContainer,
                 iconTint = AzureInkOnWhite,
                 onClick = onSplitBill
+            )
+            QuickAddOptionRow(
+                title = "Add Savings Goal",
+                icon = Icons.Outlined.Savings,
+                iconBg = MintSoftContainer,
+                iconTint = MintInkOnWhite,
+                onClick = onAddSavingsGoal
+            )
+            QuickAddOptionRow(
+                title = "Add Deposit",
+                icon = Icons.Outlined.AccountBalanceWallet,
+                iconBg = AzureSoftContainer,
+                iconTint = AzureInkOnWhite,
+                onClick = onAddDeposit
             )
         }
     }
@@ -540,7 +616,6 @@ private fun QuickAddActionSheet(
 @Composable
 private fun QuickAddOptionRow(
     title: String,
-    subtitle: String,
     icon: ImageVector,
     iconBg: Color,
     iconTint: Color,
@@ -576,28 +651,141 @@ private fun QuickAddOptionRow(
                     modifier = Modifier.size(22.dp)
                 )
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = ShiftlySerif,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = TextLightPrimary
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextLightSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = ShiftlySerif,
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = TextLightPrimary,
+                modifier = Modifier.weight(1f)
+            )
             Icon(
                 imageVector = Icons.Outlined.ChevronRight,
                 contentDescription = null,
                 tint = TextLightSecondary
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuickDepositPromptSheet(
+    currencySymbol: String,
+    savingsGoals: List<SavingsGoalWithDeposits>,
+    onDismiss: () -> Unit,
+    onSaveDeposit: (goal: SavingsGoalEntity, amount: Double, note: String) -> Unit
+) {
+    var amountText by remember { mutableStateOf("") }
+    var noteText by remember { mutableStateOf("") }
+    var selectedGoal by remember(savingsGoals) {
+        mutableStateOf((savingsGoals.firstOrNull { it.goal.isActive } ?: savingsGoals.firstOrNull())?.goal)
+    }
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = DarkSurface,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Add Deposit",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = TextLightPrimary
+                )
+                IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Close",
+                        tint = TextLightSecondary
+                    )
+                }
+            }
+
+            if (selectedGoal == null) {
+                Text(
+                    text = "No active savings goal found.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextLightSecondary
+                )
+            } else {
+                Text(
+                    text = "Target Goal: ${selectedGoal?.title}",
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                    color = TextLightPrimary
+                )
+
+                OutlinedTextField(
+                    value = amountText,
+                    onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
+                    label = { Text("Deposit Amount ($currencySymbol)", fontFamily = ShiftlySerif) },
+                    placeholder = { Text("0.00", color = TextLightMuted) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AzureAccent,
+                        unfocusedBorderColor = DarkBorder,
+                        focusedLabelColor = AzureAccent,
+                        unfocusedLabelColor = TextLightSecondary,
+                        focusedTextColor = TextLightPrimary,
+                        unfocusedTextColor = TextLightPrimary,
+                        cursorColor = AzureAccent,
+                        focusedContainerColor = DarkCard,
+                        unfocusedContainerColor = DarkCard
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it },
+                    label = { Text("Deposit Note (optional)", fontFamily = ShiftlySerif) },
+                    placeholder = { Text("Add note", color = TextLightMuted) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AzureAccent,
+                        unfocusedBorderColor = DarkBorder,
+                        focusedLabelColor = AzureAccent,
+                        unfocusedLabelColor = TextLightSecondary,
+                        focusedTextColor = TextLightPrimary,
+                        unfocusedTextColor = TextLightPrimary,
+                        cursorColor = AzureAccent,
+                        focusedContainerColor = DarkCard,
+                        unfocusedContainerColor = DarkCard
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
+                ShiftlyPrimaryPillButton(
+                    text = "Save Deposit",
+                    enabled = parsedAmount > 0.0,
+                    onClick = {
+                        selectedGoal?.let { goal ->
+                            onSaveDeposit(goal, parsedAmount, noteText.trim())
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -707,20 +895,14 @@ private fun BottomNavItemSlot(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val indicatorBg by animateColorAsState(
-        targetValue = if (selected) MintBright.copy(alpha = 0.14f) else Color.Transparent,
-        label = "navIndicatorBg"
-    )
     val contentTint by animateColorAsState(
-        targetValue = if (selected) MintBright else TextLightSecondary,
+        targetValue = if (selected) PureWhite else TextLightSecondary,
         label = "navContentTint"
     )
 
     Box(
         modifier = modifier
             .heightIn(min = 52.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(indicatorBg)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,

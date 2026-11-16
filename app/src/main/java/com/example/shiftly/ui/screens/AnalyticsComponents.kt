@@ -1,6 +1,7 @@
 package com.example.shiftly.ui.screens
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -40,8 +42,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -110,18 +117,11 @@ fun AnalyticsTopBar(
                     tint = TextLightPrimary
                 )
             }
-            Column {
-                Text(
-                    text = "Analytics",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = TextLightPrimary
-                )
-                Text(
-                    text = "$rangeLabel • Income vs. spending",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextLightSecondary
-                )
-            }
+            Text(
+                text = "Analytics",
+                style = MaterialTheme.typography.headlineSmall,
+                color = TextLightPrimary
+            )
         }
     }
 }
@@ -271,77 +271,113 @@ fun IncomeVsExpenseGlassChartCard(
                     .padding(horizontal = 12.dp, vertical = 14.dp)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val buckets = state.chartBuckets
+                    val count = buckets.size
+                    val gridBorderColor = DarkBorder
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(112.dp)
+                            .height(140.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(92.dp),
-                            verticalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            repeat(3) {
-                                HorizontalDivider(
-                                    thickness = 1.dp,
-                                    color = DarkBorder
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val w = size.width
+                            val h = size.height
+                            val paddingTop = 12.dp.toPx()
+                            val paddingBottom = 12.dp.toPx()
+                            val paddingLeft = 24.dp.toPx()
+                            val paddingRight = 24.dp.toPx()
+
+                            val chartHeight = h - paddingTop - paddingBottom
+                            val chartWidth = w - paddingLeft - paddingRight
+
+                            val gridLines = 3
+                            for (i in 0..gridLines) {
+                                val y = paddingTop + (chartHeight / gridLines) * i
+                                drawLine(
+                                    color = gridBorderColor.copy(alpha = 0.6f),
+                                    start = Offset(paddingLeft, y),
+                                    end = Offset(w - paddingRight, y),
+                                    strokeWidth = 1.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
                                 )
                             }
-                        }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(112.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            verticalAlignment = Alignment.Bottom
-                        ) {
-                            state.chartBuckets.forEach { bucket ->
-                                val incRatio = (bucket.income / maxVal).toFloat().coerceIn(0f, 1f)
-                                val expRatio = (bucket.expense / maxVal).toFloat().coerceIn(0f, 1f)
-                                val incHeight = if (bucket.income > 0.0) (86f * incRatio).coerceAtLeast(8f) else 4f
-                                val expHeight = if (bucket.expense > 0.0) (86f * expRatio).coerceAtLeast(8f) else 4f
+                            if (count > 0) {
+                                val stepX = if (count > 1) chartWidth / (count - 1) else 0f
 
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Bottom
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                        verticalAlignment = Alignment.Bottom,
-                                        modifier = Modifier.height(88.dp)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .width(10.dp)
-                                                .height(incHeight.dp)
-                                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                                                .background(
-                                                    if (bucket.income > 0.0) MintBright
-                                                    else DarkBorder
-                                                )
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .width(10.dp)
-                                                .height(expHeight.dp)
-                                                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                                                .background(
-                                                    if (bucket.expense > 0.0) CoralBright
-                                                    else DarkBorder
-                                                )
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Text(
-                                        text = bucket.label,
-                                        style = MaterialTheme.typography.labelSmall.tabular(),
-                                        color = TextLightSecondary
+                                buckets.forEachIndexed { idx, _ ->
+                                    val x = paddingLeft + idx * stepX
+                                    drawLine(
+                                        color = gridBorderColor.copy(alpha = 0.35f),
+                                        start = Offset(x, paddingTop),
+                                        end = Offset(x, h - paddingBottom),
+                                        strokeWidth = 1.dp.toPx()
                                     )
                                 }
+
+                                val incPoints = buckets.mapIndexed { idx, b ->
+                                    val x = paddingLeft + idx * stepX
+                                    val y = h - paddingBottom - ((b.income / maxVal) * chartHeight).toFloat()
+                                    Offset(x, y)
+                                }
+
+                                val expPoints = buckets.mapIndexed { idx, b ->
+                                    val x = paddingLeft + idx * stepX
+                                    val y = h - paddingBottom - ((b.expense / maxVal) * chartHeight).toFloat()
+                                    Offset(x, y)
+                                }
+
+                                val incPath = Path().apply {
+                                    incPoints.forEachIndexed { i, p ->
+                                        if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+                                    }
+                                }
+                                drawPath(
+                                    path = incPath,
+                                    color = MintBright,
+                                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                                )
+
+                                incPoints.forEach { p ->
+                                    drawCircle(color = MintBright, radius = 5.dp.toPx(), center = p)
+                                    drawCircle(color = DarkCard, radius = 2.5.dp.toPx(), center = p)
+                                    drawCircle(color = PureWhite, radius = 1.5.dp.toPx(), center = p)
+                                }
+
+                                val expPath = Path().apply {
+                                    expPoints.forEachIndexed { i, p ->
+                                        if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+                                    }
+                                }
+                                drawPath(
+                                    path = expPath,
+                                    color = CoralBright,
+                                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                                )
+
+                                expPoints.forEach { p ->
+                                    drawCircle(color = CoralBright, radius = 5.dp.toPx(), center = p)
+                                    drawCircle(color = DarkCard, radius = 2.5.dp.toPx(), center = p)
+                                    drawCircle(color = PureWhite, radius = 1.5.dp.toPx(), center = p)
+                                }
                             }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        state.chartBuckets.forEach { bucket ->
+                            Text(
+                                text = bucket.label,
+                                style = MaterialTheme.typography.labelSmall.tabular(),
+                                color = TextLightSecondary
+                            )
                         }
                     }
 
@@ -445,22 +481,12 @@ fun InsightCardContainer(
 @Composable
 fun TopSpendingCategoriesCard(
     categories: List<CategorySpendingInsight>,
-    currencySymbol: String,
-    showAll: Boolean,
-    onToggleShowAll: () -> Unit
+    currencySymbol: String
 ) {
-    val displayed = if (showAll) categories else categories.take(3)
-    val canToggle = categories.size > 3
     InsightCardContainer(
-        title = "Top Spending Categories",
-        trailingActionText = if (canToggle) {
-            if (showAll) "Show Less" else "Show All"
-        } else {
-            null
-        },
-        onTrailingAction = if (canToggle) onToggleShowAll else null
+        title = "Top Spending Categories"
     ) {
-        if (displayed.isEmpty()) {
+        if (categories.isEmpty()) {
             Text(
                 text = "No spending recorded in this period yet.",
                 style = MaterialTheme.typography.bodySmall,
@@ -468,7 +494,7 @@ fun TopSpendingCategoriesCard(
             )
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                displayed.forEach { item ->
+                categories.forEach { item ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -536,7 +562,6 @@ fun TopSpendingCategoriesCard(
 
 @Composable
 fun EarningsHoursBreakdownCard(
-    periodLabel: String,
     currencySymbol: String,
     earnings: Double,
     totalHours: Double,
@@ -545,7 +570,7 @@ fun EarningsHoursBreakdownCard(
     overtimeHours: Double
 ) {
     val totalSplitHours = (regularHours + nightDiffHours + overtimeHours).coerceAtLeast(0.1)
-    InsightCardContainer(title = "Hours Worked & Earnings ($periodLabel)") {
+    InsightCardContainer(title = "Hours Worked & Earnings") {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -671,25 +696,14 @@ private fun HoursSplitMiniTile(
 
 @Composable
 fun HoursOfWorkCostCard(
-    periodLabel: String,
     currencySymbol: String,
     hourlyRate: Double,
-    items: List<HoursCostInsight>,
-    showAll: Boolean,
-    onToggleShowAll: () -> Unit
+    items: List<HoursCostInsight>
 ) {
-    val visibleItems = if (showAll) items else items.take(2)
     val maxHours = (items.maxOfOrNull { it.dutyHours } ?: 1.0).coerceAtLeast(1.0)
-    val canToggle = items.size > 2
 
     InsightCardContainer(
-        title = "Hours of Work This Cost",
-        trailingActionText = if (canToggle) {
-            if (showAll) "Show Less" else "Show All"
-        } else {
-            null
-        },
-        onTrailingAction = if (canToggle) onToggleShowAll else null
+        title = "Hours of Work This Cost"
     ) {
         if (hourlyRate <= 0.0) {
             Text(
@@ -697,7 +711,7 @@ fun HoursOfWorkCostCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = TextLightSecondary
             )
-        } else if (visibleItems.isEmpty()) {
+        } else if (items.isEmpty()) {
             Text(
                 text = "Log expenses to translate costs into shift duty hours at ${ShiftlyFormatters.formatCurrency(currencySymbol, hourlyRate)}/hr.",
                 style = MaterialTheme.typography.bodySmall,
@@ -705,7 +719,7 @@ fun HoursOfWorkCostCard(
             )
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                visibleItems.forEach { entry ->
+                items.forEach { entry ->
                     val ratio = (entry.dutyHours / maxHours).toFloat().coerceIn(0.08f, 1f)
                     Surface(
                         shape = RoundedCornerShape(14.dp),
@@ -733,7 +747,7 @@ fun HoursOfWorkCostCard(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = "${entry.category} (${periodLabel.lowercase()}) = ${ShiftlyFormatters.formatHours(entry.dutyHours)} of duty",
+                                        text = "${entry.category} = ${ShiftlyFormatters.formatHours(entry.dutyHours)} of duty",
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.SemiBold
                                         ).tabular(),
@@ -764,134 +778,11 @@ fun HoursOfWorkCostCard(
 }
 
 @Composable
-fun SavingsGoalProgressCard(
-    goalTitle: String,
-    savedAmount: Double,
-    targetAmount: Double,
-    targetDateEpochDay: Long?,
-    neededPerDay: Double,
-    goalsCount: Int,
-    currencySymbol: String,
-    onActionClick: () -> Unit
-) {
-    val hasGoal = goalTitle.isNotBlank() && targetAmount > 0.0
-    val ratio = if (hasGoal) (savedAmount / targetAmount).toFloat().coerceIn(0f, 1f) else 0f
-    val pct = (ratio * 100f).roundToInt()
-    val locale = LocalConfiguration.current.locales[0]
-    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
-
-    InsightCardContainer(
-        title = if (goalsCount > 1) "Savings Goals ($goalsCount)" else "Savings Goal",
-        trailingActionText = if (hasGoal) "$pct% • View" else "Create Goal",
-        onTrailingAction = onActionClick
-    ) {
-        if (!hasGoal) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .clickable(onClick = onActionClick)
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MintSoftContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Savings,
-                        contentDescription = null,
-                        tint = MintInkOnWhite,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "No savings goal set yet",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = TextLightPrimary
-                    )
-                    Text(
-                        text = "Tap to set a target amount and date goal",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
-                    )
-                }
-            }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MintSoftContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Savings,
-                        contentDescription = null,
-                        tint = MintInkOnWhite,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = goalTitle,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = TextLightPrimary
-                    )
-                    val dateLabel = targetDateEpochDay?.let {
-                        LocalDate.ofEpochDay(it).format(dateFormatter)
-                    }
-                    val subtitle = buildString {
-                        append("${ShiftlyFormatters.formatCurrency(currencySymbol, savedAmount)} of ${ShiftlyFormatters.formatCurrency(currencySymbol, targetAmount)}")
-                        if (neededPerDay > 0.0) {
-                            append(" • ${ShiftlyFormatters.formatCurrency(currencySymbol, neededPerDay)}/day")
-                        }
-                        if (dateLabel != null) {
-                            append(" • Due $dateLabel")
-                        }
-                    }
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = TextLightSecondary
-                    )
-                }
-            }
-            LinearProgressIndicator(
-                progress = { ratio.coerceAtLeast(0.04f) },
-                color = MintBright,
-                trackColor = DarkBorder,
-                strokeCap = StrokeCap.Round,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .semantics {
-                        contentDescription = "$goalTitle savings goal, $pct% funded"
-                    }
-            )
-        }
-    }
-}
-
-@Composable
-fun UnderBudgetStreakAndTipsCard(
+fun OnBudgetStreakCard(
     streakDays: Int,
     streakTargetDays: Int,
     dailyAllowance: Double,
-    currencySymbol: String,
-    tips: List<String>,
-    showAllTips: Boolean,
-    onToggleShowAll: () -> Unit
+    currencySymbol: String
 ) {
     val hasBudget = dailyAllowance > 0.0
     val streakFraction = if (hasBudget) {
@@ -899,116 +790,66 @@ fun UnderBudgetStreakAndTipsCard(
     } else {
         0f
     }
-    val visibleTips = if (showAllTips) tips else tips.take(1)
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        InsightCardContainer(title = "Under-Budget Streak") {
+    InsightCardContainer(title = "On Budget Streak") {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(MintSoftContainer),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(MintSoftContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = MintInkOnWhite,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = if (hasBudget) "$streakDays-day streak" else "No budget set",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontFamily = ShiftlySans,
-                                fontWeight = FontWeight.Bold
-                            ).tabular(),
-                            color = TextLightPrimary
-                        )
-                        Text(
-                            text = if (hasBudget) {
-                                "Daily cap ≤ ${ShiftlyFormatters.formatCurrency(currencySymbol, dailyAllowance)}/day"
-                            } else {
-                                "Set a monthly budget in Profile to track"
-                            },
-                            style = MaterialTheme.typography.bodySmall.tabular(),
-                            color = TextLightSecondary
-                        )
-                    }
-                }
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MintSoftContainer
-                ) {
-                    Text(
-                        text = "$streakDays / ${streakTargetDays}d",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontWeight = FontWeight.Bold
-                        ).tabular(),
-                        color = MintInkOnWhite,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    Icon(
+                        imageVector = Icons.Outlined.LocalFireDepartment,
+                        contentDescription = null,
+                        tint = MintInkOnWhite,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
+                Text(
+                    text = if (hasBudget) "$streakDays-day streak" else "No budget set",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = ShiftlySans,
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = TextLightPrimary
+                )
             }
-            LinearProgressIndicator(
-                progress = { streakFraction },
-                color = MintBright,
-                trackColor = DarkBorder,
-                strokeCap = StrokeCap.Round,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .semantics {
-                        contentDescription = "$streakDays of $streakTargetDays days under budget"
-                    }
-            )
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = MintSoftContainer
+            ) {
+                Text(
+                    text = "$streakDays / ${streakTargetDays}d",
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = MintInkOnWhite,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                )
+            }
         }
-
-        InsightCardContainer(
-            title = "Smart Tips",
-            trailingActionText = if (tips.size > 1) {
-                if (showAllTips) "Show Less" else "Show All"
-            } else {
-                null
-            },
-            onTrailingAction = if (tips.size > 1) onToggleShowAll else null
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                visibleTips.forEach { tip ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(DarkSurface)
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Lightbulb,
-                            contentDescription = null,
-                            tint = AzureInkOnWhite,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = tip,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextLightPrimary
-                        )
-                    }
+        LinearProgressIndicator(
+            progress = { streakFraction },
+            color = MintBright,
+            trackColor = DarkBorder,
+            strokeCap = StrokeCap.Round,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .semantics {
+                    contentDescription = "$streakDays of $streakTargetDays days on budget"
                 }
-            }
-        }
+        )
     }
 }
 

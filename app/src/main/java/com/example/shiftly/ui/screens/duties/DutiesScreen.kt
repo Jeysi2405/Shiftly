@@ -1,10 +1,12 @@
 package com.example.shiftly.ui.screens.duties
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,13 +19,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -52,6 +58,7 @@ import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.AzurePrimaryButton
+import com.example.shiftly.ui.theme.DarkCard
 import com.example.shiftly.ui.theme.DarkBorder
 import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.InkBlack
@@ -69,6 +76,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun DutiesScreen(
     repository: ShiftlyRepository,
+    onBack: () -> Unit = {},
     onShowMessage: (String) -> Unit = {}
 ) {
     val viewModel: DutiesViewModel = viewModel(factory = DutiesViewModel.Factory(repository))
@@ -77,12 +85,15 @@ fun DutiesScreen(
     val locale = LocalConfiguration.current.locales[0]
 
     var showLogShiftSheet by remember { mutableStateOf(false) }
+    var showManagePresetsSheet by remember { mutableStateOf(false) }
     var editingShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var pendingDeleteShift by remember { mutableStateOf<ShiftEntity?>(null) }
 
     DutiesScreenContent(
         state = state,
+        onBack = onBack,
         onOpenLogShift = { showLogShiftSheet = true },
+        onOpenManagePresets = { showManagePresetsSheet = true },
         onPreviousMonth = { viewModel.changeCalendarMonth(-1) },
         onNextMonth = { viewModel.changeCalendarMonth(1) },
         onSelectCalendarDate = { viewModel.toggleCalendarDateFilter(it) },
@@ -90,6 +101,21 @@ fun DutiesScreen(
         onEditShift = { editingShift = it },
         onDeleteShift = { pendingDeleteShift = it }
     )
+
+    if (showManagePresetsSheet) {
+        ManageShiftPresetsSheet(
+            presets = state.shiftTimePresets,
+            onSavePreset = { sH, sM, eH, eM ->
+                viewModel.saveShiftTimePreset(sH, sM, eH, eM)
+                onShowMessage("Preset saved")
+            },
+            onDeletePreset = { presetId ->
+                viewModel.deleteShiftTimePreset(presetId)
+                onShowMessage("Preset removed")
+            },
+            onDismiss = { showManagePresetsSheet = false }
+        )
+    }
 
     if (showLogShiftSheet) {
         ManualShiftBottomSheet(
@@ -190,13 +216,15 @@ fun DutiesScreen(
 @Composable
 fun DutiesScreenContent(
     state: DutiesUiState,
-    onOpenLogShift: () -> Unit,
-    onPreviousMonth: () -> Unit,
-    onNextMonth: () -> Unit,
-    onSelectCalendarDate: (LocalDate) -> Unit,
-    onClearCalendarFilter: () -> Unit,
-    onEditShift: (ShiftEntity) -> Unit,
-    onDeleteShift: (ShiftEntity) -> Unit,
+    onBack: () -> Unit = {},
+    onOpenLogShift: () -> Unit = {},
+    onOpenManagePresets: () -> Unit = {},
+    onPreviousMonth: () -> Unit = {},
+    onNextMonth: () -> Unit = {},
+    onSelectCalendarDate: (LocalDate) -> Unit = {},
+    onClearCalendarFilter: () -> Unit = {},
+    onEditShift: (ShiftEntity) -> Unit = {},
+    onDeleteShift: (ShiftEntity) -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     todayOverride: LocalDate? = null
 ) {
@@ -211,40 +239,77 @@ fun DutiesScreenContent(
         contentPadding = PaddingValues(top = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 0. Screen Header with + Log Shift CTA
+        // 0. Screen Header with Back & Actions
         item {
-            ShiftlyScreenHeader(
-                title = "Duties",
-                subtitle = "Monthly summary & shift logs",
-                modifier = Modifier.padding(horizontal = 20.dp),
-                trailing = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(DarkCard)
+                            .border(1.dp, DarkBorder, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "Back",
+                            tint = PureWhite
+                        )
+                    }
+                    Text(
+                        text = "Duties",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = PureWhite
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    IconButton(
+                        onClick = onOpenManagePresets,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(DarkCard)
+                            .border(1.dp, DarkBorder, CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Tune,
+                            contentDescription = "Manage Presets",
+                            tint = PureWhite
+                        )
+                    }
+
                     Button(
                         onClick = onOpenLogShift,
-                        shape = RoundedCornerShape(50),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = AzurePrimaryButton,
                             contentColor = PureWhite
                         ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                        modifier = Modifier.heightIn(min = 48.dp)
+                        contentPadding = PaddingValues(0.dp),
+                        modifier = Modifier.size(44.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Log Shift",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontFamily = ShiftlySerif,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = PureWhite
+                            contentDescription = "Log Shift",
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
-            )
+            }
         }
 
         // 1. Monthly Earnings & Time Breakdown Card (Regular=White, ND=Purple, OT=Red)

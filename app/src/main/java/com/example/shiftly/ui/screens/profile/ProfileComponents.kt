@@ -707,7 +707,7 @@ fun SettingsSheetContainer(
                     onClick = onDismiss,
                     modifier = Modifier.heightIn(min = 48.dp)
                 ) {
-                    Text("Close", fontFamily = ShiftlySerif, color = TextLightSecondary)
+                    Text("x", style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold), color = TextLightSecondary)
                 }
             }
             content()
