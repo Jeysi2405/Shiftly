@@ -38,13 +38,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.data.repository.ShiftlyRepository
+import com.example.shiftly.ui.components.ShiftlyCard
+import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.theme.BorderSubtle
 import com.example.shiftly.ui.theme.DeepBlueContainer
 import com.example.shiftly.ui.theme.ElectricBlue
@@ -54,12 +58,17 @@ import com.example.shiftly.ui.theme.SlateSurfaceVariant
 import com.example.shiftly.ui.theme.SoftBlue
 import com.example.shiftly.ui.theme.TextPrimary
 import com.example.shiftly.ui.theme.TextSecondary
+import com.example.shiftly.ui.theme.tabular
 
 @Composable
-fun ProfileScreen(repository: ShiftlyRepository) {
+fun ProfileScreen(
+    repository: ShiftlyRepository,
+    onShowMessage: (String) -> Unit = {}
+) {
     val viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
 
     var rateInput by remember { mutableStateOf("") }
     var savedBanner by remember { mutableStateOf(false) }
@@ -84,31 +93,14 @@ fun ProfileScreen(repository: ShiftlyRepository) {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Header
-        Column {
-            Text(
-                text = "Profile & Settings",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
-            )
-            Text(
-                text = "100% private offline storage on this device",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
-        }
+        ShiftlyScreenHeader(
+            title = "Profile & Settings",
+            subtitle = "100% private offline storage on this device"
+        )
 
         // 1. All-Time Offline Snapshot Card
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = SlateSurface,
-            border = BorderStroke(1.dp, BorderSubtle),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+        ShiftlyCard {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = "ALL-TIME SNAPSHOT",
                     style = MaterialTheme.typography.labelMedium,
@@ -191,7 +183,11 @@ fun ProfileScreen(repository: ShiftlyRepository) {
                         val selected = state.currencySymbol == symbol
                         FilterChip(
                             selected = selected,
-                            onClick = { viewModel.selectCurrency(symbol) },
+                            onClick = {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                viewModel.selectCurrency(symbol)
+                                onShowMessage("Currency set to $symbol")
+                            },
                             label = {
                                 Text(
                                     text = symbol,
@@ -242,8 +238,10 @@ fun ProfileScreen(repository: ShiftlyRepository) {
 
                     Button(
                         onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             viewModel.saveDefaultRate(rateInput)
                             savedBanner = true
+                            onShowMessage("Hourly rate saved")
                         },
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
@@ -331,7 +329,7 @@ private fun SnapshotStatBox(
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleMedium.tabular(),
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
             )

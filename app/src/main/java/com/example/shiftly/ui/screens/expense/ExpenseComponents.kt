@@ -86,6 +86,8 @@ import com.example.shiftly.ui.theme.SlateSurfaceVariant
 import com.example.shiftly.ui.theme.SoftBlue
 import com.example.shiftly.ui.theme.TextPrimary
 import com.example.shiftly.ui.theme.TextSecondary
+import com.example.shiftly.ui.theme.tabular
+
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -145,7 +147,7 @@ fun ExpenseSummaryCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "$currencySymbol${"%.2f".format(monthlyTotal)}",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineMedium.tabular(),
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
@@ -158,7 +160,7 @@ fun ExpenseSummaryCard(
                     ) {
                         Text(
                             text = "All-time: $currencySymbol${"%.2f".format(allTimeTotal)}",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.tabular(),
                             color = TextSecondary,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                         )
@@ -315,7 +317,7 @@ fun ExpenseItemCard(
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = "-$currencySymbol${"%.2f".format(expense.amount)}",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.tabular(),
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary
                 )

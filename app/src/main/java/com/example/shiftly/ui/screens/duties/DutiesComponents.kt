@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.duties
 
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,16 +46,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.ui.components.ShiftlyStatusBadge
 import com.example.shiftly.ui.theme.BorderSubtle
 import com.example.shiftly.ui.theme.DeepBlueContainer
 import com.example.shiftly.ui.theme.ElectricBlue
+import com.example.shiftly.ui.theme.EmeraldContainer
 import com.example.shiftly.ui.theme.EmeraldSuccess
 import com.example.shiftly.ui.theme.RoseAlert
 import com.example.shiftly.ui.theme.SlateSurface
@@ -62,6 +68,7 @@ import com.example.shiftly.ui.theme.SlateSurfaceVariant
 import com.example.shiftly.ui.theme.SoftBlue
 import com.example.shiftly.ui.theme.TextPrimary
 import com.example.shiftly.ui.theme.TextSecondary
+import com.example.shiftly.ui.theme.tabular
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -84,6 +91,7 @@ fun LiveShiftTimerCard(
     onOpenManualEntry: () -> Unit
 ) {
     val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
+    val haptics = LocalHapticFeedback.current
 
     var elapsedSeconds by remember(activeTimer.isRunning, activeTimer.startTimeMillis) {
         mutableLongStateOf(
@@ -121,20 +129,36 @@ fun LiveShiftTimerCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(if (activeTimer.isRunning) EmeraldSuccess else ElectricBlue)
+                if (activeTimer.isRunning) {
+                    ShiftlyStatusBadge(
+                        label = "LIVE SHIFT",
+                        containerColor = EmeraldContainer,
+                        contentColor = EmeraldSuccess,
+                        leadingContent = {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(EmeraldSuccess)
+                            )
+                        }
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (activeTimer.isRunning) "SHIFT IN PROGRESS" else "SHIFT TIMER",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = if (activeTimer.isRunning) EmeraldSuccess else SoftBlue
-                    )
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(ElectricBlue)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "SHIFT TIMER",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = SoftBlue
+                        )
+                    }
                 }
 
                 // Locked Hourly Rate Badge
@@ -181,14 +205,14 @@ fun LiveShiftTimerCard(
                         text = formattedClock,
                         style = MaterialTheme.typography.displaySmall.copy(
                             fontFamily = FontFamily.Monospace
-                        ),
+                        ).tabular(),
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "Duty Date: ${shiftDate.format(dateFormatter)}  •  Est. $currencySymbol${"%.2f".format(liveAccrued)}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.tabular(),
                         color = TextSecondary
                     )
                 }
@@ -207,7 +231,10 @@ fun LiveShiftTimerCard(
                     }
 
                     Button(
-                        onClick = onRequestCheckOut,
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onRequestCheckOut()
+                        },
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
                         modifier = Modifier
@@ -272,7 +299,10 @@ fun LiveShiftTimerCard(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Button(
-                        onClick = onTimeIn,
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onTimeIn()
+                        },
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
                         modifier = Modifier
@@ -337,7 +367,7 @@ fun WeeklyEarningsCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "$currencySymbol${"%.2f".format(weeklyTotalEarnings)}",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineMedium.tabular(),
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
@@ -349,7 +379,7 @@ fun WeeklyEarningsCard(
                 ) {
                     Text(
                         text = "${"%.1f".format(weeklyTotalHours)} hrs this week",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelMedium.tabular(),
                         color = TextSecondary,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                     )
@@ -572,6 +602,7 @@ fun ShiftHistoryItemCard(
 ) {
     val zone = remember { ZoneId.systemDefault() }
     val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
+    val haptics = LocalHapticFeedback.current
     val timeFormatter = remember { DateTimeFormatter.ofPattern("hh:mm a") }
 
     val shiftDateText = remember(shift.dateEpochDay) {
@@ -620,13 +651,13 @@ fun ShiftHistoryItemCard(
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
                         text = "$currencySymbol${"%.2f".format(shift.totalEarned)}",
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.tabular(),
                         fontWeight = FontWeight.Bold,
                         color = ElectricBlue
                     )
                     Text(
                         text = "Locked @ $currencySymbol${"%.2f".format(shift.lockedHourlyRate)}/hr",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.tabular(),
                         color = TextSecondary
                     )
                 }

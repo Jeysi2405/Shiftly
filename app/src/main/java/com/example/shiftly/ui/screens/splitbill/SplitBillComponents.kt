@@ -67,7 +67,9 @@ import com.example.shiftly.ui.theme.SlateSurface
 import com.example.shiftly.ui.theme.SlateSurfaceVariant
 import com.example.shiftly.ui.theme.SoftBlue
 import com.example.shiftly.ui.theme.TextPrimary
+
 import com.example.shiftly.ui.theme.TextSecondary
+import com.example.shiftly.ui.theme.tabular
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -110,7 +112,7 @@ fun SplitBillSummaryCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "$currencySymbol${"%.2f".format(totalPendingAmount)}",
-                        style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineMedium.tabular(),
                         fontWeight = FontWeight.Bold,
                         color = TextPrimary
                     )
@@ -123,7 +125,7 @@ fun SplitBillSummaryCard(
                     ) {
                         Text(
                             text = "Paid: $currencySymbol${"%.2f".format(totalCollectedAmount)}",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.tabular(),
                             color = EmeraldSuccess,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
@@ -132,7 +134,7 @@ fun SplitBillSummaryCard(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = "$paidParticipantsCount / $totalParticipantsCount shares paid",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.tabular(),
                         color = TextSecondary
                     )
                 }
@@ -562,7 +564,7 @@ fun SplitBillLogItemCard(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "$dateLabel  •  Total $currencySymbol${"%.2f".format(bill.totalAmount)} (${bill.personCount} pax)",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.tabular(),
                         color = TextSecondary
                     )
                 }

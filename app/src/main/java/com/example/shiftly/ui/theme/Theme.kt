@@ -30,6 +30,7 @@ fun ShiftlyTheme(
 ) {
     MaterialTheme(
         colorScheme = ShiftlyDarkColorScheme,
+        typography = ShiftlyTypography,
         content = content
     )
 }

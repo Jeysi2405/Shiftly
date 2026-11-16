@@ -1,35 +1,39 @@
 package com.example.shiftly.ui.screens.splitbill
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.CallSplit
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
-import com.example.shiftly.ui.theme.BorderSubtle
-import com.example.shiftly.ui.theme.SlateSurface
-import com.example.shiftly.ui.theme.TextPrimary
-import com.example.shiftly.ui.theme.TextSecondary
+import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyEmptyState
+import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.ShiftlySectionHeader
 
 @Composable
-fun SplitBillScreen(repository: ShiftlyRepository) {
+fun SplitBillScreen(
+    repository: ShiftlyRepository,
+    onShowMessage: (String) -> Unit = {}
+) {
     val viewModel: SplitBillViewModel = viewModel(factory = SplitBillViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val haptics = LocalHapticFeedback.current
+    var pendingDeleteBill by remember { mutableStateOf<SplitBillEntity?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -38,19 +42,10 @@ fun SplitBillScreen(repository: ShiftlyRepository) {
     ) {
         // Screen Header
         item {
-            Column {
-                Text(
-                    text = "Split Bill Calculator",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(
-                    text = "Split bills evenly, track who has paid, and log your share",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
+            ShiftlyScreenHeader(
+                title = "Split Bill Calculator",
+                subtitle = "Split bills evenly, track who has paid, and log your share"
+            )
         }
 
         // 1. Visual Summary Card (Pending vs. Paid Shares)
@@ -69,6 +64,7 @@ fun SplitBillScreen(repository: ShiftlyRepository) {
             SplitBillCalculatorCard(
                 currencySymbol = state.currencySymbol,
                 onSaveSplitBill = { title, totalAmount, personCount, names, alsoLogAsExpense ->
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                     viewModel.createSplitBill(
                         rawTitle = title,
                         totalAmount = totalAmount,
@@ -76,35 +72,29 @@ fun SplitBillScreen(repository: ShiftlyRepository) {
                         participantNames = names,
                         alsoLogMyShareAsExpense = alsoLogAsExpense
                     )
+                    onShowMessage(
+                        if (alsoLogAsExpense) "Split bill saved & share logged to Expenses"
+                        else "Split bill saved"
+                    )
                 }
             )
         }
 
         // 3. Split Bill List Log Header
         item {
-            Text(
-                text = "Split Bill Log (${state.totalBillsCount})",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
+            ShiftlySectionHeader(
+                title = "Split Bill Log",
+                count = state.totalBillsCount
             )
         }
 
         if (state.billsWithParticipants.isEmpty()) {
             item {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = SlateSurface,
-                    border = BorderStroke(1.dp, BorderSubtle),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = "No split bills logged yet. Enter a bill amount and select how many people are included above.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(20.dp)
-                    )
-                }
+                ShiftlyEmptyState(
+                    icon = Icons.AutoMirrored.Rounded.CallSplit,
+                    title = "No split bills logged yet",
+                    subtitle = "Enter a bill amount and select how many people are included above."
+                )
             }
         } else {
             items(
@@ -115,16 +105,33 @@ fun SplitBillScreen(repository: ShiftlyRepository) {
                     item = billWithParticipants,
                     currencySymbol = state.currencySymbol,
                     onToggleParticipantPaid = { participant ->
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         viewModel.toggleParticipantPaid(participant)
                     },
                     onLogAsExpense = { bill ->
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.logBillShareAsExpense(bill)
+                        onShowMessage("Your share logged to Expenses")
                     },
                     onDeleteBill = { bill ->
-                        viewModel.deleteSplitBill(bill)
+                        pendingDeleteBill = bill
                     }
                 )
             }
         }
+    }
+
+    pendingDeleteBill?.let { billToDelete ->
+        ShiftlyConfirmDeleteDialog(
+            title = "Delete Split Bill?",
+            message = "This will permanently remove \"${billToDelete.title}\" and its participant payment status.",
+            onDismiss = { pendingDeleteBill = null },
+            onConfirm = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                viewModel.deleteSplitBill(billToDelete)
+                pendingDeleteBill = null
+                onShowMessage("Split bill deleted")
+            }
+        )
     }
 }

@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.WorkHistory
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -35,6 +37,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -42,9 +46,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
+import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyEmptyState
+import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.theme.BorderSubtle
 import com.example.shiftly.ui.theme.ElectricBlue
 import com.example.shiftly.ui.theme.SlateSurface
+import com.example.shiftly.ui.theme.SlateSurfaceElevated
 import com.example.shiftly.ui.theme.SoftBlue
 import com.example.shiftly.ui.theme.TextPrimary
 import com.example.shiftly.ui.theme.TextSecondary
@@ -55,14 +64,19 @@ import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DutiesScreen(repository: ShiftlyRepository) {
+fun DutiesScreen(
+    repository: ShiftlyRepository,
+    onShowMessage: (String) -> Unit = {}
+) {
     val viewModel: DutiesViewModel = viewModel(factory = DutiesViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val haptics = LocalHapticFeedback.current
 
     var showDutyDatePicker by remember { mutableStateOf(false) }
     var showCheckOutDialog by remember { mutableStateOf(false) }
     var showManualShiftDialog by remember { mutableStateOf(false) }
     var editingNoteShift by remember { mutableStateOf<ShiftEntity?>(null) }
+    var pendingDeleteShift by remember { mutableStateOf<ShiftEntity?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -71,19 +85,10 @@ fun DutiesScreen(repository: ShiftlyRepository) {
     ) {
         // Screen Header
         item {
-            Column {
-                Text(
-                    text = "Shift Duties",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(
-                    text = "Track shifts, lock hourly rates, and log overtime notes",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
-            }
+            ShiftlyScreenHeader(
+                title = "Shift Duties",
+                subtitle = "Track shifts, lock hourly rates, and log overtime notes"
+            )
         }
 
         // 1. Live Time-In / Check-Out Timer Card
@@ -130,42 +135,30 @@ fun DutiesScreen(repository: ShiftlyRepository) {
             val headerTitle = if (filterDate != null) {
                 "Shifts on ${filterDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}"
             } else {
-                "Logged Shift Duties (${state.displayedShifts.size})"
+                "Logged Shift Duties"
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = headerTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-            }
+            ShiftlySectionHeader(
+                title = headerTitle,
+                count = state.displayedShifts.size
+            )
         }
 
         if (state.displayedShifts.isEmpty()) {
             item {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = SlateSurface,
-                    border = BorderStroke(1.dp, BorderSubtle),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = if (state.selectedCalendarDate != null) {
-                            "No shifts logged on this date."
-                        } else {
-                            "No shifts logged yet. Tap Time In above to start tracking your shift."
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary,
-                        modifier = Modifier.padding(20.dp)
-                    )
-                }
+                ShiftlyEmptyState(
+                    icon = Icons.Rounded.WorkHistory,
+                    title = if (state.selectedCalendarDate != null) {
+                        "No shifts on this date"
+                    } else {
+                        "No shifts logged yet"
+                    },
+                    subtitle = if (state.selectedCalendarDate != null) {
+                        "Tap another highlighted day or clear the calendar filter."
+                    } else {
+                        "Tap Time In above to start tracking your shift."
+                    }
+                )
             }
         } else {
             items(
@@ -176,7 +169,7 @@ fun DutiesScreen(repository: ShiftlyRepository) {
                     shift = shift,
                     currencySymbol = state.currencySymbol,
                     onEditNote = { editingNoteShift = shift },
-                    onDelete = { viewModel.deleteShift(shift) }
+                    onDelete = { pendingDeleteShift = shift }
                 )
             }
         }
@@ -254,8 +247,10 @@ fun DutiesScreen(repository: ShiftlyRepository) {
             confirmButton = {
                 Button(
                     onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.checkOutAndSave(noteText)
                         showCheckOutDialog = false
+                        onShowMessage("Shift saved to log")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
                 ) {
@@ -302,6 +297,7 @@ fun DutiesScreen(repository: ShiftlyRepository) {
                     onClick = {
                         viewModel.updateOvertimeNote(targetShift, updatedNote)
                         editingNoteShift = null
+                        onShowMessage("Shift note updated")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
                 ) {
@@ -312,6 +308,24 @@ fun DutiesScreen(repository: ShiftlyRepository) {
                 TextButton(onClick = { editingNoteShift = null }) {
                     Text("Cancel", color = TextSecondary)
                 }
+            }
+        )
+    }
+
+    // Delete Shift Confirmation Dialog
+    pendingDeleteShift?.let { shiftToDelete ->
+        ShiftlyConfirmDeleteDialog(
+            title = "Delete Shift?",
+            message = "This will permanently remove the shift logged on ${
+                LocalDate.ofEpochDay(shiftToDelete.dateEpochDay)
+                    .format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+            }.",
+            onDismiss = { pendingDeleteShift = null },
+            onConfirm = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                viewModel.deleteShift(shiftToDelete)
+                pendingDeleteShift = null
+                onShowMessage("Shift deleted")
             }
         )
     }
@@ -403,6 +417,7 @@ fun DutiesScreen(repository: ShiftlyRepository) {
                         val sM = (startMin.toIntOrNull() ?: 0).coerceIn(0, 59)
                         val eH = (endHour.toIntOrNull() ?: 17).coerceIn(0, 23)
                         val eM = (endMin.toIntOrNull() ?: 0).coerceIn(0, 59)
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.logManualShift(
                             date = state.selectedDutyDate,
                             startHour = sH,
@@ -412,6 +427,7 @@ fun DutiesScreen(repository: ShiftlyRepository) {
                             overtimeNote = manualNote
                         )
                         showManualShiftDialog = false
+                        onShowMessage("Manual shift logged")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
                 ) {
