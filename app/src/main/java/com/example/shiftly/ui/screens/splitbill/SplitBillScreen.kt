@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.CallSplit
+import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -43,8 +43,7 @@ fun SplitBillScreen(
         // Screen Header
         item {
             ShiftlyScreenHeader(
-                title = "Split Bill Calculator",
-                subtitle = "Split bills evenly, track who has paid, and log your share"
+                title = "Split Bill"
             )
         }
 
@@ -73,7 +72,7 @@ fun SplitBillScreen(
                         alsoLogMyShareAsExpense = alsoLogAsExpense
                     )
                     onShowMessage(
-                        if (alsoLogAsExpense) "Split bill saved & share logged to Expenses"
+                        if (alsoLogAsExpense) "Split bill saved & share logged"
                         else "Split bill saved"
                     )
                 }
@@ -83,7 +82,7 @@ fun SplitBillScreen(
         // 3. Split Bill List Log Header
         item {
             ShiftlySectionHeader(
-                title = "Split Bill Log",
+                title = "Split Bills",
                 count = state.totalBillsCount
             )
         }
@@ -91,9 +90,8 @@ fun SplitBillScreen(
         if (state.billsWithParticipants.isEmpty()) {
             item {
                 ShiftlyEmptyState(
-                    icon = Icons.AutoMirrored.Rounded.CallSplit,
-                    title = "No split bills logged yet",
-                    subtitle = "Enter a bill amount and select how many people are included above."
+                    icon = Icons.AutoMirrored.Outlined.CallSplit,
+                    title = "No split bills"
                 )
             }
         } else {
@@ -111,7 +109,7 @@ fun SplitBillScreen(
                     onLogAsExpense = { bill ->
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.logBillShareAsExpense(bill)
-                        onShowMessage("Your share logged to Expenses")
+                        onShowMessage("Share logged to Expenses")
                     },
                     onDeleteBill = { bill ->
                         pendingDeleteBill = bill
@@ -124,7 +122,7 @@ fun SplitBillScreen(
     pendingDeleteBill?.let { billToDelete ->
         ShiftlyConfirmDeleteDialog(
             title = "Delete Split Bill?",
-            message = "This will permanently remove \"${billToDelete.title}\" and its participant payment status.",
+            message = "Remove \"${billToDelete.title}\"?",
             onDismiss = { pendingDeleteBill = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)

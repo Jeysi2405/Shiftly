@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens.expense
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,22 +16,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -49,8 +45,6 @@ import com.example.shiftly.ui.theme.BorderSubtle
 import com.example.shiftly.ui.theme.DeepBlueContainer
 import com.example.shiftly.ui.theme.ElectricBlue
 import com.example.shiftly.ui.theme.SlateSurface
-import com.example.shiftly.ui.theme.SlateSurfaceVariant
-import com.example.shiftly.ui.theme.TextPrimary
 import com.example.shiftly.ui.theme.TextSecondary
 
 @Composable
@@ -75,7 +69,6 @@ fun ExpenseScreen(
         item {
             ShiftlyScreenHeader(
                 title = "Expenses",
-                subtitle = "Log expenses & attach proof receipts",
                 trailing = {
                     Button(
                         onClick = { showAddSheet = true },
@@ -83,7 +76,7 @@ fun ExpenseScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Add,
+                            imageVector = Icons.Outlined.Add,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
@@ -145,17 +138,8 @@ fun ExpenseScreen(
         if (state.filteredExpenses.isEmpty()) {
             item {
                 ShiftlyEmptyState(
-                    icon = Icons.AutoMirrored.Rounded.ReceiptLong,
-                    title = if (state.selectedCategory == "All") {
-                        "No expenses logged yet"
-                    } else {
-                        "No ${state.selectedCategory} expenses"
-                    },
-                    subtitle = if (state.selectedCategory == "All") {
-                        "Tap + Add above to log an expense with an optional receipt photo."
-                    } else {
-                        "Try another category filter or add a new expense."
-                    }
+                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                    title = "No expenses"
                 )
             }
         } else {
@@ -180,7 +164,7 @@ fun ExpenseScreen(
             onSaveExpense = { title, amount, category, date, receiptPath ->
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 viewModel.addExpense(title, amount, category, date, receiptPath)
-                onShowMessage("Expense logged")
+                onShowMessage("Expense saved")
             }
         )
     }
@@ -188,7 +172,7 @@ fun ExpenseScreen(
     pendingDeleteExpense?.let { expenseToDelete ->
         ShiftlyConfirmDeleteDialog(
             title = "Delete Expense?",
-            message = "This will permanently remove \"${expenseToDelete.title}\" and any attached receipt.",
+            message = "Remove \"${expenseToDelete.title}\"?",
             onDismiss = { pendingDeleteExpense = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)

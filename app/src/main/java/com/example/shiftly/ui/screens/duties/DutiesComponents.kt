@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens.duties
 
-
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,15 +19,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CalendarToday
-import androidx.compose.material.icons.rounded.ChevronLeft
-import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.EditNote
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -46,7 +45,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -90,7 +88,7 @@ fun LiveShiftTimerCard(
     onCancelTimer: () -> Unit,
     onOpenManualEntry: () -> Unit
 ) {
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
     val haptics = LocalHapticFeedback.current
 
     var elapsedSeconds by remember(activeTimer.isRunning, activeTimer.startTimeMillis) {
@@ -131,7 +129,7 @@ fun LiveShiftTimerCard(
             ) {
                 if (activeTimer.isRunning) {
                     ShiftlyStatusBadge(
-                        label = "LIVE SHIFT",
+                        label = "LIVE",
                         containerColor = EmeraldContainer,
                         contentColor = EmeraldSuccess,
                         leadingContent = {
@@ -153,7 +151,7 @@ fun LiveShiftTimerCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "SHIFT TIMER",
+                            text = "TIMER",
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = SoftBlue
@@ -172,14 +170,14 @@ fun LiveShiftTimerCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Lock,
+                            imageVector = Icons.Outlined.Lock,
                             contentDescription = null,
                             tint = SoftBlue,
                             modifier = Modifier.size(13.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "$currencySymbol${"%.2f".format(displayedRate)}/hr",
+                            text = "$currencySymbol${"%.2f".format(displayedRate)}/h",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = SoftBlue
@@ -189,13 +187,12 @@ fun LiveShiftTimerCard(
             }
 
             if (activeTimer.isRunning) {
-                // Live Ticking Stopwatch & Accrued Earnings
+                // Live Ticking Stopwatch
                 val hours = elapsedSeconds / 3600
                 val minutes = (elapsedSeconds % 3600) / 60
                 val seconds = elapsedSeconds % 60
                 val formattedClock = "%02d:%02d:%02d".format(hours, minutes, seconds)
                 val liveAccrued = (elapsedSeconds / 3600.0) * activeTimer.lockedRate
-                val shiftDate = LocalDate.ofEpochDay(activeTimer.shiftDateEpochDay)
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -211,9 +208,10 @@ fun LiveShiftTimerCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Duty Date: ${shiftDate.format(dateFormatter)}  •  Est. $currencySymbol${"%.2f".format(liveAccrued)}",
-                        style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = TextSecondary
+                        text = "$currencySymbol${"%.2f".format(liveAccrued)}",
+                        style = MaterialTheme.typography.titleMedium.tabular(),
+                        fontWeight = FontWeight.SemiBold,
+                        color = SoftBlue
                     )
                 }
 
@@ -241,7 +239,7 @@ fun LiveShiftTimerCard(
                             .weight(1f)
                             .height(48.dp)
                     ) {
-                        Icon(Icons.Rounded.Stop, contentDescription = null)
+                        Icon(Icons.Outlined.Stop, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Check Out", fontWeight = FontWeight.Bold)
                     }
@@ -265,25 +263,18 @@ fun LiveShiftTimerCard(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Rounded.CalendarToday,
+                                imageVector = Icons.Outlined.CalendarToday,
                                 contentDescription = null,
                                 tint = ElectricBlue,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "Shift Duty Date",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = TextSecondary
-                                )
-                                Text(
-                                    text = selectedDutyDate.format(dateFormatter),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = TextPrimary
-                                )
-                            }
+                            Text(
+                                text = selectedDutyDate.format(dateFormatter),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary
+                            )
                         }
                         Text(
                             text = "Change",
@@ -309,7 +300,7 @@ fun LiveShiftTimerCard(
                             .weight(1f)
                             .height(48.dp)
                     ) {
-                        Icon(Icons.Rounded.PlayArrow, contentDescription = null)
+                        Icon(Icons.Outlined.PlayArrow, contentDescription = null)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text("Time In", fontWeight = FontWeight.Bold)
                     }
@@ -321,7 +312,7 @@ fun LiveShiftTimerCard(
                         modifier = Modifier.height(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.Add,
+                            imageVector = Icons.Outlined.Add,
                             contentDescription = "Manual Shift",
                             tint = SoftBlue,
                             modifier = Modifier.size(18.dp)
@@ -359,7 +350,7 @@ fun WeeklyEarningsCard(
             ) {
                 Column {
                     Text(
-                        text = "WEEKLY EARNINGS",
+                        text = "WEEKLY",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = SoftBlue
@@ -378,7 +369,7 @@ fun WeeklyEarningsCard(
                     color = SlateSurfaceVariant
                 ) {
                     Text(
-                        text = "${"%.1f".format(weeklyTotalHours)} hrs this week",
+                        text = "${"%.1f".format(weeklyTotalHours)}h",
                         style = MaterialTheme.typography.labelMedium.tabular(),
                         color = TextSecondary,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
@@ -484,14 +475,14 @@ fun ShiftCalendarCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (selectedCalendarDate != null) {
                         TextButton(onClick = onClearFilter) {
-                            Text("Show All", color = SoftBlue, style = MaterialTheme.typography.labelMedium)
+                            Text("Reset", color = SoftBlue, style = MaterialTheme.typography.labelMedium)
                         }
                     }
                     IconButton(onClick = onPreviousMonth, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Rounded.ChevronLeft, contentDescription = "Previous Month", tint = TextSecondary)
+                        Icon(Icons.Outlined.ChevronLeft, contentDescription = "Previous Month", tint = TextSecondary)
                     }
                     IconButton(onClick = onNextMonth, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Rounded.ChevronRight, contentDescription = "Next Month", tint = TextSecondary)
+                        Icon(Icons.Outlined.ChevronRight, contentDescription = "Next Month", tint = TextSecondary)
                     }
                 }
             }
@@ -601,8 +592,7 @@ fun ShiftHistoryItemCard(
     onDelete: () -> Unit
 ) {
     val zone = remember { ZoneId.systemDefault() }
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
-    val haptics = LocalHapticFeedback.current
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
     val timeFormatter = remember { DateTimeFormatter.ofPattern("hh:mm a") }
 
     val shiftDateText = remember(shift.dateEpochDay) {
@@ -642,28 +632,21 @@ fun ShiftHistoryItemCard(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "$timeRangeText  •  $durationLabel",
+                        text = "$timeRangeText ($durationLabel)",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextSecondary
                     )
                 }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "$currencySymbol${"%.2f".format(shift.totalEarned)}",
-                        style = MaterialTheme.typography.titleMedium.tabular(),
-                        fontWeight = FontWeight.Bold,
-                        color = ElectricBlue
-                    )
-                    Text(
-                        text = "Locked @ $currencySymbol${"%.2f".format(shift.lockedHourlyRate)}/hr",
-                        style = MaterialTheme.typography.labelSmall.tabular(),
-                        color = TextSecondary
-                    )
-                }
+                Text(
+                    text = "$currencySymbol${"%.2f".format(shift.totalEarned)}",
+                    style = MaterialTheme.typography.titleMedium.tabular(),
+                    fontWeight = FontWeight.Bold,
+                    color = ElectricBlue
+                )
             }
 
-            // Overtime / Extend Note Row + Quick Actions
+            // Optional Note & Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -676,33 +659,28 @@ fun ShiftHistoryItemCard(
                         modifier = Modifier.weight(1f)
                     ) {
                         Text(
-                            text = "Note: ${shift.overtimeNote}",
+                            text = shift.overtimeNote,
                             style = MaterialTheme.typography.labelSmall,
                             color = SoftBlue,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                         )
                     }
                 } else {
-                    Text(
-                        text = "No overtime/extend note",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary.copy(alpha = 0.7f),
-                        modifier = Modifier.weight(1f)
-                    )
+                    Spacer(modifier = Modifier.weight(1f))
                 }
 
                 Row {
                     IconButton(onClick = onEditNote, modifier = Modifier.size(32.dp)) {
                         Icon(
-                            imageVector = Icons.Rounded.EditNote,
-                            contentDescription = "Edit Overtime Note",
+                            imageVector = Icons.Outlined.EditNote,
+                            contentDescription = "Edit Note",
                             tint = SoftBlue,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                     IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                         Icon(
-                            imageVector = Icons.Rounded.DeleteOutline,
+                            imageVector = Icons.Outlined.Delete,
                             contentDescription = "Delete Shift",
                             tint = RoseAlert.copy(alpha = 0.85f),
                             modifier = Modifier.size(18.dp)

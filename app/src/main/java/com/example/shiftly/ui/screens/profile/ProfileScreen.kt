@@ -16,9 +16,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.IosShare
-import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
@@ -94,15 +94,14 @@ fun ProfileScreen(
     ) {
         // Header
         ShiftlyScreenHeader(
-            title = "Profile & Settings",
-            subtitle = "100% private offline storage on this device"
+            title = "Profile"
         )
 
         // 1. All-Time Offline Snapshot Card
         ShiftlyCard {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    text = "ALL-TIME SNAPSHOT",
+                    text = "SNAPSHOT",
                     style = MaterialTheme.typography.labelMedium,
                     color = SoftBlue,
                     fontWeight = FontWeight.SemiBold
@@ -113,12 +112,12 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     SnapshotStatBox(
-                        label = "Shifts Logged",
+                        label = "Shifts",
                         value = state.totalShifts.toString(),
                         modifier = Modifier.weight(1f)
                     )
                     SnapshotStatBox(
-                        label = "Total Hours",
+                        label = "Hours",
                         value = "${"%.1f".format(state.totalHoursWorked)}h",
                         modifier = Modifier.weight(1f)
                     )
@@ -129,12 +128,12 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     SnapshotStatBox(
-                        label = "Shift Earnings",
+                        label = "Earnings",
                         value = "${state.currencySymbol}${"%.2f".format(state.totalEarnings)}",
                         modifier = Modifier.weight(1f)
                     )
                     SnapshotStatBox(
-                        label = "Tracked Expenses",
+                        label = "Expenses",
                         value = "${state.currencySymbol}${"%.2f".format(state.totalExpenses)}",
                         modifier = Modifier.weight(1f)
                     )
@@ -155,24 +154,18 @@ fun ProfileScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        imageVector = Icons.Rounded.Lock,
+                        imageVector = Icons.Outlined.Lock,
                         contentDescription = null,
                         tint = ElectricBlue
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Shift Rate & Currency",
+                        text = "Rate & Currency",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = TextPrimary
                     )
                 }
-
-                Text(
-                    text = "Your active rate locks into each shift when you Time-In. Updating it later will never alter past shift earnings.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
-                )
 
                 // Currency Selector
                 Row(
@@ -222,7 +215,7 @@ fun ProfileScreen(
                             rateInput = it
                             savedBanner = false
                         },
-                        label = { Text("Default Hourly Rate (${state.currencySymbol}/hr)") },
+                        label = { Text("Rate (${state.currencySymbol}/h)") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -241,13 +234,13 @@ fun ProfileScreen(
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             viewModel.saveDefaultRate(rateInput)
                             savedBanner = true
-                            onShowMessage("Hourly rate saved")
+                            onShowMessage("Rate saved")
                         },
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
                         modifier = Modifier.height(56.dp)
                     ) {
-                        Icon(Icons.Rounded.Check, contentDescription = "Save")
+                        Icon(Icons.Outlined.Check, contentDescription = "Save")
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Save", fontWeight = FontWeight.SemiBold)
                     }
@@ -255,7 +248,7 @@ fun ProfileScreen(
 
                 if (savedBanner) {
                     Text(
-                        text = "Saved! Active rate set to ${state.currencySymbol}${"%.2f".format(state.defaultHourlyRate)}/hr.",
+                        text = "Saved ${state.currencySymbol}${"%.2f".format(state.defaultHourlyRate)}/h",
                         style = MaterialTheme.typography.labelMedium,
                         color = EmeraldSuccess
                     )
@@ -275,34 +268,29 @@ fun ProfileScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Offline Data Backup",
+                    text = "Backup",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = TextPrimary
-                )
-                Text(
-                    text = "Export a plain-text snapshot of your shifts and expenses to save locally or share.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
                 )
                 OutlinedButton(
                     onClick = {
                         viewModel.exportBackup { reportText ->
                             val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                 type = "text/plain"
-                                putExtra(Intent.EXTRA_SUBJECT, "Shiftly Offline Backup")
+                                putExtra(Intent.EXTRA_SUBJECT, "Shiftly Backup")
                                 putExtra(Intent.EXTRA_TEXT, reportText)
                             }
-                            context.startActivity(Intent.createChooser(sendIntent, "Export Shiftly Backup"))
+                            context.startActivity(Intent.createChooser(sendIntent, "Export Backup"))
                         }
                     },
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, ElectricBlue),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Rounded.IosShare, contentDescription = null, tint = ElectricBlue)
+                    Icon(Icons.Outlined.Share, contentDescription = null, tint = ElectricBlue)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Export Offline Summary", color = ElectricBlue, fontWeight = FontWeight.SemiBold)
+                    Text("Export Backup", color = ElectricBlue, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

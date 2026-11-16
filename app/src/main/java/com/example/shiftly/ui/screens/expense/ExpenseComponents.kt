@@ -24,18 +24,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AttachFile
-import androidx.compose.material.icons.rounded.CalendarToday
-import androidx.compose.material.icons.rounded.CallSplit
-import androidx.compose.material.icons.rounded.CameraAlt
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.DirectionsCar
-import androidx.compose.material.icons.rounded.Fastfood
-import androidx.compose.material.icons.rounded.Inventory2
-import androidx.compose.material.icons.rounded.PhotoLibrary
-import androidx.compose.material.icons.rounded.Receipt
-import androidx.compose.material.icons.rounded.ShoppingBag
+import androidx.compose.material.icons.automirrored.outlined.CallSplit
+import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.Fastfood
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
@@ -78,7 +78,6 @@ import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.ui.theme.BorderSubtle
 import com.example.shiftly.ui.theme.DeepBlueContainer
 import com.example.shiftly.ui.theme.ElectricBlue
-import com.example.shiftly.ui.theme.EmeraldSuccess
 import com.example.shiftly.ui.theme.ObsidianBackground
 import com.example.shiftly.ui.theme.RoseAlert
 import com.example.shiftly.ui.theme.SlateSurface
@@ -87,7 +86,6 @@ import com.example.shiftly.ui.theme.SoftBlue
 import com.example.shiftly.ui.theme.TextPrimary
 import com.example.shiftly.ui.theme.TextSecondary
 import com.example.shiftly.ui.theme.tabular
-
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -96,12 +94,12 @@ import java.time.format.DateTimeFormatter
 
 fun categoryIcon(category: String): ImageVector {
     return when (category.lowercase()) {
-        "food" -> Icons.Rounded.Fastfood
-        "transport" -> Icons.Rounded.DirectionsCar
-        "bills" -> Icons.Rounded.Receipt
-        "supplies" -> Icons.Rounded.Inventory2
-        "split bill" -> Icons.Rounded.CallSplit
-        else -> Icons.Rounded.ShoppingBag
+        "food" -> Icons.Outlined.Fastfood
+        "transport" -> Icons.Outlined.DirectionsCar
+        "bills" -> Icons.Outlined.Receipt
+        "supplies" -> Icons.Outlined.Inventory2
+        "split bill" -> Icons.AutoMirrored.Outlined.CallSplit
+        else -> Icons.Outlined.ShoppingBag
     }
 }
 
@@ -116,7 +114,6 @@ fun ExpenseSummaryCard(
     val barPalette = listOf(
         ElectricBlue,
         SoftBlue,
-        EmeraldSuccess,
         Color(0xFF818CF8),
         Color(0xFF38BDF8),
         SlateSurfaceVariant
@@ -139,7 +136,7 @@ fun ExpenseSummaryCard(
             ) {
                 Column {
                     Text(
-                        text = "THIS MONTH'S SPENDING",
+                        text = "THIS MONTH",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = SoftBlue
@@ -153,23 +150,15 @@ fun ExpenseSummaryCard(
                     )
                 }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = SlateSurfaceVariant
-                    ) {
-                        Text(
-                            text = "All-time: $currencySymbol${"%.2f".format(allTimeTotal)}",
-                            style = MaterialTheme.typography.labelSmall.tabular(),
-                            color = TextSecondary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = SlateSurfaceVariant
+                ) {
                     Text(
-                        text = "$totalReceiptCount proof receipts saved",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = SoftBlue
+                        text = "All-time: $currencySymbol${"%.2f".format(allTimeTotal)}",
+                        style = MaterialTheme.typography.labelSmall.tabular(),
+                        color = TextSecondary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
                     )
                 }
             }
@@ -232,7 +221,7 @@ fun ExpenseItemCard(
     onViewReceipt: (ExpenseEntity) -> Unit,
     onDelete: () -> Unit
 ) {
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d, yyyy") }
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
     val dateLabel = remember(expense.dateEpochDay) {
         LocalDate.ofEpochDay(expense.dateEpochDay).format(dateFormatter)
     }
@@ -296,14 +285,14 @@ fun ExpenseItemCard(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.AttachFile,
+                                imageVector = Icons.Outlined.AttachFile,
                                 contentDescription = null,
                                 tint = SoftBlue,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "View Receipt Proof",
+                                text = "Receipt",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
                                 color = SoftBlue
@@ -326,8 +315,8 @@ fun ExpenseItemCard(
                     modifier = Modifier.size(30.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.DeleteOutline,
-                        contentDescription = "Delete Expense",
+                        imageVector = Icons.Outlined.Delete,
+                        contentDescription = "Delete",
                         tint = RoseAlert.copy(alpha = 0.85f),
                         modifier = Modifier.size(18.dp)
                     )
@@ -380,13 +369,12 @@ fun AddExpenseBottomSheet(
         pendingCameraFile = null
     }
 
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy") }
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
     val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
     val isValid = title.isNotBlank() && parsedAmount > 0.0
 
     ModalBottomSheet(
         onDismissRequest = {
-            // Clean up unsaved receipt photo if user closes sheet without saving
             ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
             onDismiss()
         },
@@ -401,7 +389,7 @@ fun AddExpenseBottomSheet(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             Text(
-                text = "Log New Expense",
+                text = "Add Expense",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = TextPrimary
@@ -412,7 +400,6 @@ fun AddExpenseBottomSheet(
                 value = amountText,
                 onValueChange = { amountText = it },
                 label = { Text("Amount ($currencySymbol)") },
-                placeholder = { Text("0.00") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -426,12 +413,11 @@ fun AddExpenseBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Title / Description Field
+            // Title Field
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Expense Title") },
-                placeholder = { Text("e.g., Shift Dinner, Grab Ride, Electric Bill") },
+                label = { Text("Title") },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = ElectricBlue,
@@ -498,7 +484,7 @@ fun AddExpenseBottomSheet(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Rounded.CalendarToday,
+                            imageVector = Icons.Outlined.CalendarToday,
                             contentDescription = null,
                             tint = ElectricBlue,
                             modifier = Modifier.size(18.dp)
@@ -512,7 +498,7 @@ fun AddExpenseBottomSheet(
                         )
                     }
                     Text(
-                        text = "Change Date",
+                        text = "Change",
                         style = MaterialTheme.typography.labelMedium,
                         color = SoftBlue,
                         fontWeight = FontWeight.SemiBold
@@ -520,10 +506,10 @@ fun AddExpenseBottomSheet(
                 }
             }
 
-            // Receipt / Proof Attachment Section
+            // Receipt Section
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Receipt / Proof of Transaction (Optional)",
+                    text = "Receipt",
                     style = MaterialTheme.typography.labelMedium,
                     color = TextSecondary
                 )
@@ -550,19 +536,13 @@ fun AddExpenseBottomSheet(
                                     .size(56.dp)
                                     .clip(RoundedCornerShape(8.dp))
                             )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Receipt Attached",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    text = "Saved privately offline",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = EmeraldSuccess
-                                )
-                            }
+                            Text(
+                                text = "Attached",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TextPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
                             IconButton(
                                 onClick = {
                                     ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
@@ -570,8 +550,8 @@ fun AddExpenseBottomSheet(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = "Remove Receipt",
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = "Remove",
                                     tint = RoseAlert
                                 )
                             }
@@ -593,7 +573,7 @@ fun AddExpenseBottomSheet(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.PhotoLibrary,
+                                imageVector = Icons.Outlined.PhotoLibrary,
                                 contentDescription = null,
                                 tint = SoftBlue,
                                 modifier = Modifier.size(18.dp)
@@ -613,7 +593,7 @@ fun AddExpenseBottomSheet(
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                imageVector = Icons.Rounded.CameraAlt,
+                                imageVector = Icons.Outlined.CameraAlt,
                                 contentDescription = null,
                                 tint = SoftBlue,
                                 modifier = Modifier.size(18.dp)
@@ -641,7 +621,7 @@ fun AddExpenseBottomSheet(
                     .fillMaxWidth()
                     .height(50.dp)
             ) {
-                Text("Save Expense", fontWeight = FontWeight.Bold)
+                Text("Save", fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -685,7 +665,7 @@ fun ReceiptViewerDialog(
 ) {
     val path = expense.receiptImagePath ?: return
     val dateLabel = remember(expense.dateEpochDay) {
-        LocalDate.ofEpochDay(expense.dateEpochDay).format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
+        LocalDate.ofEpochDay(expense.dateEpochDay).format(DateTimeFormatter.ofPattern("MMM d"))
     }
 
     Dialog(
@@ -715,7 +695,7 @@ fun ReceiptViewerDialog(
                             color = TextPrimary
                         )
                         Text(
-                            text = "$currencySymbol${"%.2f".format(expense.amount)}  •  ${expense.category}  •  $dateLabel",
+                            text = "$currencySymbol${"%.2f".format(expense.amount)}  •  $dateLabel",
                             style = MaterialTheme.typography.bodySmall,
                             color = SoftBlue
                         )
@@ -723,8 +703,8 @@ fun ReceiptViewerDialog(
 
                     IconButton(onClick = onDismiss) {
                         Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = "Close Receipt",
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Close",
                             tint = TextPrimary
                         )
                     }
@@ -743,7 +723,7 @@ fun ReceiptViewerDialog(
                 ) {
                     AsyncImage(
                         model = File(path),
-                        contentDescription = "Full Receipt Proof",
+                        contentDescription = "Receipt Proof",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()
                     )

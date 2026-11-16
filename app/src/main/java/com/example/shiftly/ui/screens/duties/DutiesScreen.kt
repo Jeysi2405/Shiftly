@@ -1,22 +1,16 @@
 package com.example.shiftly.ui.screens.duties
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.WorkHistory
+import androidx.compose.material.icons.outlined.WorkHistory
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -26,7 +20,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -53,7 +46,6 @@ import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.theme.BorderSubtle
 import com.example.shiftly.ui.theme.ElectricBlue
 import com.example.shiftly.ui.theme.SlateSurface
-import com.example.shiftly.ui.theme.SlateSurfaceElevated
 import com.example.shiftly.ui.theme.SoftBlue
 import com.example.shiftly.ui.theme.TextPrimary
 import com.example.shiftly.ui.theme.TextSecondary
@@ -86,8 +78,7 @@ fun DutiesScreen(
         // Screen Header
         item {
             ShiftlyScreenHeader(
-                title = "Shift Duties",
-                subtitle = "Track shifts, lock hourly rates, and log overtime notes"
+                title = "Duties"
             )
         }
 
@@ -133,9 +124,9 @@ fun DutiesScreen(
         item {
             val filterDate = state.selectedCalendarDate
             val headerTitle = if (filterDate != null) {
-                "Shifts on ${filterDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))}"
+                "Shifts (${filterDate.format(DateTimeFormatter.ofPattern("MMM d"))})"
             } else {
-                "Logged Shift Duties"
+                "Shift History"
             }
 
             ShiftlySectionHeader(
@@ -147,17 +138,8 @@ fun DutiesScreen(
         if (state.displayedShifts.isEmpty()) {
             item {
                 ShiftlyEmptyState(
-                    icon = Icons.Rounded.WorkHistory,
-                    title = if (state.selectedCalendarDate != null) {
-                        "No shifts on this date"
-                    } else {
-                        "No shifts logged yet"
-                    },
-                    subtitle = if (state.selectedCalendarDate != null) {
-                        "Tap another highlighted day or clear the calendar filter."
-                    } else {
-                        "Tap Time In above to start tracking your shift."
-                    }
+                    icon = Icons.Outlined.WorkHistory,
+                    title = "No shifts"
                 )
             }
         } else {
@@ -218,31 +200,23 @@ fun DutiesScreen(
             onDismissRequest = { showCheckOutDialog = false },
             containerColor = SlateSurface,
             title = {
-                Text("Check Out & Log Shift", color = TextPrimary, fontWeight = FontWeight.Bold)
+                Text("Check Out", color = TextPrimary, fontWeight = FontWeight.Bold)
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "Add an optional extend or overtime note before saving this shift.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
-                    OutlinedTextField(
-                        value = noteText,
-                        onValueChange = { noteText = it },
-                        label = { Text("Extend / Overtime Note (Optional)") },
-                        placeholder = { Text("e.g., Extended 1hr for closing") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = ElectricBlue,
-                            unfocusedBorderColor = BorderSubtle,
-                            focusedLabelColor = SoftBlue,
-                            unfocusedLabelColor = TextSecondary,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+                OutlinedTextField(
+                    value = noteText,
+                    onValueChange = { noteText = it },
+                    label = { Text("Note") },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricBlue,
+                        unfocusedBorderColor = BorderSubtle,
+                        focusedLabelColor = SoftBlue,
+                        unfocusedLabelColor = TextSecondary,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
             },
             confirmButton = {
                 Button(
@@ -250,11 +224,11 @@ fun DutiesScreen(
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.checkOutAndSave(noteText)
                         showCheckOutDialog = false
-                        onShowMessage("Shift saved to log")
+                        onShowMessage("Shift saved")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
                 ) {
-                    Text("Save Shift", fontWeight = FontWeight.Bold)
+                    Text("Save", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -273,14 +247,13 @@ fun DutiesScreen(
             onDismissRequest = { editingNoteShift = null },
             containerColor = SlateSurface,
             title = {
-                Text("Extend / Overtime Note", color = TextPrimary, fontWeight = FontWeight.Bold)
+                Text("Shift Note", color = TextPrimary, fontWeight = FontWeight.Bold)
             },
             text = {
                 OutlinedTextField(
                     value = updatedNote,
                     onValueChange = { updatedNote = it },
-                    label = { Text("Shift Note") },
-                    placeholder = { Text("e.g., 2h overtime approval") },
+                    label = { Text("Note") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = ElectricBlue,
                         unfocusedBorderColor = BorderSubtle,
@@ -297,7 +270,7 @@ fun DutiesScreen(
                     onClick = {
                         viewModel.updateOvertimeNote(targetShift, updatedNote)
                         editingNoteShift = null
-                        onShowMessage("Shift note updated")
+                        onShowMessage("Note updated")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
                 ) {
@@ -315,11 +288,11 @@ fun DutiesScreen(
     // Delete Shift Confirmation Dialog
     pendingDeleteShift?.let { shiftToDelete ->
         ShiftlyConfirmDeleteDialog(
-            title = "Delete Shift?",
-            message = "This will permanently remove the shift logged on ${
+            title = "Delete Shift",
+            message = "Remove shift on ${
                 LocalDate.ofEpochDay(shiftToDelete.dateEpochDay)
-                    .format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
-            }.",
+                    .format(DateTimeFormatter.ofPattern("MMM d"))
+            }?",
             onDismiss = { pendingDeleteShift = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -343,19 +316,13 @@ fun DutiesScreen(
             containerColor = SlateSurface,
             title = {
                 Text(
-                    text = "Log Manual Shift (${state.selectedDutyDate.format(DateTimeFormatter.ofPattern("MMM d"))})",
+                    text = "Manual Shift (${state.selectedDutyDate.format(DateTimeFormatter.ofPattern("MMM d"))})",
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        text = "24-hour format (locks current rate: ${state.currencySymbol}${"%.2f".format(state.defaultHourlyRate)}/hr)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -405,7 +372,7 @@ fun DutiesScreen(
                     OutlinedTextField(
                         value = manualNote,
                         onValueChange = { manualNote = it },
-                        label = { Text("Extend / Overtime Note (Optional)") },
+                        label = { Text("Note") },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -427,11 +394,11 @@ fun DutiesScreen(
                             overtimeNote = manualNote
                         )
                         showManualShiftDialog = false
-                        onShowMessage("Manual shift logged")
+                        onShowMessage("Shift logged")
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue)
                 ) {
-                    Text("Save Shift", fontWeight = FontWeight.Bold)
+                    Text("Save", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

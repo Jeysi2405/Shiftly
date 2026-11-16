@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -72,12 +72,12 @@ fun ShiftlyCard(
 }
 
 /**
- * Consistent screen-level header with title, muted subtitle, and optional trailing action.
+ * Minimalist screen-level header with title only and optional trailing action.
  */
 @Composable
 fun ShiftlyScreenHeader(
     title: String,
-    subtitle: String,
+    subtitle: String = "",
     modifier: Modifier = Modifier,
     trailing: (@Composable () -> Unit)? = null
 ) {
@@ -86,19 +86,12 @@ fun ShiftlyScreenHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = TextPrimary
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary
-            )
-        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = TextPrimary,
+            modifier = Modifier.weight(1f)
+        )
         if (trailing != null) {
             Spacer(modifier = Modifier.width(12.dp))
             trailing()
@@ -189,13 +182,13 @@ fun ShiftlyStatusBadge(
 }
 
 /**
- * Centered empty state with a tinted circular icon well, title, and helper subtitle.
+ * Centered empty state with a tinted circular outline icon well and title.
  */
 @Composable
 fun ShiftlyEmptyState(
     icon: ImageVector,
     title: String,
-    subtitle: String,
+    subtitle: String = "",
     modifier: Modifier = Modifier,
     iconTint: Color = SoftBlue,
     iconContainerColor: Color = DeepBlueContainer
@@ -223,17 +216,10 @@ fun ShiftlyEmptyState(
                     modifier = Modifier.size(24.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
                 color = TextPrimary,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = TextSecondary,
                 textAlign = TextAlign.Center
             )
         }
@@ -262,7 +248,7 @@ fun ShiftlyConfirmDeleteDialog(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Rounded.DeleteOutline,
+                    imageVector = Icons.Outlined.Delete,
                     contentDescription = null,
                     tint = RoseAlert,
                     modifier = Modifier.size(22.dp)

@@ -2,11 +2,11 @@ package com.example.shiftly.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Core Dark Surfaces
-val ObsidianBackground = Color(0xFF0B0F17)   // Main screen background
-val SlateSurface = Color(0xFF131A26)         // Cards, bottom bar, elevated sheets
-val SlateSurfaceElevated = Color(0xFF192231) // Elevated snackbars, dialogs, highlighted containers
-val SlateSurfaceVariant = Color(0xFF1E293B)  // Borders, dividers, subtle containers
+// Core Pitch Black & Dark Navy Surfaces
+val ObsidianBackground = Color(0xFF000000)   // Pitch black screen background
+val SlateSurface = Color(0xFF0D1B2A)         // Dark navy blue cards, containers, bottom bar
+val SlateSurfaceElevated = Color(0xFF132238) // Dark navy elevated sheets & dialogs
+val SlateSurfaceVariant = Color(0xFF1B2D45)  // Navy borders, dividers, subtle containers
 
 // Blue Accents
 val ElectricBlue = Color(0xFF3B82F6)         // Primary buttons, active timers, selected states

@@ -1,14 +1,10 @@
 package com.example.shiftly.ui.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CallSplit
+import androidx.compose.material.icons.automirrored.outlined.CallSplit
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.rounded.CallSplit
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.ReceiptLong
-import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.ui.graphics.vector.ImageVector
 
 sealed class Screen(
@@ -20,28 +16,28 @@ sealed class Screen(
     data object Duties : Screen(
         route = "duties",
         label = "Duties",
-        selectedIcon = Icons.Rounded.Schedule,
+        selectedIcon = Icons.Outlined.Schedule,
         unselectedIcon = Icons.Outlined.Schedule
     )
 
     data object Expense : Screen(
         route = "expense",
         label = "Expense",
-        selectedIcon = Icons.Rounded.ReceiptLong,
-        unselectedIcon = Icons.Outlined.ReceiptLong
+        selectedIcon = Icons.AutoMirrored.Outlined.ReceiptLong,
+        unselectedIcon = Icons.AutoMirrored.Outlined.ReceiptLong
     )
 
     data object SplitBill : Screen(
         route = "split_bill",
         label = "Split Bill",
-        selectedIcon = Icons.Rounded.CallSplit,
-        unselectedIcon = Icons.Outlined.CallSplit
+        selectedIcon = Icons.AutoMirrored.Outlined.CallSplit,
+        unselectedIcon = Icons.AutoMirrored.Outlined.CallSplit
     )
 
     data object Profile : Screen(
         route = "profile",
         label = "Profile",
-        selectedIcon = Icons.Rounded.Person,
+        selectedIcon = Icons.Outlined.Person,
         unselectedIcon = Icons.Outlined.Person
     )
 
