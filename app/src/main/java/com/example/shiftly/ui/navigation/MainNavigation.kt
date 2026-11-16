@@ -46,10 +46,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -83,11 +81,9 @@ import com.example.shiftly.ui.theme.AzureAccent
 import com.example.shiftly.ui.theme.DarkBackground
 import com.example.shiftly.ui.theme.DarkBorder
 import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.GlassNavBottom
-import com.example.shiftly.ui.theme.GlassNavTop
+import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.InkBlack
 import com.example.shiftly.ui.theme.MintBright
-import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
@@ -103,7 +99,7 @@ fun MainAppScreen() {
     val settings by repository.settingsSnapshot
         .collectAsStateWithLifecycle(initialValue = null)
     val userName by repository.userName
-        .collectAsStateWithLifecycle(initialValue = "Maya")
+        .collectAsStateWithLifecycle(initialValue = "")
     val scope = rememberCoroutineScope()
 
     var hasInitializedLock by rememberSaveable { mutableStateOf(false) }
@@ -156,7 +152,7 @@ fun MainAppScreen() {
             AppLockGateScreen(
                 method = loadedSettings.appLockMethod,
                 pinHash = loadedSettings.appLockPinHash,
-                userName = userName,
+                userName = userName.ifBlank { "Shiftly" },
                 onUnlocked = { isSessionUnlocked = true }
             )
         } else {
@@ -176,21 +172,17 @@ fun MainAppScreen() {
 
                     false -> {
                         WelcomeScreen(
-                            onGetStartedComplete = { name, rate, seedSample ->
+                            onGetStartedComplete = { name, rate, monthlyBudget, profilePhotoPath ->
                                 scope.launch {
                                     repository.updateUserName(name)
                                     repository.updateDefaultHourlyRate(rate)
-                                    if (seedSample) {
-                                        repository.seedSampleStudentData()
+                                    repository.updateMonthlyBudget(monthlyBudget)
+                                    if (!profilePhotoPath.isNullOrBlank()) {
+                                        repository.updateProfilePhotoPath(profilePhotoPath)
                                     }
                                     repository.setOnboardingCompleted(completed = true)
                                 }
-                            },
-                            onExistingAccount = {
-                                scope.launch {
-                                    repository.setOnboardingCompleted(completed = true)
-                                }
-                            },
+                            }
                         )
                     }
 
@@ -307,7 +299,7 @@ private fun MainDashboardShell(
                         repository = repository,
                         onBack = { navController.popBackStack() },
                         onNavigateToSplitBill = { navigateToTab(Screen.SplitBill) },
-                        onNavigateToProfile = { navigateToTab(Screen.Profile) }
+                        onShowMessage = showMessage
                     )
                 }
                 composable(Screen.Duties.route) {
@@ -331,7 +323,7 @@ private fun MainDashboardShell(
 }
 
 /**
- * Floating dark-charcoal glassmorphism pill bottom navigation bar with 5 icons and a crisp mint indicator.
+ * Floating dark-charcoal pill bottom navigation bar matching app container colors (DarkSurface + DarkBorder).
  */
 @Composable
 fun FloatingPillBottomBar(
@@ -348,50 +340,20 @@ fun FloatingPillBottomBar(
             .padding(horizontal = 20.dp, vertical = 14.dp),
         contentAlignment = Alignment.Center
     ) {
-        Box(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
                 .shadow(
-                    elevation = 14.dp,
+                    elevation = 10.dp,
                     shape = pillShape,
                     ambientColor = InkBlack.copy(alpha = 0.55f),
                     spotColor = InkBlack.copy(alpha = 0.65f)
-                )
-                .clip(pillShape)
+                ),
+            shape = pillShape,
+            color = DarkSurface,
+            border = BorderStroke(1.dp, DarkBorder)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(GlassNavTop, GlassNavBottom)
-                        )
-                    )
-                    .blur(12.dp)
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                PureWhite.copy(alpha = 0.08f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-                    .border(
-                        width = 1.dp,
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                PureWhite.copy(alpha = 0.17f),
-                                PureWhite.copy(alpha = 0.07f)
-                            )
-                        ),
-                        shape = pillShape
-                    )
-            )
             Row(
                 modifier = Modifier
                     .fillMaxSize()

@@ -99,6 +99,7 @@ import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.DayType
+import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.utils.WageCalculator
 import java.time.Instant
 import java.time.LocalDate
@@ -177,11 +178,7 @@ fun DutiesRateSettingsCard(
 
     LaunchedEffect(defaultHourlyRate) {
         if (rateInput.isEmpty() && defaultHourlyRate > 0.0) {
-            rateInput = if (defaultHourlyRate % 1.0 == 0.0) {
-                defaultHourlyRate.toInt().toString()
-            } else {
-                "%.2f".format(defaultHourlyRate)
-            }
+            rateInput = ShiftlyFormatters.formatNumber(defaultHourlyRate).replace(",", "")
         }
     }
 
@@ -314,7 +311,7 @@ fun DutiesRateSettingsCard(
 
             if (savedBanner) {
                 Text(
-                    text = "Saved $currencySymbol${"%.2f".format(defaultHourlyRate)}/hr — locked for upcoming shifts",
+                    text = "Saved ${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr — locked for upcoming shifts",
                     style = MaterialTheme.typography.labelMedium,
                     color = MintTextOnBlue
                 )
@@ -430,7 +427,7 @@ fun LiveShiftTimerCard(
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "$currencySymbol${"%.2f".format(displayedRate)}/hr",
+                            text = "${ShiftlyFormatters.formatCurrency(currencySymbol, displayedRate)}/hr",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold).tabular(),
                             color = TextLightPrimary
                         )
@@ -467,7 +464,7 @@ fun LiveShiftTimerCard(
                         border = BorderStroke(1.dp, MintBright.copy(alpha = 0.45f))
                     ) {
                         Text(
-                            text = "+$currencySymbol${"%,.2f".format(liveAccrued)} so far",
+                            text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, liveAccrued)} so far",
                             style = MaterialTheme.typography.titleSmall.copy(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.Bold
@@ -678,7 +675,7 @@ fun TimeBreakdownCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "$currencySymbol${"%,.2f".format(weeklyTotalEarnings)}",
+                        text = ShiftlyFormatters.formatCurrency(currencySymbol, weeklyTotalEarnings),
                         style = MaterialTheme.typography.displaySmall.copy(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold,
@@ -694,7 +691,7 @@ fun TimeBreakdownCard(
                     border = BorderStroke(1.dp, MintBright.copy(alpha = 0.45f))
                 ) {
                     Text(
-                        text = "${"%.1f".format(weeklyTotalHours)}h total",
+                        text = "${ShiftlyFormatters.formatHours(weeklyTotalHours, compact = true)} total",
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
@@ -746,7 +743,7 @@ private fun TimeBreakdownTile(
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
-            text = "${"%.1f".format(hours)}h",
+            text = ShiftlyFormatters.formatHours(hours, compact = true),
             style = MaterialTheme.typography.titleMedium.copy(
                 fontFamily = ShiftlySans,
                 fontWeight = FontWeight.Bold
@@ -1131,7 +1128,7 @@ fun ShiftHistoryItemCard(
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "+$currencySymbol${"%,.2f".format(shift.totalEarned)}",
+                        text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, shift.totalEarned)}",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
@@ -1169,7 +1166,7 @@ fun ShiftHistoryItemCard(
                     }
                 } else {
                     Text(
-                        text = "$currencySymbol${"%.2f".format(shift.lockedHourlyRate)}/hr locked",
+                        text = "${ShiftlyFormatters.formatCurrency(currencySymbol, shift.lockedHourlyRate)}/hr locked",
                         style = MaterialTheme.typography.labelSmall.tabular(),
                         color = TextLightSecondary
                     )
@@ -1500,14 +1497,14 @@ fun ManualShiftSheetContent(
                         color = MintInkOnWhite
                     )
                     Text(
-                        text = "${"%.1f".format(durationHours)} hrs × $currencySymbol${"%.2f".format(hourlyRate)}/hr",
+                        text = "${ShiftlyFormatters.formatHours(durationHours)} × ${ShiftlyFormatters.formatCurrency(currencySymbol, hourlyRate)}/hr",
                         style = MaterialTheme.typography.bodySmall.tabular(),
                         color = TextLightSecondary
                     )
                 }
 
                 Text(
-                    text = "+$currencySymbol${"%,.2f".format(wageDetails.totalEarned)}",
+                    text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.totalEarned)}",
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold

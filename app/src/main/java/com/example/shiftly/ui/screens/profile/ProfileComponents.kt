@@ -27,11 +27,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FolderZip
+import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Share
@@ -66,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -77,6 +80,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
@@ -106,6 +110,8 @@ import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.PinSecurity
+import com.example.shiftly.utils.ShiftlyFormatters
+import java.io.File
 
 private fun filterSingleDecimalInput(raw: String, current: String): String {
     val filtered = raw.filter { it.isDigit() || it == '.' }
@@ -182,7 +188,7 @@ fun ProfileSnapshotGlassCard(
                 )
                 GlassSnapshotTile(
                     label = "Hours",
-                    value = "${"%.1f".format(totalHoursWorked)}h",
+                    value = ShiftlyFormatters.formatHours(totalHoursWorked, compact = true),
                     valueColor = TextLightPrimary,
                     modifier = Modifier.weight(1f)
                 )
@@ -194,13 +200,13 @@ fun ProfileSnapshotGlassCard(
             ) {
                 GlassSnapshotTile(
                     label = "Earnings",
-                    value = "$currencySymbol${"%,.2f".format(totalEarnings)}",
+                    value = ShiftlyFormatters.formatCurrency(currencySymbol, totalEarnings),
                     valueColor = MintTextOnBlue,
                     modifier = Modifier.weight(1f)
                 )
                 GlassSnapshotTile(
                     label = "Expenses",
-                    value = "$currencySymbol${"%,.2f".format(totalExpenses)}",
+                    value = ShiftlyFormatters.formatCurrency(currencySymbol, totalExpenses),
                     valueColor = CoralTextOnBlue,
                     modifier = Modifier.weight(1f)
                 )
@@ -590,29 +596,104 @@ fun SettingsSheetContainer(
 @Composable
 fun AccountEditSheetContent(
     currentName: String,
+    profilePhotoPath: String?,
     hourlyRate: Double,
     currencySymbol: String,
+    onChangePhoto: () -> Unit,
+    onRemovePhoto: () -> Unit,
     onSave: (String) -> Unit
 ) {
     var nameInput by remember { mutableStateOf(currentName) }
+    val hasPhoto = !profilePhotoPath.isNullOrBlank() && File(profilePhotoPath).exists()
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(CircleShape)
+                .background(DarkCard)
+                .border(1.5.dp, AzureAccent.copy(alpha = 0.7f), CircleShape)
+                .clickable(onClick = onChangePhoto),
+            contentAlignment = Alignment.Center
+        ) {
+            if (hasPhoto) {
+                AsyncImage(
+                    model = File(profilePhotoPath!!),
+                    contentDescription = "Profile photo",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.size(64.dp)
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.Person,
+                    contentDescription = "Profile photo",
+                    tint = TextLightSecondary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = onChangePhoto,
+                    shape = RoundedCornerShape(50),
+                    border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.6f)),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.heightIn(min = 44.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AddAPhoto,
+                        contentDescription = null,
+                        tint = AzureAccent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (hasPhoto) "Change Photo" else "Add Photo",
+                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                        color = AzureAccent
+                    )
+                }
+                if (hasPhoto) {
+                    TextButton(
+                        onClick = onRemovePhoto,
+                        modifier = Modifier.heightIn(min = 44.dp)
+                    ) {
+                        Text(
+                            text = "Remove",
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                            color = CoralTextOnBlue
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     OutlinedTextField(
         value = nameInput,
         onValueChange = { nameInput = it },
         label = { Text("Display Name", fontFamily = ShiftlySerif) },
+        placeholder = { Text("What I gonna call you?", color = TextLightMuted) },
         singleLine = true,
         shape = RoundedCornerShape(16.dp),
         colors = darkSheetFieldColors(),
         modifier = Modifier.fillMaxWidth()
     )
     Text(
-        text = "Locked duty rate: $currencySymbol${"%.2f".format(hourlyRate)}/hr (edit on Duties tab)",
+        text = "Locked duty rate: ${ShiftlyFormatters.formatCurrency(currencySymbol, hourlyRate)}/hr (edit on Duties tab)",
         style = MaterialTheme.typography.bodySmall.tabular(),
         color = TextLightSecondary
     )
     ShiftlyPrimaryPillButton(
         text = "Save Profile",
         enabled = nameInput.isNotBlank(),
-        onClick = { onSave(nameInput) }
+        onClick = { onSave(nameInput.trim()) }
     )
 }
 
@@ -750,7 +831,7 @@ fun CurrencyPickerSheetContent(
             if (rateValid && parsedRate != null) {
                 val sample = 100.0 * parsedRate
                 Text(
-                    text = "Preview: ${currentCurrency}100.00 -> $targetSymbol${"%,.2f".format(sample)}",
+                    text = "Preview: ${ShiftlyFormatters.formatCurrency(currentCurrency, 100.0)} -> ${ShiftlyFormatters.formatCurrency(targetSymbol, sample)}",
                     style = MaterialTheme.typography.bodySmall.tabular(),
                     color = MintTextOnBlue
                 )
@@ -985,7 +1066,9 @@ fun BudgetsEditorSheetContent(
     managedCategories: List<ManagedCategorySetting> = emptyList(),
     onSave: (Double, List<CategoryBudgetSetting>) -> Unit
 ) {
-    var monthlyInput by remember { mutableStateOf(formatEditableNumber(currentMonthlyBudget)) }
+    var monthlyInput by remember {
+        mutableStateOf(if (currentMonthlyBudget > 0.0) formatEditableNumber(currentMonthlyBudget) else "")
+    }
     val editedBudgets = remember(currentCategoryBudgets, managedCategories) {
         mutableStateListOf<Pair<String, String>>().apply {
             val seen = mutableSetOf<String>()
@@ -1015,6 +1098,7 @@ fun BudgetsEditorSheetContent(
         value = monthlyInput,
         onValueChange = { monthlyInput = filterSingleDecimalInput(it, monthlyInput) },
         label = { Text("Monthly Budget ($currencySymbol)", fontFamily = ShiftlySerif) },
+        placeholder = { Text("What is your monthly budget?", color = TextLightMuted) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         shape = RoundedCornerShape(16.dp),
@@ -1043,78 +1127,16 @@ fun BudgetsEditorSheetContent(
         text = "Save Budgets",
         onClick = {
             val parsedMonthly = monthlyInput.toDoubleOrNull()
-            val monthly = if (parsedMonthly != null && parsedMonthly.isFinite() && parsedMonthly >= 0.0) {
-                parsedMonthly
-            } else {
-                currentMonthlyBudget
+            val monthly = when {
+                monthlyInput.isBlank() -> 0.0
+                parsedMonthly != null && parsedMonthly.isFinite() && parsedMonthly >= 0.0 -> parsedMonthly
+                else -> currentMonthlyBudget
             }
             val list = editedBudgets.mapNotNull { (cat, raw) ->
                 val limit = raw.toDoubleOrNull()
                 if (limit != null && limit.isFinite() && limit > 0.0) CategoryBudgetSetting(cat, limit) else null
             }
             onSave(monthly, list)
-        }
-    )
-}
-
-@Composable
-fun SavingsGoalSheetContent(
-    currencySymbol: String,
-    currentTitle: String,
-    currentTarget: Double,
-    currentBuffer: Double,
-    onSave: (String, Double, Double) -> Unit
-) {
-    var titleInput by remember { mutableStateOf(currentTitle) }
-    var targetInput by remember { mutableStateOf(formatEditableNumber(currentTarget)) }
-    var bufferInput by remember { mutableStateOf(formatEditableNumber(currentBuffer)) }
-
-    OutlinedTextField(
-        value = titleInput,
-        onValueChange = { titleInput = it },
-        label = { Text("Goal Name (e.g., Tuition, Laptop)", fontFamily = ShiftlySerif) },
-        singleLine = true,
-        shape = RoundedCornerShape(16.dp),
-        colors = darkSheetFieldColors(),
-        modifier = Modifier.fillMaxWidth()
-    )
-    OutlinedTextField(
-        value = targetInput,
-        onValueChange = { targetInput = filterSingleDecimalInput(it, targetInput) },
-        label = { Text("Target Amount ($currencySymbol)", fontFamily = ShiftlySerif) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        shape = RoundedCornerShape(16.dp),
-        colors = darkSheetFieldColors(),
-        modifier = Modifier.fillMaxWidth()
-    )
-    OutlinedTextField(
-        value = bufferInput,
-        onValueChange = { bufferInput = filterSingleDecimalInput(it, bufferInput) },
-        label = { Text("Safe-to-Spend Savings Buffer ($currencySymbol)", fontFamily = ShiftlySerif) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        shape = RoundedCornerShape(16.dp),
-        colors = darkSheetFieldColors(),
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    ShiftlyPrimaryPillButton(
-        text = "Save Goal",
-        onClick = {
-            val parsedTarget = targetInput.toDoubleOrNull()
-            val validTarget = if (parsedTarget != null && parsedTarget.isFinite() && parsedTarget >= 1.0) {
-                parsedTarget
-            } else {
-                currentTarget
-            }
-            val parsedBuffer = bufferInput.toDoubleOrNull()
-            val validBuffer = if (parsedBuffer != null && parsedBuffer.isFinite() && parsedBuffer >= 0.0) {
-                parsedBuffer
-            } else {
-                currentBuffer
-            }
-            onSave(titleInput, validTarget, validBuffer)
         }
     )
 }
@@ -1235,9 +1257,9 @@ fun RecurringEntriesSheetContent(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(entry.title, style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
                     val subtitle = if (entry.isIncome) {
-                        "${entry.frequency} • +$currencySymbol${"%,.0f".format(entry.amount)}"
+                        "${entry.frequency} • ${ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount, showPlus = true)}"
                     } else {
-                        "${entry.frequency} • ${entry.category} • -$currencySymbol${"%,.0f".format(entry.amount)}"
+                        "${entry.frequency} • ${entry.category} • ${ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount, showMinus = true)}"
                     }
                     Text(
                         text = subtitle,

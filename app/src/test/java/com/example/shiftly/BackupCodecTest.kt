@@ -3,12 +3,15 @@ package com.example.shiftly
 import com.example.shiftly.data.backup.BackupCodec
 import com.example.shiftly.data.backup.BackupExpenseRecord
 import com.example.shiftly.data.backup.BackupPayload
+import com.example.shiftly.data.backup.BackupSavingsGoal
 import com.example.shiftly.data.backup.BackupSplitBill
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
+import com.example.shiftly.data.local.SavingsDepositEntity
+import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillEntity
@@ -76,6 +79,17 @@ class BackupCodecTest {
                         createdAtMillis = 1_763_000_123_000L
                     ),
                     receiptFileName = "receipt_dinner.jpg"
+                ),
+                BackupExpenseRecord(
+                    expense = ExpenseEntity(
+                        id = 2,
+                        title = "Savings: Laptop",
+                        amount = 500.0,
+                        category = "Savings",
+                        dateEpochDay = 20400L,
+                        linkedSavingsDepositId = 99L,
+                        createdAtMillis = 1_763_000_200_000L
+                    )
                 )
             ),
             extraIncomes = listOf(
@@ -106,6 +120,28 @@ class BackupCodecTest {
                     )
                 )
             ),
+            savingsGoals = listOf(
+                BackupSavingsGoal(
+                    originalId = 7L,
+                    goal = SavingsGoalEntity(
+                        id = 7L,
+                        title = "Laptop",
+                        targetAmount = 25000.0,
+                        targetDateEpochDay = 20450L,
+                        isActive = true,
+                        createdAtMillis = 1_763_000_000_000L
+                    ),
+                    deposits = listOf(
+                        SavingsDepositEntity(
+                            id = 99L,
+                            goalId = 7L,
+                            amount = 500.0,
+                            timestampMillis = 1_763_000_200_000L,
+                            note = "First cutoff savings"
+                        )
+                    )
+                )
+            ),
             receiptFiles = mapOf("receipt_dinner.jpg" to receiptBytes)
         )
 
@@ -120,15 +156,22 @@ class BackupCodecTest {
         assertEquals(21, decoded.settings?.nightDiffStartHour)
         assertEquals(1, decoded.shifts.size)
         assertEquals("Evening Café", decoded.shifts.first().overtimeNote)
-        assertEquals(1, decoded.expenses.size)
-        assertEquals(42L, decoded.expenses.first().expense.linkedSplitBillId)
-        assertEquals("receipt_dinner.jpg", decoded.expenses.first().receiptFileName)
+        assertEquals(2, decoded.expenses.size)
+        assertEquals(42L, decoded.expenses[0].expense.linkedSplitBillId)
+        assertEquals("receipt_dinner.jpg", decoded.expenses[0].receiptFileName)
+        assertEquals(99L, decoded.expenses[1].expense.linkedSavingsDepositId)
         assertEquals(1, decoded.extraIncomes.size)
         assertEquals("Weekly Allowance", decoded.extraIncomes.first().title)
         assertEquals("r1", decoded.extraIncomes.first().sourceRuleId)
         assertEquals(1, decoded.splitBills.size)
         assertEquals(2, decoded.splitBills.first().participants.size)
         assertTrue(decoded.splitBills.first().participants[0].isCurrentUser)
+        assertEquals(1, decoded.savingsGoals.size)
+        assertEquals("Laptop", decoded.savingsGoals.first().goal.title)
+        assertEquals(20450L, decoded.savingsGoals.first().goal.targetDateEpochDay)
+        assertEquals(1, decoded.savingsGoals.first().deposits.size)
+        assertEquals(99L, decoded.savingsGoals.first().deposits.first().id)
+        assertEquals("First cutoff savings", decoded.savingsGoals.first().deposits.first().note)
         assertArrayEquals(receiptBytes, decoded.receiptFiles["receipt_dinner.jpg"])
     }
 
@@ -168,6 +211,7 @@ class BackupCodecTest {
         assertEquals(1, decoded.expenses.size)
         assertEquals(0, decoded.extraIncomes.size)
         assertEquals(0, decoded.splitBills.size)
+        assertEquals(0, decoded.savingsGoals.size)
 
         val e1 = decoded.expenses.first().expense
         val e2 = ExpenseEntity(title = " coffee ", amount = 95.00, category = "food", dateEpochDay = 20400L)
@@ -220,7 +264,7 @@ class BackupCodecTest {
             )
         )
 
-        assertTrue(csv.contains("Type,Date,Title_Or_Note,Category_Or_DayType,Duration_Min,Amount (₱)"))
+        assertTrue(csv.contains("Type,Date,Title_Or_Note,Category_Or_DayType,Duration_Min,${BackupCodec.escapeCsvField("Amount (₱)")}"))
         assertTrue(csv.contains("\"Cafe, \"\"Morning\"\"\nSnack\""))
         assertTrue(csv.contains("\"Late, \"\"Desk\"\"\nNote\""))
         assertTrue(csv.contains("\"Bonus, \"\"Q4\"\"\""))

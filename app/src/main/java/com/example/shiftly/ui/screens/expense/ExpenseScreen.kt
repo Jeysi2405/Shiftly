@@ -128,11 +128,10 @@ fun ExpenseScreenContent(
         contentPadding = PaddingValues(top = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Header + "+ Add" primary pill button
         item {
             ShiftlyScreenHeader(
                 title = "Expenses",
-                subtitle = "Track campus spending",
+                subtitle = "Track daily spending & savings",
                 modifier = Modifier.padding(horizontal = 20.dp),
                 trailing = {
                     Button(
@@ -164,12 +163,12 @@ fun ExpenseScreenContent(
             )
         }
 
-        // 1. "This month" Summary Card
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ExpenseSummaryCard(
                     monthlyTotal = state.monthlyTotal,
                     allTimeTotal = state.allTimeTotal,
+                    monthlyBudget = state.monthlyBudget,
                     totalReceiptCount = state.totalReceiptCount,
                     categoryBreakdown = state.categoryBreakdown,
                     currencySymbol = state.currencySymbol
@@ -177,7 +176,6 @@ fun ExpenseScreenContent(
             }
         }
 
-        // 2. Category Filter Chips with visible horizontal edge fade
         item {
             ExpenseCategoryFilterRow(
                 categories = state.filterCategories,
@@ -186,7 +184,6 @@ fun ExpenseScreenContent(
             )
         }
 
-        // 3. Dark Bottom Sheet Surface for Expense List / Empty State
         item {
             Surface(
                 modifier = Modifier
@@ -250,7 +247,7 @@ fun ExpenseScreenContent(
 }
 
 // =============================================================================
-// High-Fidelity Previews (Expenses List, Expenses Empty, Add Expense Sheet)
+// High-Fidelity Previews
 // =============================================================================
 
 @Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "1. Expenses List")
@@ -290,6 +287,7 @@ private fun ExpenseListPreview() {
     )
     val state = ExpenseUiState(
         currencySymbol = "₱",
+        monthlyBudget = 3000.0,
         selectedCategory = "All",
         monthlyTotal = 683.0,
         allTimeTotal = 1420.0,
@@ -377,7 +375,7 @@ private fun AddExpenseSheetPreview() {
                                 onReceiptChanged = {},
                                 onDismiss = {},
                                 onSaveExpense = { _, _, _, _, _ -> },
-                                initialAmount = "145.00",
+                                initialAmount = "145",
                                 initialTitle = "Tapsilog & Iced Coffee",
                                 initialCategory = "Food",
                                 initialDate = today

@@ -6,6 +6,8 @@ import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.PreferenceJsonCodec
 import com.example.shiftly.data.local.RecurringEntrySetting
+import com.example.shiftly.data.local.SavingsDepositEntity
+import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillEntity
@@ -32,6 +34,12 @@ data class BackupSplitBill(
     val participants: List<SplitParticipantEntity>
 )
 
+data class BackupSavingsGoal(
+    val originalId: Long,
+    val goal: SavingsGoalEntity,
+    val deposits: List<SavingsDepositEntity>
+)
+
 data class BackupExpenseRecord(
     val expense: ExpenseEntity,
     val receiptFileName: String? = null
@@ -50,10 +58,11 @@ data class BackupPayload(
     val expenses: List<BackupExpenseRecord> = emptyList(),
     val extraIncomes: List<ExtraIncomeEntity> = emptyList(),
     val splitBills: List<BackupSplitBill> = emptyList(),
+    val savingsGoals: List<BackupSavingsGoal> = emptyList(),
     val receiptFiles: Map<String, ByteArray> = emptyMap()
 ) {
     companion object {
-        const val CURRENT_VERSION = 4
+        const val CURRENT_VERSION = 5
     }
 }
 
@@ -137,6 +146,9 @@ object BackupCodec {
                                 if (e.linkedSplitBillId != null) {
                                     put("linkedSplitBillId", e.linkedSplitBillId)
                                 }
+                                if (e.linkedSavingsDepositId != null) {
+                                    put("linkedSavingsDepositId", e.linkedSavingsDepositId)
+                                }
                                 val receiptName = sanitizeReceiptFileName(
                                     record.receiptFileName ?: e.receiptImagePath
                                 )
@@ -202,6 +214,40 @@ object BackupCodec {
                     }
                 }
             )
+
+            put(
+                "savingsGoals",
+                JSONArray().apply {
+                    payload.savingsGoals.forEach { entry ->
+                        val g = entry.goal
+                        put(
+                            JSONObject().apply {
+                                put("id", entry.originalId)
+                                put("title", g.title)
+                                put("targetAmount", g.targetAmount)
+                                put("targetDateEpochDay", g.targetDateEpochDay)
+                                put("isActive", g.isActive)
+                                put("createdAtMillis", g.createdAtMillis)
+                                put(
+                                    "deposits",
+                                    JSONArray().apply {
+                                        entry.deposits.forEach { d ->
+                                            put(
+                                                JSONObject().apply {
+                                                    put("id", d.id)
+                                                    put("amount", d.amount)
+                                                    put("timestampMillis", d.timestampMillis)
+                                                    put("note", d.note)
+                                                }
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+            )
         }
         return root.toString(2)
     }
@@ -230,8 +276,8 @@ object BackupCodec {
                 .takeIf { it.isFinite() } ?: 1.10
             val otMult = s.optDouble("overtimeMultiplier", 1.25)
                 .takeIf { it.isFinite() } ?: 1.25
-            val goalTarget = s.optDouble("savingsGoalTarget", 5000.0)
-                .takeIf { it.isFinite() } ?: 5000.0
+            val goalTarget = s.optDouble("savingsGoalTarget", 0.0)
+                .takeIf { it.isFinite() } ?: 0.0
             ShiftlySettingsSnapshot(
                 payCycleSchedule = s.optString("payCycleSchedule", "15th & 30th"),
                 paydayReminderEnabled = s.optBoolean("paydayReminderEnabled", true),
@@ -240,9 +286,8 @@ object BackupCodec {
                 nightDiffStartHour = s.optInt("nightDiffStartHour", 22).coerceIn(18, 23),
                 nightDiffMultiplier = ndMult.coerceIn(1.0, 2.0),
                 overtimeMultiplier = otMult.coerceIn(1.0, 3.0),
-                savingsGoalTitle = s.optString("savingsGoalTitle", "Tuition & Laptop Fund")
-                    .ifBlank { "Tuition & Laptop Fund" },
-                savingsGoalTarget = goalTarget.coerceAtLeast(1.0),
+                savingsGoalTitle = s.optString("savingsGoalTitle", ""),
+                savingsGoalTarget = goalTarget.coerceAtLeast(0.0),
                 categoryBudgets = parseCategoryBudgetArray(s.optJSONArray("categoryBudgets")),
                 managedCategories = parseManagedCategoryArray(s.optJSONArray("managedCategories")),
                 recurringEntries = parseRecurringEntryArray(s.optJSONArray("recurringEntries"))
@@ -289,6 +334,11 @@ object BackupCodec {
                 } else {
                     null
                 }
+                val linkedDepositId = if (obj.has("linkedSavingsDepositId") && !obj.isNull("linkedSavingsDepositId")) {
+                    obj.getLong("linkedSavingsDepositId")
+                } else {
+                    null
+                }
                 val receiptFileName = sanitizeReceiptFileName(obj.optString("receiptFileName", ""))
                 add(
                     BackupExpenseRecord(
@@ -298,7 +348,8 @@ object BackupCodec {
                             category = obj.optString("category", "Other").ifBlank { "Other" },
                             dateEpochDay = obj.getLong("dateEpochDay"),
                             linkedSplitBillId = linkedId,
-                            createdAtMillis = obj.optLong("createdAtMillis", 0L)
+                            createdAtMillis = obj.optLong("createdAtMillis", 0L),
+                            linkedSavingsDepositId = linkedDepositId
                         ),
                         receiptFileName = receiptFileName
                     )
@@ -374,6 +425,44 @@ object BackupCodec {
             }
         }
 
+        val goalsArray = root.optJSONArray("savingsGoals") ?: JSONArray()
+        val savingsGoals = buildList {
+            for (i in 0 until goalsArray.length()) {
+                val obj = goalsArray.optJSONObject(i) ?: continue
+                val title = obj.optString("title", "").trim()
+                val targetAmount = obj.optDouble("targetAmount", Double.NaN)
+                val targetDateEpochDay = obj.optLong("targetDateEpochDay", 0L)
+                if (title.isEmpty() || !targetAmount.isFinite() || targetAmount <= 0.0) continue
+                val origId = obj.optLong("id", (i + 1).toLong())
+                val goal = SavingsGoalEntity(
+                    title = title,
+                    targetAmount = targetAmount,
+                    targetDateEpochDay = targetDateEpochDay,
+                    isActive = obj.optBoolean("isActive", i == 0),
+                    createdAtMillis = obj.optLong("createdAtMillis", 0L)
+                )
+                val dArray = obj.optJSONArray("deposits") ?: JSONArray()
+                val deposits = buildList {
+                    for (j in 0 until dArray.length()) {
+                        val dObj = dArray.optJSONObject(j) ?: continue
+                        val amount = dObj.optDouble("amount", Double.NaN)
+                        val timestampMillis = dObj.optLong("timestampMillis", 0L)
+                        if (!amount.isFinite() || amount <= 0.0 || timestampMillis <= 0L) continue
+                        add(
+                            SavingsDepositEntity(
+                                id = dObj.optLong("id", 0L),
+                                goalId = 0L,
+                                amount = amount,
+                                timestampMillis = timestampMillis,
+                                note = dObj.optString("note", "")
+                            )
+                        )
+                    }
+                }
+                add(BackupSavingsGoal(originalId = origId, goal = goal, deposits = deposits))
+            }
+        }
+
         return BackupPayload(
             version = version,
             exportedAtMillis = exportedAt,
@@ -386,7 +475,8 @@ object BackupCodec {
             shifts = shifts,
             expenses = expenses,
             extraIncomes = extraIncomes,
-            splitBills = splitBills
+            splitBills = splitBills,
+            savingsGoals = savingsGoals
         )
     }
 
@@ -521,6 +611,9 @@ object BackupCodec {
 
     fun splitBillSignature(b: SplitBillEntity): String =
         "${b.dateEpochDay}|${b.title.trim().lowercase()}|${(b.totalAmount * 100.0).roundToLong()}|${b.personCount}"
+
+    fun savingsGoalSignature(g: SavingsGoalEntity): String =
+        "${g.title.trim().lowercase()}|${(g.targetAmount * 100.0).roundToLong()}|${g.targetDateEpochDay}"
 
     private fun parseCategoryBudgetArray(array: JSONArray?): List<CategoryBudgetSetting> {
         if (array == null) return ShiftlySettingsSnapshot.DEFAULT_CATEGORY_BUDGETS

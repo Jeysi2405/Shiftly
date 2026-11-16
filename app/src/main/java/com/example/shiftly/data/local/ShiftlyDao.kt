@@ -71,6 +71,12 @@ interface ExpenseDao {
     @Query("UPDATE expenses SET linkedSplitBillId = NULL WHERE linkedSplitBillId = :billId")
     suspend fun unlinkExpensesBySplitBillId(billId: Long)
 
+    @Query("DELETE FROM expenses WHERE linkedSavingsDepositId = :depositId")
+    suspend fun deleteExpensesByLinkedSavingsDepositId(depositId: Long)
+
+    @Query("DELETE FROM expenses WHERE linkedSavingsDepositId IN (:depositIds)")
+    suspend fun deleteExpensesByLinkedSavingsDepositIds(depositIds: List<Long>)
+
     @Query("DELETE FROM expenses")
     suspend fun deleteAllExpenses()
 }
@@ -135,4 +141,51 @@ interface SplitBillDao {
 
     @Query("DELETE FROM split_bills")
     suspend fun deleteAllSplitBills()
+}
+
+@Dao
+interface SavingsGoalDao {
+    @Transaction
+    @Query("SELECT * FROM savings_goals ORDER BY isActive DESC, createdAtMillis DESC, id DESC")
+    fun getAllGoalsWithDeposits(): Flow<List<SavingsGoalWithDeposits>>
+
+    @Transaction
+    @Query("SELECT * FROM savings_goals ORDER BY isActive DESC, createdAtMillis DESC, id DESC")
+    suspend fun getAllGoalsWithDepositsOnce(): List<SavingsGoalWithDeposits>
+
+    @Query("SELECT * FROM savings_goals WHERE id = :goalId LIMIT 1")
+    suspend fun getGoalByIdOnce(goalId: Long): SavingsGoalEntity?
+
+    @Query("SELECT * FROM savings_deposits WHERE goalId = :goalId ORDER BY timestampMillis DESC, id DESC")
+    suspend fun getDepositsForGoalOnce(goalId: Long): List<SavingsDepositEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertGoal(goal: SavingsGoalEntity): Long
+
+    @Update
+    suspend fun updateGoal(goal: SavingsGoalEntity)
+
+    @Query("UPDATE savings_goals SET isActive = (id = :activeGoalId)")
+    suspend fun setActiveGoal(activeGoalId: Long)
+
+    @Query("UPDATE savings_goals SET isActive = 0")
+    suspend fun clearAllActiveFlags()
+
+    @Delete
+    suspend fun deleteGoal(goal: SavingsGoalEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDeposit(deposit: SavingsDepositEntity): Long
+
+    @Update
+    suspend fun updateDeposit(deposit: SavingsDepositEntity)
+
+    @Delete
+    suspend fun deleteDeposit(deposit: SavingsDepositEntity)
+
+    @Query("DELETE FROM savings_deposits WHERE id = :depositId")
+    suspend fun deleteDepositById(depositId: Long)
+
+    @Query("DELETE FROM savings_goals")
+    suspend fun deleteAllSavingsGoals()
 }

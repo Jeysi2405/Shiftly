@@ -36,11 +36,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -71,7 +73,9 @@ import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
-import kotlin.math.abs
+import com.example.shiftly.utils.ShiftlyFormatters
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
 
 @Composable
@@ -181,8 +185,8 @@ fun IncomeVsExpenseGlassChartCard(
         ?: 100.0
     val chartDescription = buildString {
         append("Income versus expenses bar chart for ${state.selectedRange.fullLabel}. ")
-        append("Total income $currency${"%,.0f".format(state.periodIncome)}, ")
-        append("total expenses $currency${"%,.0f".format(state.periodExpenses)}.")
+        append("Total income ${ShiftlyFormatters.formatCurrency(currency, state.periodIncome)}, ")
+        append("total expenses ${ShiftlyFormatters.formatCurrency(currency, state.periodExpenses)}.")
     }
 
     ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
@@ -203,7 +207,7 @@ fun IncomeVsExpenseGlassChartCard(
                             color = TextLightSecondary
                         )
                         Text(
-                            text = "+$currency${"%,.0f".format(state.periodIncome)}",
+                            text = ShiftlyFormatters.formatCurrency(currency, state.periodIncome, showPlus = true),
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.Bold,
@@ -222,7 +226,7 @@ fun IncomeVsExpenseGlassChartCard(
                             color = TextLightSecondary
                         )
                         Text(
-                            text = "-$currency${"%,.0f".format(state.periodExpenses)}",
+                            text = ShiftlyFormatters.formatCurrency(currency, state.periodExpenses, showMinus = true),
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.Bold,
@@ -242,7 +246,7 @@ fun IncomeVsExpenseGlassChartCard(
                     )
                 ) {
                     Text(
-                        text = "${if (net >= 0) "+" else "-"}$currency${"%,.0f".format(abs(net))}",
+                        text = ShiftlyFormatters.formatCurrency(currency, net, showPlus = net > 0.0),
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
@@ -253,7 +257,6 @@ fun IncomeVsExpenseGlassChartCard(
                 }
             }
 
-            // Rounded Elevated Bar Chart Frame
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -271,7 +274,6 @@ fun IncomeVsExpenseGlassChartCard(
                             .fillMaxWidth()
                             .height(112.dp)
                     ) {
-                        // Subtle guide lines
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -341,7 +343,6 @@ fun IncomeVsExpenseGlassChartCard(
                         }
                     }
 
-                    // Legend
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
@@ -504,7 +505,7 @@ fun TopSpendingCategoriesCard(
                                 )
                             }
                             Text(
-                                text = "${item.percentage}%  •  $currencySymbol${"%,.0f".format(item.amount)}",
+                                text = "${item.percentage}%  •  ${ShiftlyFormatters.formatCurrency(currencySymbol, item.amount)}",
                                 style = MaterialTheme.typography.labelMedium.copy(
                                     fontFamily = ShiftlySans,
                                     fontWeight = FontWeight.Bold
@@ -549,7 +550,7 @@ fun EarningsHoursBreakdownCard(
             verticalAlignment = Alignment.Bottom
         ) {
             Text(
-                text = "$currencySymbol${"%,.2f".format(earnings)}",
+                text = ShiftlyFormatters.formatCurrency(currencySymbol, earnings),
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontFamily = ShiftlySans,
                     fontWeight = FontWeight.Bold
@@ -557,13 +558,12 @@ fun EarningsHoursBreakdownCard(
                 color = MintInkOnWhite
             )
             Text(
-                text = "${"%.1f".format(totalHours)}h logged",
+                text = "${ShiftlyFormatters.formatHours(totalHours)} logged",
                 style = MaterialTheme.typography.labelLarge.tabular(),
                 color = TextLightSecondary
             )
         }
 
-        // Segmented Mint Hours Progress Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -571,7 +571,7 @@ fun EarningsHoursBreakdownCard(
                 .clip(RoundedCornerShape(50))
                 .background(DarkBorder)
                 .semantics {
-                    contentDescription = "Hours split: ${"%.1f".format(regularHours)} regular, ${"%.1f".format(nightDiffHours)} night diff, ${"%.1f".format(overtimeHours)} overtime"
+                    contentDescription = "Hours split: ${ShiftlyFormatters.formatHours(regularHours)} regular, ${ShiftlyFormatters.formatHours(nightDiffHours)} night diff, ${ShiftlyFormatters.formatHours(overtimeHours)} overtime"
                 },
             horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
@@ -656,7 +656,7 @@ private fun HoursSplitMiniTile(
                 color = TextLightSecondary
             )
             Text(
-                text = "${"%.1f".format(hours)}h",
+                text = ShiftlyFormatters.formatHours(hours, compact = true),
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontFamily = ShiftlySans,
                     fontWeight = FontWeight.Bold
@@ -689,9 +689,15 @@ fun HoursOfWorkCostCard(
         },
         onTrailingAction = if (canToggle) onToggleShowAll else null
     ) {
-        if (visibleItems.isEmpty()) {
+        if (hourlyRate <= 0.0) {
             Text(
-                text = "Log expenses to translate costs into shift duty hours at $currencySymbol${"%.2f".format(hourlyRate)}/hr.",
+                text = "Set your hourly rate on the Duties tab to translate spending into work hours.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextLightSecondary
+            )
+        } else if (visibleItems.isEmpty()) {
+            Text(
+                text = "Log expenses to translate costs into shift duty hours at ${ShiftlyFormatters.formatCurrency(currencySymbol, hourlyRate)}/hr.",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextLightSecondary
             )
@@ -725,7 +731,7 @@ fun HoursOfWorkCostCard(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = "${entry.category} (${periodLabel.lowercase()}) = ${"%.1f".format(entry.dutyHours)} hours of duty",
+                                        text = "${entry.category} (${periodLabel.lowercase()}) = ${ShiftlyFormatters.formatHours(entry.dutyHours)} of duty",
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.SemiBold
                                         ).tabular(),
@@ -744,7 +750,7 @@ fun HoursOfWorkCostCard(
                                     .fillMaxWidth()
                                     .height(7.dp)
                                     .semantics {
-                                        contentDescription = "${entry.category} equals ${"%.1f".format(entry.dutyHours)} hours of duty"
+                                        contentDescription = "${entry.category} equals ${ShiftlyFormatters.formatHours(entry.dutyHours)} of duty"
                                     }
                             )
                         }
@@ -760,61 +766,118 @@ fun SavingsGoalProgressCard(
     goalTitle: String,
     savedAmount: Double,
     targetAmount: Double,
+    targetDateEpochDay: Long?,
+    neededPerDay: Double,
+    goalsCount: Int,
     currencySymbol: String,
-    onShowAllClick: () -> Unit
+    onActionClick: () -> Unit
 ) {
-    val ratio = if (targetAmount > 0.0) (savedAmount / targetAmount).toFloat().coerceIn(0f, 1f) else 0f
+    val hasGoal = goalTitle.isNotBlank() && targetAmount > 0.0
+    val ratio = if (hasGoal) (savedAmount / targetAmount).toFloat().coerceIn(0f, 1f) else 0f
     val pct = (ratio * 100f).roundToInt()
+    val locale = LocalConfiguration.current.locales[0]
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
 
     InsightCardContainer(
-        title = "Savings Goal",
-        trailingActionText = "$pct% funded",
-        onTrailingAction = onShowAllClick
+        title = if (goalsCount > 1) "Savings Goals ($goalsCount)" else "Savings Goal",
+        trailingActionText = if (hasGoal) "$pct% • View" else "Create Goal",
+        onTrailingAction = onActionClick
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
+        if (!hasGoal) {
+            Row(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MintSoftContainer),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable(onClick = onActionClick)
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Savings,
-                    contentDescription = null,
-                    tint = MintInkOnWhite,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = goalTitle,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = TextLightPrimary
-                )
-                Text(
-                    text = "$currencySymbol${"%,.0f".format(savedAmount)} saved of $currencySymbol${"%,.0f".format(targetAmount)}",
-                    style = MaterialTheme.typography.bodySmall.tabular(),
-                    color = TextLightSecondary
-                )
-            }
-        }
-        LinearProgressIndicator(
-            progress = { ratio.coerceAtLeast(0.04f) },
-            color = MintBright,
-            trackColor = DarkBorder,
-            strokeCap = StrokeCap.Round,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(8.dp)
-                .semantics {
-                    contentDescription = "$goalTitle savings goal, $pct% funded"
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MintSoftContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Savings,
+                        contentDescription = null,
+                        tint = MintInkOnWhite,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
-        )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "No savings goal set yet",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextLightPrimary
+                    )
+                    Text(
+                        text = "Tap to set a target amount and date goal",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextLightSecondary
+                    )
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MintSoftContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Savings,
+                        contentDescription = null,
+                        tint = MintInkOnWhite,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = goalTitle,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextLightPrimary
+                    )
+                    val dateLabel = targetDateEpochDay?.let {
+                        LocalDate.ofEpochDay(it).format(dateFormatter)
+                    }
+                    val subtitle = buildString {
+                        append("${ShiftlyFormatters.formatCurrency(currencySymbol, savedAmount)} of ${ShiftlyFormatters.formatCurrency(currencySymbol, targetAmount)}")
+                        if (neededPerDay > 0.0) {
+                            append(" • ${ShiftlyFormatters.formatCurrency(currencySymbol, neededPerDay)}/day")
+                        }
+                        if (dateLabel != null) {
+                            append(" • Due $dateLabel")
+                        }
+                    }
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall.tabular(),
+                        color = TextLightSecondary
+                    )
+                }
+            }
+            LinearProgressIndicator(
+                progress = { ratio.coerceAtLeast(0.04f) },
+                color = MintBright,
+                trackColor = DarkBorder,
+                strokeCap = StrokeCap.Round,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .semantics {
+                        contentDescription = "$goalTitle savings goal, $pct% funded"
+                    }
+            )
+        }
     }
 }
 
@@ -828,7 +891,12 @@ fun UnderBudgetStreakAndTipsCard(
     showAllTips: Boolean,
     onToggleShowAll: () -> Unit
 ) {
-    val streakFraction = (streakDays.toFloat() / streakTargetDays.coerceAtLeast(1)).coerceIn(0.05f, 1f)
+    val hasBudget = dailyAllowance > 0.0
+    val streakFraction = if (hasBudget) {
+        (streakDays.toFloat() / streakTargetDays.coerceAtLeast(1)).coerceIn(0.05f, 1f)
+    } else {
+        0f
+    }
     val visibleTips = if (showAllTips) tips else tips.take(1)
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -858,7 +926,7 @@ fun UnderBudgetStreakAndTipsCard(
                     }
                     Column {
                         Text(
-                            text = "$streakDays-day streak",
+                            text = if (hasBudget) "$streakDays-day streak" else "No budget set",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.Bold
@@ -866,7 +934,11 @@ fun UnderBudgetStreakAndTipsCard(
                             color = TextLightPrimary
                         )
                         Text(
-                            text = "Daily cap ≤ $currencySymbol${"%,.0f".format(dailyAllowance)}/day",
+                            text = if (hasBudget) {
+                                "Daily cap ≤ ${ShiftlyFormatters.formatCurrency(currencySymbol, dailyAllowance)}/day"
+                            } else {
+                                "Set a monthly budget in Profile to track"
+                            },
                             style = MaterialTheme.typography.bodySmall.tabular(),
                             color = TextLightSecondary
                         )
@@ -980,7 +1052,7 @@ fun UnsettledSplitsTrackerCard(
                 Column {
                     Text(
                         text = if (unsettledAmount > 0.0) {
-                            "$currencySymbol${"%,.2f".format(unsettledAmount)} owed by friends"
+                            "${ShiftlyFormatters.formatCurrency(currencySymbol, unsettledAmount)} owed by friends"
                         } else {
                             "All split bills settled"
                         },
@@ -1043,7 +1115,7 @@ fun UnsettledSplitsTrackerCard(
                 .height(8.dp)
                 .semantics {
                     contentDescription = if (unsettledAmount > 0.0) {
-                        "$currencySymbol${"%,.2f".format(unsettledAmount)} unsettled across $unsettledCount friend share(s)"
+                        "${ShiftlyFormatters.formatCurrency(currencySymbol, unsettledAmount)} unsettled across $unsettledCount friend share(s)"
                     } else {
                         "All split bills settled"
                     }

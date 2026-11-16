@@ -39,30 +39,83 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
+import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
+import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
 import com.example.shiftly.ui.theme.AzureInkOnWhite
 import com.example.shiftly.ui.theme.DarkBorder
 import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.utils.ShiftlyFormatters
+import java.time.LocalDate
 
 @Composable
 fun AnalyticsScreen(
     repository: ShiftlyRepository,
     onBack: () -> Unit = {},
     onNavigateToSplitBill: () -> Unit = {},
-    onNavigateToProfile: () -> Unit = {},
+    onShowMessage: (String) -> Unit = {}
 ) {
     val viewModel: AnalyticsViewModel = viewModel(factory = AnalyticsViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    var showGoalDetailSheet by remember { mutableStateOf(false) }
+    var showAddGoalSheet by remember { mutableStateOf(false) }
 
     AnalyticsScreenContent(
         state = state,
         onBack = onBack,
         onSelectRange = { viewModel.selectRange(it) },
         onOpenSplitBill = onNavigateToSplitBill,
-        onOpenGoalSettings = onNavigateToProfile
+        onOpenGoalSettings = {
+            if (state.savingsGoals.isEmpty()) {
+                showAddGoalSheet = true
+            } else {
+                showGoalDetailSheet = true
+            }
+        }
     )
+
+    if (showGoalDetailSheet) {
+        val activeGoalId = (state.savingsGoals.firstOrNull { it.goal.isActive }
+            ?: state.savingsGoals.firstOrNull())?.goal?.id
+        SavingsGoalDetailSheet(
+            goals = state.savingsGoals,
+            initialGoalId = activeGoalId,
+            currencySymbol = state.currencySymbol,
+            onDismiss = { showGoalDetailSheet = false },
+            onSelectActiveGoal = { goalId -> viewModel.setActiveSavingsGoal(goalId) },
+            onOpenAddNewGoal = {
+                showGoalDetailSheet = false
+                showAddGoalSheet = true
+            },
+            onAddDeposit = { goal, amount, note ->
+                viewModel.addSavingsDeposit(goal, amount, note)
+                onShowMessage("Saved ${ShiftlyFormatters.formatCurrency(state.currencySymbol, amount)} & logged expense")
+            },
+            onDeleteDeposit = { dep ->
+                viewModel.deleteSavingsDeposit(dep)
+                onShowMessage("Savings deposit removed")
+            },
+            onDeleteGoal = { goal ->
+                viewModel.deleteSavingsGoal(goal)
+                onShowMessage("Savings goal deleted")
+            }
+        )
+    }
+
+    if (showAddGoalSheet) {
+        AddSavingsGoalSheet(
+            currencySymbol = state.currencySymbol,
+            onDismiss = { showAddGoalSheet = false },
+            onCreateGoal = { title, targetAmount, targetDateEpochDay ->
+                viewModel.createSavingsGoal(title, targetAmount, targetDateEpochDay)
+                showAddGoalSheet = false
+                onShowMessage("Savings goal \"$title\" added")
+            }
+        )
+    }
 }
 
 @Composable
@@ -84,7 +137,6 @@ fun AnalyticsScreenContent(
         contentPadding = PaddingValues(top = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 0. Back Arrow + Header
         item {
             AnalyticsTopBar(
                 rangeLabel = state.selectedRange.fullLabel,
@@ -92,7 +144,6 @@ fun AnalyticsScreenContent(
             )
         }
 
-        // 1. Segmented Control (D / W / M / 6M / Y)
         item {
             AnalyticsRangeSegmentedControl(
                 selectedRange = state.selectedRange,
@@ -101,14 +152,12 @@ fun AnalyticsScreenContent(
             )
         }
 
-        // 2. Elevated Dark Bar Chart (Income Mint vs Expenses Coral)
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 IncomeVsExpenseGlassChartCard(state = state)
             }
         }
 
-        // 3. Dark Surface Bottom Sheet with Insight Cards & "Show All"
         item {
             Surface(
                 modifier = Modifier
@@ -196,8 +245,11 @@ fun AnalyticsScreenContent(
                         goalTitle = state.savingsGoalTitle,
                         savedAmount = state.savedProgressAmount,
                         targetAmount = state.savingsGoalTarget,
+                        targetDateEpochDay = state.savingsGoalTargetEpochDay,
+                        neededPerDay = state.savingsGoalNeededPerDay,
+                        goalsCount = state.savingsGoals.size,
                         currencySymbol = state.currencySymbol,
-                        onShowAllClick = onOpenGoalSettings
+                        onActionClick = onOpenGoalSettings
                     )
 
                     UnderBudgetStreakAndTipsCard(
@@ -234,6 +286,7 @@ private fun AnalyticsWeeklyPreview() {
         selectedRange = AnalyticsRange.WEEK,
         currencySymbol = "₱",
         hourlyRate = 96.38,
+        monthlyBudget = 3000.0,
         periodIncome = 2480.0,
         periodExpenses = 1098.0,
         chartBuckets = listOf(
@@ -260,9 +313,11 @@ private fun AnalyticsWeeklyPreview() {
             HoursCostInsight("Split Bill", 300.0, 3.1),
             HoursCostInsight("Supplies", 113.53, 1.2)
         ),
-        savingsGoalTitle = "Tuition & Laptop Fund",
+        savingsGoalTitle = "Laptop Fund",
         savedProgressAmount = 3420.0,
         savingsGoalTarget = 5000.0,
+        savingsGoalTargetEpochDay = LocalDate.of(2026, 12, 15).toEpochDay(),
+        savingsGoalNeededPerDay = 52.67,
         underBudgetStreakDays = 11,
         streakTargetDays = 14,
         dailyBudgetAllowance = 120.0,
@@ -302,6 +357,7 @@ private fun AnalyticsMonthlyPreview() {
         selectedRange = AnalyticsRange.MONTH,
         currencySymbol = "₱",
         hourlyRate = 96.38,
+        monthlyBudget = 3000.0,
         periodIncome = 8420.0,
         periodExpenses = 3190.0,
         chartBuckets = listOf(
@@ -325,15 +381,17 @@ private fun AnalyticsMonthlyPreview() {
             HoursCostInsight("Supplies", 860.0, 8.9),
             HoursCostInsight("Transport", 540.0, 5.6)
         ),
-        savingsGoalTitle = "Tuition & Laptop Fund",
+        savingsGoalTitle = "Laptop Fund",
         savedProgressAmount = 4230.0,
         savingsGoalTarget = 5000.0,
+        savingsGoalTargetEpochDay = LocalDate.of(2026, 12, 15).toEpochDay(),
+        savingsGoalNeededPerDay = 25.67,
         underBudgetStreakDays = 12,
         streakTargetDays = 14,
         dailyBudgetAllowance = 120.0,
         plainLanguageTips = listOf(
             "Nice! You cut transport spending by 14% vs. last month.",
-            "Night differential shifts added +12.0 bonus hours this month."
+            "Night differential shifts added +12 bonus hours this month."
         ),
         unsettledSplitsAmount = 600.0,
         totalSplitsAmount = 1200.0,

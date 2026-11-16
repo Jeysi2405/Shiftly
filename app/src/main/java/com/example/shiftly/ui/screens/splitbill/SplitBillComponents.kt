@@ -92,6 +92,7 @@ import com.example.shiftly.ui.theme.TextLightMuted
 import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
+import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.utils.SplitBillMath
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -130,7 +131,7 @@ fun SplitBillSummaryCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "$currencySymbol${"%,.2f".format(totalPendingAmount)}",
+                        text = ShiftlyFormatters.formatCurrency(currencySymbol, totalPendingAmount),
                         style = MaterialTheme.typography.displaySmall.copy(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold,
@@ -150,7 +151,7 @@ fun SplitBillSummaryCard(
                         border = BorderStroke(1.dp, MintBright.copy(alpha = 0.45f))
                     ) {
                         Text(
-                            text = "Paid: $currencySymbol${"%,.2f".format(totalCollectedAmount)}",
+                            text = "Paid: ${ShiftlyFormatters.formatCurrency(currencySymbol, totalCollectedAmount)}",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
@@ -271,7 +272,7 @@ fun SplitBillCalculatorCard(
                     },
                     label = { Text("Total ($currencySymbol)", fontFamily = ShiftlySerif) },
                     placeholder = {
-                        Text("0.00", color = TextLightMuted)
+                        Text("0", color = TextLightMuted)
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -507,7 +508,7 @@ fun SplitBillCalculatorCard(
                         )
                     }
                     Text(
-                        text = "$currencySymbol${"%,.2f".format(perPersonShare)}",
+                        text = ShiftlyFormatters.formatCurrency(currencySymbol, perPersonShare),
                         style = MaterialTheme.typography.headlineSmall.copy(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold,
@@ -722,7 +723,7 @@ fun SplitBillLogItemCard(
 
                     Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = "$dateLabel  •  $currencySymbol${"%,.2f".format(bill.totalAmount)} (${bill.personCount} people)",
+                        text = "$dateLabel  •  ${ShiftlyFormatters.formatCurrency(currencySymbol, bill.totalAmount)} (${bill.personCount} people)",
                         style = MaterialTheme.typography.bodySmall.tabular(),
                         color = TextLightSecondary
                     )
@@ -792,7 +793,7 @@ fun SplitBillLogItemCard(
                                     color = TextLightPrimary
                                 )
                                 Text(
-                                    text = "$currencySymbol${"%,.2f".format(participant.amountOwed)}",
+                                    text = ShiftlyFormatters.formatCurrency(currencySymbol, participant.amountOwed),
                                     style = MaterialTheme.typography.labelSmall.tabular(),
                                     color = if (participant.hasPaid || participant.isCurrentUser) MintInkOnWhite else TextLightSecondary
                                 )
@@ -909,7 +910,7 @@ fun SplitBillLogItemCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Logged to Expenses ($currencySymbol${"%,.2f".format(bill.perPersonAmount)})",
+                            text = "Logged to Expenses (${ShiftlyFormatters.formatCurrency(currencySymbol, bill.perPersonAmount)})",
                             style = MaterialTheme.typography.labelMedium.copy(
                                 fontFamily = ShiftlySerif,
                                 fontWeight = FontWeight.SemiBold
@@ -937,7 +938,7 @@ fun SplitBillLogItemCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Log Share to Expenses ($currencySymbol${"%,.2f".format(bill.perPersonAmount)})",
+                        text = "Log Share to Expenses (${ShiftlyFormatters.formatCurrency(currencySymbol, bill.perPersonAmount)})",
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold

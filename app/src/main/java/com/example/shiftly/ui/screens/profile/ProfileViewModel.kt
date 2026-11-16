@@ -7,6 +7,9 @@ import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
+import com.example.shiftly.data.local.SavingsDepositEntity
+import com.example.shiftly.data.local.SavingsGoalEntity
+import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.repository.ShiftlyRepository
 import java.io.File
@@ -17,15 +20,17 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class ProfileUiState(
-    val userName: String = "Maya",
-    val defaultHourlyRate: Double = 96.38,
+    val userName: String = "",
+    val profilePhotoPath: String? = null,
+    val defaultHourlyRate: Double = 0.0,
     val currencySymbol: String = "₱",
-    val monthlyBudget: Double = 3000.0,
-    val savingsBuffer: Double = 1000.0,
+    val monthlyBudget: Double = 0.0,
+    val savingsBuffer: Double = 0.0,
     val totalShifts: Int = 0,
     val totalHoursWorked: Double = 0.0,
     val totalEarnings: Double = 0.0,
     val totalExpenses: Double = 0.0,
+    val savingsGoals: List<SavingsGoalWithDeposits> = emptyList(),
     val settings: ShiftlySettingsSnapshot = ShiftlySettingsSnapshot()
 )
 
@@ -33,41 +38,85 @@ class ProfileViewModel(
     private val repository: ShiftlyRepository
 ) : ViewModel() {
 
-    val uiState: StateFlow<ProfileUiState> = combine(
+    private data class ProfileCorePrefs(
+        val userName: String,
+        val profilePhotoPath: String?,
+        val defaultHourlyRate: Double,
+        val currencySymbol: String,
+        val monthlyBudget: Double,
+        val savingsBuffer: Double
+    )
+
+    private data class ProfileTotals(
+        val totalShifts: Int,
+        val totalMinutes: Int,
+        val totalEarnings: Double,
+        val totalExpenses: Double
+    )
+
+    private val identityPrefsFlow = combine(
         repository.userName,
-        repository.defaultHourlyRate,
+        repository.profilePhotoPath,
+        repository.defaultHourlyRate
+    ) { userName, photoPath, rate ->
+        Triple(userName, photoPath, rate)
+    }
+
+    private val financePrefsFlow = combine(
         repository.currencySymbol,
         repository.monthlyBudget,
-        repository.savingsBuffer,
+        repository.savingsBuffer
+    ) { currency, budget, buffer ->
+        Triple(currency, budget, buffer)
+    }
+
+    private val corePrefsFlow = combine(
+        identityPrefsFlow,
+        financePrefsFlow
+    ) { identity, finance ->
+        ProfileCorePrefs(
+            userName = identity.first,
+            profilePhotoPath = identity.second,
+            defaultHourlyRate = identity.third,
+            currencySymbol = finance.first,
+            monthlyBudget = finance.second,
+            savingsBuffer = finance.third
+        )
+    }
+
+    private val totalsFlow = combine(
         repository.totalShiftCount,
         repository.totalMinutesWorked,
         repository.totalLifetimeEarnings,
         repository.totalExtraIncomeAmount,
-        repository.totalExpenseAmount,
-        repository.settingsSnapshot
-    ) { values ->
-        val name = values[0] as String
-        val rate = values[1] as Double
-        val currency = values[2] as String
-        val budget = values[3] as Double
-        val buffer = values[4] as Double
-        val shiftCount = values[5] as Int
-        val minutes = (values[6] as Int?) ?: 0
-        val shiftEarnings = (values[7] as Double?) ?: 0.0
-        val extraIncome = (values[8] as Double?) ?: 0.0
-        val expenses = (values[9] as Double?) ?: 0.0
-        val settings = values[10] as ShiftlySettingsSnapshot
-
-        ProfileUiState(
-            userName = name,
-            defaultHourlyRate = rate,
-            currencySymbol = currency,
-            monthlyBudget = budget,
-            savingsBuffer = buffer,
+        repository.totalExpenseAmount
+    ) { shiftCount, minutes, shiftEarnings, extraIncome, expenses ->
+        ProfileTotals(
             totalShifts = shiftCount,
-            totalHoursWorked = minutes / 60.0,
-            totalEarnings = shiftEarnings + extraIncome,
-            totalExpenses = expenses,
+            totalMinutes = minutes ?: 0,
+            totalEarnings = (shiftEarnings ?: 0.0) + (extraIncome ?: 0.0),
+            totalExpenses = expenses ?: 0.0
+        )
+    }
+
+    val uiState: StateFlow<ProfileUiState> = combine(
+        corePrefsFlow,
+        totalsFlow,
+        repository.allSavingsGoals,
+        repository.settingsSnapshot
+    ) { core, totals, goals, settings ->
+        ProfileUiState(
+            userName = core.userName,
+            profilePhotoPath = core.profilePhotoPath,
+            defaultHourlyRate = core.defaultHourlyRate,
+            currencySymbol = core.currencySymbol,
+            monthlyBudget = core.monthlyBudget,
+            savingsBuffer = core.savingsBuffer,
+            totalShifts = totals.totalShifts,
+            totalHoursWorked = totals.totalMinutes / 60.0,
+            totalEarnings = totals.totalEarnings,
+            totalExpenses = totals.totalExpenses,
+            savingsGoals = goals,
             settings = settings
         )
     }.stateIn(
@@ -78,6 +127,10 @@ class ProfileViewModel(
 
     fun updateUserName(name: String) {
         viewModelScope.launch { repository.updateUserName(name) }
+    }
+
+    fun updateProfilePhotoPath(path: String?) {
+        viewModelScope.launch { repository.updateProfilePhotoPath(path) }
     }
 
     fun changeCurrency(symbol: String, conversionRate: Double?) {
@@ -105,10 +158,33 @@ class ProfileViewModel(
         }
     }
 
-    fun updateSavingsGoal(title: String, target: Double, buffer: Double) {
+    fun createSavingsGoal(title: String, targetAmount: Double, targetDateEpochDay: Long) {
         viewModelScope.launch {
-            repository.updateSavingsGoal(title, target)
-            repository.updateSavingsBuffer(buffer)
+            repository.createSavingsGoal(title, targetAmount, targetDateEpochDay)
+        }
+    }
+
+    fun setActiveSavingsGoal(goalId: Long) {
+        viewModelScope.launch {
+            repository.setActiveSavingsGoal(goalId)
+        }
+    }
+
+    fun addSavingsDeposit(goal: SavingsGoalEntity, amount: Double, note: String) {
+        viewModelScope.launch {
+            repository.addSavingsDeposit(goal = goal, amount = amount, note = note)
+        }
+    }
+
+    fun deleteSavingsDeposit(deposit: SavingsDepositEntity) {
+        viewModelScope.launch {
+            repository.deleteSavingsDeposit(deposit)
+        }
+    }
+
+    fun deleteSavingsGoal(goal: SavingsGoalEntity) {
+        viewModelScope.launch {
+            repository.deleteSavingsGoal(goal)
         }
     }
 

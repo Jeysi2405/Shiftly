@@ -6,17 +6,25 @@ import androidx.lifecycle.viewModelScope
 import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
+import com.example.shiftly.data.local.SavingsDepositEntity
+import com.example.shiftly.data.local.SavingsGoalEntity
+import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.repository.ShiftlyRepository
+import com.example.shiftly.ui.screens.expense.CategorySpendSummary
+import com.example.shiftly.utils.CutoffCalculator
+import com.example.shiftly.utils.CutoffShiftSummary
+import com.example.shiftly.utils.CutoffWindow
+import com.example.shiftly.utils.SavingsGoalMath
+import com.example.shiftly.utils.SavingsGoalProgress
 import com.example.shiftly.utils.SplitBillMath
-import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.temporal.TemporalAdjusters
+import java.time.format.TextStyle
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -34,17 +42,10 @@ fun greetingForHour(hourOfDay: Int): String {
     }
 }
 
-data class WeekdaySlot(
-    val date: LocalDate,
-    val dayLetter: String,
-    val dayNumber: String,
-    val hasShift: Boolean,
-    val hasExpense: Boolean
-)
-
-data class WeeklyBarData(
-    val dayLabel: String,
-    val earned: Double
+data class SavingsGoalCardItem(
+    val goalWithDeposits: SavingsGoalWithDeposits,
+    val progress: SavingsGoalProgress,
+    val targetDate: LocalDate
 )
 
 sealed class TimelineActivityItem(
@@ -82,26 +83,37 @@ sealed class TimelineActivityItem(
 }
 
 data class HomeUiState(
-    val userName: String = "Maya",
+    val userName: String = "",
+    val profilePhotoPath: String? = null,
     val currencySymbol: String = "₱",
-    val hourlyRate: Double = 96.38,
+    val hourlyRate: Double = 0.0,
     val totalBalance: Double = 0.0,
     val totalIncome: Double = 0.0,
     val totalExpenses: Double = 0.0,
     val mtdIncome: Double = 0.0,
     val mtdExpenses: Double = 0.0,
-    val monthlyBudget: Double = 3000.0,
-    val savingsBuffer: Double = 1000.0,
+    val monthlyBudget: Double = 0.0,
     val pendingSplitsOwed: Double = 0.0,
     val pendingSplitBillCount: Int = 0,
-    val safeToSpend: Double = 0.0,
-    val weeklyEarnings: Double = 0.0,
-    val weeklyHours: Double = 0.0,
-    val weeklyBars: List<WeeklyBarData> = emptyList(),
+    val cutoffSummary: CutoffShiftSummary = CutoffShiftSummary(
+        window = CutoffWindow(
+            startDate = LocalDate.now(),
+            endDate = LocalDate.now(),
+            isFirstCutoff = true,
+            label = ""
+        ),
+        totalEarnings = 0.0,
+        shiftDaysCount = 0,
+        totalHours = 0.0
+    ),
+    val savingsGoals: List<SavingsGoalCardItem> = emptyList(),
+    val currentMonthName: String = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
+    val monthlyTopCategories: List<CategorySpendSummary> = emptyList(),
     val selectedDate: LocalDate = LocalDate.now(),
     val isShowingSelectedDateOnly: Boolean = false,
     val selectedDateHasLogs: Boolean = false,
-    val weekdaySlots: List<WeekdaySlot> = emptyList(),
+    val shiftEpochDays: Set<Long> = emptySet(),
+    val expenseEpochDays: Set<Long> = emptySet(),
     val timelineItems: List<TimelineActivityItem> = emptyList(),
     val activeTimer: ActiveTimerState = ActiveTimerState()
 )
@@ -112,34 +124,54 @@ class HomeViewModel(
 
     private val _selectedDate = MutableStateFlow(LocalDate.now())
 
-    val uiState: StateFlow<HomeUiState> = combine(
+    private data class CorePrefs(
+        val userName: String,
+        val profilePhotoPath: String?,
+        val currency: String,
+        val rate: Double,
+        val budget: Double,
+        val activeTimer: ActiveTimerState
+    )
+
+    private val corePrefsFlow = combine(
         repository.userName,
+        repository.profilePhotoPath,
         repository.currencySymbol,
         repository.defaultHourlyRate,
         repository.monthlyBudget,
-        repository.savingsBuffer,
-        repository.activeTimerState,
+        repository.activeTimerState
+    ) { values ->
+        CorePrefs(
+            userName = values[0] as String,
+            profilePhotoPath = values[1] as String?,
+            currency = values[2] as String,
+            rate = values[3] as Double,
+            budget = values[4] as Double,
+            activeTimer = values[5] as ActiveTimerState
+        )
+    }
+
+    val uiState: StateFlow<HomeUiState> = combine(
+        corePrefsFlow,
         repository.allShifts,
         repository.allExtraIncomes,
         repository.allExpenses,
         repository.allSplitBills,
+        repository.allSavingsGoals,
         _selectedDate
     ) { values ->
-        val userName = values[0] as String
-        val currency = values[1] as String
-        val rate = values[2] as Double
-        val budget = values[3] as Double
-        val buffer = values[4] as Double
-        val activeTimer = values[5] as ActiveTimerState
+        val prefs = values[0] as CorePrefs
         @Suppress("UNCHECKED_CAST")
-        val shifts = values[6] as List<ShiftEntity>
+        val shifts = values[1] as List<ShiftEntity>
         @Suppress("UNCHECKED_CAST")
-        val extraIncomes = values[7] as List<ExtraIncomeEntity>
+        val extraIncomes = values[2] as List<ExtraIncomeEntity>
         @Suppress("UNCHECKED_CAST")
-        val expenses = values[8] as List<ExpenseEntity>
+        val expenses = values[3] as List<ExpenseEntity>
         @Suppress("UNCHECKED_CAST")
-        val splitBills = values[9] as List<SplitBillWithParticipants>
-        val selectedDate = values[10] as LocalDate
+        val splitBills = values[4] as List<SplitBillWithParticipants>
+        @Suppress("UNCHECKED_CAST")
+        val rawGoals = values[5] as List<SavingsGoalWithDeposits>
+        val selectedDate = values[6] as LocalDate
 
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
@@ -157,49 +189,45 @@ class HomeViewModel(
             extraIncomes
                 .filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
                 .sumOf { it.amount }
-        val mtdExpenses = expenses
-            .filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
-            .sumOf { it.amount }
+        val mtdExpensesList = expenses.filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
+        val mtdExpenses = mtdExpensesList.sumOf { it.amount }
 
         val splitSummary = SplitBillMath.summarizeFriendsOwed(splitBills)
         val pendingSplitsOwed = splitSummary.pendingFriendsAmount
         val pendingSplitBillCount = splitSummary.pendingBillCount
 
-        val safeToSpend = (totalBalance - pendingSplitsOwed - buffer).coerceAtLeast(0.0)
+        val cutoffSummary = CutoffCalculator.summarizeCutoffShifts(
+            shifts = shifts,
+            referenceDate = today
+        )
 
-        val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+        val savingsGoalItems = rawGoals.map { goalWithDeps ->
+            SavingsGoalCardItem(
+                goalWithDeposits = goalWithDeps,
+                progress = SavingsGoalMath.computeProgress(goalWithDeps, today),
+                targetDate = LocalDate.ofEpochDay(goalWithDeps.goal.targetDateEpochDay)
+            )
+        }
+
+        val mtdDenom = mtdExpenses.takeIf { it > 0.0 } ?: 1.0
+        val monthlyTopCategories = mtdExpensesList
+            .groupBy { it.category }
+            .map { (cat, list) ->
+                val sum = list.sumOf { it.amount }
+                CategorySpendSummary(
+                    category = cat,
+                    totalAmount = sum,
+                    fraction = (sum / mtdDenom).toFloat().coerceIn(0f, 1f)
+                )
+            }
+            .sortedByDescending { it.totalAmount }
+
         val shiftsByDay = shifts.groupBy { it.dateEpochDay }
         val extraByDay = extraIncomes.groupBy { it.dateEpochDay }
         val expensesByDay = expenses.groupBy { it.dateEpochDay }
 
-        var weeklyEarnings = 0.0
-        var weeklyMinutes = 0
-        val dayLetters = listOf("M", "T", "W", "T", "F", "S", "S")
-
-        val weekdaySlots = (0..6).map { offset ->
-            val date = startOfWeek.plusDays(offset.toLong())
-            val epoch = date.toEpochDay()
-            val dayShifts = shiftsByDay[epoch].orEmpty()
-            val dayExtra = extraByDay[epoch].orEmpty()
-            val dayExpenses = expensesByDay[epoch].orEmpty()
-            weeklyEarnings += dayShifts.sumOf { it.totalEarned } + dayExtra.sumOf { it.amount }
-            weeklyMinutes += dayShifts.sumOf { it.durationMinutes }
-            WeekdaySlot(
-                date = date,
-                dayLetter = dayLetters[offset],
-                dayNumber = date.dayOfMonth.toString(),
-                hasShift = dayShifts.isNotEmpty() || dayExtra.isNotEmpty(),
-                hasExpense = dayExpenses.isNotEmpty()
-            )
-        }
-
-        val weeklyBars = (0..6).map { offset ->
-            val date = startOfWeek.plusDays(offset.toLong())
-            val ep = date.toEpochDay()
-            val earned = shiftsByDay[ep].orEmpty().sumOf { it.totalEarned } +
-                extraByDay[ep].orEmpty().sumOf { it.amount }
-            WeeklyBarData(dayLabel = dayLetters[offset], earned = earned)
-        }
+        val shiftEpochDays = shiftsByDay.keys + extraByDay.keys
+        val expenseEpochDays = expensesByDay.keys
 
         val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
         val monthDayFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
@@ -219,7 +247,7 @@ class HomeViewModel(
             val endStr = Instant.ofEpochMilli(shift.timeOutMillis).atZone(zone).toLocalTime().format(timeFormatter)
             val hrs = shift.durationMinutes / 60
             val mins = shift.durationMinutes % 60
-            val dur = if (hrs > 0) "${hrs}h ${mins}m" else "${mins}m"
+            val dur = if (hrs > 0 && mins > 0) "${hrs}h ${mins}m" else if (hrs > 0) "${hrs}h" else "${mins}m"
             TimelineActivityItem.ShiftActivity(
                 id = shift.id,
                 title = shift.overtimeNote.ifBlank { "Duty Shift" },
@@ -260,28 +288,29 @@ class HomeViewModel(
             .sortedWith(compareByDescending<TimelineActivityItem> { it.sortEpochDay }.thenByDescending { it.sortTimestamp })
 
         HomeUiState(
-            userName = userName,
-            currencySymbol = currency,
-            hourlyRate = rate,
+            userName = prefs.userName,
+            profilePhotoPath = prefs.profilePhotoPath,
+            currencySymbol = prefs.currency,
+            hourlyRate = prefs.rate,
             totalBalance = totalBalance,
             totalIncome = totalIncome,
             totalExpenses = totalExpenses,
             mtdIncome = mtdIncome,
             mtdExpenses = mtdExpenses,
-            monthlyBudget = budget,
-            savingsBuffer = buffer,
+            monthlyBudget = prefs.budget,
             pendingSplitsOwed = pendingSplitsOwed,
             pendingSplitBillCount = pendingSplitBillCount,
-            safeToSpend = safeToSpend,
-            weeklyEarnings = weeklyEarnings,
-            weeklyHours = weeklyMinutes / 60.0,
-            weeklyBars = weeklyBars,
+            cutoffSummary = cutoffSummary,
+            savingsGoals = savingsGoalItems,
+            currentMonthName = today.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
+            monthlyTopCategories = monthlyTopCategories,
             selectedDate = selectedDate,
             isShowingSelectedDateOnly = hasDayLogs,
             selectedDateHasLogs = hasDayLogs,
-            weekdaySlots = weekdaySlots,
+            shiftEpochDays = shiftEpochDays,
+            expenseEpochDays = expenseEpochDays,
             timelineItems = combinedTimeline,
-            activeTimer = activeTimer
+            activeTimer = prefs.activeTimer
         )
     }.stateIn(
         scope = viewModelScope,
@@ -297,15 +326,33 @@ class HomeViewModel(
         _selectedDate.value = LocalDate.now()
     }
 
-    fun startQuickShift() {
-        val current = uiState.value
-        if (current.activeTimer.isRunning) return
+    fun createSavingsGoal(title: String, targetAmount: Double, targetDateEpochDay: Long) {
         viewModelScope.launch {
-            repository.startShiftTimer(
-                startMillis = System.currentTimeMillis(),
-                dateEpochDay = LocalDate.now().toEpochDay(),
-                lockedRate = current.hourlyRate
-            )
+            repository.createSavingsGoal(title, targetAmount, targetDateEpochDay)
+        }
+    }
+
+    fun setActiveSavingsGoal(goalId: Long) {
+        viewModelScope.launch {
+            repository.setActiveSavingsGoal(goalId)
+        }
+    }
+
+    fun addSavingsDeposit(goal: SavingsGoalEntity, amount: Double, note: String) {
+        viewModelScope.launch {
+            repository.addSavingsDeposit(goal = goal, amount = amount, note = note)
+        }
+    }
+
+    fun deleteSavingsDeposit(deposit: SavingsDepositEntity) {
+        viewModelScope.launch {
+            repository.deleteSavingsDeposit(deposit)
+        }
+    }
+
+    fun deleteSavingsGoal(goal: SavingsGoalEntity) {
+        viewModelScope.launch {
+            repository.deleteSavingsGoal(goal)
         }
     }
 

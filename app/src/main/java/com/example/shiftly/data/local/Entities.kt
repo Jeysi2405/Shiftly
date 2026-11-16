@@ -29,7 +29,8 @@ data class ExpenseEntity(
     val dateEpochDay: Long,
     val receiptImagePath: String? = null,
     val linkedSplitBillId: Long? = null,
-    val createdAtMillis: Long = 0L
+    val createdAtMillis: Long = 0L,
+    val linkedSavingsDepositId: Long? = null
 )
 
 @Entity(tableName = "extra_incomes")
@@ -81,4 +82,43 @@ data class SplitBillWithParticipants(
         entityColumn = "billId"
     )
     val participants: List<SplitParticipantEntity>
+)
+
+@Entity(tableName = "savings_goals")
+data class SavingsGoalEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val targetAmount: Double,
+    val targetDateEpochDay: Long,
+    val isActive: Boolean = true,
+    val createdAtMillis: Long = 0L
+)
+
+@Entity(
+    tableName = "savings_deposits",
+    foreignKeys = [
+        ForeignKey(
+            entity = SavingsGoalEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["goalId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ],
+    indices = [Index(value = ["goalId"])]
+)
+data class SavingsDepositEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val goalId: Long,
+    val amount: Double,
+    val timestampMillis: Long,
+    val note: String = ""
+)
+
+data class SavingsGoalWithDeposits(
+    @Embedded val goal: SavingsGoalEntity,
+    @Relation(
+        parentColumn = "id",
+        entityColumn = "goalId"
+    )
+    val deposits: List<SavingsDepositEntity>
 )

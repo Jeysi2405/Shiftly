@@ -7,6 +7,7 @@ import androidx.room.withTransaction
 import com.example.shiftly.data.backup.BackupCodec
 import com.example.shiftly.data.backup.BackupExpenseRecord
 import com.example.shiftly.data.backup.BackupPayload
+import com.example.shiftly.data.backup.BackupSavingsGoal
 import com.example.shiftly.data.backup.BackupSplitBill
 import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.ActiveTimerState
@@ -14,8 +15,12 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
+import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.data.local.RecurringEntrySetting
+import com.example.shiftly.data.local.SavingsDepositEntity
+import com.example.shiftly.data.local.SavingsGoalEntity
+import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlyDatabase
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
@@ -28,8 +33,8 @@ import com.example.shiftly.utils.RecurringEngine
 import com.example.shiftly.utils.SplitBillMath
 import java.io.File
 import java.io.FileOutputStream
+import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToLong
@@ -46,6 +51,7 @@ class ShiftlyRepository(private val context: Context) {
     private val expenseDao = db.expenseDao()
     private val extraIncomeDao = db.extraIncomeDao()
     private val splitBillDao = db.splitBillDao()
+    private val savingsGoalDao = db.savingsGoalDao()
     private val prefs = UserPreferencesManager(context.applicationContext)
     private val recurringMutex = Mutex()
 
@@ -57,6 +63,7 @@ class ShiftlyRepository(private val context: Context) {
     val activeTimerState: Flow<ActiveTimerState> = prefs.activeTimerState
     val hasCompletedOnboarding: Flow<Boolean> = prefs.hasCompletedOnboarding
     val userName: Flow<String> = prefs.userName
+    val profilePhotoPath: Flow<String?> = prefs.profilePhotoPath
     val monthlyBudget: Flow<Double> = prefs.monthlyBudget
     val savingsBuffer: Flow<Double> = prefs.savingsBuffer
     val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = prefs.settingsSnapshot
@@ -64,6 +71,14 @@ class ShiftlyRepository(private val context: Context) {
     suspend fun updateDefaultHourlyRate(rate: Double) = prefs.setDefaultHourlyRate(rate)
     suspend fun setOnboardingCompleted(completed: Boolean) = prefs.setOnboardingCompleted(completed)
     suspend fun updateUserName(name: String) = prefs.setUserName(name)
+    suspend fun updateProfilePhotoPath(path: String?) {
+        val previous = prefs.profilePhotoPath.first()
+        prefs.setProfilePhotoPath(path)
+        if (!previous.isNullOrBlank() && previous != path) {
+            ProfilePhotoHelper.deleteProfilePhoto(previous)
+        }
+    }
+
     suspend fun updateMonthlyBudget(budget: Double) = prefs.setMonthlyBudget(budget)
     suspend fun updateSavingsBuffer(buffer: Double) = prefs.setSavingsBuffer(buffer)
     suspend fun updatePayCycleSettings(schedule: String, paydayReminder: Boolean, shiftReminder: Boolean) =
@@ -119,6 +134,16 @@ class ShiftlyRepository(private val context: Context) {
                         splitBillDao.updateParticipant(p.copy(amountOwed = scaledOwed))
                     }
                 }
+                savingsGoalDao.getAllGoalsWithDepositsOnce().forEach { (goal, deposits) ->
+                    savingsGoalDao.updateGoal(
+                        goal.copy(targetAmount = round2(goal.targetAmount * conversionRate).coerceAtLeast(1.0))
+                    )
+                    deposits.forEach { d ->
+                        savingsGoalDao.updateDeposit(
+                            d.copy(amount = round2(d.amount * conversionRate).coerceAtLeast(0.01))
+                        )
+                    }
+                }
             }
         }
         prefs.applyCurrencyConversion(newSymbol, conversionRate)
@@ -162,6 +187,9 @@ class ShiftlyRepository(private val context: Context) {
             expenseDao.deleteExpense(expense)
             expense.linkedSplitBillId?.let { billId ->
                 splitBillDao.setBillLoggedToExpense(billId, isLogged = false)
+            }
+            expense.linkedSavingsDepositId?.let { depositId ->
+                savingsGoalDao.deleteDepositById(depositId)
             }
         }
         ReceiptStorageHelper.deleteReceiptFile(expense.receiptImagePath)
@@ -219,6 +247,127 @@ class ShiftlyRepository(private val context: Context) {
             linkedReceiptPaths.forEach { ReceiptStorageHelper.deleteReceiptFile(it) }
         }
 
+    // Savings Goals & Deposits (each deposit is automatically recorded as an Expense)
+    val allSavingsGoals: Flow<List<SavingsGoalWithDeposits>> = savingsGoalDao.getAllGoalsWithDeposits()
+
+    suspend fun createSavingsGoal(
+        title: String,
+        targetAmount: Double,
+        targetDateEpochDay: Long
+    ): Long {
+        val cleanTitle = title.trim()
+        if (cleanTitle.isEmpty() || !targetAmount.isFinite() || targetAmount <= 0.0) return 0L
+        val insertedId = db.withTransaction {
+            savingsGoalDao.clearAllActiveFlags()
+            savingsGoalDao.insertGoal(
+                SavingsGoalEntity(
+                    title = cleanTitle,
+                    targetAmount = round2(targetAmount),
+                    targetDateEpochDay = targetDateEpochDay,
+                    isActive = true,
+                    createdAtMillis = System.currentTimeMillis()
+                )
+            )
+        }
+        prefs.setSavingsGoal(cleanTitle, round2(targetAmount))
+        return insertedId
+    }
+
+    suspend fun setActiveSavingsGoal(goalId: Long) {
+        val goal = db.withTransaction {
+            savingsGoalDao.setActiveGoal(goalId)
+            savingsGoalDao.getGoalByIdOnce(goalId)
+        }
+        if (goal != null) {
+            prefs.setSavingsGoal(goal.title, goal.targetAmount)
+        }
+    }
+
+    suspend fun updateSavingsGoalItem(goal: SavingsGoalEntity) {
+        db.withTransaction {
+            savingsGoalDao.updateGoal(goal)
+        }
+        if (goal.isActive) {
+            prefs.setSavingsGoal(goal.title, goal.targetAmount)
+        }
+    }
+
+    suspend fun deleteSavingsGoal(goal: SavingsGoalEntity) {
+        val nextActive = db.withTransaction {
+            val deposits = savingsGoalDao.getDepositsForGoalOnce(goal.id)
+            val depositIds = deposits.map { it.id }
+            if (depositIds.isNotEmpty()) {
+                expenseDao.deleteExpensesByLinkedSavingsDepositIds(depositIds)
+            }
+            savingsGoalDao.deleteGoal(goal)
+            val remaining = savingsGoalDao.getAllGoalsWithDepositsOnce()
+            val candidate = remaining.firstOrNull()?.goal
+            if (candidate != null && remaining.none { it.goal.isActive }) {
+                savingsGoalDao.setActiveGoal(candidate.id)
+            }
+            remaining.firstOrNull { it.goal.isActive }?.goal ?: candidate
+        }
+        if (nextActive != null) {
+            prefs.setSavingsGoal(nextActive.title, nextActive.targetAmount)
+        } else {
+            prefs.setSavingsGoal("", 0.0)
+        }
+    }
+
+    /**
+     * Records a deposit ("hulog") for the given savings goal and atomically inserts
+     * a corresponding Expense ("Savings") so Total Balance, Expenses, Recent Activity,
+     * and Analytics stay completely in sync.
+     */
+    suspend fun addSavingsDeposit(
+        goal: SavingsGoalEntity,
+        amount: Double,
+        timestampMillis: Long = System.currentTimeMillis(),
+        note: String = ""
+    ): Long {
+        if (!amount.isFinite() || amount <= 0.0) return 0L
+        val cleanAmount = round2(amount)
+        val cleanNote = note.trim()
+        val depositDateEpochDay = Instant.ofEpochMilli(timestampMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+            .toEpochDay()
+
+        return db.withTransaction {
+            val depositId = savingsGoalDao.insertDeposit(
+                SavingsDepositEntity(
+                    goalId = goal.id,
+                    amount = cleanAmount,
+                    timestampMillis = timestampMillis,
+                    note = cleanNote
+                )
+            )
+            val expenseTitle = if (cleanNote.isNotEmpty()) {
+                "Savings: ${goal.title} ($cleanNote)"
+            } else {
+                "Savings: ${goal.title}"
+            }
+            expenseDao.insertExpense(
+                ExpenseEntity(
+                    title = expenseTitle,
+                    amount = cleanAmount,
+                    category = "Savings",
+                    dateEpochDay = depositDateEpochDay,
+                    createdAtMillis = timestampMillis,
+                    linkedSavingsDepositId = depositId
+                )
+            )
+            depositId
+        }
+    }
+
+    suspend fun deleteSavingsDeposit(deposit: SavingsDepositEntity) {
+        db.withTransaction {
+            expenseDao.deleteExpensesByLinkedSavingsDepositId(deposit.id)
+            savingsGoalDao.deleteDeposit(deposit)
+        }
+    }
+
     /**
      * Evaluates recurring rules via [RecurringEngine] and atomically inserts due
      * income/expense entries, advancing each rule's `lastAppliedEpochDay` to prevent duplicates.
@@ -273,140 +422,12 @@ class ShiftlyRepository(private val context: Context) {
         postedCount
     }
 
-    /**
-     * Populates realistic student shift, expense, and split-bill data when the database
-     * is empty so first-time users can explore the dashboard immediately.
-     */
-    suspend fun seedSampleStudentData() {
-        val existingShifts = allShifts.first()
-        val existingExpenses = allExpenses.first()
-        if (existingShifts.isNotEmpty() || existingExpenses.isNotEmpty()) return
-
-        val zone = ZoneId.systemDefault()
-        val today = LocalDate.now()
-        val rate = defaultHourlyRate.first().takeIf { it > 0.0 } ?: 96.38
-
-        fun millisAt(date: LocalDate, hour: Int, minute: Int): Long =
-            date.atTime(LocalTime.of(hour, minute)).atZone(zone).toInstant().toEpochMilli()
-
-        db.withTransaction {
-            val sampleShifts = listOf(
-                Triple(today, 14 to 0, 18 to 0) to "Campus Café Shift",
-                Triple(today.minusDays(1), 13 to 0, 16 to 30) to "Library Desk Duty",
-                Triple(today.minusDays(2), 15 to 0, 19 to 0) to "Campus Café Shift",
-                Triple(today.minusDays(4), 10 to 0, 14 to 0) to "Student Center Desk"
-            )
-            sampleShifts.forEach { (timing, note) ->
-                val (date, startHm, endHm) = timing
-                val startMs = millisAt(date, startHm.first, startHm.second)
-                val endMs = millisAt(date, endHm.first, endHm.second)
-                val mins = ((endMs - startMs) / 60_000L).toInt()
-                val earned = (mins / 60.0) * rate
-                shiftDao.insertShift(
-                    ShiftEntity(
-                        dateEpochDay = date.toEpochDay(),
-                        timeInMillis = startMs,
-                        timeOutMillis = endMs,
-                        durationMinutes = mins,
-                        lockedHourlyRate = rate,
-                        totalEarned = earned,
-                        overtimeNote = note
-                    )
-                )
-            }
-
-            val sampleExpenses = listOf(
-                ExpenseEntity(
-                    title = "Jeepney & LRT Fare",
-                    amount = 58.0,
-                    category = "Transport",
-                    dateEpochDay = today.toEpochDay(),
-                    createdAtMillis = millisAt(today, 8, 15)
-                ),
-                ExpenseEntity(
-                    title = "Tapsilog & Iced Coffee",
-                    amount = 145.0,
-                    category = "Food",
-                    dateEpochDay = today.toEpochDay(),
-                    createdAtMillis = millisAt(today, 12, 30)
-                ),
-                ExpenseEntity(
-                    title = "Thesis Binding & Prints",
-                    amount = 180.0,
-                    category = "Supplies",
-                    dateEpochDay = today.toEpochDay(),
-                    createdAtMillis = millisAt(today, 16, 45)
-                ),
-                ExpenseEntity(
-                    title = "Lab Manual Photocopy",
-                    amount = 95.0,
-                    category = "Supplies",
-                    dateEpochDay = today.minusDays(1).toEpochDay(),
-                    createdAtMillis = millisAt(today.minusDays(1), 11, 20)
-                ),
-                ExpenseEntity(
-                    title = "Tricycle to Campus",
-                    amount = 40.0,
-                    category = "Transport",
-                    dateEpochDay = today.minusDays(2).toEpochDay(),
-                    createdAtMillis = millisAt(today.minusDays(2), 7, 45)
-                )
-            )
-            sampleExpenses.forEach { expenseDao.insertExpense(it) }
-
-            val billId = splitBillDao.insertBill(
-                SplitBillEntity(
-                    title = "Group Lab Print & Snacks",
-                    totalAmount = 1080.0,
-                    personCount = 3,
-                    perPersonAmount = 360.0,
-                    dateEpochDay = today.minusDays(1).toEpochDay(),
-                    isLoggedToExpense = true
-                )
-            )
-            splitBillDao.insertParticipants(
-                listOf(
-                    SplitParticipantEntity(
-                        billId = billId,
-                        personLabel = "You",
-                        amountOwed = 360.0,
-                        hasPaid = true,
-                        isCurrentUser = true
-                    ),
-                    SplitParticipantEntity(
-                        billId = billId,
-                        personLabel = "Jules",
-                        amountOwed = 360.0,
-                        hasPaid = false,
-                        isCurrentUser = false
-                    ),
-                    SplitParticipantEntity(
-                        billId = billId,
-                        personLabel = "Kian",
-                        amountOwed = 360.0,
-                        hasPaid = false,
-                        isCurrentUser = false
-                    )
-                )
-            )
-            expenseDao.insertExpense(
-                ExpenseEntity(
-                    title = "Split: Group Lab Print & Snacks",
-                    amount = 360.0,
-                    category = "Split Bill",
-                    dateEpochDay = today.minusDays(1).toEpochDay(),
-                    linkedSplitBillId = billId,
-                    createdAtMillis = millisAt(today.minusDays(1), 18, 10)
-                )
-            )
-        }
-    }
-
     private suspend fun buildCurrentBackupPayload(includeReceipts: Boolean): BackupPayload = withContext(Dispatchers.IO) {
         val shifts = shiftDao.getAllShiftsOnce()
         val expenses = expenseDao.getAllExpensesOnce()
         val extraIncomes = extraIncomeDao.getAllExtraIncomesOnce()
         val bills = splitBillDao.getAllBillsWithParticipantsOnce()
+        val goals = savingsGoalDao.getAllGoalsWithDepositsOnce()
         val settings = settingsSnapshot.first()
         val currency = currencySymbol.first()
         val rate = defaultHourlyRate.first()
@@ -440,6 +461,14 @@ class ShiftlyRepository(private val context: Context) {
             )
         }
 
+        val backupGoals = goals.map { entry ->
+            BackupSavingsGoal(
+                originalId = entry.goal.id,
+                goal = entry.goal,
+                deposits = entry.deposits
+            )
+        }
+
         BackupPayload(
             userName = name,
             currencySymbol = currency,
@@ -451,6 +480,7 @@ class ShiftlyRepository(private val context: Context) {
             expenses = backupExpenses,
             extraIncomes = extraIncomes,
             splitBills = backupBills,
+            savingsGoals = backupGoals,
             receiptFiles = receiptMap
         )
     }
@@ -460,7 +490,7 @@ class ShiftlyRepository(private val context: Context) {
         BackupCodec.encodeJson(buildCurrentBackupPayload(includeReceipts = false))
     }
 
-    // Complete Offline ZIP Backup (JSON + Split Bills + Settings + Receipt Photos)
+    // Complete Offline ZIP Backup (JSON + Split Bills + Savings Goals + Settings + Receipt Photos)
     suspend fun generateBackupZipFile(): File = withContext(Dispatchers.IO) {
         val payload = buildCurrentBackupPayload(includeReceipts = true)
         val zipBytes = BackupCodec.encodeZipBytes(payload)
@@ -503,6 +533,7 @@ class ShiftlyRepository(private val context: Context) {
         var restoredExpensesCount = 0
         var restoredExtraIncomesCount = 0
         var restoredBillsCount = 0
+        var restoredGoalsCount = 0
 
         val receiptsToWrite = mutableListOf<Pair<File, ByteArray>>()
         val restoredReceiptPaths = mutableMapOf<String, String>()
@@ -521,6 +552,7 @@ class ShiftlyRepository(private val context: Context) {
                 extraIncomeDao.deleteAllExtraIncomes()
                 shiftDao.deleteAllShifts()
                 splitBillDao.deleteAllSplitBills()
+                savingsGoalDao.deleteAllSavingsGoals()
             }
 
             val existingShifts = if (mode == RestoreMode.MERGE) {
@@ -585,6 +617,38 @@ class ShiftlyRepository(private val context: Context) {
                 }
             }
 
+            val existingGoalsMap = if (mode == RestoreMode.MERGE) {
+                savingsGoalDao.getAllGoalsWithDepositsOnce()
+                    .associateBy(
+                        keySelector = { BackupCodec.savingsGoalSignature(it.goal) },
+                        valueTransform = { it.goal.id }
+                    )
+                    .toMutableMap()
+            } else {
+                mutableMapOf()
+            }
+
+            val oldToNewDepositId = mutableMapOf<Long, Long>()
+            payload.savingsGoals.forEach { entry ->
+                val sig = BackupCodec.savingsGoalSignature(entry.goal)
+                val existingId = existingGoalsMap[sig]
+                if (mode == RestoreMode.MERGE && existingId != null) {
+                    // Existing goal kept; do not duplicate deposits
+                } else {
+                    val newGoalId = savingsGoalDao.insertGoal(entry.goal.copy(id = 0L))
+                    existingGoalsMap[sig] = newGoalId
+                    entry.deposits.forEach { dep ->
+                        val newDepId = savingsGoalDao.insertDeposit(
+                            dep.copy(id = 0L, goalId = newGoalId)
+                        )
+                        if (dep.id > 0L) {
+                            oldToNewDepositId[dep.id] = newDepId
+                        }
+                    }
+                    restoredGoalsCount++
+                }
+            }
+
             val existingExpenses = if (mode == RestoreMode.MERGE) {
                 expenseDao.getAllExpensesOnce().asSequence()
                     .map { BackupCodec.expenseSignature(it) }
@@ -598,11 +662,13 @@ class ShiftlyRepository(private val context: Context) {
                 val sig = BackupCodec.expenseSignature(e)
                 if (mode == RestoreMode.REPLACE || existingExpenses.add(sig)) {
                     val mappedBillId = e.linkedSplitBillId?.let { oldToNewBillId[it] }
+                    val mappedDepositId = e.linkedSavingsDepositId?.let { oldToNewDepositId[it] }
                     val receiptPath = record.receiptFileName?.let { restoredReceiptPaths[it] }
                     expenseDao.insertExpense(
                         e.copy(
                             id = 0L,
                             linkedSplitBillId = mappedBillId,
+                            linkedSavingsDepositId = mappedDepositId,
                             receiptImagePath = receiptPath
                         )
                     )
@@ -611,7 +677,6 @@ class ShiftlyRepository(private val context: Context) {
             }
         }
 
-        // Only mutate receipt files on disk after the Room transaction succeeds.
         val keptPaths = restoredReceiptPaths.values.toSet()
         if (mode == RestoreMode.REPLACE) {
             existingReceiptFiles.forEach { oldFile ->
@@ -637,6 +702,7 @@ class ShiftlyRepository(private val context: Context) {
         val modeLabel = if (mode == RestoreMode.REPLACE) "Replaced with" else "Merged"
         return "$modeLabel $restoredShiftsCount shift(s), $restoredExpensesCount expense(s), " +
             "$restoredBillsCount split bill(s)" +
+            (if (restoredGoalsCount > 0) ", $restoredGoalsCount savings goal(s)" else "") +
             (if (restoredExtraIncomesCount > 0) ", $restoredExtraIncomesCount extra income(s)" else "") +
             if (restoredReceiptsCount > 0) ", $restoredReceiptsCount receipt(s)" else ""
     }
@@ -663,7 +729,7 @@ class ShiftlyRepository(private val context: Context) {
         val extraIncomes = allExtraIncomes.first()
         val expenses = allExpenses.first()
         val currency = currencySymbol.first()
-        val name = userName.first()
+        val name = userName.first().ifBlank { "Shiftly User" }
         val totalIncome = shifts.sumOf { it.totalEarned } + extraIncomes.sumOf { it.amount }
         val totalExpense = expenses.sumOf { it.amount }
         val netBalance = totalIncome - totalExpense

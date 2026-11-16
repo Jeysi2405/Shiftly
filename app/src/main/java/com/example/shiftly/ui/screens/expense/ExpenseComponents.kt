@@ -44,6 +44,7 @@ import androidx.compose.material.icons.outlined.Fastfood
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -113,6 +114,8 @@ import com.example.shiftly.ui.theme.DarkDisabledContainer
 import com.example.shiftly.ui.theme.DarkDisabledContent
 import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintBright
+import com.example.shiftly.ui.theme.MintInkOnWhite
+import com.example.shiftly.ui.theme.MintSoftContainer
 import com.example.shiftly.ui.theme.MintTextOnBlue
 import com.example.shiftly.ui.theme.OrbSkyLight
 import com.example.shiftly.ui.theme.PureWhite
@@ -122,6 +125,7 @@ import com.example.shiftly.ui.theme.TextLightMuted
 import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
+import com.example.shiftly.utils.ShiftlyFormatters
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -134,6 +138,7 @@ fun categoryIcon(category: String): ImageVector {
         "transport" -> Icons.Outlined.DirectionsCar
         "bills" -> Icons.Outlined.Receipt
         "supplies" -> Icons.Outlined.Inventory2
+        "savings" -> Icons.Outlined.Savings
         "split bill" -> Icons.AutoMirrored.Outlined.CallSplit
         else -> Icons.Outlined.ShoppingBag
     }
@@ -154,6 +159,7 @@ private fun categorySegmentColor(index: Int): Color {
 fun ExpenseSummaryCard(
     monthlyTotal: Double,
     allTimeTotal: Double,
+    monthlyBudget: Double = 0.0,
     totalReceiptCount: Int,
     categoryBreakdown: List<CategorySpendSummary>,
     currencySymbol: String
@@ -177,7 +183,7 @@ fun ExpenseSummaryCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "$currencySymbol${"%,.2f".format(monthlyTotal)}",
+                        text = ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotal),
                         style = MaterialTheme.typography.displaySmall.copy(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold,
@@ -197,7 +203,7 @@ fun ExpenseSummaryCard(
                         border = BorderStroke(1.dp, DarkBorder)
                     ) {
                         Text(
-                            text = "All-time: $currencySymbol${"%,.2f".format(allTimeTotal)}",
+                            text = "All-time: ${ShiftlyFormatters.formatCurrency(currencySymbol, allTimeTotal)}",
                             style = MaterialTheme.typography.labelSmall.tabular(),
                             color = TextLightPrimary,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
@@ -213,8 +219,54 @@ fun ExpenseSummaryCard(
                 }
             }
 
+            if (monthlyBudget > 0.0) {
+                val budgetUsed = (monthlyTotal / monthlyBudget).toFloat().coerceIn(0f, 1f)
+                val isOver = monthlyTotal > monthlyBudget
+                val isNear = monthlyTotal >= monthlyBudget * 0.85
+                val remaining = monthlyBudget - monthlyTotal
+
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Monthly Budget (${ShiftlyFormatters.formatCurrency(currencySymbol, monthlyBudget)})",
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif).tabular(),
+                            color = TextLightSecondary
+                        )
+                        Text(
+                            text = if (isOver) {
+                                "Over by ${ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotal - monthlyBudget)}"
+                            } else {
+                                "${ShiftlyFormatters.formatCurrency(currencySymbol, remaining)} left"
+                            },
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold).tabular(),
+                            color = if (isNear) CoralTextOnBlue else MintTextOnBlue
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(DarkBorder)
+                    ) {
+                        if (budgetUsed > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(budgetUsed)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(50))
+                                    .background(if (isNear) CoralBright else MintBright)
+                            )
+                        }
+                    }
+                }
+            }
+
             if (categoryBreakdown.isNotEmpty()) {
-                // Segmented Category Progress Bar
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -236,7 +288,6 @@ fun ExpenseSummaryCard(
                     }
                 }
 
-                // Category Legend Pills
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -253,7 +304,7 @@ fun ExpenseSummaryCard(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "${item.category} ($currencySymbol${"%,.0f".format(item.totalAmount)})",
+                                text = "${item.category} (${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)})",
                                 style = MaterialTheme.typography.labelSmall.tabular(),
                                 color = TextLightSecondary
                             )
@@ -282,9 +333,9 @@ fun ExpenseSummaryCard(
                                     )
                                     Text(
                                         text = if (isOver) {
-                                            "$currencySymbol${"%,.0f".format(item.totalAmount)} / $currencySymbol${"%,.0f".format(limit)} (Over)"
+                                            "${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)} / ${ShiftlyFormatters.formatCurrency(currencySymbol, limit)} (Over)"
                                         } else {
-                                            "$currencySymbol${"%,.0f".format(item.totalAmount)} / $currencySymbol${"%,.0f".format(limit)}"
+                                            "${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)} / ${ShiftlyFormatters.formatCurrency(currencySymbol, limit)}"
                                         },
                                         style = MaterialTheme.typography.labelSmall.tabular(),
                                         color = if (isNearOrOver) CoralTextOnBlue else MintTextOnBlue
@@ -450,6 +501,7 @@ fun ExpenseItemCard(
         !expense.receiptImagePath.isNullOrBlank() && File(expense.receiptImagePath).exists()
     }
     val isSplitItem = expense.category.equals("Split Bill", ignoreCase = true)
+    val isSavingsItem = expense.category.equals("Savings", ignoreCase = true)
 
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -469,13 +521,23 @@ fun ExpenseItemCard(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(if (isSplitItem) AzureSoftContainer else CoralSoftContainer),
+                    .background(
+                        when {
+                            isSavingsItem -> MintSoftContainer
+                            isSplitItem -> AzureSoftContainer
+                            else -> CoralSoftContainer
+                        }
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = categoryIcon(expense.category),
                     contentDescription = expense.category,
-                    tint = if (isSplitItem) AzureInkOnWhite else CoralInkOnWhite,
+                    tint = when {
+                        isSavingsItem -> MintInkOnWhite
+                        isSplitItem -> AzureInkOnWhite
+                        else -> CoralInkOnWhite
+                    },
                     modifier = Modifier.size(21.dp)
                 )
             }
@@ -543,7 +605,7 @@ fun ExpenseItemCard(
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = "-$currencySymbol${"%,.2f".format(expense.amount)}",
+                    text = ShiftlyFormatters.formatCurrency(currencySymbol, expense.amount, showMinus = true),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold
@@ -690,7 +752,6 @@ fun AddExpenseSheetContent(
             }
         }
 
-        // Large Amount Input
         OutlinedTextField(
             value = amountText,
             onValueChange = { input ->
@@ -702,7 +763,7 @@ fun AddExpenseSheetContent(
             label = { Text("Amount", fontFamily = ShiftlySerif) },
             placeholder = {
                 Text(
-                    text = "0.00",
+                    text = "0",
                     style = MaterialTheme.typography.headlineLarge.tabular(),
                     color = TextLightMuted
                 )
@@ -753,7 +814,6 @@ fun AddExpenseSheetContent(
             modifier = Modifier.fillMaxWidth()
         )
 
-        // Category Pills
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 text = "Category",
@@ -800,7 +860,6 @@ fun AddExpenseSheetContent(
             }
         }
 
-        // Date Selector Row
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = DarkCard,
@@ -840,7 +899,6 @@ fun AddExpenseSheetContent(
             }
         }
 
-        // Receipt Section (Gallery or Camera)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = "Receipt (optional)",
@@ -953,7 +1011,6 @@ fun AddExpenseSheetContent(
             }
         }
 
-        // Full-width Primary Pill Save Button with clear enabled / disabled states
         Button(
             onClick = {
                 onSaveExpense(title, parsedAmount, selectedCategory, selectedDate, savedReceiptPath)
@@ -1054,7 +1111,7 @@ fun ReceiptViewerDialog(
                             color = TextLightPrimary
                         )
                         Text(
-                            text = "$currencySymbol${"%,.2f".format(expense.amount)}  •  $dateLabel",
+                            text = "${ShiftlyFormatters.formatCurrency(currencySymbol, expense.amount)}  •  $dateLabel",
                             style = MaterialTheme.typography.bodySmall.tabular(),
                             color = CoralTextOnBlue
                         )

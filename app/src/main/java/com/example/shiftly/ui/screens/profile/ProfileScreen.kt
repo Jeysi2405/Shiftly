@@ -6,12 +6,16 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -21,9 +25,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Category
@@ -35,6 +41,7 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -46,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -53,10 +61,14 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
+import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.data.local.RecurringEntrySetting
+import com.example.shiftly.data.local.SavingsGoalEntity
+import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
@@ -66,18 +78,26 @@ import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
+import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
+import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
+import com.example.shiftly.ui.theme.AzureAccent
 import com.example.shiftly.ui.theme.AzureInkOnWhite
 import com.example.shiftly.ui.theme.AzureSoftContainer
 import com.example.shiftly.ui.theme.CoralInkOnWhite
 import com.example.shiftly.ui.theme.CoralSoftContainer
 import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCard
 import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintInkOnWhite
 import com.example.shiftly.ui.theme.MintSoftContainer
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.ui.theme.TextLightSecondary
+import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.workers.ShiftlyDailyWorker
 import java.io.File
+import java.time.LocalDate
 
 private enum class ActiveSettingsSheet {
     ACCOUNT,
@@ -85,7 +105,6 @@ private enum class ActiveSettingsSheet {
     PAY_CYCLE,
     SHIFT_RULES,
     BUDGETS,
-    SAVINGS_GOAL,
     CATEGORIES,
     RECURRING,
     APP_LOCK,
@@ -102,8 +121,30 @@ fun ProfileScreen(
     val context = LocalContext.current
     val suppressNextRelock = LocalSuppressNextRelock.current
     var activeSheet by remember { mutableStateOf<ActiveSettingsSheet?>(null) }
+    var showSavingsGoalDetailSheet by remember { mutableStateOf(false) }
+    var showAddSavingsGoalSheet by remember { mutableStateOf(false) }
     var pendingFileRestoreMode by remember { mutableStateOf(RestoreMode.MERGE) }
     var pendingNotificationAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    val profilePhotoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val savedPath = ProfilePhotoHelper.saveProfilePhotoFromUri(context, uri)
+        if (savedPath != null) {
+            viewModel.updateProfilePhotoPath(savedPath)
+            onShowMessage("Profile photo updated")
+        } else {
+            onShowMessage("Could not load selected photo")
+        }
+    }
+
+    val launchProfilePhotoPicker: () -> Unit = {
+        suppressNextRelock()
+        profilePhotoLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -250,11 +291,19 @@ fun ProfileScreen(
 
     ProfileScreenContent(
         state = state,
+        onAvatarClick = launchProfilePhotoPicker,
         onExportBackup = triggerZipShare,
         onOpenRestore = { activeSheet = ActiveSettingsSheet.BACKUP_EXPORT },
         onExportCsv = triggerCsvShare,
         onExportPdf = triggerPdfShare,
         onOpenSheet = { activeSheet = it },
+        onOpenSavingsGoals = {
+            if (state.savingsGoals.isEmpty()) {
+                showAddSavingsGoalSheet = true
+            } else {
+                showSavingsGoalDetailSheet = true
+            }
+        },
         onToggleNotifications = { enabled ->
             if (enabled) {
                 ensureNotificationPermissionThen {
@@ -287,6 +336,46 @@ fun ProfileScreen(
         }
     )
 
+    if (showSavingsGoalDetailSheet) {
+        val activeGoalId = (state.savingsGoals.firstOrNull { it.goal.isActive }
+            ?: state.savingsGoals.firstOrNull())?.goal?.id
+        SavingsGoalDetailSheet(
+            goals = state.savingsGoals,
+            initialGoalId = activeGoalId,
+            currencySymbol = state.currencySymbol,
+            onDismiss = { showSavingsGoalDetailSheet = false },
+            onSelectActiveGoal = { goalId -> viewModel.setActiveSavingsGoal(goalId) },
+            onOpenAddNewGoal = {
+                showSavingsGoalDetailSheet = false
+                showAddSavingsGoalSheet = true
+            },
+            onAddDeposit = { goal, amount, note ->
+                viewModel.addSavingsDeposit(goal, amount, note)
+                onShowMessage("Saved ${ShiftlyFormatters.formatCurrency(state.currencySymbol, amount)} & logged expense")
+            },
+            onDeleteDeposit = { dep ->
+                viewModel.deleteSavingsDeposit(dep)
+                onShowMessage("Savings deposit removed")
+            },
+            onDeleteGoal = { goal ->
+                viewModel.deleteSavingsGoal(goal)
+                onShowMessage("Savings goal deleted")
+            }
+        )
+    }
+
+    if (showAddSavingsGoalSheet) {
+        AddSavingsGoalSheet(
+            currencySymbol = state.currencySymbol,
+            onDismiss = { showAddSavingsGoalSheet = false },
+            onCreateGoal = { title, targetAmount, targetDateEpochDay ->
+                viewModel.createSavingsGoal(title, targetAmount, targetDateEpochDay)
+                showAddSavingsGoalSheet = false
+                onShowMessage("Savings goal \"$title\" added")
+            }
+        )
+    }
+
     when (activeSheet) {
         ActiveSettingsSheet.ACCOUNT -> {
             SettingsSheetContainer(
@@ -295,8 +384,14 @@ fun ProfileScreen(
             ) {
                 AccountEditSheetContent(
                     currentName = state.userName,
+                    profilePhotoPath = state.profilePhotoPath,
                     hourlyRate = state.defaultHourlyRate,
                     currencySymbol = state.currencySymbol,
+                    onChangePhoto = launchProfilePhotoPicker,
+                    onRemovePhoto = {
+                        viewModel.updateProfilePhotoPath(null)
+                        onShowMessage("Profile photo removed")
+                    },
                     onSave = { newName ->
                         viewModel.updateUserName(newName)
                         activeSheet = null
@@ -383,25 +478,6 @@ fun ProfileScreen(
                         viewModel.updateBudgets(monthly, categoryList)
                         activeSheet = null
                         onShowMessage("Budgets saved")
-                    }
-                )
-            }
-        }
-
-        ActiveSettingsSheet.SAVINGS_GOAL -> {
-            SettingsSheetContainer(
-                title = "Savings Goal Setup",
-                onDismiss = { activeSheet = null }
-            ) {
-                SavingsGoalSheetContent(
-                    currencySymbol = state.currencySymbol,
-                    currentTitle = state.settings.savingsGoalTitle,
-                    currentTarget = state.settings.savingsGoalTarget,
-                    currentBuffer = state.savingsBuffer,
-                    onSave = { title, target, buffer ->
-                        viewModel.updateSavingsGoal(title, target, buffer)
-                        activeSheet = null
-                        onShowMessage("Savings goal updated")
                     }
                 )
             }
@@ -519,11 +595,13 @@ fun ProfileScreen(
 @Composable
 private fun ProfileScreenContent(
     state: ProfileUiState,
+    onAvatarClick: () -> Unit,
     onExportBackup: () -> Unit,
     onOpenRestore: () -> Unit,
     onExportCsv: () -> Unit,
     onExportPdf: () -> Unit,
     onOpenSheet: (ActiveSettingsSheet) -> Unit,
+    onOpenSavingsGoals: () -> Unit,
     onToggleNotifications: (Boolean) -> Unit,
     onToggleAppLock: (Boolean) -> Unit,
     listState: LazyListState = rememberLazyListState()
@@ -533,6 +611,8 @@ private fun ProfileScreenContent(
     val ndBonusPct = ((state.settings.nightDiffMultiplier - 1.0) * 100).toInt()
     val visibleCategoriesCount = state.settings.managedCategories.count { it.isVisible }
     val activeRecurringCount = state.settings.recurringEntries.count { it.isEnabled }
+    val activeGoal = state.savingsGoals.firstOrNull { it.goal.isActive } ?: state.savingsGoals.firstOrNull()
+    val hasPhoto = !state.profilePhotoPath.isNullOrBlank() && File(state.profilePhotoPath).exists()
 
     LazyColumn(
         state = listState,
@@ -543,11 +623,66 @@ private fun ProfileScreenContent(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            ShiftlyScreenHeader(
-                title = "Profile & Settings",
-                subtitle = "${state.userName} • Student tracker",
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clickable(onClick = onAvatarClick)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(DarkCard)
+                            .border(1.5.dp, AzureAccent.copy(alpha = 0.7f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (hasPhoto && state.profilePhotoPath != null) {
+                            AsyncImage(
+                                model = File(state.profilePhotoPath),
+                                contentDescription = "Profile photo",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(56.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.Person,
+                                contentDescription = "Add profile photo",
+                                tint = TextLightSecondary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .align(Alignment.BottomEnd)
+                            .clip(CircleShape)
+                            .background(AzureAccent)
+                            .border(1.5.dp, DarkSurface, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AddAPhoto,
+                            contentDescription = null,
+                            tint = PureWhite,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+
+                ShiftlyScreenHeader(
+                    title = "Profile & Settings",
+                    subtitle = "${state.userName.ifBlank { "Personal account" }} • Offline tracker",
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
 
         item {
@@ -611,7 +746,7 @@ private fun ProfileScreenContent(
                         SettingsChevronRow(
                             icon = Icons.Outlined.Person,
                             title = "Account",
-                            subtitle = "${state.userName} • Rate $currency${"%.2f".format(state.defaultHourlyRate)}/hr",
+                            subtitle = "${state.userName.ifBlank { "Set display name" }} • Rate ${ShiftlyFormatters.formatCurrency(currency, state.defaultHourlyRate)}/hr",
                             onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
                         )
                         HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
@@ -660,19 +795,29 @@ private fun ProfileScreenContent(
                         SettingsChevronRow(
                             icon = Icons.Outlined.AccountBalanceWallet,
                             title = "Monthly & Category Budgets",
-                            subtitle = "Monthly cap $currency${"%,.0f".format(state.monthlyBudget)} • ${state.settings.categoryBudgets.size} limits",
+                            subtitle = if (state.monthlyBudget > 0.0) {
+                                "Monthly cap ${ShiftlyFormatters.formatCurrency(currency, state.monthlyBudget)} • ${state.settings.categoryBudgets.size} limits"
+                            } else {
+                                "No monthly cap set • ${state.settings.categoryBudgets.size} limits"
+                            },
                             iconBg = CoralSoftContainer,
                             iconTint = CoralInkOnWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.BUDGETS) }
                         )
                         HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
+                        val savingsSubtitle = if (activeGoal != null) {
+                            val countSuffix = if (state.savingsGoals.size > 1) " (${state.savingsGoals.size} goals)" else ""
+                            "${activeGoal.goal.title} • Target ${ShiftlyFormatters.formatCurrency(currency, activeGoal.goal.targetAmount)}$countSuffix"
+                        } else {
+                            "Tap to create a savings goal"
+                        }
                         SettingsChevronRow(
                             icon = Icons.Outlined.Savings,
                             title = "Savings Goals Setup",
-                            subtitle = "${state.settings.savingsGoalTitle} • Target $currency${"%,.0f".format(state.settings.savingsGoalTarget)}",
+                            subtitle = savingsSubtitle,
                             iconBg = MintSoftContainer,
                             iconTint = MintInkOnWhite,
-                            onClick = { onOpenSheet(ActiveSettingsSheet.SAVINGS_GOAL) }
+                            onClick = onOpenSavingsGoals
                         )
                     }
 
@@ -764,19 +909,31 @@ private fun shareExportFile(
 }
 
 // =============================================================================
-// High-Fidelity Previews (Snapshot + Backup, and Grouped Settings List)
+// High-Fidelity Previews
 // =============================================================================
 
 private fun previewProfileState(): ProfileUiState = ProfileUiState(
-    userName = "Maya",
+    userName = "James",
     defaultHourlyRate = 96.38,
     currencySymbol = "₱",
     monthlyBudget = 3000.0,
-    savingsBuffer = 1000.0,
+    savingsBuffer = 0.0,
     totalShifts = 18,
     totalHoursWorked = 82.5,
     totalEarnings = 8420.0,
     totalExpenses = 3190.0,
+    savingsGoals = listOf(
+        SavingsGoalWithDeposits(
+            goal = SavingsGoalEntity(
+                id = 1L,
+                title = "Laptop Fund",
+                targetAmount = 5000.0,
+                targetDateEpochDay = LocalDate.of(2026, 12, 15).toEpochDay(),
+                isActive = true
+            ),
+            deposits = emptyList()
+        )
+    ),
     settings = ShiftlySettingsSnapshot(
         notificationsEnabled = true,
         payCycleSchedule = "15th & 30th",
@@ -785,7 +942,7 @@ private fun previewProfileState(): ProfileUiState = ProfileUiState(
         nightDiffStartHour = 22,
         nightDiffMultiplier = 1.10,
         overtimeMultiplier = 1.25,
-        savingsGoalTitle = "Tuition & Laptop Fund",
+        savingsGoalTitle = "Laptop Fund",
         savingsGoalTarget = 5000.0,
         categoryBudgets = listOf(
             CategoryBudgetSetting("Food", 1400.0),
@@ -798,8 +955,8 @@ private fun previewProfileState(): ProfileUiState = ProfileUiState(
             ManagedCategorySetting("Transport", true),
             ManagedCategorySetting("Bills", true),
             ManagedCategorySetting("Supplies", true),
-            ManagedCategorySetting("Health", true),
-            ManagedCategorySetting("Misc", true)
+            ManagedCategorySetting("Savings", true),
+            ManagedCategorySetting("Other", true)
         ),
         recurringEntries = listOf(
             RecurringEntrySetting("r1", "Weekly Allowance", 1500.0, "Weekly", isIncome = true, isEnabled = true),
@@ -820,11 +977,13 @@ private fun ProfileSnapshotAndBackupPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 ProfileScreenContent(
                     state = previewProfileState(),
+                    onAvatarClick = {},
                     onExportBackup = {},
                     onOpenRestore = {},
                     onExportCsv = {},
                     onExportPdf = {},
                     onOpenSheet = {},
+                    onOpenSavingsGoals = {},
                     onToggleNotifications = {},
                     onToggleAppLock = {}
                 )
@@ -847,11 +1006,13 @@ private fun ProfileSettingsListPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 ProfileScreenContent(
                     state = previewProfileState(),
+                    onAvatarClick = {},
                     onExportBackup = {},
                     onOpenRestore = {},
                     onExportCsv = {},
                     onExportPdf = {},
                     onOpenSheet = {},
+                    onOpenSavingsGoals = {},
                     onToggleNotifications = {},
                     onToggleAppLock = {},
                     listState = rememberLazyListState(initialFirstVisibleItemIndex = 3)

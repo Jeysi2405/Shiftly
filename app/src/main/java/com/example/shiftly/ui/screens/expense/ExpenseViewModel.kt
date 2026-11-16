@@ -23,6 +23,7 @@ data class CategorySpendSummary(
 
 data class ExpenseUiState(
     val currencySymbol: String = "₱",
+    val monthlyBudget: Double = 0.0,
     val selectedCategory: String = "All",
     val availableCategories: List<String> = ExpenseViewModel.EXPENSE_CATEGORIES,
     val filterCategories: List<String> = ExpenseViewModel.FILTER_CATEGORIES,
@@ -43,6 +44,7 @@ class ExpenseViewModel(
             "Transport",
             "Bills",
             "Supplies",
+            "Savings",
             "Split Bill",
             "Other"
         )
@@ -53,10 +55,11 @@ class ExpenseViewModel(
 
     val uiState: StateFlow<ExpenseUiState> = combine(
         repository.currencySymbol,
+        repository.monthlyBudget,
         repository.allExpenses,
         repository.settingsSnapshot,
         _selectedCategory
-    ) { currency, allExpenses, settings, selectedCategory ->
+    ) { currency, monthlyBudget, allExpenses, settings, selectedCategory ->
         val currentMonth = YearMonth.now()
         val monthStartEpoch = currentMonth.atDay(1).toEpochDay()
         val monthEndEpoch = currentMonth.atEndOfMonth().toEpochDay()
@@ -87,7 +90,6 @@ class ExpenseViewModel(
             it.category.trim().lowercase() to it.monthlyLimit
         }
 
-        // Group spending by category for the visual summary card
         val breakdownBase = if (monthlyTotal > 0.0) monthlyExpenses else allExpenses
         val breakdownDenominator = breakdownBase.sumOf { it.amount }.takeIf { it > 0.0 } ?: 1.0
 
@@ -115,6 +117,7 @@ class ExpenseViewModel(
 
         ExpenseUiState(
             currencySymbol = currency,
+            monthlyBudget = monthlyBudget,
             selectedCategory = effectiveSelectedCategory,
             availableCategories = visibleCategories,
             filterCategories = filterCategories,

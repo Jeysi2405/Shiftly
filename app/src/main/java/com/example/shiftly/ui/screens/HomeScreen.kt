@@ -21,7 +21,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,11 +35,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.shiftly.data.local.SavingsGoalEntity
+import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
+import com.example.shiftly.ui.screens.expense.CategorySpendSummary
+import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
+import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
 import com.example.shiftly.ui.theme.CoralBright
 import com.example.shiftly.ui.theme.CoralInkOnWhite
 import com.example.shiftly.ui.theme.DarkBorder
@@ -49,6 +56,10 @@ import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
+import com.example.shiftly.utils.CutoffShiftSummary
+import com.example.shiftly.utils.CutoffWindow
+import com.example.shiftly.utils.SavingsGoalMath
+import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -65,22 +76,18 @@ fun HomeScreen(
     val viewModel: HomeViewModel = viewModel(factory = HomeViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    var showAddGoalSheet by remember { mutableStateOf(false) }
+    var viewingGoalId by remember { mutableStateOf<Long?>(null) }
+    var showGoalDetailSheet by remember { mutableStateOf(false) }
+
     HomeScreenContent(
         state = state,
         onSelectDate = { viewModel.selectDate(it) },
         onResetToToday = { viewModel.resetDateToToday() },
-        onQuickTimeIn = {
-            if (state.activeTimer.isRunning) {
-                onNavigateToDuties()
-            } else {
-                viewModel.startQuickShift()
-                onShowMessage("Shift started at ${state.currencySymbol}${"%.2f".format(state.hourlyRate)}/hr")
-            }
-        },
         onNotificationClick = {
             if (state.pendingSplitsOwed > 0) {
                 onNavigateToSplitBill()
-                onShowMessage("${state.currencySymbol}${"%,.0f".format(state.pendingSplitsOwed)} pending from classmates")
+                onShowMessage("${ShiftlyFormatters.formatCurrency(state.currencySymbol, state.pendingSplitsOwed)} pending from classmates")
             } else {
                 onShowMessage("All caught up — no pending alerts")
             }
@@ -88,6 +95,12 @@ fun HomeScreen(
         onProfileClick = onNavigateToProfile,
         onOpenPendingSplits = onNavigateToSplitBill,
         onViewInsights = onNavigateToAnalytics,
+        onOpenGoalDetail = { goalId ->
+            viewingGoalId = goalId
+            showGoalDetailSheet = true
+        },
+        onOpenAddGoal = { showAddGoalSheet = true },
+        onSelectActiveGoal = { goalId -> viewModel.setActiveSavingsGoal(goalId) },
         onTimelineItemClick = { item ->
             when (item) {
                 is TimelineActivityItem.ShiftActivity -> onNavigateToDuties()
@@ -96,6 +109,44 @@ fun HomeScreen(
             }
         }
     )
+
+    if (showGoalDetailSheet) {
+        SavingsGoalDetailSheet(
+            goals = state.savingsGoals.map { it.goalWithDeposits },
+            initialGoalId = viewingGoalId,
+            currencySymbol = state.currencySymbol,
+            onDismiss = { showGoalDetailSheet = false },
+            onSelectActiveGoal = { goalId -> viewModel.setActiveSavingsGoal(goalId) },
+            onOpenAddNewGoal = {
+                showGoalDetailSheet = false
+                showAddGoalSheet = true
+            },
+            onAddDeposit = { goal, amount, note ->
+                viewModel.addSavingsDeposit(goal, amount, note)
+                onShowMessage("Saved ${ShiftlyFormatters.formatCurrency(state.currencySymbol, amount)} & logged expense")
+            },
+            onDeleteDeposit = { dep ->
+                viewModel.deleteSavingsDeposit(dep)
+                onShowMessage("Savings deposit removed")
+            },
+            onDeleteGoal = { goal ->
+                viewModel.deleteSavingsGoal(goal)
+                onShowMessage("Savings goal deleted")
+            }
+        )
+    }
+
+    if (showAddGoalSheet) {
+        AddSavingsGoalSheet(
+            currencySymbol = state.currencySymbol,
+            onDismiss = { showAddGoalSheet = false },
+            onCreateGoal = { title, targetAmount, targetDateEpochDay ->
+                viewModel.createSavingsGoal(title, targetAmount, targetDateEpochDay)
+                showAddGoalSheet = false
+                onShowMessage("Savings goal \"$title\" added")
+            }
+        )
+    }
 }
 
 @Composable
@@ -103,11 +154,13 @@ fun HomeScreenContent(
     state: HomeUiState,
     onSelectDate: (LocalDate) -> Unit,
     onResetToToday: () -> Unit = {},
-    onQuickTimeIn: () -> Unit,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
     onOpenPendingSplits: () -> Unit,
     onViewInsights: () -> Unit,
+    onOpenGoalDetail: (Long?) -> Unit = {},
+    onOpenAddGoal: () -> Unit = {},
+    onSelectActiveGoal: (Long) -> Unit = {},
     onTimelineItemClick: (TimelineActivityItem) -> Unit = {},
     todayOverride: LocalDate? = null,
     greetingHourOverride: Int? = null
@@ -125,42 +178,21 @@ fun HomeScreenContent(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            if (greetingHourOverride != null) {
-                HomeGreetingHeader(
-                    userName = state.userName,
-                    pendingAlertsCount = state.pendingSplitBillCount,
-                    greetingHour = greetingHourOverride,
-                    onNotificationClick = onNotificationClick,
-                    onProfileClick = onProfileClick
-                )
-            } else {
-                HomeGreetingHeader(
-                    userName = state.userName,
-                    pendingAlertsCount = state.pendingSplitBillCount,
-                    onNotificationClick = onNotificationClick,
-                    onProfileClick = onProfileClick
-                )
-            }
-        }
-
-        item {
-            HomeHeroPager(state = state)
-        }
-
-        item {
-            CircularWeekdaySelector(
-                slots = state.weekdaySlots,
-                selectedDate = state.selectedDate,
-                onSelectDate = onSelectDate
+            HomeGreetingHeader(
+                profilePhotoPath = state.profilePhotoPath,
+                pendingAlertsCount = state.pendingSplitBillCount,
+                todayOverride = todayOverride,
+                onNotificationClick = onNotificationClick,
+                onProfileClick = onProfileClick
             )
         }
 
         item {
-            NextShiftQuickCard(
-                hourlyRate = state.hourlyRate,
-                currencySymbol = currency,
-                isTimerRunning = state.activeTimer.isRunning,
-                onQuickTimeIn = onQuickTimeIn
+            HomeHeroPager(
+                state = state,
+                onOpenGoalDetail = onOpenGoalDetail,
+                onOpenAddGoal = onOpenAddGoal,
+                onSelectActiveGoal = onSelectActiveGoal
             )
         }
 
@@ -190,6 +222,15 @@ fun HomeScreenContent(
                         )
                     }
 
+                    if (greetingHourOverride != null) {
+                        DashboardGreetingBanner(
+                            userName = state.userName,
+                            greetingHour = greetingHourOverride
+                        )
+                    } else {
+                        DashboardGreetingBanner(userName = state.userName)
+                    }
+
                     val budgetRatio = if (state.monthlyBudget > 0.0) {
                         (state.mtdExpenses / state.monthlyBudget).toFloat().coerceIn(0f, 1f)
                     } else {
@@ -209,9 +250,13 @@ fun HomeScreenContent(
                                 color = TextLightPrimary
                             )
                             Text(
-                                text = "$currency${"%,.0f".format(state.mtdExpenses)} of $currency${"%,.0f".format(state.monthlyBudget)}",
+                                text = if (state.monthlyBudget > 0.0) {
+                                    "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} of ${ShiftlyFormatters.formatCurrency(currency, state.monthlyBudget)}"
+                                } else {
+                                    "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} spent • No cap set"
+                                },
                                 style = MaterialTheme.typography.labelMedium.tabular(),
-                                color = if (nearLimit) CoralInkOnWhite else MintInkOnWhite
+                                color = if (nearLimit && state.monthlyBudget > 0.0) CoralInkOnWhite else MintInkOnWhite
                             )
                         }
                         LinearProgressIndicator(
@@ -237,12 +282,20 @@ fun HomeScreenContent(
                         )
                     }
 
-                    WeeklyEarningsSnapshotCard(
-                        weeklyEarnings = state.weeklyEarnings,
-                        weeklyHours = state.weeklyHours,
-                        bars = state.weeklyBars,
+                    MonthlyTopCategoriesCard(
+                        monthName = state.currentMonthName,
+                        monthlyTotalSpent = state.mtdExpenses,
+                        topCategories = state.monthlyTopCategories,
                         currencySymbol = currency,
                         onViewInsights = onViewInsights
+                    )
+
+                    SwipeableMonthDateSelector(
+                        selectedDate = state.selectedDate,
+                        shiftEpochDays = state.shiftEpochDays,
+                        expenseEpochDays = state.expenseEpochDays,
+                        onSelectDate = onSelectDate,
+                        todayOverride = todayOverride
                     )
 
                     val selectedLabel = state.selectedDate.format(dateHeaderFormatter)
@@ -269,7 +322,7 @@ fun HomeScreenContent(
 
                     if (state.timelineItems.isEmpty()) {
                         Text(
-                            text = "No activity logged yet. Tap Time In above to start a shift.",
+                            text = "No activity logged yet. Start a shift in Duties or log an expense.",
                             style = MaterialTheme.typography.bodySmall,
                             color = TextLightSecondary,
                             modifier = Modifier.padding(vertical = 8.dp)
@@ -296,9 +349,16 @@ fun HomeScreenContent(
 @Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "Home Dashboard")
 @Composable
 private fun HomeScreenPreview() {
-    val today = LocalDate.of(2026, 5, 16)
+    val today = LocalDate.of(2026, 11, 17)
+    val goal = SavingsGoalEntity(
+        id = 1L,
+        title = "Laptop Fund",
+        targetAmount = 5000.0,
+        targetDateEpochDay = today.plusDays(20).toEpochDay(),
+        isActive = true
+    )
     val sampleState = HomeUiState(
-        userName = "Maya",
+        userName = "James",
         currencySymbol = "₱",
         hourlyRate = 96.38,
         totalBalance = 2781.92,
@@ -307,39 +367,43 @@ private fun HomeScreenPreview() {
         mtdIncome = 3373.30,
         mtdExpenses = 591.38,
         monthlyBudget = 3000.0,
-        savingsBuffer = 1000.0,
         pendingSplitsOwed = 720.0,
         pendingSplitBillCount = 1,
-        safeToSpend = 1061.92,
-        weeklyEarnings = 1493.89,
-        weeklyHours = 15.5,
-        weeklyBars = listOf(
-            WeeklyBarData("M", 385.52),
-            WeeklyBarData("T", 0.0),
-            WeeklyBarData("W", 385.52),
-            WeeklyBarData("T", 337.33),
-            WeeklyBarData("F", 385.52),
-            WeeklyBarData("S", 0.0),
-            WeeklyBarData("S", 0.0)
+        cutoffSummary = CutoffShiftSummary(
+            window = CutoffWindow(
+                startDate = LocalDate.of(2026, 11, 16),
+                endDate = LocalDate.of(2026, 11, 30),
+                isFirstCutoff = false,
+                label = "2nd Cutoff • Nov 16–30"
+            ),
+            totalEarnings = 1493.89,
+            shiftDaysCount = 4,
+            totalHours = 15.5
+        ),
+        savingsGoals = listOf(
+            SavingsGoalCardItem(
+                goalWithDeposits = SavingsGoalWithDeposits(goal = goal, deposits = emptyList()),
+                progress = SavingsGoalMath.computeProgress(1500.0, 5000.0, today.plusDays(20), today),
+                targetDate = today.plusDays(20)
+            )
+        ),
+        currentMonthName = "November",
+        monthlyTopCategories = listOf(
+            CategorySpendSummary("Food", 320.0, 0.54f),
+            CategorySpendSummary("Transport", 150.0, 0.25f),
+            CategorySpendSummary("Supplies", 121.38, 0.21f)
         ),
         selectedDate = today,
         isShowingSelectedDateOnly = true,
         selectedDateHasLogs = true,
-        weekdaySlots = listOf(
-            WeekdaySlot(today.minusDays(3), "M", "13", hasShift = true, hasExpense = false),
-            WeekdaySlot(today.minusDays(2), "T", "14", hasShift = false, hasExpense = true),
-            WeekdaySlot(today.minusDays(1), "W", "15", hasShift = true, hasExpense = true),
-            WeekdaySlot(today, "T", "16", hasShift = true, hasExpense = true),
-            WeekdaySlot(today.plusDays(1), "F", "17", hasShift = false, hasExpense = false),
-            WeekdaySlot(today.plusDays(2), "S", "18", hasShift = false, hasExpense = false),
-            WeekdaySlot(today.plusDays(3), "S", "19", hasShift = false, hasExpense = false)
-        ),
+        shiftEpochDays = setOf(today.toEpochDay(), today.minusDays(1).toEpochDay()),
+        expenseEpochDays = setOf(today.toEpochDay()),
         timelineItems = listOf(
             TimelineActivityItem.ShiftActivity(
                 id = 1,
                 title = "Campus Café Shift",
                 timeRange = "2:00 PM – 6:00 PM",
-                durationLabel = "4h 0m",
+                durationLabel = "4h",
                 amount = 385.52,
                 epochDay = today.toEpochDay(),
                 timestamp = 3L
@@ -352,15 +416,6 @@ private fun HomeScreenPreview() {
                 amount = 145.0,
                 epochDay = today.toEpochDay(),
                 timestamp = 2L
-            ),
-            TimelineActivityItem.ExpenseActivity(
-                id = 3,
-                title = "Jeepney & LRT Fare",
-                category = "Transport",
-                timeLabel = "Today",
-                amount = 58.0,
-                epochDay = today.toEpochDay(),
-                timestamp = 1L
             )
         )
     )
@@ -371,7 +426,6 @@ private fun HomeScreenPreview() {
                 HomeScreenContent(
                     state = sampleState,
                     onSelectDate = {},
-                    onQuickTimeIn = {},
                     onNotificationClick = {},
                     onProfileClick = {},
                     onOpenPendingSplits = {},

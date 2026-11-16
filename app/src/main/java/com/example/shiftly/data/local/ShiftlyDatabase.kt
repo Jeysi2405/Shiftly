@@ -13,9 +13,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ExpenseEntity::class,
         ExtraIncomeEntity::class,
         SplitBillEntity::class,
-        SplitParticipantEntity::class
+        SplitParticipantEntity::class,
+        SavingsGoalEntity::class,
+        SavingsDepositEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class ShiftlyDatabase : RoomDatabase() {
@@ -23,6 +25,7 @@ abstract class ShiftlyDatabase : RoomDatabase() {
     abstract fun expenseDao(): ExpenseDao
     abstract fun extraIncomeDao(): ExtraIncomeDao
     abstract fun splitBillDao(): SplitBillDao
+    abstract fun savingsGoalDao(): SavingsGoalDao
 
     companion object {
         @Volatile
@@ -61,6 +64,39 @@ abstract class ShiftlyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE expenses ADD COLUMN linkedSavingsDepositId INTEGER")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS savings_goals (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        targetAmount REAL NOT NULL,
+                        targetDateEpochDay INTEGER NOT NULL,
+                        isActive INTEGER NOT NULL DEFAULT 1,
+                        createdAtMillis INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS savings_deposits (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        goalId INTEGER NOT NULL,
+                        amount REAL NOT NULL,
+                        timestampMillis INTEGER NOT NULL,
+                        note TEXT NOT NULL DEFAULT '',
+                        FOREIGN KEY(goalId) REFERENCES savings_goals(id) ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_savings_deposits_goalId ON savings_deposits(goalId)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): ShiftlyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -68,7 +104,7 @@ abstract class ShiftlyDatabase : RoomDatabase() {
                     ShiftlyDatabase::class.java,
                     "shiftly_offline.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

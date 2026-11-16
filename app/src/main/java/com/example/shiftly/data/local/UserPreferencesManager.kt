@@ -55,8 +55,8 @@ data class ShiftlySettingsSnapshot(
     val nightDiffStartHour: Int = 22,
     val nightDiffMultiplier: Double = 1.10,
     val overtimeMultiplier: Double = 1.25,
-    val savingsGoalTitle: String = "Tuition & Laptop Fund",
-    val savingsGoalTarget: Double = 5000.0,
+    val savingsGoalTitle: String = "",
+    val savingsGoalTarget: Double = 0.0,
     val categoryBudgets: List<CategoryBudgetSetting> = DEFAULT_CATEGORY_BUDGETS,
     val managedCategories: List<ManagedCategorySetting> = DEFAULT_MANAGED_CATEGORIES,
     val recurringEntries: List<RecurringEntrySetting> = DEFAULT_RECURRING_ENTRIES,
@@ -66,18 +66,14 @@ data class ShiftlySettingsSnapshot(
     val appLockPinHash: String = ""
 ) {
     companion object {
-        val DEFAULT_CATEGORY_BUDGETS = listOf(
-            CategoryBudgetSetting("Food", 1200.0),
-            CategoryBudgetSetting("Transport", 500.0),
-            CategoryBudgetSetting("Supplies", 600.0),
-            CategoryBudgetSetting("Bills", 700.0)
-        )
+        val DEFAULT_CATEGORY_BUDGETS: List<CategoryBudgetSetting> = emptyList()
 
         val DEFAULT_MANAGED_CATEGORIES = listOf(
             ManagedCategorySetting("Food", true),
             ManagedCategorySetting("Transport", true),
             ManagedCategorySetting("Bills", true),
             ManagedCategorySetting("Supplies", true),
+            ManagedCategorySetting("Savings", true),
             ManagedCategorySetting("Split Bill", true),
             ManagedCategorySetting("Other", true)
         )
@@ -125,7 +121,6 @@ object PreferenceJsonCodec {
             }.getOrNull()
             if (parsed != null) return parsed
         }
-        // Legacy fallback: "Food:1200.0;Transport:500.0"
         return trimmed.split(";").mapNotNull { entry ->
             val idx = entry.lastIndexOf(':')
             if (idx <= 0 || idx >= entry.length - 1) return@mapNotNull null
@@ -166,7 +161,6 @@ object PreferenceJsonCodec {
             }.getOrNull()
             if (!parsed.isNullOrEmpty()) return parsed
         }
-        // Legacy fallback: "Food|1;Transport|0"
         return trimmed.split(";").mapNotNull { entry ->
             val idx = entry.lastIndexOf('|')
             if (idx <= 0 || idx >= entry.length - 1) return@mapNotNull null
@@ -227,7 +221,6 @@ object PreferenceJsonCodec {
                 }
             }.getOrDefault(emptyList())
         }
-        // Legacy fallback: "id|title|amount|freq|isIncome|isEnabled;..."
         return trimmed.split(";").mapNotNull { entry ->
             val parts = entry.split("|")
             if (parts.size == 6) {
@@ -260,6 +253,7 @@ class UserPreferencesManager(private val context: Context) {
         // Onboarding & Home Overview preferences
         private val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         private val KEY_USER_NAME = stringPreferencesKey("user_name")
+        private val KEY_PROFILE_PHOTO_PATH = stringPreferencesKey("profile_photo_path")
         private val KEY_MONTHLY_BUDGET = doublePreferencesKey("monthly_budget")
         private val KEY_SAVINGS_BUFFER = doublePreferencesKey("savings_buffer")
 
@@ -278,7 +272,7 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_RECURRING_ENTRIES = stringPreferencesKey("recurring_entries_serialized")
         private val KEY_APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
         private val KEY_APP_LOCK_METHOD = stringPreferencesKey("app_lock_method")
-        private val KEY_APP_LOCK_PIN = stringPreferencesKey("app_lock_pin") // legacy plaintext read-only fallback
+        private val KEY_APP_LOCK_PIN = stringPreferencesKey("app_lock_pin")
         private val KEY_APP_LOCK_PIN_HASH = stringPreferencesKey("app_lock_pin_hash")
         private val KEY_LAST_PAYDAY_NOTIFIED_DAY = longPreferencesKey("last_payday_notified_day")
         private val KEY_LAST_SHIFT_NOTIFIED_DAY = longPreferencesKey("last_shift_notified_day")
@@ -288,7 +282,7 @@ class UserPreferencesManager(private val context: Context) {
         if (value.isFinite()) (value * 100.0).roundToLong() / 100.0 else 0.0
 
     val defaultHourlyRate: Flow<Double> = context.dataStore.data.map { prefs ->
-        prefs[KEY_DEFAULT_HOURLY_RATE] ?: 96.38
+        prefs[KEY_DEFAULT_HOURLY_RATE] ?: 0.0
     }
 
     val currencySymbol: Flow<String> = context.dataStore.data.map { prefs ->
@@ -300,15 +294,19 @@ class UserPreferencesManager(private val context: Context) {
     }
 
     val userName: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_USER_NAME] ?: "Maya"
+        prefs[KEY_USER_NAME] ?: ""
+    }
+
+    val profilePhotoPath: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_PROFILE_PHOTO_PATH]?.takeIf { it.isNotBlank() }
     }
 
     val monthlyBudget: Flow<Double> = context.dataStore.data.map { prefs ->
-        prefs[KEY_MONTHLY_BUDGET] ?: 3000.0
+        prefs[KEY_MONTHLY_BUDGET] ?: 0.0
     }
 
     val savingsBuffer: Flow<Double> = context.dataStore.data.map { prefs ->
-        prefs[KEY_SAVINGS_BUFFER] ?: 1000.0
+        prefs[KEY_SAVINGS_BUFFER] ?: 0.0
     }
 
     val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = context.dataStore.data.map { prefs ->
@@ -323,8 +321,8 @@ class UserPreferencesManager(private val context: Context) {
             nightDiffStartHour = prefs[KEY_ND_START_HOUR] ?: 22,
             nightDiffMultiplier = prefs[KEY_ND_MULTIPLIER] ?: 1.10,
             overtimeMultiplier = prefs[KEY_OT_MULTIPLIER] ?: 1.25,
-            savingsGoalTitle = prefs[KEY_SAVINGS_GOAL_TITLE] ?: "Tuition & Laptop Fund",
-            savingsGoalTarget = prefs[KEY_SAVINGS_GOAL_TARGET] ?: 5000.0,
+            savingsGoalTitle = prefs[KEY_SAVINGS_GOAL_TITLE] ?: "",
+            savingsGoalTarget = prefs[KEY_SAVINGS_GOAL_TARGET] ?: 0.0,
             categoryBudgets = PreferenceJsonCodec.decodeCategoryBudgets(prefs[KEY_CATEGORY_BUDGETS]),
             managedCategories = PreferenceJsonCodec.decodeManagedCategories(prefs[KEY_MANAGED_CATEGORIES]),
             recurringEntries = PreferenceJsonCodec.decodeRecurringEntries(prefs[KEY_RECURRING_ENTRIES]),
@@ -342,7 +340,7 @@ class UserPreferencesManager(private val context: Context) {
                 isRunning = true,
                 startTimeMillis = start,
                 shiftDateEpochDay = prefs[KEY_ACTIVE_TIMER_DATE] ?: 0L,
-                lockedRate = prefs[KEY_ACTIVE_TIMER_RATE] ?: 96.38
+                lockedRate = prefs[KEY_ACTIVE_TIMER_RATE] ?: 0.0
             )
         } else {
             ActiveTimerState(isRunning = false)
@@ -372,17 +370,25 @@ class UserPreferencesManager(private val context: Context) {
         context.dataStore.edit { prefs ->
             prefs[KEY_CURRENCY_SYMBOL] = cleanSymbol
             if (conversionRate != null && conversionRate.isFinite() && conversionRate > 0.0) {
-                val baseRate = prefs[KEY_DEFAULT_HOURLY_RATE] ?: 96.38
-                prefs[KEY_DEFAULT_HOURLY_RATE] = round2(baseRate * conversionRate).coerceAtLeast(0.01)
+                val baseRate = prefs[KEY_DEFAULT_HOURLY_RATE] ?: 0.0
+                if (baseRate > 0.0) {
+                    prefs[KEY_DEFAULT_HOURLY_RATE] = round2(baseRate * conversionRate).coerceAtLeast(0.01)
+                }
 
-                val monthly = prefs[KEY_MONTHLY_BUDGET] ?: 3000.0
-                prefs[KEY_MONTHLY_BUDGET] = round2(monthly * conversionRate).coerceAtLeast(0.0)
+                val monthly = prefs[KEY_MONTHLY_BUDGET] ?: 0.0
+                if (monthly > 0.0) {
+                    prefs[KEY_MONTHLY_BUDGET] = round2(monthly * conversionRate).coerceAtLeast(0.0)
+                }
 
-                val buffer = prefs[KEY_SAVINGS_BUFFER] ?: 1000.0
-                prefs[KEY_SAVINGS_BUFFER] = round2(buffer * conversionRate).coerceAtLeast(0.0)
+                val buffer = prefs[KEY_SAVINGS_BUFFER] ?: 0.0
+                if (buffer > 0.0) {
+                    prefs[KEY_SAVINGS_BUFFER] = round2(buffer * conversionRate).coerceAtLeast(0.0)
+                }
 
-                val goalTarget = prefs[KEY_SAVINGS_GOAL_TARGET] ?: 5000.0
-                prefs[KEY_SAVINGS_GOAL_TARGET] = round2(goalTarget * conversionRate).coerceAtLeast(1.0)
+                val goalTarget = prefs[KEY_SAVINGS_GOAL_TARGET] ?: 0.0
+                if (goalTarget > 0.0) {
+                    prefs[KEY_SAVINGS_GOAL_TARGET] = round2(goalTarget * conversionRate).coerceAtLeast(1.0)
+                }
 
                 val activeRate = prefs[KEY_ACTIVE_TIMER_RATE]
                 if (activeRate != null && activeRate > 0.0) {
@@ -426,6 +432,16 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
+    suspend fun setProfilePhotoPath(path: String?) {
+        context.dataStore.edit { prefs ->
+            if (path.isNullOrBlank()) {
+                prefs.remove(KEY_PROFILE_PHOTO_PATH)
+            } else {
+                prefs[KEY_PROFILE_PHOTO_PATH] = path
+            }
+        }
+    }
+
     suspend fun setMonthlyBudget(budget: Double) {
         if (!budget.isFinite()) return
         context.dataStore.edit { prefs ->
@@ -463,9 +479,9 @@ class UserPreferencesManager(private val context: Context) {
     }
 
     suspend fun setSavingsGoal(title: String, target: Double) {
-        val safeTarget = (target.takeIf { it.isFinite() } ?: 5000.0).coerceAtLeast(1.0)
+        val safeTarget = (target.takeIf { it.isFinite() } ?: 0.0).coerceAtLeast(0.0)
         context.dataStore.edit { prefs ->
-            prefs[KEY_SAVINGS_GOAL_TITLE] = title.trim().ifEmpty { "Tuition & Laptop Fund" }
+            prefs[KEY_SAVINGS_GOAL_TITLE] = title.trim()
             prefs[KEY_SAVINGS_GOAL_TARGET] = safeTarget
         }
     }
@@ -508,7 +524,8 @@ class UserPreferencesManager(private val context: Context) {
         defaultHourlyRate: Double?,
         monthlyBudget: Double?,
         savingsBuffer: Double?,
-        settings: ShiftlySettingsSnapshot?
+        settings: ShiftlySettingsSnapshot?,
+        profilePhotoPath: String? = null
     ) {
         context.dataStore.edit { prefs ->
             if (!userName.isNullOrBlank()) prefs[KEY_USER_NAME] = userName.trim()
@@ -522,6 +539,9 @@ class UserPreferencesManager(private val context: Context) {
             if (savingsBuffer != null && savingsBuffer.isFinite() && savingsBuffer >= 0.0) {
                 prefs[KEY_SAVINGS_BUFFER] = savingsBuffer
             }
+            if (!profilePhotoPath.isNullOrBlank()) {
+                prefs[KEY_PROFILE_PHOTO_PATH] = profilePhotoPath
+            }
             if (settings != null) {
                 prefs[KEY_PAY_CYCLE_SCHEDULE] = settings.payCycleSchedule
                 prefs[KEY_PAYDAY_REMINDER] = settings.paydayReminderEnabled
@@ -531,7 +551,7 @@ class UserPreferencesManager(private val context: Context) {
                 prefs[KEY_ND_MULTIPLIER] = settings.nightDiffMultiplier.coerceIn(1.0, 2.0)
                 prefs[KEY_OT_MULTIPLIER] = settings.overtimeMultiplier.coerceIn(1.0, 3.0)
                 prefs[KEY_SAVINGS_GOAL_TITLE] = settings.savingsGoalTitle
-                prefs[KEY_SAVINGS_GOAL_TARGET] = settings.savingsGoalTarget.coerceAtLeast(1.0)
+                prefs[KEY_SAVINGS_GOAL_TARGET] = settings.savingsGoalTarget.coerceAtLeast(0.0)
                 prefs[KEY_CATEGORY_BUDGETS] = PreferenceJsonCodec.encodeCategoryBudgets(settings.categoryBudgets)
                 prefs[KEY_MANAGED_CATEGORIES] = PreferenceJsonCodec.encodeManagedCategories(settings.managedCategories)
                 prefs[KEY_RECURRING_ENTRIES] = PreferenceJsonCodec.encodeRecurringEntries(settings.recurringEntries)

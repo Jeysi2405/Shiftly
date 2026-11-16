@@ -5,10 +5,15 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
+import com.example.shiftly.data.local.SavingsDepositEntity
+import com.example.shiftly.data.local.SavingsGoalEntity
+import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.repository.ShiftlyRepository
+import com.example.shiftly.utils.SavingsGoalMath
+import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.utils.SplitBillMath
 import com.example.shiftly.utils.WageCalculator
 import java.time.DayOfWeek
@@ -25,6 +30,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 enum class AnalyticsRange(val shortLabel: String, val fullLabel: String) {
     DAY("D", "Today"),
@@ -56,7 +62,8 @@ data class HoursCostInsight(
 data class AnalyticsUiState(
     val selectedRange: AnalyticsRange = AnalyticsRange.WEEK,
     val currencySymbol: String = "₱",
-    val hourlyRate: Double = 96.38,
+    val hourlyRate: Double = 0.0,
+    val monthlyBudget: Double = 0.0,
     val periodIncome: Double = 0.0,
     val periodExpenses: Double = 0.0,
     val chartBuckets: List<IncomeExpenseBarBucket> = emptyList(),
@@ -66,12 +73,16 @@ data class AnalyticsUiState(
     val overtimeHours: Double = 0.0,
     val totalWorkedHours: Double = 0.0,
     val workHoursCosts: List<HoursCostInsight> = emptyList(),
-    val savingsGoalTitle: String = "Tuition & Laptop Fund",
+    val savingsGoals: List<SavingsGoalWithDeposits> = emptyList(),
+    val savingsGoalTitle: String = "",
     val savedProgressAmount: Double = 0.0,
-    val savingsGoalTarget: Double = 5000.0,
+    val savingsGoalTarget: Double = 0.0,
+    val savingsGoalTargetEpochDay: Long? = null,
+    val savingsGoalNeededPerDay: Double = 0.0,
+    val savingsGoalDaysRemaining: Long = 0L,
     val underBudgetStreakDays: Int = 0,
     val streakTargetDays: Int = 14,
-    val dailyBudgetAllowance: Double = 100.0,
+    val dailyBudgetAllowance: Double = 0.0,
     val plainLanguageTips: List<String> = emptyList(),
     val unsettledSplitsAmount: Double = 0.0,
     val totalSplitsAmount: Double = 0.0,
@@ -84,32 +95,54 @@ class AnalyticsViewModel(
 
     private val _selectedRange = MutableStateFlow(AnalyticsRange.WEEK)
 
-    val uiState: StateFlow<AnalyticsUiState> = combine(
+    private data class AnalyticsPrefsBundle(
+        val range: AnalyticsRange,
+        val currency: String,
+        val rate: Double,
+        val monthlyBudget: Double,
+        val settings: ShiftlySettingsSnapshot
+    )
+
+    private val prefsFlow = combine(
         _selectedRange,
         repository.currencySymbol,
         repository.defaultHourlyRate,
         repository.monthlyBudget,
-        repository.savingsBuffer,
-        repository.settingsSnapshot,
+        repository.settingsSnapshot
+    ) { range, currency, rate, budget, settings ->
+        AnalyticsPrefsBundle(
+            range = range,
+            currency = currency,
+            rate = rate,
+            monthlyBudget = budget,
+            settings = settings
+        )
+    }
+
+    val uiState: StateFlow<AnalyticsUiState> = combine(
+        prefsFlow,
         repository.allShifts,
         repository.allExtraIncomes,
         repository.allExpenses,
-        repository.allSplitBills
+        repository.allSplitBills,
+        repository.allSavingsGoals
     ) { values ->
-        val range = values[0] as AnalyticsRange
-        val currency = values[1] as String
-        val rate = (values[2] as Double).takeIf { it > 0.0 } ?: 96.38
-        val monthlyBudget = values[3] as Double
-        val savingsBuffer = values[4] as Double
-        val settings = values[5] as ShiftlySettingsSnapshot
+        val prefs = values[0] as AnalyticsPrefsBundle
+        val range = prefs.range
+        val currency = prefs.currency
+        val rate = prefs.rate
+        val monthlyBudget = prefs.monthlyBudget
+        val settings = prefs.settings
         @Suppress("UNCHECKED_CAST")
-        val shifts = values[6] as List<ShiftEntity>
+        val shifts = values[1] as List<ShiftEntity>
         @Suppress("UNCHECKED_CAST")
-        val extraIncomes = values[7] as List<ExtraIncomeEntity>
+        val extraIncomes = values[2] as List<ExtraIncomeEntity>
         @Suppress("UNCHECKED_CAST")
-        val expenses = values[8] as List<ExpenseEntity>
+        val expenses = values[3] as List<ExpenseEntity>
         @Suppress("UNCHECKED_CAST")
-        val splitBills = values[9] as List<SplitBillWithParticipants>
+        val splitBills = values[4] as List<SplitBillWithParticipants>
+        @Suppress("UNCHECKED_CAST")
+        val savingsGoals = values[5] as List<SavingsGoalWithDeposits>
 
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
@@ -128,7 +161,6 @@ class AnalyticsViewModel(
         val totalIncome = periodShifts.sumOf { it.totalEarned } + periodExtraIncomes.sumOf { it.amount }
         val totalExpense = periodExpenses.sumOf { it.amount }
 
-        // Regular, Night Diff, Overtime hours split
         var regMins = 0L
         var ndMins = 0L
         var otMins = 0L
@@ -148,10 +180,8 @@ class AnalyticsViewModel(
         }
         val totalHours = periodShifts.sumOf { it.durationMinutes } / 60.0
 
-        // Chart Buckets
         val buckets = buildChartBuckets(range, today, zone, shifts, extraIncomes, expenses)
 
-        // Category breakdown
         val spendDenom = totalExpense.takeIf { it > 0.0 } ?: 1.0
         val categoryInsights = periodExpenses
             .groupBy { it.category }
@@ -167,44 +197,55 @@ class AnalyticsViewModel(
             }
             .sortedByDescending { it.amount }
 
-        // Hours of work this cost
-        val hoursCosts = categoryInsights.map { item ->
-            HoursCostInsight(
-                category = item.category,
-                amount = item.amount,
-                dutyHours = item.amount / rate
-            )
+        val hoursCosts = if (rate > 0.0) {
+            categoryInsights.map { item ->
+                HoursCostInsight(
+                    category = item.category,
+                    amount = item.amount,
+                    dutyHours = item.amount / rate
+                )
+            }
+        } else {
+            emptyList()
         }
 
-        // Savings goal progress (net lifetime + buffer capped cleanly against target)
-        val lifetimeIncome = shifts.sumOf { it.totalEarned } + extraIncomes.sumOf { it.amount }
-        val lifetimeNet = (lifetimeIncome - expenses.sumOf { it.amount })
-            .coerceAtLeast(0.0)
-        val savedSoFar = (lifetimeNet - savingsBuffer).coerceAtLeast(lifetimeNet * 0.55)
-            .coerceAtLeast(0.0)
+        // Active savings goal (using actual deposits)
+        val activeGoalWithDeposits = savingsGoals.firstOrNull { it.goal.isActive } ?: savingsGoals.firstOrNull()
+        val activeProgress = activeGoalWithDeposits?.let { SavingsGoalMath.computeProgress(it, today) }
 
-        // Under-budget days streak (last 30 days)
-        val dailyCap = (monthlyBudget / 30.0).coerceAtLeast(50.0)
+        // Under-budget days streak (based on Monthly Budget connected from Welcome/Settings)
+        val currentMonthYm = YearMonth.from(today)
+        val monthStartEp = currentMonthYm.atDay(1).toEpochDay()
+        val monthEndEp = currentMonthYm.atEndOfMonth().toEpochDay()
+        val monthSpend = expenses.filter { it.dateEpochDay in monthStartEp..monthEndEp }.sumOf { it.amount }
+
+        val dailyCap = if (monthlyBudget > 0.0) {
+            monthlyBudget / currentMonthYm.lengthOfMonth().toDouble()
+        } else {
+            0.0
+        }
         val expenseByDay = expenses.groupBy { it.dateEpochDay }
             .mapValues { (_, list) -> list.sumOf { it.amount } }
         var streak = 0
-        for (offset in 0..29) {
-            val daySpend = expenseByDay[today.minusDays(offset.toLong()).toEpochDay()] ?: 0.0
-            if (daySpend <= dailyCap) streak++ else break
+        if (dailyCap > 0.0) {
+            for (offset in 0..29) {
+                val daySpend = expenseByDay[today.minusDays(offset.toLong()).toEpochDay()] ?: 0.0
+                if (daySpend <= dailyCap) streak++ else break
+            }
         }
 
-        // Plain-language tips comparing current vs previous window
         val tips = buildPlainLanguageTips(
             range = range,
             today = today,
             currency = currency,
             rate = rate,
+            monthlyBudget = monthlyBudget,
+            monthSpend = monthSpend,
             allExpenses = expenses,
             periodExpenses = periodExpenses,
             categoryInsights = categoryInsights
         )
 
-        // Unsettled split bills tracker (strictly excludes current user)
         val splitSummary = SplitBillMath.summarizeFriendsOwed(splitBills)
         val unsettledFriendsCount = splitBills.sumOf { bill ->
             bill.participants.count { !it.isCurrentUser && !it.hasPaid }
@@ -214,6 +255,7 @@ class AnalyticsViewModel(
             selectedRange = range,
             currencySymbol = currency,
             hourlyRate = rate,
+            monthlyBudget = monthlyBudget,
             periodIncome = totalIncome,
             periodExpenses = totalExpense,
             chartBuckets = buckets,
@@ -223,9 +265,13 @@ class AnalyticsViewModel(
             overtimeHours = otMins / 60.0,
             totalWorkedHours = totalHours,
             workHoursCosts = hoursCosts,
-            savingsGoalTitle = settings.savingsGoalTitle,
-            savedProgressAmount = savedSoFar,
-            savingsGoalTarget = settings.savingsGoalTarget,
+            savingsGoals = savingsGoals,
+            savingsGoalTitle = activeGoalWithDeposits?.goal?.title.orEmpty(),
+            savedProgressAmount = activeProgress?.savedAmount ?: 0.0,
+            savingsGoalTarget = activeGoalWithDeposits?.goal?.targetAmount ?: 0.0,
+            savingsGoalTargetEpochDay = activeGoalWithDeposits?.goal?.targetDateEpochDay,
+            savingsGoalNeededPerDay = activeProgress?.neededPerDay ?: 0.0,
+            savingsGoalDaysRemaining = activeProgress?.daysRemaining ?: 0L,
             underBudgetStreakDays = streak,
             streakTargetDays = 14,
             dailyBudgetAllowance = dailyCap,
@@ -242,6 +288,36 @@ class AnalyticsViewModel(
 
     fun selectRange(range: AnalyticsRange) {
         _selectedRange.value = range
+    }
+
+    fun createSavingsGoal(title: String, targetAmount: Double, targetDateEpochDay: Long) {
+        viewModelScope.launch {
+            repository.createSavingsGoal(title, targetAmount, targetDateEpochDay)
+        }
+    }
+
+    fun setActiveSavingsGoal(goalId: Long) {
+        viewModelScope.launch {
+            repository.setActiveSavingsGoal(goalId)
+        }
+    }
+
+    fun addSavingsDeposit(goal: SavingsGoalEntity, amount: Double, note: String) {
+        viewModelScope.launch {
+            repository.addSavingsDeposit(goal = goal, amount = amount, note = note)
+        }
+    }
+
+    fun deleteSavingsDeposit(deposit: SavingsDepositEntity) {
+        viewModelScope.launch {
+            repository.deleteSavingsDeposit(deposit)
+        }
+    }
+
+    fun deleteSavingsGoal(goal: SavingsGoalEntity) {
+        viewModelScope.launch {
+            repository.deleteSavingsGoal(goal)
+        }
     }
 
     private fun resolvePeriodBounds(range: AnalyticsRange, today: LocalDate): Pair<LocalDate, LocalDate> {
@@ -362,11 +438,27 @@ class AnalyticsViewModel(
         today: LocalDate,
         currency: String,
         rate: Double,
+        monthlyBudget: Double,
+        monthSpend: Double,
         allExpenses: List<ExpenseEntity>,
         periodExpenses: List<ExpenseEntity>,
         categoryInsights: List<CategorySpendingInsight>
     ): List<String> {
         val tips = mutableListOf<String>()
+        if (monthlyBudget > 0.0) {
+            val pct = ((monthSpend / monthlyBudget) * 100.0).roundToInt()
+            val remaining = monthlyBudget - monthSpend
+            if (remaining >= 0.0) {
+                tips.add(
+                    "Monthly budget: ${ShiftlyFormatters.formatCurrency(currency, monthSpend)} of ${ShiftlyFormatters.formatCurrency(currency, monthlyBudget)} used ($pct% • ${ShiftlyFormatters.formatCurrency(currency, remaining)} left)."
+                )
+            } else {
+                tips.add(
+                    "Monthly budget exceeded by ${ShiftlyFormatters.formatCurrency(currency, -remaining)} (${pct}% of ${ShiftlyFormatters.formatCurrency(currency, monthlyBudget)})."
+                )
+            }
+        }
+
         val topCategory = categoryInsights.firstOrNull()
         if (topCategory != null) {
             val prevRangeDays = when (range) {
@@ -390,21 +482,21 @@ class AnalyticsViewModel(
                 } else if (deltaPct < 0) {
                     tips.add("Nice! You cut ${topCategory.category.lowercase()} spending by ${-deltaPct}% vs. last period.")
                 }
-            } else {
+            } else if (rate > 0.0) {
                 val hoursEq = topCategory.amount / rate
                 tips.add(
-                    "${topCategory.category} is ${topCategory.percentage}% of your spending (${ "%.1f".format(hoursEq) }h of shift duty)."
+                    "${topCategory.category} is ${topCategory.percentage}% of your spending (${ShiftlyFormatters.formatHours(hoursEq)} of shift duty)."
                 )
             }
         }
 
         if (periodExpenses.isEmpty()) {
-            tips.add("No expenses recorded in ${range.fullLabel.lowercase()} — log purchases to unlock trend tips.")
+            tips.add("No expenses recorded in ${range.fullLabel.lowercase()} — log expenses to unlock trend tips.")
         } else {
             val totalPeriodSpend = periodExpenses.sumOf { it.amount }
             val savedIfTrim15 = totalPeriodSpend * 0.15
             tips.add(
-                "Trimming 15% of variable spend frees up $currency${"%,.0f".format(savedIfTrim15)} toward your goal."
+                "Trimming 15% of spending frees up ${ShiftlyFormatters.formatCurrency(currency, savedIfTrim15)} toward your goal."
             )
         }
         return tips
