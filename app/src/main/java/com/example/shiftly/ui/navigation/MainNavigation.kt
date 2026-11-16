@@ -34,10 +34,15 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -48,6 +53,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -62,6 +70,8 @@ import com.example.shiftly.ui.screens.HomeScreen
 import com.example.shiftly.ui.screens.WelcomeScreen
 import com.example.shiftly.ui.screens.duties.DutiesScreen
 import com.example.shiftly.ui.screens.expense.ExpenseScreen
+import com.example.shiftly.ui.screens.lock.AppLockGateScreen
+import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.ProfileScreen
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
 import com.example.shiftly.ui.theme.AzureAccent
@@ -76,60 +86,113 @@ import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
+import com.example.shiftly.workers.ShiftlyDailyWorker
 import kotlinx.coroutines.launch
 
 @Composable
-fun MainAppScreen(
-    onLightBackgroundChanged: (Boolean) -> Unit = {},
-) {
+fun MainAppScreen() {
     val context = LocalContext.current
     val repository = remember { ShiftlyRepository(context.applicationContext) }
     val hasCompletedOnboarding by repository.hasCompletedOnboarding
         .collectAsStateWithLifecycle(initialValue = null)
+    val settings by repository.settingsSnapshot
+        .collectAsStateWithLifecycle(initialValue = null)
+    val userName by repository.userName
+        .collectAsStateWithLifecycle(initialValue = "Maya")
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(hasCompletedOnboarding) {
-        if (hasCompletedOnboarding != null) {
-            onLightBackgroundChanged(false)
+    var hasInitializedLock by rememberSaveable { mutableStateOf(false) }
+    var isSessionUnlocked by rememberSaveable { mutableStateOf(false) }
+    var suppressRelockOnce by remember { mutableStateOf(false) }
+
+    LaunchedEffect(settings) {
+        val loaded = settings ?: return@LaunchedEffect
+        if (!hasInitializedLock) {
+            hasInitializedLock = true
+            isSessionUnlocked = !loaded.appLockEnabled
+        } else if (!loaded.appLockEnabled) {
+            isSessionUnlocked = true
         }
     }
 
-    AnimatedContent(
-        targetState = hasCompletedOnboarding,
-        transitionSpec = { fadeIn() togetherWith fadeOut() },
-        label = "OnboardingToMainTransition",
-    ) { completed ->
-        when (completed) {
-            null -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(DarkBackground)
-                )
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, settings?.appLockEnabled) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> {
+                    suppressRelockOnce = false
+                }
+                Lifecycle.Event.ON_STOP -> {
+                    if (settings?.appLockEnabled == true && !suppressRelockOnce) {
+                        isSessionUnlocked = false
+                    }
+                }
+                else -> Unit
             }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
-            false -> {
-                WelcomeScreen(
-                    onGetStartedComplete = { name, rate, seedSample ->
-                        scope.launch {
-                            repository.updateUserName(name)
-                            repository.updateDefaultHourlyRate(rate)
-                            if (seedSample) {
-                                repository.seedSampleStudentData()
-                            }
-                            repository.setOnboardingCompleted(completed = true)
-                        }
-                    },
-                    onExistingAccount = {
-                        scope.launch {
-                            repository.setOnboardingCompleted(completed = true)
-                        }
-                    },
-                )
-            }
+    val loadedSettings = settings
+    val isReady = hasCompletedOnboarding != null && loadedSettings != null
+    val shouldShowLockGate = isReady && loadedSettings?.appLockEnabled == true && !isSessionUnlocked
 
-            true -> {
-                MainDashboardShell(repository = repository)
+    CompositionLocalProvider(
+        LocalSuppressNextRelock provides { suppressRelockOnce = true }
+    ) {
+        if (!isReady) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(DarkBackground)
+            )
+        } else if (shouldShowLockGate && loadedSettings != null) {
+            AppLockGateScreen(
+                method = loadedSettings.appLockMethod,
+                pinHash = loadedSettings.appLockPinHash,
+                userName = userName,
+                onUnlocked = { isSessionUnlocked = true }
+            )
+        } else {
+            AnimatedContent(
+                targetState = hasCompletedOnboarding,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "OnboardingToMainTransition",
+            ) { completed ->
+                when (completed) {
+                    null -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(DarkBackground)
+                        )
+                    }
+
+                    false -> {
+                        WelcomeScreen(
+                            onGetStartedComplete = { name, rate, seedSample ->
+                                scope.launch {
+                                    repository.updateUserName(name)
+                                    repository.updateDefaultHourlyRate(rate)
+                                    if (seedSample) {
+                                        repository.seedSampleStudentData()
+                                    }
+                                    repository.setOnboardingCompleted(completed = true)
+                                }
+                            },
+                            onExistingAccount = {
+                                scope.launch {
+                                    repository.setOnboardingCompleted(completed = true)
+                                }
+                            },
+                        )
+                    }
+
+                    true -> {
+                        MainDashboardShell(repository = repository)
+                    }
+                }
             }
         }
     }
@@ -139,9 +202,15 @@ fun MainAppScreen(
 private fun MainDashboardShell(
     repository: ShiftlyRepository
 ) {
+    val context = LocalContext.current
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    LaunchedEffect(Unit) {
+        repository.processDueRecurringEntries()
+        ShiftlyDailyWorker.scheduleDailyMaintenance(context)
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -284,7 +353,6 @@ fun FloatingPillBottomBar(
                 )
                 .clip(pillShape)
         ) {
-            // Frosted dark charcoal glass backdrop layer (blurred softly without affecting icons)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -295,7 +363,6 @@ fun FloatingPillBottomBar(
                     )
                     .blur(12.dp)
             )
-            // Specular highlight sheen + thin low-opacity light border
             Box(
                 modifier = Modifier
                     .fillMaxSize()

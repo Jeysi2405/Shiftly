@@ -163,13 +163,11 @@ fun DutiesRateSettingsCard(
     defaultHourlyRate: Double,
     currencySymbol: String,
     onSaveRate: (String) -> Unit,
-    onSelectCurrency: (String) -> Unit,
     onShowMessage: (String) -> Unit
 ) {
     val haptics = LocalHapticFeedback.current
     var rateInput by remember { mutableStateOf("") }
     var savedBanner by remember { mutableStateOf(false) }
-    val currencies = listOf("₱", "$", "€", "£", "¥")
 
     LaunchedEffect(defaultHourlyRate) {
         if (rateInput.isEmpty() && defaultHourlyRate > 0.0) {
@@ -205,7 +203,7 @@ fun DutiesRateSettingsCard(
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Rate & Currency",
+                        text = "Default Hourly Rate",
                         style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
                         color = TextLightPrimary
                     )
@@ -222,45 +220,6 @@ fun DutiesRateSettingsCard(
                         color = TextLightSecondary,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
-                }
-            }
-
-            // Currency Selector Pills (48x48dp min tap target)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                currencies.forEach { symbol ->
-                    val selected = currencySymbol == symbol
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp)
-                            .clip(RoundedCornerShape(50))
-                            .background(
-                                if (selected) AzurePrimaryButton else DarkCard
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (selected) AzureAccent else DarkBorder,
-                                shape = RoundedCornerShape(50)
-                            )
-                            .clickable {
-                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                onSelectCurrency(symbol)
-                                onShowMessage("Currency set to $symbol")
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = symbol,
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = ShiftlySans,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = if (selected) PureWhite else TextLightPrimary
-                        )
-                    }
                 }
             }
 
@@ -1217,6 +1176,9 @@ fun ManualShiftBottomSheet(
     selectedDate: LocalDate,
     hourlyRate: Double,
     currencySymbol: String,
+    nightDiffStartHour: Int = 22,
+    nightDiffMultiplier: Double = 1.10,
+    overtimeMultiplier: Double = 1.25,
     onPickDate: () -> Unit,
     onDismiss: () -> Unit,
     onSave: (
@@ -1240,6 +1202,9 @@ fun ManualShiftBottomSheet(
             selectedDate = selectedDate,
             hourlyRate = hourlyRate,
             currencySymbol = currencySymbol,
+            nightDiffStartHour = nightDiffStartHour,
+            nightDiffMultiplier = nightDiffMultiplier,
+            overtimeMultiplier = overtimeMultiplier,
             onPickDate = onPickDate,
             onDismiss = onDismiss,
             onSave = onSave
@@ -1252,6 +1217,9 @@ fun ManualShiftSheetContent(
     selectedDate: LocalDate,
     hourlyRate: Double,
     currencySymbol: String,
+    nightDiffStartHour: Int = 22,
+    nightDiffMultiplier: Double = 1.10,
+    overtimeMultiplier: Double = 1.25,
     onPickDate: () -> Unit,
     onDismiss: () -> Unit,
     onSave: (
@@ -1274,7 +1242,7 @@ fun ManualShiftSheetContent(
     var manualNote by remember { mutableStateOf("Campus Café Shift") }
     var selectedDayType by remember { mutableStateOf(DayType.ORDINARY) }
 
-    // Live Income Preview Calculation (hours × rate = ₱ amount)
+    // Live Income Preview Calculation (hours × rate + ND/OT multipliers)
     val sH = (startHour.toIntOrNull() ?: 14).coerceIn(0, 23)
     val sM = (startMin.toIntOrNull() ?: 0).coerceIn(0, 59)
     val eH = (endHour.toIntOrNull() ?: 18).coerceIn(0, 23)
@@ -1294,7 +1262,10 @@ fun ManualShiftSheetContent(
         startMillis = startMillis,
         endMillis = endMillis,
         hourlyRate = hourlyRate,
-        dayTypeStr = selectedDayType.name
+        dayTypeStr = selectedDayType.name,
+        nightDiffStartHour = nightDiffStartHour,
+        nightDiffMultiplier = nightDiffMultiplier,
+        ordinaryOvertimeMultiplier = overtimeMultiplier
     )
 
     Column(

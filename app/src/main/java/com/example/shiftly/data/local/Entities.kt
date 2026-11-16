@@ -28,7 +28,18 @@ data class ExpenseEntity(
     val category: String,
     val dateEpochDay: Long,
     val receiptImagePath: String? = null,
-    val linkedSplitBillId: Long? = null
+    val linkedSplitBillId: Long? = null,
+    val createdAtMillis: Long = 0L
+)
+
+@Entity(tableName = "extra_incomes")
+data class ExtraIncomeEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val amount: Double,
+    val dateEpochDay: Long,
+    val sourceRuleId: String? = null,
+    val createdAtMillis: Long = 0L
 )
 
 @Entity(tableName = "split_bills")
@@ -59,7 +70,8 @@ data class SplitParticipantEntity(
     val billId: Long,
     val personLabel: String,
     val amountOwed: Double,
-    val hasPaid: Boolean = false
+    val hasPaid: Boolean = false,
+    val isCurrentUser: Boolean = false
 )
 
 data class SplitBillWithParticipants(

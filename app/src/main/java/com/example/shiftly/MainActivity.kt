@@ -2,14 +2,14 @@ package com.example.shiftly
 
 import android.graphics.Color
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.FragmentActivity
 import com.example.shiftly.ui.navigation.MainAppScreen
 import com.example.shiftly.ui.theme.ShiftlyTheme
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
@@ -18,14 +18,7 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             ShiftlyTheme {
-                MainAppScreen(
-                    onLightBackgroundChanged = {
-                        enableEdgeToEdge(
-                            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-                            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
-                        )
-                    }
-                )
+                MainAppScreen()
             }
         }
     }

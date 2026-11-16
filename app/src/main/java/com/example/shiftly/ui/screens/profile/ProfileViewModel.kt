@@ -3,6 +3,7 @@ package com.example.shiftly.ui.screens.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
@@ -41,6 +42,7 @@ class ProfileViewModel(
         repository.totalShiftCount,
         repository.totalMinutesWorked,
         repository.totalLifetimeEarnings,
+        repository.totalExtraIncomeAmount,
         repository.totalExpenseAmount,
         repository.settingsSnapshot
     ) { values ->
@@ -51,9 +53,10 @@ class ProfileViewModel(
         val buffer = values[4] as Double
         val shiftCount = values[5] as Int
         val minutes = (values[6] as Int?) ?: 0
-        val earnings = (values[7] as Double?) ?: 0.0
-        val expenses = (values[8] as Double?) ?: 0.0
-        val settings = values[9] as ShiftlySettingsSnapshot
+        val shiftEarnings = (values[7] as Double?) ?: 0.0
+        val extraIncome = (values[8] as Double?) ?: 0.0
+        val expenses = (values[9] as Double?) ?: 0.0
+        val settings = values[10] as ShiftlySettingsSnapshot
 
         ProfileUiState(
             userName = name,
@@ -63,7 +66,7 @@ class ProfileViewModel(
             savingsBuffer = buffer,
             totalShifts = shiftCount,
             totalHoursWorked = minutes / 60.0,
-            totalEarnings = earnings,
+            totalEarnings = shiftEarnings + extraIncome,
             totalExpenses = expenses,
             settings = settings
         )
@@ -77,8 +80,10 @@ class ProfileViewModel(
         viewModelScope.launch { repository.updateUserName(name) }
     }
 
-    fun updateCurrency(symbol: String) {
-        viewModelScope.launch { repository.updateCurrencySymbol(symbol) }
+    fun changeCurrency(symbol: String, conversionRate: Double?) {
+        viewModelScope.launch {
+            repository.changeCurrency(symbol, conversionRate)
+        }
     }
 
     fun updateNotificationsEnabled(enabled: Boolean) {
@@ -111,12 +116,16 @@ class ProfileViewModel(
         viewModelScope.launch { repository.updateManagedCategories(items) }
     }
 
-    fun updateRecurringEntries(items: List<RecurringEntrySetting>) {
-        viewModelScope.launch { repository.updateRecurringEntries(items) }
+    fun updateRecurringEntries(items: List<RecurringEntrySetting>, onProcessed: (Int) -> Unit = {}) {
+        viewModelScope.launch {
+            repository.updateRecurringEntries(items)
+            val posted = repository.processDueRecurringEntries()
+            onProcessed(posted)
+        }
     }
 
-    fun updateAppLock(enabled: Boolean, method: String, pin: String) {
-        viewModelScope.launch { repository.updateAppLock(enabled, method, pin) }
+    fun updateAppLock(enabled: Boolean, method: String, newPin: String?) {
+        viewModelScope.launch { repository.updateAppLock(enabled, method, newPin) }
     }
 
     fun exportBackup(onReady: (String) -> Unit) {
@@ -126,9 +135,21 @@ class ProfileViewModel(
         }
     }
 
-    fun restoreBackup(rawJson: String, onResult: (Result<String>) -> Unit) {
+    fun exportBackupZip(onReady: (File) -> Unit) {
         viewModelScope.launch {
-            onResult(repository.restoreFromBackupJson(rawJson))
+            onReady(repository.generateBackupZipFile())
+        }
+    }
+
+    fun restoreBackup(rawJson: String, mode: RestoreMode, onResult: (Result<String>) -> Unit) {
+        viewModelScope.launch {
+            onResult(repository.restoreFromBackupJson(rawJson, mode))
+        }
+    }
+
+    fun restoreBackupBytes(bytes: ByteArray, mode: RestoreMode, onResult: (Result<String>) -> Unit) {
+        viewModelScope.launch {
+            onResult(repository.restoreFromBackupBytes(bytes, mode))
         }
     }
 

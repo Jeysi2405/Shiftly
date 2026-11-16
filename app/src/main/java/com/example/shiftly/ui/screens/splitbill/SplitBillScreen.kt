@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.splitbill
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,8 +14,19 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -27,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,9 +54,17 @@ import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
+import com.example.shiftly.ui.theme.CoralBright
 import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCard
 import com.example.shiftly.ui.theme.DarkSurface
+import com.example.shiftly.ui.theme.InkBlack
+import com.example.shiftly.ui.theme.RoseAlert
+import com.example.shiftly.ui.theme.RoseContainer
+import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
+import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.ui.theme.TextLightSecondary
 import java.time.LocalDate
 import kotlinx.coroutines.launch
 
@@ -105,17 +126,97 @@ fun SplitBillScreen(
     )
 
     pendingDeleteBill?.let { billToDelete ->
-        ShiftlyConfirmDeleteDialog(
-            title = "Delete Split Bill?",
-            message = "Remove \"${billToDelete.title}\"?",
-            onDismiss = { pendingDeleteBill = null },
-            onConfirm = {
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                viewModel.deleteSplitBill(billToDelete)
-                pendingDeleteBill = null
-                onShowMessage("Split bill deleted")
-            }
-        )
+        if (billToDelete.isLoggedToExpense) {
+            AlertDialog(
+                onDismissRequest = { pendingDeleteBill = null },
+                containerColor = DarkCard,
+                icon = {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(RoseContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = null,
+                            tint = RoseAlert,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                },
+                title = {
+                    Text(
+                        text = "Delete Split Bill?",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = TextLightPrimary
+                    )
+                },
+                text = {
+                    Text(
+                        text = "\"${billToDelete.title}\" also logged your share to Expenses. Delete both entries or keep the logged expense?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextLightSecondary
+                    )
+                },
+                confirmButton = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.deleteSplitBill(billToDelete, deleteLinkedExpense = true)
+                                pendingDeleteBill = null
+                                onShowMessage("Split bill & linked expense deleted")
+                            },
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = CoralBright,
+                                contentColor = InkBlack
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Delete Both", fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                viewModel.deleteSplitBill(billToDelete, deleteLinkedExpense = false)
+                                pendingDeleteBill = null
+                                onShowMessage("Split bill deleted; expense kept")
+                            },
+                            shape = RoundedCornerShape(50),
+                            border = BorderStroke(1.dp, DarkBorder),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Keep Expense", fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                        }
+                        TextButton(
+                            onClick = { pendingDeleteBill = null },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Cancel", fontFamily = ShiftlySerif, color = TextLightSecondary)
+                        }
+                    }
+                }
+            )
+        } else {
+            ShiftlyConfirmDeleteDialog(
+                title = "Delete Split Bill?",
+                message = "Remove \"${billToDelete.title}\"?",
+                onDismiss = { pendingDeleteBill = null },
+                onConfirm = {
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                    viewModel.deleteSplitBill(billToDelete, deleteLinkedExpense = false)
+                    pendingDeleteBill = null
+                    onShowMessage("Split bill deleted")
+                }
+            )
+        }
     }
 }
 
@@ -217,7 +318,10 @@ fun SplitBillScreenContent(
                     )
 
                     if (state.billsWithParticipants.isEmpty()) {
-                        SplitBillEmptyCard(onTrySampleSplit = onTrySampleSplit)
+                        SplitBillEmptyCard(
+                            currencySymbol = state.currencySymbol,
+                            onTrySampleSplit = onTrySampleSplit
+                        )
                     } else {
                         state.billsWithParticipants.forEach { billWithParticipants ->
                             SplitBillLogItemCard(
@@ -329,18 +433,18 @@ private fun SplitBillListPreview() {
         SplitBillWithParticipants(
             bill = dinnerBill,
             participants = listOf(
-                SplitParticipantEntity(1L, 1L, "You", 300.0, hasPaid = true),
-                SplitParticipantEntity(2L, 1L, "Jules", 300.0, hasPaid = true),
-                SplitParticipantEntity(3L, 1L, "Kian", 300.0, hasPaid = false),
-                SplitParticipantEntity(4L, 1L, "Bea", 300.0, hasPaid = false)
+                SplitParticipantEntity(1L, 1L, "You", 300.0, hasPaid = true, isCurrentUser = true),
+                SplitParticipantEntity(2L, 1L, "Jules", 300.0, hasPaid = true, isCurrentUser = false),
+                SplitParticipantEntity(3L, 1L, "Kian", 300.0, hasPaid = false, isCurrentUser = false),
+                SplitParticipantEntity(4L, 1L, "Bea", 300.0, hasPaid = false, isCurrentUser = false)
             )
         ),
         SplitBillWithParticipants(
             bill = printBill,
             participants = listOf(
-                SplitParticipantEntity(5L, 2L, "You", 150.0, hasPaid = true),
-                SplitParticipantEntity(6L, 2L, "Mika", 150.0, hasPaid = true),
-                SplitParticipantEntity(7L, 2L, "Leo", 150.0, hasPaid = true)
+                SplitParticipantEntity(5L, 2L, "You", 150.0, hasPaid = true, isCurrentUser = true),
+                SplitParticipantEntity(6L, 2L, "Mika", 150.0, hasPaid = true, isCurrentUser = false),
+                SplitParticipantEntity(7L, 2L, "Leo", 150.0, hasPaid = true, isCurrentUser = false)
             )
         )
     )
@@ -349,10 +453,10 @@ private fun SplitBillListPreview() {
         currencySymbol = "₱",
         billsWithParticipants = bills,
         totalBillsCount = bills.size,
-        totalCollectedAmount = 1050.0,
+        totalCollectedAmount = 600.0,
         totalPendingAmount = 600.0,
-        paidParticipantsCount = 5,
-        totalParticipantsCount = 7
+        paidParticipantsCount = 3,
+        totalParticipantsCount = 5
     )
 
     ShiftlyTheme {

@@ -97,7 +97,6 @@ fun DutiesScreen(
     DutiesScreenContent(
         state = state,
         onSaveRate = { viewModel.saveDefaultRate(it) },
-        onSelectCurrency = { viewModel.selectCurrency(it) },
         onPickDutyDate = { showDutyDatePicker = true },
         onTimeIn = { viewModel.startTimer() },
         onRequestCheckOut = { showCheckOutSheet = true },
@@ -237,6 +236,9 @@ fun DutiesScreen(
             selectedDate = state.selectedDutyDate,
             hourlyRate = state.defaultHourlyRate,
             currencySymbol = state.currencySymbol,
+            nightDiffStartHour = state.nightDiffStartHour,
+            nightDiffMultiplier = state.nightDiffMultiplier,
+            overtimeMultiplier = state.overtimeMultiplier,
             onPickDate = { showDutyDatePicker = true },
             onDismiss = { showManualShiftSheet = false },
             onSave = { date, sH, sM, eH, eM, note, dayType ->
@@ -415,7 +417,6 @@ fun DutiesScreen(
 fun DutiesScreenContent(
     state: DutiesUiState,
     onSaveRate: (String) -> Unit,
-    onSelectCurrency: (String) -> Unit,
     onPickDutyDate: () -> Unit,
     onTimeIn: () -> Unit,
     onRequestCheckOut: () -> Unit,
@@ -476,14 +477,13 @@ fun DutiesScreenContent(
             }
         }
 
-        // 2. Rate & Currency Card
+        // 2. Default Hourly Rate Card
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 DutiesRateSettingsCard(
                     defaultHourlyRate = state.defaultHourlyRate,
                     currencySymbol = state.currencySymbol,
                     onSaveRate = onSaveRate,
-                    onSelectCurrency = onSelectCurrency,
                     onShowMessage = onShowMessage
                 )
             }
@@ -608,7 +608,6 @@ private fun DutiesDefaultPreview() {
                 DutiesScreenContent(
                     state = state,
                     onSaveRate = {},
-                    onSelectCurrency = {},
                     onPickDutyDate = {},
                     onTimeIn = {},
                     onRequestCheckOut = {},
@@ -664,7 +663,6 @@ private fun DutiesTimerRunningPreview() {
                 DutiesScreenContent(
                     state = state,
                     onSaveRate = {},
-                    onSelectCurrency = {},
                     onPickDutyDate = {},
                     onTimeIn = {},
                     onRequestCheckOut = {},
@@ -708,7 +706,6 @@ private fun DutiesManualEntrySheetPreview() {
                 DutiesScreenContent(
                     state = state,
                     onSaveRate = {},
-                    onSelectCurrency = {},
                     onPickDutyDate = {},
                     onTimeIn = {},
                     onRequestCheckOut = {},
@@ -839,7 +836,6 @@ private fun DutiesHistoryFilledPreview() {
                 DutiesScreenContent(
                     state = state,
                     onSaveRate = {},
-                    onSelectCurrency = {},
                     onPickDutyDate = {},
                     onTimeIn = {},
                     onRequestCheckOut = {},
@@ -883,7 +879,6 @@ private fun DutiesEmptyHistoryPreview() {
                 DutiesScreenContent(
                     state = state,
                     onSaveRate = {},
-                    onSelectCurrency = {},
                     onPickDutyDate = {},
                     onTimeIn = {},
                     onRequestCheckOut = {},

@@ -7,6 +7,7 @@ import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
+import com.example.shiftly.utils.SplitBillMath
 import java.time.LocalDate
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,19 +33,16 @@ class SplitBillViewModel(
         repository.currencySymbol,
         repository.allSplitBills
     ) { currency, bills ->
-        val allParticipants = bills.flatMap { it.participants }
-        val collected = allParticipants.filter { it.hasPaid }.sumOf { it.amountOwed }
-        val pending = allParticipants.filter { !it.hasPaid }.sumOf { it.amountOwed }
-        val paidCount = allParticipants.count { it.hasPaid }
+        val friendSummary = SplitBillMath.summarizeFriendsOwed(bills)
 
         SplitBillUiState(
             currencySymbol = currency,
             billsWithParticipants = bills,
             totalBillsCount = bills.size,
-            totalCollectedAmount = collected,
-            totalPendingAmount = pending,
-            paidParticipantsCount = paidCount,
-            totalParticipantsCount = allParticipants.size
+            totalCollectedAmount = friendSummary.collectedFriendsAmount,
+            totalPendingAmount = friendSummary.pendingFriendsAmount,
+            paidParticipantsCount = friendSummary.paidFriendsCount,
+            totalParticipantsCount = friendSummary.totalFriendsCount
         )
     }.stateIn(
         scope = viewModelScope,
@@ -62,7 +60,8 @@ class SplitBillViewModel(
         if (totalAmount <= 0.0 || personCount < 2) return
 
         val cleanTitle = rawTitle.trim().ifBlank { "Group Bill" }
-        val perPerson = kotlin.math.round((totalAmount / personCount) * 100.0) / 100.0
+        val shares = SplitBillMath.distributeEqualShares(totalAmount, personCount)
+        val perPerson = shares.firstOrNull() ?: 0.0
         val todayEpoch = LocalDate.now().toEpochDay()
 
         val billEntity = SplitBillEntity(
@@ -77,11 +76,13 @@ class SplitBillViewModel(
         val participants = (0 until personCount).map { index ->
             val fallbackName = if (index == 0) "You" else "Person ${index + 1}"
             val label = participantNames.getOrNull(index)?.trim().orEmpty().ifBlank { fallbackName }
+            val isSelf = index == 0
             SplitParticipantEntity(
                 billId = 0L,
                 personLabel = label,
-                amountOwed = perPerson,
-                hasPaid = false
+                amountOwed = shares.getOrElse(index) { perPerson },
+                hasPaid = isSelf,
+                isCurrentUser = isSelf
             )
         }
 
@@ -109,9 +110,9 @@ class SplitBillViewModel(
         }
     }
 
-    fun deleteSplitBill(bill: SplitBillEntity) {
+    fun deleteSplitBill(bill: SplitBillEntity, deleteLinkedExpense: Boolean = false) {
         viewModelScope.launch {
-            repository.deleteSplitBill(bill)
+            repository.deleteSplitBill(bill, deleteLinkedExpense)
         }
     }
 

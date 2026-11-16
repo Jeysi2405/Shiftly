@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.FolderZip
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Share
@@ -62,16 +64,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.screens.lock.canUseBiometrics
 import com.example.shiftly.ui.theme.AzureAccent
 import com.example.shiftly.ui.theme.AzureInkOnWhite
 import com.example.shiftly.ui.theme.AzurePrimaryButton
@@ -93,6 +99,7 @@ import com.example.shiftly.ui.theme.TextLightMuted
 import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
+import com.example.shiftly.utils.PinSecurity
 
 @Composable
 private fun darkSwitchColors() = SwitchDefaults.colors(
@@ -248,7 +255,7 @@ fun ProfileBackupGlassCard(
                         color = TextLightSecondary
                     )
                     Text(
-                        text = "Offline JSON snapshot, CSV sheet, or PDF statement",
+                        text = "Full ZIP + receipts, JSON snapshot, CSV sheet, or PDF statement",
                         style = MaterialTheme.typography.bodySmall,
                         color = TextLightMuted
                     )
@@ -273,7 +280,7 @@ fun ProfileBackupGlassCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Export Backup",
+                    text = "Export Full Backup (.zip)",
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontFamily = ShiftlySerif,
                         fontWeight = FontWeight.SemiBold
@@ -595,7 +602,7 @@ fun AccountEditSheetContent(
 @Composable
 fun CurrencyPickerSheetContent(
     currentCurrency: String,
-    onSelectCurrency: (String) -> Unit
+    onApplyCurrency: (newSymbol: String, conversionRate: Double?) -> Unit
 ) {
     val options = listOf(
         "₱" to "Philippine Peso (PHP)",
@@ -604,37 +611,149 @@ fun CurrencyPickerSheetContent(
         "£" to "British Pound (GBP)",
         "¥" to "Japanese Yen (JPY)"
     )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        options.forEach { (symbol, label) ->
-            val selected = symbol == currentCurrency
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (selected) AzureSoftContainer else DarkCard,
-                border = BorderStroke(1.dp, if (selected) AzureInkOnWhite else DarkBorder),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 52.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable { onSelectCurrency(symbol) }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+    var pendingTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var rateInput by remember { mutableStateOf("") }
+
+    val target = pendingTarget
+    if (target == null) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { (symbol, label) ->
+                val selected = symbol == currentCurrency
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (selected) AzureSoftContainer else DarkCard,
+                    border = BorderStroke(1.dp, if (selected) AzureInkOnWhite else DarkBorder),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable {
+                            if (!selected) {
+                                pendingTarget = symbol to label
+                                rateInput = ""
+                            }
+                        }
                 ) {
-                    Text(
-                        text = "$symbol  $label",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = if (selected) AzureInkOnWhite else TextLightPrimary
-                    )
-                    if (selected) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "Active",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = AzureInkOnWhite
+                            text = "$symbol  $label",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (selected) AzureInkOnWhite else TextLightPrimary
                         )
+                        if (selected) {
+                            Text(
+                                text = "Active",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = AzureInkOnWhite
+                            )
+                        }
                     }
                 }
+            }
+        }
+    } else {
+        val (targetSymbol, targetLabel) = target
+        val parsedRate = rateInput.toDoubleOrNull()
+        val rateValid = parsedRate != null && parsedRate > 0.0
+
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = AzureSoftContainer,
+                border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.45f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Switch $currentCurrency -> $targetSymbol ($targetLabel)",
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                        color = TextLightPrimary
+                    )
+                    Text(
+                        text = "Choose whether to change only the symbol or convert all saved shifts, expenses, split bills, and budgets by an exchange rate.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextLightSecondary
+                    )
+                }
+            }
+
+            OutlinedButton(
+                onClick = { onApplyCurrency(targetSymbol, null) },
+                shape = RoundedCornerShape(50),
+                border = BorderStroke(1.dp, DarkBorder),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+            ) {
+                Text(
+                    text = "Switch Symbol Only (Keep Numbers)",
+                    fontFamily = ShiftlySerif,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            HorizontalDivider(color = DarkBorder)
+
+            Text(
+                text = "Or Convert All Saved Amounts",
+                style = MaterialTheme.typography.titleSmall,
+                color = TextLightPrimary
+            )
+            OutlinedTextField(
+                value = rateInput,
+                onValueChange = { input ->
+                    val filtered = input.filter { c -> c.isDigit() || c == '.' }
+                    if (filtered.count { it == '.' } <= 1) {
+                        rateInput = filtered
+                    }
+                },
+                label = {
+                    Text(
+                        "Exchange Rate (1 $currentCurrency = ? $targetSymbol)",
+                        fontFamily = ShiftlySerif
+                    )
+                },
+                placeholder = { Text("e.g. 0.018 or 56.0", color = TextLightMuted) },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                shape = RoundedCornerShape(16.dp),
+                colors = darkSheetFieldColors(),
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (rateValid && parsedRate != null) {
+                val sample = 100.0 * parsedRate
+                Text(
+                    text = "Preview: ${currentCurrency}100.00 -> $targetSymbol${"%,.2f".format(sample)}",
+                    style = MaterialTheme.typography.bodySmall.tabular(),
+                    color = MintTextOnBlue
+                )
+            }
+
+            ShiftlyPrimaryPillButton(
+                text = "Convert Amounts by Rate",
+                enabled = rateValid,
+                onClick = {
+                    if (parsedRate != null && parsedRate > 0.0) {
+                        onApplyCurrency(targetSymbol, parsedRate)
+                    }
+                }
+            )
+
+            TextButton(
+                onClick = { pendingTarget = null },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+            ) {
+                Text("Back to Currency List", fontFamily = ShiftlySerif, color = TextLightSecondary)
             }
         }
     }
@@ -718,7 +837,7 @@ fun PayCycleSheetContent(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Shift Check-In Alerts", style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
-                    Text("15 min before scheduled duty", style = MaterialTheme.typography.bodySmall, color = TextLightSecondary)
+                    Text("Daily reminder if no shift logged", style = MaterialTheme.typography.bodySmall, color = TextLightSecondary)
                 }
                 Switch(
                     checked = shiftRem,
@@ -821,12 +940,42 @@ fun BudgetsEditorSheetContent(
     currencySymbol: String,
     currentMonthlyBudget: Double,
     currentCategoryBudgets: List<CategoryBudgetSetting>,
+    managedCategories: List<ManagedCategorySetting> = emptyList(),
     onSave: (Double, List<CategoryBudgetSetting>) -> Unit
 ) {
-    var monthlyInput by remember { mutableStateOf(currentMonthlyBudget.toInt().toString()) }
-    val editedBudgets = remember {
+    var monthlyInput by remember {
+        mutableStateOf(
+            if (currentMonthlyBudget % 1.0 == 0.0) currentMonthlyBudget.toInt().toString()
+            else "%.2f".format(currentMonthlyBudget)
+        )
+    }
+    val editedBudgets = remember(currentCategoryBudgets, managedCategories) {
         mutableStateListOf<Pair<String, String>>().apply {
-            currentCategoryBudgets.forEach { add(it.category to it.monthlyLimit.toInt().toString()) }
+            val seen = mutableSetOf<String>()
+            currentCategoryBudgets.forEach { item ->
+                val key = item.category.trim().lowercase()
+                if (key.isNotEmpty() && seen.add(key)) {
+                    val formatted = if (item.monthlyLimit % 1.0 == 0.0) {
+                        item.monthlyLimit.toInt().toString()
+                    } else {
+                        "%.2f".format(item.monthlyLimit)
+                    }
+                    add(item.category.trim() to formatted)
+                }
+            }
+            managedCategories
+                .filter {
+                    it.isVisible &&
+                        it.name.isNotBlank() &&
+                        !it.name.equals("Split Bill", ignoreCase = true) &&
+                        !it.name.equals("All", ignoreCase = true)
+                }
+                .forEach { cat ->
+                    val key = cat.name.trim().lowercase()
+                    if (seen.add(key)) {
+                        add(cat.name.trim() to "")
+                    }
+                }
         }
     }
 
@@ -849,6 +998,7 @@ fun BudgetsEditorSheetContent(
                 editedBudgets[idx] = cat to updated.filter { c -> c.isDigit() || c == '.' }
             },
             label = { Text("$cat ($currencySymbol)", fontFamily = ShiftlySerif) },
+            placeholder = { Text("Optional monthly cap", color = TextLightMuted) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             shape = RoundedCornerShape(14.dp),
@@ -861,8 +1011,9 @@ fun BudgetsEditorSheetContent(
         text = "Save Budgets",
         onClick = {
             val monthly = monthlyInput.toDoubleOrNull() ?: currentMonthlyBudget
-            val list = editedBudgets.map { (cat, raw) ->
-                CategoryBudgetSetting(cat, raw.toDoubleOrNull() ?: 500.0)
+            val list = editedBudgets.mapNotNull { (cat, raw) ->
+                val limit = raw.toDoubleOrNull()
+                if (limit != null && limit > 0.0) CategoryBudgetSetting(cat, limit) else null
             }
             onSave(monthly, list)
         }
@@ -1004,14 +1155,28 @@ fun ManageCategoriesSheetContent(
 fun RecurringEntriesSheetContent(
     currencySymbol: String,
     currentEntries: List<RecurringEntrySetting>,
+    availableCategories: List<String> = listOf("Food", "Transport", "Bills", "Supplies", "Other"),
     onSave: (List<RecurringEntrySetting>) -> Unit
 ) {
     val entries = remember { mutableStateListOf<RecurringEntrySetting>().apply { addAll(currentEntries) } }
+    val selectableCategories = remember(availableCategories) {
+        availableCategories
+            .filter { !it.equals("Split Bill", ignoreCase = true) && !it.equals("All", ignoreCase = true) }
+            .ifEmpty { listOf("Other") }
+    }
     var newTitle by remember { mutableStateOf("") }
     var newAmount by remember { mutableStateOf("") }
     var isIncome by remember { mutableStateOf(true) }
+    var newCategory by remember(selectableCategories) { mutableStateOf(selectableCategories.first()) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (entries.isEmpty()) {
+            Text(
+                text = "No recurring rules yet. Add weekly allowances or monthly bills below.",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextLightMuted
+            )
+        }
         entries.forEachIndexed { idx, entry ->
             Row(
                 modifier = Modifier
@@ -1024,8 +1189,13 @@ fun RecurringEntriesSheetContent(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(entry.title, style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
+                    val subtitle = if (entry.isIncome) {
+                        "${entry.frequency} • +$currencySymbol${"%,.0f".format(entry.amount)}"
+                    } else {
+                        "${entry.frequency} • ${entry.category} • -$currencySymbol${"%,.0f".format(entry.amount)}"
+                    }
                     Text(
-                        text = "${entry.frequency} • ${if (entry.isIncome) "+" else "-"}$currencySymbol${"%,.0f".format(entry.amount)}",
+                        text = subtitle,
                         style = MaterialTheme.typography.bodySmall.tabular(),
                         color = if (entry.isIncome) MintInkOnWhite else CoralInkOnWhite
                     )
@@ -1090,6 +1260,39 @@ fun RecurringEntriesSheetContent(
         )
     }
 
+    if (!isIncome) {
+        Text("Expense Category", style = MaterialTheme.typography.labelMedium, color = TextLightSecondary)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            selectableCategories.forEach { cat ->
+                val selected = cat.equals(newCategory, ignoreCase = true)
+                Box(
+                    modifier = Modifier
+                        .heightIn(min = 40.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(if (selected) AzurePrimaryButton else DarkCard)
+                        .border(1.dp, if (selected) AzureAccent else DarkBorder, RoundedCornerShape(50))
+                        .clickable { newCategory = cat }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = cat,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = if (selected) PureWhite else TextLightPrimary
+                    )
+                }
+            }
+        }
+    }
+
     OutlinedButton(
         onClick = {
             val amt = newAmount.toDoubleOrNull() ?: 0.0
@@ -1101,7 +1304,8 @@ fun RecurringEntriesSheetContent(
                         amount = amt,
                         frequency = if (isIncome) "Weekly" else "Monthly",
                         isIncome = isIncome,
-                        isEnabled = true
+                        isEnabled = true,
+                        category = if (isIncome) "Income" else newCategory
                     )
                 )
                 newTitle = ""
@@ -1127,12 +1331,16 @@ fun RecurringEntriesSheetContent(
 fun AppLockSheetContent(
     currentEnabled: Boolean,
     currentMethod: String,
-    currentPin: String,
-    onSave: (Boolean, String, String) -> Unit
+    hasSavedPin: Boolean,
+    onSave: (Boolean, String, String?) -> Unit
 ) {
+    val context = LocalContext.current
+    val biometricsAvailable = remember(context) { canUseBiometrics(context) }
+
     var enabled by remember { mutableStateOf(currentEnabled) }
     var method by remember { mutableStateOf(currentMethod) }
-    var pin by remember { mutableStateOf(currentPin) }
+    var newPin by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     Row(
         modifier = Modifier
@@ -1145,11 +1353,18 @@ fun AppLockSheetContent(
     ) {
         Column(modifier = Modifier.weight(1f)) {
             Text("Enable App Lock", style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
-            Text("Require authentication on launch", style = MaterialTheme.typography.bodySmall, color = TextLightSecondary)
+            Text(
+                "Lock balances on launch and when backgrounded",
+                style = MaterialTheme.typography.bodySmall,
+                color = TextLightSecondary
+            )
         }
         Switch(
             checked = enabled,
-            onCheckedChange = { enabled = it },
+            onCheckedChange = {
+                enabled = it
+                errorMessage = null
+            },
             colors = darkSwitchColors()
         )
     }
@@ -1159,19 +1374,39 @@ fun AppLockSheetContent(
             SelectableRulePill(
                 label = option.replace(" Only", ""),
                 selected = method == option,
-                onClick = { method = option },
+                onClick = {
+                    method = option
+                    errorMessage = null
+                },
                 modifier = Modifier.weight(1f)
             )
         }
     }
 
+    if (method != "4-Digit PIN" && !biometricsAvailable) {
+        Text(
+            text = "No fingerprint/biometric enrolled on this device. Device lock or 4-Digit PIN will be used.",
+            style = MaterialTheme.typography.bodySmall,
+            color = CoralTextOnBlue
+        )
+    }
+
     if (method != "Fingerprint Only") {
         OutlinedTextField(
-            value = pin,
-            onValueChange = { pin = it.filter(Char::isDigit).take(4) },
-            label = { Text("4-Digit PIN", fontFamily = ShiftlySerif) },
-            placeholder = { Text("1234", color = TextLightMuted) },
+            value = newPin,
+            onValueChange = {
+                newPin = it.filter(Char::isDigit).take(4)
+                errorMessage = null
+            },
+            label = {
+                Text(
+                    if (hasSavedPin) "New 4-Digit PIN (leave blank to keep current)" else "Set 4-Digit PIN",
+                    fontFamily = ShiftlySerif
+                )
+            },
+            placeholder = { Text(if (hasSavedPin) "••••" else "Enter 4 digits", color = TextLightMuted) },
             singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
             shape = RoundedCornerShape(16.dp),
             colors = darkSheetFieldColors(),
@@ -1179,20 +1414,65 @@ fun AppLockSheetContent(
         )
     }
 
+    if (!errorMessage.isNullOrBlank()) {
+        Text(
+            text = errorMessage.orEmpty(),
+            style = MaterialTheme.typography.bodySmall,
+            color = CoralTextOnBlue
+        )
+    }
+
     ShiftlyPrimaryPillButton(
         text = "Save Security Lock",
-        onClick = { onSave(enabled, method, pin) }
+        onClick = {
+            if (!enabled) {
+                onSave(false, method, if (PinSecurity.isValidPinFormat(newPin)) newPin else null)
+                return@ShiftlyPrimaryPillButton
+            }
+            if (method == "Fingerprint Only") {
+                onSave(true, method, null)
+                return@ShiftlyPrimaryPillButton
+            }
+            when {
+                PinSecurity.isValidPinFormat(newPin) -> {
+                    onSave(true, method, newPin)
+                }
+                newPin.isEmpty() && hasSavedPin -> {
+                    onSave(true, method, null)
+                }
+                else -> {
+                    errorMessage = "Please enter a full 4-digit PIN."
+                }
+            }
+        }
     )
 }
 
 @Composable
 fun BackupAndExportSheetContent(
+    onExportZip: () -> Unit,
     onExportJson: () -> Unit,
     onExportCsv: () -> Unit,
     onExportPdf: () -> Unit,
-    onRestoreJson: (String) -> Unit
+    onPickBackupFile: (RestoreMode) -> Unit,
+    onRestoreJson: (String, RestoreMode) -> Unit
 ) {
     var restoreJsonInput by remember { mutableStateOf("") }
+    var restoreMode by remember { mutableStateOf(RestoreMode.MERGE) }
+
+    OutlinedButton(
+        onClick = onExportZip,
+        shape = RoundedCornerShape(50),
+        border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.5f)),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+    ) {
+        Icon(Icons.Outlined.FolderZip, contentDescription = null, tint = AzureAccent, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("Export Full Backup (.zip + Receipts)", fontFamily = ShiftlySerif)
+    }
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(
@@ -1237,11 +1517,47 @@ fun BackupAndExportSheetContent(
     }
 
     HorizontalDivider(color = DarkBorder)
-    Text("Restore From Backup JSON", style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
+    Text("Restore Mode", style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        SelectableRulePill(
+            label = "Merge (No Dupes)",
+            selected = restoreMode == RestoreMode.MERGE,
+            onClick = { restoreMode = RestoreMode.MERGE },
+            modifier = Modifier.weight(1f)
+        )
+        SelectableRulePill(
+            label = "Replace All",
+            selected = restoreMode == RestoreMode.REPLACE,
+            onClick = { restoreMode = RestoreMode.REPLACE },
+            modifier = Modifier.weight(1f)
+        )
+    }
+    if (restoreMode == RestoreMode.REPLACE) {
+        Text(
+            text = "Replace All erases your current shifts, expenses, split bills, and receipts before restoring.",
+            style = MaterialTheme.typography.bodySmall,
+            color = CoralTextOnBlue
+        )
+    }
+
+    OutlinedButton(
+        onClick = { onPickBackupFile(restoreMode) },
+        shape = RoundedCornerShape(50),
+        border = BorderStroke(1.dp, DarkBorder),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+    ) {
+        Icon(Icons.Outlined.Restore, contentDescription = null, tint = MintTextOnBlue, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("Choose Backup File (.zip or .json)", fontFamily = ShiftlySerif)
+    }
+
     OutlinedTextField(
         value = restoreJsonInput,
         onValueChange = { restoreJsonInput = it },
-        label = { Text("Paste exported JSON backup", fontFamily = ShiftlySerif) },
+        label = { Text("Or paste exported JSON backup", fontFamily = ShiftlySerif) },
         minLines = 3,
         maxLines = 5,
         shape = RoundedCornerShape(16.dp),
@@ -1250,11 +1566,11 @@ fun BackupAndExportSheetContent(
     )
 
     ShiftlyPrimaryPillButton(
-        text = "Restore Data",
+        text = if (restoreMode == RestoreMode.REPLACE) "Replace & Restore JSON" else "Merge & Restore JSON",
         enabled = restoreJsonInput.isNotBlank(),
         leadingIcon = {
             Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp))
         },
-        onClick = { onRestoreJson(restoreJsonInput) }
+        onClick = { onRestoreJson(restoreJsonInput, restoreMode) }
     )
 }

@@ -5,9 +5,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.ExpenseEntity
+import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.repository.ShiftlyRepository
+import com.example.shiftly.utils.SplitBillMath
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -59,6 +61,15 @@ sealed class TimelineActivityItem(
         epochDay: Long,
         timestamp: Long
     ) : TimelineActivityItem(epochDay, timestamp)
+
+    class ExtraIncomeActivity(
+        val id: Long,
+        val title: String,
+        val timeLabel: String,
+        val amount: Double,
+        epochDay: Long,
+        timestamp: Long
+    ) : TimelineActivityItem(epochDay, timestamp)
 }
 
 data class HomeUiState(
@@ -98,6 +109,7 @@ class HomeViewModel(
         repository.savingsBuffer,
         repository.activeTimerState,
         repository.allShifts,
+        repository.allExtraIncomes,
         repository.allExpenses,
         repository.allSplitBills,
         _selectedDate
@@ -111,10 +123,12 @@ class HomeViewModel(
         @Suppress("UNCHECKED_CAST")
         val shifts = values[6] as List<ShiftEntity>
         @Suppress("UNCHECKED_CAST")
-        val expenses = values[7] as List<ExpenseEntity>
+        val extraIncomes = values[7] as List<ExtraIncomeEntity>
         @Suppress("UNCHECKED_CAST")
-        val splitBills = values[8] as List<SplitBillWithParticipants>
-        val selectedDate = values[9] as LocalDate
+        val expenses = values[8] as List<ExpenseEntity>
+        @Suppress("UNCHECKED_CAST")
+        val splitBills = values[9] as List<SplitBillWithParticipants>
+        val selectedDate = values[10] as LocalDate
 
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
@@ -122,31 +136,29 @@ class HomeViewModel(
         val monthStartEpoch = currentMonth.atDay(1).toEpochDay()
         val monthEndEpoch = currentMonth.atEndOfMonth().toEpochDay()
 
-        val totalIncome = shifts.sumOf { it.totalEarned }
+        val totalIncome = shifts.sumOf { it.totalEarned } + extraIncomes.sumOf { it.amount }
         val totalExpenses = expenses.sumOf { it.amount }
         val totalBalance = totalIncome - totalExpenses
 
         val mtdIncome = shifts
             .filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
-            .sumOf { it.totalEarned }
+            .sumOf { it.totalEarned } +
+            extraIncomes
+                .filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
+                .sumOf { it.amount }
         val mtdExpenses = expenses
             .filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
             .sumOf { it.amount }
 
-        val unpaidParticipants = splitBills.flatMap { billWithParts ->
-            billWithParts.participants.filter {
-                !it.hasPaid && !it.personLabel.equals("You", ignoreCase = true)
-            }
-        }
-        val pendingSplitsOwed = unpaidParticipants.sumOf { it.amountOwed }
-        val pendingSplitBillCount = splitBills.count { b ->
-            b.participants.any { !it.hasPaid && !it.personLabel.equals("You", ignoreCase = true) }
-        }
+        val splitSummary = SplitBillMath.summarizeFriendsOwed(splitBills)
+        val pendingSplitsOwed = splitSummary.pendingFriendsAmount
+        val pendingSplitBillCount = splitSummary.pendingBillCount
 
         val safeToSpend = (totalBalance - pendingSplitsOwed - buffer).coerceAtLeast(0.0)
 
         val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
         val shiftsByDay = shifts.groupBy { it.dateEpochDay }
+        val extraByDay = extraIncomes.groupBy { it.dateEpochDay }
         val expensesByDay = expenses.groupBy { it.dateEpochDay }
 
         var weeklyEarnings = 0.0
@@ -157,31 +169,37 @@ class HomeViewModel(
             val date = startOfWeek.plusDays(offset.toLong())
             val epoch = date.toEpochDay()
             val dayShifts = shiftsByDay[epoch].orEmpty()
+            val dayExtra = extraByDay[epoch].orEmpty()
             val dayExpenses = expensesByDay[epoch].orEmpty()
-            weeklyEarnings += dayShifts.sumOf { it.totalEarned }
+            weeklyEarnings += dayShifts.sumOf { it.totalEarned } + dayExtra.sumOf { it.amount }
             weeklyMinutes += dayShifts.sumOf { it.durationMinutes }
             WeekdaySlot(
                 date = date,
                 dayLetter = dayLetters[offset],
                 dayNumber = date.dayOfMonth.toString(),
-                hasShift = dayShifts.isNotEmpty(),
+                hasShift = dayShifts.isNotEmpty() || dayExtra.isNotEmpty(),
                 hasExpense = dayExpenses.isNotEmpty()
             )
         }
 
         val weeklyBars = (0..6).map { offset ->
             val date = startOfWeek.plusDays(offset.toLong())
-            val earned = shiftsByDay[date.toEpochDay()].orEmpty().sumOf { it.totalEarned }
+            val ep = date.toEpochDay()
+            val earned = shiftsByDay[ep].orEmpty().sumOf { it.totalEarned } +
+                extraByDay[ep].orEmpty().sumOf { it.amount }
             WeeklyBarData(dayLabel = dayLetters[offset], earned = earned)
         }
 
         val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
+        val monthDayFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
         val selectedEpoch = selectedDate.toEpochDay()
         val dayShifts = shiftsByDay[selectedEpoch].orEmpty()
+        val dayExtra = extraByDay[selectedEpoch].orEmpty()
         val dayExpenses = expensesByDay[selectedEpoch].orEmpty()
 
-        val showAllRecent = dayShifts.isEmpty() && dayExpenses.isEmpty()
+        val showAllRecent = dayShifts.isEmpty() && dayExtra.isEmpty() && dayExpenses.isEmpty()
         val timelineShifts = if (showAllRecent) shifts.take(5) else dayShifts
+        val timelineExtra = if (showAllRecent) extraIncomes.take(3) else dayExtra
         val timelineExpenses = if (showAllRecent) expenses.take(5) else dayExpenses
 
         val shiftItems = timelineShifts.map { shift ->
@@ -201,9 +219,20 @@ class HomeViewModel(
             )
         }
 
+        val extraItems = timelineExtra.map { inc ->
+            val dateLabel = LocalDate.ofEpochDay(inc.dateEpochDay).format(monthDayFormatter)
+            TimelineActivityItem.ExtraIncomeActivity(
+                id = inc.id,
+                title = inc.title,
+                timeLabel = dateLabel,
+                amount = inc.amount,
+                epochDay = inc.dateEpochDay,
+                timestamp = inc.createdAtMillis.takeIf { it > 0L } ?: (inc.dateEpochDay * 86_400_000L + inc.id)
+            )
+        }
+
         val expenseItems = timelineExpenses.map { exp ->
-            val dateLabel = LocalDate.ofEpochDay(exp.dateEpochDay)
-                .format(DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()))
+            val dateLabel = LocalDate.ofEpochDay(exp.dateEpochDay).format(monthDayFormatter)
             TimelineActivityItem.ExpenseActivity(
                 id = exp.id,
                 title = exp.title,
@@ -211,11 +240,11 @@ class HomeViewModel(
                 timeLabel = dateLabel,
                 amount = exp.amount,
                 epochDay = exp.dateEpochDay,
-                timestamp = exp.dateEpochDay * 86_400_000L + exp.id
+                timestamp = exp.createdAtMillis.takeIf { it > 0L } ?: (exp.dateEpochDay * 86_400_000L + exp.id)
             )
         }
 
-        val combinedTimeline = (shiftItems + expenseItems)
+        val combinedTimeline = (shiftItems + extraItems + expenseItems)
             .sortedWith(compareByDescending<TimelineActivityItem> { it.sortEpochDay }.thenByDescending { it.sortTimestamp })
 
         HomeUiState(

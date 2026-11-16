@@ -1,0 +1,429 @@
+package com.example.shiftly.data.backup
+
+import com.example.shiftly.data.local.CategoryBudgetSetting
+import com.example.shiftly.data.local.ExpenseEntity
+import com.example.shiftly.data.local.ExtraIncomeEntity
+import com.example.shiftly.data.local.ManagedCategorySetting
+import com.example.shiftly.data.local.PreferenceJsonCodec
+import com.example.shiftly.data.local.RecurringEntrySetting
+import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.data.local.ShiftlySettingsSnapshot
+import com.example.shiftly.data.local.SplitBillEntity
+import com.example.shiftly.data.local.SplitParticipantEntity
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
+import kotlin.math.roundToLong
+import org.json.JSONArray
+import org.json.JSONObject
+
+enum class RestoreMode {
+    MERGE,
+    REPLACE
+}
+
+data class BackupSplitBill(
+    val originalId: Long,
+    val bill: SplitBillEntity,
+    val participants: List<SplitParticipantEntity>
+)
+
+data class BackupExpenseRecord(
+    val expense: ExpenseEntity,
+    val receiptFileName: String? = null
+)
+
+data class BackupPayload(
+    val version: Int = CURRENT_VERSION,
+    val exportedAtMillis: Long = System.currentTimeMillis(),
+    val userName: String? = null,
+    val currencySymbol: String? = null,
+    val defaultHourlyRate: Double? = null,
+    val monthlyBudget: Double? = null,
+    val savingsBuffer: Double? = null,
+    val settings: ShiftlySettingsSnapshot? = null,
+    val shifts: List<ShiftEntity> = emptyList(),
+    val expenses: List<BackupExpenseRecord> = emptyList(),
+    val extraIncomes: List<ExtraIncomeEntity> = emptyList(),
+    val splitBills: List<BackupSplitBill> = emptyList(),
+    val receiptFiles: Map<String, ByteArray> = emptyMap()
+) {
+    companion object {
+        const val CURRENT_VERSION = 4
+    }
+}
+
+/**
+ * Pure Kotlin/JVM codec for Shiftly JSON and ZIP backups (including Split Bills,
+ * participant payment states, extra incomes, settings, and receipt images).
+ */
+object BackupCodec {
+    private const val BACKUP_JSON_ENTRY = "shiftly_backup.json"
+    private const val RECEIPTS_DIR_PREFIX = "receipts/"
+
+    fun encodeJson(payload: BackupPayload): String {
+        val root = JSONObject().apply {
+            put("app", "Shiftly")
+            put("version", BackupPayload.CURRENT_VERSION)
+            put("exportedAtMillis", payload.exportedAtMillis)
+            if (!payload.userName.isNullOrBlank()) put("userName", payload.userName)
+            if (!payload.currencySymbol.isNullOrBlank()) put("currencySymbol", payload.currencySymbol)
+            if (payload.defaultHourlyRate != null) put("defaultHourlyRate", payload.defaultHourlyRate)
+            if (payload.monthlyBudget != null) put("monthlyBudget", payload.monthlyBudget)
+            if (payload.savingsBuffer != null) put("savingsBuffer", payload.savingsBuffer)
+
+            payload.settings?.let { s ->
+                put(
+                    "settings",
+                    JSONObject().apply {
+                        put("payCycleSchedule", s.payCycleSchedule)
+                        put("paydayReminderEnabled", s.paydayReminderEnabled)
+                        put("shiftReminderEnabled", s.shiftReminderEnabled)
+                        put("notificationsEnabled", s.notificationsEnabled)
+                        put("nightDiffStartHour", s.nightDiffStartHour)
+                        put("nightDiffMultiplier", s.nightDiffMultiplier)
+                        put("overtimeMultiplier", s.overtimeMultiplier)
+                        put("savingsGoalTitle", s.savingsGoalTitle)
+                        put("savingsGoalTarget", s.savingsGoalTarget)
+                        put("categoryBudgets", JSONArray(PreferenceJsonCodec.encodeCategoryBudgets(s.categoryBudgets)))
+                        put("managedCategories", JSONArray(PreferenceJsonCodec.encodeManagedCategories(s.managedCategories)))
+                        put("recurringEntries", JSONArray(PreferenceJsonCodec.encodeRecurringEntries(s.recurringEntries)))
+                    }
+                )
+            }
+
+            put(
+                "shifts",
+                JSONArray().apply {
+                    payload.shifts.forEach { s ->
+                        put(
+                            JSONObject().apply {
+                                put("dateEpochDay", s.dateEpochDay)
+                                put("timeInMillis", s.timeInMillis)
+                                put("timeOutMillis", s.timeOutMillis)
+                                put("durationMinutes", s.durationMinutes)
+                                put("lockedHourlyRate", s.lockedHourlyRate)
+                                put("totalEarned", s.totalEarned)
+                                put("overtimeNote", s.overtimeNote)
+                                put("dayType", s.dayType)
+                            }
+                        )
+                    }
+                }
+            )
+
+            put(
+                "expenses",
+                JSONArray().apply {
+                    payload.expenses.forEach { record ->
+                        val e = record.expense
+                        put(
+                            JSONObject().apply {
+                                put("title", e.title)
+                                put("amount", e.amount)
+                                put("category", e.category)
+                                put("dateEpochDay", e.dateEpochDay)
+                                put("createdAtMillis", e.createdAtMillis)
+                                if (e.linkedSplitBillId != null) {
+                                    put("linkedSplitBillId", e.linkedSplitBillId)
+                                }
+                                val receiptName = record.receiptFileName
+                                    ?: e.receiptImagePath?.let { File(it).name }
+                                if (!receiptName.isNullOrBlank()) {
+                                    put("receiptFileName", receiptName)
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+
+            put(
+                "extraIncomes",
+                JSONArray().apply {
+                    payload.extraIncomes.forEach { inc ->
+                        put(
+                            JSONObject().apply {
+                                put("title", inc.title)
+                                put("amount", inc.amount)
+                                put("dateEpochDay", inc.dateEpochDay)
+                                if (!inc.sourceRuleId.isNullOrBlank()) {
+                                    put("sourceRuleId", inc.sourceRuleId)
+                                }
+                                put("createdAtMillis", inc.createdAtMillis)
+                            }
+                        )
+                    }
+                }
+            )
+
+            put(
+                "splitBills",
+                JSONArray().apply {
+                    payload.splitBills.forEach { entry ->
+                        val b = entry.bill
+                        put(
+                            JSONObject().apply {
+                                put("id", entry.originalId)
+                                put("title", b.title)
+                                put("totalAmount", b.totalAmount)
+                                put("personCount", b.personCount)
+                                put("perPersonAmount", b.perPersonAmount)
+                                put("dateEpochDay", b.dateEpochDay)
+                                put("isLoggedToExpense", b.isLoggedToExpense)
+                                put(
+                                    "participants",
+                                    JSONArray().apply {
+                                        entry.participants.forEach { p ->
+                                            put(
+                                                JSONObject().apply {
+                                                    put("personLabel", p.personLabel)
+                                                    put("amountOwed", p.amountOwed)
+                                                    put("hasPaid", p.hasPaid)
+                                                    put("isCurrentUser", p.isCurrentUser)
+                                                }
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+            )
+        }
+        return root.toString(2)
+    }
+
+    fun decodeJson(rawJson: String): BackupPayload {
+        val root = JSONObject(rawJson.trim())
+        val appMarker = root.optString("app", "")
+        if (appMarker.isNotBlank() && !appMarker.equals("Shiftly", ignoreCase = true)) {
+            throw IllegalArgumentException("File is not a Shiftly backup.")
+        }
+
+        val version = root.optInt("version", 2)
+        val exportedAt = root.optLong("exportedAtMillis", System.currentTimeMillis())
+        val userName = root.optString("userName", "").trim().takeIf { it.isNotEmpty() }
+        val currency = root.optString("currencySymbol", "").trim().takeIf { it.isNotEmpty() }
+        val rate = root.optDouble("defaultHourlyRate", Double.NaN).takeIf { !it.isNaN() && it > 0.0 }
+        val monthlyBudget = root.optDouble("monthlyBudget", Double.NaN).takeIf { !it.isNaN() && it >= 0.0 }
+        val savingsBuffer = root.optDouble("savingsBuffer", Double.NaN).takeIf { !it.isNaN() && it >= 0.0 }
+
+        val settingsObj = root.optJSONObject("settings")
+        val settings = settingsObj?.let { s ->
+            ShiftlySettingsSnapshot(
+                payCycleSchedule = s.optString("payCycleSchedule", "15th & 30th"),
+                paydayReminderEnabled = s.optBoolean("paydayReminderEnabled", true),
+                shiftReminderEnabled = s.optBoolean("shiftReminderEnabled", true),
+                notificationsEnabled = s.optBoolean("notificationsEnabled", true),
+                nightDiffStartHour = s.optInt("nightDiffStartHour", 22).coerceIn(18, 23),
+                nightDiffMultiplier = s.optDouble("nightDiffMultiplier", 1.10).coerceIn(1.0, 2.0),
+                overtimeMultiplier = s.optDouble("overtimeMultiplier", 1.25).coerceIn(1.0, 3.0),
+                savingsGoalTitle = s.optString("savingsGoalTitle", "Tuition & Laptop Fund")
+                    .ifBlank { "Tuition & Laptop Fund" },
+                savingsGoalTarget = s.optDouble("savingsGoalTarget", 5000.0).coerceAtLeast(100.0),
+                categoryBudgets = parseCategoryBudgetArray(s.optJSONArray("categoryBudgets")),
+                managedCategories = parseManagedCategoryArray(s.optJSONArray("managedCategories")),
+                recurringEntries = parseRecurringEntryArray(s.optJSONArray("recurringEntries"))
+            )
+        }
+
+        val shiftsArray = root.optJSONArray("shifts") ?: JSONArray()
+        val shifts = buildList {
+            for (i in 0 until shiftsArray.length()) {
+                val obj = shiftsArray.optJSONObject(i) ?: continue
+                add(
+                    ShiftEntity(
+                        dateEpochDay = obj.getLong("dateEpochDay"),
+                        timeInMillis = obj.getLong("timeInMillis"),
+                        timeOutMillis = obj.getLong("timeOutMillis"),
+                        durationMinutes = obj.getInt("durationMinutes"),
+                        lockedHourlyRate = obj.getDouble("lockedHourlyRate"),
+                        totalEarned = obj.getDouble("totalEarned"),
+                        overtimeNote = obj.optString("overtimeNote", ""),
+                        dayType = obj.optString("dayType", "ORDINARY")
+                    )
+                )
+            }
+        }
+
+        val expensesArray = root.optJSONArray("expenses") ?: JSONArray()
+        val expenses = buildList {
+            for (i in 0 until expensesArray.length()) {
+                val obj = expensesArray.optJSONObject(i) ?: continue
+                val linkedId = if (obj.has("linkedSplitBillId") && !obj.isNull("linkedSplitBillId")) {
+                    obj.getLong("linkedSplitBillId")
+                } else {
+                    null
+                }
+                val receiptFileName = obj.optString("receiptFileName", "")
+                    .trim()
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { File(it).name }
+                add(
+                    BackupExpenseRecord(
+                        expense = ExpenseEntity(
+                            title = obj.getString("title"),
+                            amount = obj.getDouble("amount"),
+                            category = obj.optString("category", "Other"),
+                            dateEpochDay = obj.getLong("dateEpochDay"),
+                            linkedSplitBillId = linkedId,
+                            createdAtMillis = obj.optLong("createdAtMillis", 0L)
+                        ),
+                        receiptFileName = receiptFileName
+                    )
+                )
+            }
+        }
+
+        val extraIncomesArray = root.optJSONArray("extraIncomes") ?: JSONArray()
+        val extraIncomes = buildList {
+            for (i in 0 until extraIncomesArray.length()) {
+                val obj = extraIncomesArray.optJSONObject(i) ?: continue
+                add(
+                    ExtraIncomeEntity(
+                        title = obj.getString("title"),
+                        amount = obj.getDouble("amount"),
+                        dateEpochDay = obj.getLong("dateEpochDay"),
+                        sourceRuleId = obj.optString("sourceRuleId", "").takeIf { it.isNotBlank() },
+                        createdAtMillis = obj.optLong("createdAtMillis", 0L)
+                    )
+                )
+            }
+        }
+
+        val billsArray = root.optJSONArray("splitBills") ?: JSONArray()
+        val splitBills = buildList {
+            for (i in 0 until billsArray.length()) {
+                val obj = billsArray.optJSONObject(i) ?: continue
+                val origId = obj.optLong("id", (i + 1).toLong())
+                val bill = SplitBillEntity(
+                    title = obj.getString("title"),
+                    totalAmount = obj.getDouble("totalAmount"),
+                    personCount = obj.getInt("personCount"),
+                    perPersonAmount = obj.getDouble("perPersonAmount"),
+                    dateEpochDay = obj.getLong("dateEpochDay"),
+                    isLoggedToExpense = obj.optBoolean("isLoggedToExpense", false)
+                )
+                val pArray = obj.optJSONArray("participants") ?: JSONArray()
+                val participants = buildList {
+                    for (j in 0 until pArray.length()) {
+                        val pObj = pArray.optJSONObject(j) ?: continue
+                        val label = pObj.getString("personLabel")
+                        val isSelf = if (pObj.has("isCurrentUser")) {
+                            pObj.optBoolean("isCurrentUser", false)
+                        } else {
+                            label.trim().equals("You", ignoreCase = true)
+                        }
+                        add(
+                            SplitParticipantEntity(
+                                billId = 0L,
+                                personLabel = label,
+                                amountOwed = pObj.getDouble("amountOwed"),
+                                hasPaid = pObj.optBoolean("hasPaid", false),
+                                isCurrentUser = isSelf
+                            )
+                        )
+                    }
+                }
+                add(BackupSplitBill(originalId = origId, bill = bill, participants = participants))
+            }
+        }
+
+        return BackupPayload(
+            version = version,
+            exportedAtMillis = exportedAt,
+            userName = userName,
+            currencySymbol = currency,
+            defaultHourlyRate = rate,
+            monthlyBudget = monthlyBudget,
+            savingsBuffer = savingsBuffer,
+            settings = settings,
+            shifts = shifts,
+            expenses = expenses,
+            extraIncomes = extraIncomes,
+            splitBills = splitBills
+        )
+    }
+
+    fun encodeZipBytes(payload: BackupPayload): ByteArray {
+        val baos = ByteArrayOutputStream()
+        ZipOutputStream(baos).use { zos ->
+            val jsonBytes = encodeJson(payload).toByteArray(Charsets.UTF_8)
+            zos.putNextEntry(ZipEntry(BACKUP_JSON_ENTRY))
+            zos.write(jsonBytes)
+            zos.closeEntry()
+
+            payload.receiptFiles.forEach { (rawName, bytes) ->
+                val safeName = File(rawName).name
+                if (safeName.isNotBlank() && bytes.isNotEmpty()) {
+                    zos.putNextEntry(ZipEntry("$RECEIPTS_DIR_PREFIX$safeName"))
+                    zos.write(bytes)
+                    zos.closeEntry()
+                }
+            }
+        }
+        return baos.toByteArray()
+    }
+
+    fun decodeZipOrJsonBytes(rawBytes: ByteArray): BackupPayload {
+        if (rawBytes.size >= 2 && rawBytes[0] == 0x50.toByte() && rawBytes[1] == 0x4B.toByte()) {
+            var jsonContent: String? = null
+            val receipts = mutableMapOf<String, ByteArray>()
+            ZipInputStream(ByteArrayInputStream(rawBytes)).use { zis ->
+                var entry = zis.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory) {
+                        val name = entry.name
+                        if (name == BACKUP_JSON_ENTRY) {
+                            jsonContent = zis.readBytes().toString(Charsets.UTF_8)
+                        } else if (name.startsWith(RECEIPTS_DIR_PREFIX)) {
+                            val safeName = File(name).name
+                            if (safeName.isNotBlank()) {
+                                receipts[safeName] = zis.readBytes()
+                            }
+                        }
+                    }
+                    zis.closeEntry()
+                    entry = zis.nextEntry
+                }
+            }
+            val parsedJson = jsonContent
+                ?: throw IllegalArgumentException("Backup ZIP is missing $BACKUP_JSON_ENTRY.")
+            return decodeJson(parsedJson).copy(receiptFiles = receipts)
+        }
+        val text = rawBytes.toString(Charsets.UTF_8)
+        return decodeJson(text)
+    }
+
+    fun shiftSignature(s: ShiftEntity): String =
+        "${s.dateEpochDay}|${s.timeInMillis}|${s.timeOutMillis}"
+
+    fun expenseSignature(e: ExpenseEntity): String =
+        "${e.dateEpochDay}|${e.title.trim().lowercase()}|${(e.amount * 100.0).roundToLong()}|${e.category.trim().lowercase()}"
+
+    fun extraIncomeSignature(e: ExtraIncomeEntity): String =
+        "${e.dateEpochDay}|${e.title.trim().lowercase()}|${(e.amount * 100.0).roundToLong()}|${e.sourceRuleId.orEmpty()}"
+
+    fun splitBillSignature(b: SplitBillEntity): String =
+        "${b.dateEpochDay}|${b.title.trim().lowercase()}|${(b.totalAmount * 100.0).roundToLong()}|${b.personCount}"
+
+    private fun parseCategoryBudgetArray(array: JSONArray?): List<CategoryBudgetSetting> {
+        if (array == null) return ShiftlySettingsSnapshot.DEFAULT_CATEGORY_BUDGETS
+        return PreferenceJsonCodec.decodeCategoryBudgets(array.toString())
+    }
+
+    private fun parseManagedCategoryArray(array: JSONArray?): List<ManagedCategorySetting> {
+        if (array == null) return ShiftlySettingsSnapshot.DEFAULT_MANAGED_CATEGORIES
+        return PreferenceJsonCodec.decodeManagedCategories(array.toString())
+    }
+
+    private fun parseRecurringEntryArray(array: JSONArray?): List<RecurringEntrySetting> {
+        if (array == null) return emptyList()
+        return PreferenceJsonCodec.decodeRecurringEntries(array.toString())
+    }
+}

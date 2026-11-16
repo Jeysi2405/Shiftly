@@ -18,12 +18,15 @@ import kotlinx.coroutines.launch
 data class CategorySpendSummary(
     val category: String,
     val totalAmount: Double,
-    val fraction: Float
+    val fraction: Float,
+    val monthlyLimit: Double? = null
 )
 
 data class ExpenseUiState(
     val currencySymbol: String = "₱",
     val selectedCategory: String = "All",
+    val availableCategories: List<String> = ExpenseViewModel.EXPENSE_CATEGORIES,
+    val filterCategories: List<String> = ExpenseViewModel.FILTER_CATEGORIES,
     val monthlyTotal: Double = 0.0,
     val allTimeTotal: Double = 0.0,
     val categoryBreakdown: List<CategorySpendSummary> = emptyList(),
@@ -52,17 +55,38 @@ class ExpenseViewModel(
     val uiState: StateFlow<ExpenseUiState> = combine(
         repository.currencySymbol,
         repository.allExpenses,
+        repository.settingsSnapshot,
         _selectedCategory
-    ) { currency, allExpenses, selectedCategory ->
+    ) { currency, allExpenses, settings, selectedCategory ->
         val currentMonth = YearMonth.now()
         val monthStartEpoch = currentMonth.atDay(1).toEpochDay()
         val monthEndEpoch = currentMonth.atEndOfMonth().toEpochDay()
+
+        val visibleCategories = settings.managedCategories
+            .filter { it.isVisible && it.name.isNotBlank() }
+            .map { it.name.trim() }
+            .distinctBy { it.lowercase() }
+            .ifEmpty { EXPENSE_CATEGORIES }
+
+        val filterCategories = listOf("All") + visibleCategories
+        val effectiveSelectedCategory = if (
+            selectedCategory == "All" ||
+            visibleCategories.any { it.equals(selectedCategory, ignoreCase = true) }
+        ) {
+            selectedCategory
+        } else {
+            "All"
+        }
 
         val monthlyExpenses = allExpenses.filter {
             it.dateEpochDay in monthStartEpoch..monthEndEpoch
         }
         val monthlyTotal = monthlyExpenses.sumOf { it.amount }
         val allTimeTotal = allExpenses.sumOf { it.amount }
+
+        val budgetByCategory = settings.categoryBudgets.associate {
+            it.category.trim().lowercase() to it.monthlyLimit
+        }
 
         // Group spending by category for the visual summary card
         val breakdownBase = if (monthlyTotal > 0.0) monthlyExpenses else allExpenses
@@ -72,25 +96,29 @@ class ExpenseViewModel(
             .groupBy { it.category }
             .map { (category, items) ->
                 val sum = items.sumOf { it.amount }
+                val limit = budgetByCategory[category.trim().lowercase()]?.takeIf { it > 0.0 }
                 CategorySpendSummary(
                     category = category,
                     totalAmount = sum,
-                    fraction = (sum / breakdownDenominator).toFloat().coerceIn(0f, 1f)
+                    fraction = (sum / breakdownDenominator).toFloat().coerceIn(0f, 1f),
+                    monthlyLimit = limit
                 )
             }
             .sortedByDescending { it.totalAmount }
 
-        val filtered = if (selectedCategory == "All") {
+        val filtered = if (effectiveSelectedCategory == "All") {
             allExpenses
         } else {
-            allExpenses.filter { it.category.equals(selectedCategory, ignoreCase = true) }
+            allExpenses.filter { it.category.equals(effectiveSelectedCategory, ignoreCase = true) }
         }
 
         val receiptCount = allExpenses.count { !it.receiptImagePath.isNullOrBlank() }
 
         ExpenseUiState(
             currencySymbol = currency,
-            selectedCategory = selectedCategory,
+            selectedCategory = effectiveSelectedCategory,
+            availableCategories = visibleCategories,
+            filterCategories = filterCategories,
             monthlyTotal = monthlyTotal,
             allTimeTotal = allTimeTotal,
             categoryBreakdown = categoryBreakdown,
@@ -122,7 +150,8 @@ class ExpenseViewModel(
                     amount = amount,
                     category = category,
                     dateEpochDay = date.toEpochDay(),
-                    receiptImagePath = receiptImagePath
+                    receiptImagePath = receiptImagePath,
+                    createdAtMillis = System.currentTimeMillis()
                 )
             )
         }

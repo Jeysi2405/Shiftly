@@ -60,7 +60,6 @@ import com.example.shiftly.ui.theme.CoralSoftContainer
 import com.example.shiftly.ui.theme.CoralTextOnBlue
 import com.example.shiftly.ui.theme.DarkBorder
 import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintBright
 import com.example.shiftly.ui.theme.MintInkOnWhite
 import com.example.shiftly.ui.theme.MintSoftContainer
@@ -383,7 +382,7 @@ fun CircularWeekdaySelector(
                     .width(48.dp)
                     .heightIn(min = 66.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(if (selected) AzurePrimaryButton else DarkSurface)
+                    .background(if (selected) AzurePrimaryButton else DarkCard)
                     .border(
                         width = 1.dp,
                         color = if (selected) AzureAccent else DarkBorder,
@@ -654,7 +653,12 @@ fun HomeTimelineRow(
     item: TimelineActivityItem,
     currencySymbol: String
 ) {
-    val isShift = item is TimelineActivityItem.ShiftActivity
+    val isIncome = item is TimelineActivityItem.ShiftActivity || item is TimelineActivityItem.ExtraIncomeActivity
+    val iconVector = when (item) {
+        is TimelineActivityItem.ShiftActivity -> Icons.Outlined.Schedule
+        is TimelineActivityItem.ExtraIncomeActivity -> Icons.AutoMirrored.Outlined.TrendingUp
+        is TimelineActivityItem.ExpenseActivity -> Icons.AutoMirrored.Outlined.ReceiptLong
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -666,13 +670,13 @@ fun HomeTimelineRow(
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(if (isShift) MintSoftContainer else CoralSoftContainer),
+                .background(if (isIncome) MintSoftContainer else CoralSoftContainer),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = if (isShift) Icons.Outlined.Schedule else Icons.AutoMirrored.Outlined.ReceiptLong,
+                imageVector = iconVector,
                 contentDescription = null,
-                tint = if (isShift) MintInkOnWhite else CoralInkOnWhite,
+                tint = if (isIncome) MintInkOnWhite else CoralInkOnWhite,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -690,6 +694,21 @@ fun HomeTimelineRow(
                     Text(
                         text = "${item.timeRange} • ${item.durationLabel}",
                         style = MaterialTheme.typography.bodySmall.tabular(),
+                        color = TextLightSecondary
+                    )
+                }
+
+                is TimelineActivityItem.ExtraIncomeActivity -> {
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = TextLightPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "Recurring • ${item.timeLabel}",
+                        style = MaterialTheme.typography.bodySmall,
                         color = TextLightSecondary
                     )
                 }
@@ -713,6 +732,17 @@ fun HomeTimelineRow(
 
         when (item) {
             is TimelineActivityItem.ShiftActivity -> {
+                Text(
+                    text = "+$currencySymbol${"%,.2f".format(item.amount)}",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontFamily = ShiftlySans,
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = MintInkOnWhite
+                )
+            }
+
+            is TimelineActivityItem.ExtraIncomeActivity -> {
                 Text(
                     text = "+$currencySymbol${"%,.2f".format(item.amount)}",
                     style = MaterialTheme.typography.titleSmall.copy(

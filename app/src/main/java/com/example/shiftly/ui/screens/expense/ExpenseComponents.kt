@@ -104,6 +104,7 @@ import com.example.shiftly.ui.theme.DarkDisabledContainer
 import com.example.shiftly.ui.theme.DarkDisabledContent
 import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintBright
+import com.example.shiftly.ui.theme.MintTextOnBlue
 import com.example.shiftly.ui.theme.OrbSkyLight
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlySans
@@ -247,6 +248,57 @@ fun ExpenseSummaryCard(
                                 style = MaterialTheme.typography.labelSmall.tabular(),
                                 color = TextLightSecondary
                             )
+                        }
+                    }
+                }
+
+                val budgetedCategories = categoryBreakdown.filter { (it.monthlyLimit ?: 0.0) > 0.0 }
+                if (budgetedCategories.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        budgetedCategories.forEach { item ->
+                            val limit = item.monthlyLimit ?: return@forEach
+                            val usedFraction = (item.totalAmount / limit).toFloat().coerceIn(0f, 1f)
+                            val isNearOrOver = item.totalAmount >= limit * 0.85
+                            val isOver = item.totalAmount > limit
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = item.category,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                                        color = TextLightPrimary
+                                    )
+                                    Text(
+                                        text = if (isOver) {
+                                            "$currencySymbol${"%,.0f".format(item.totalAmount)} / $currencySymbol${"%,.0f".format(limit)} (Over)"
+                                        } else {
+                                            "$currencySymbol${"%,.0f".format(item.totalAmount)} / $currencySymbol${"%,.0f".format(limit)}"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall.tabular(),
+                                        color = if (isNearOrOver) CoralTextOnBlue else MintTextOnBlue
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(DarkBorder)
+                                ) {
+                                    if (usedFraction > 0f) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth(usedFraction)
+                                                .fillMaxHeight()
+                                                .clip(RoundedCornerShape(50))
+                                                .background(if (isNearOrOver) CoralBright else MintBright)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -495,6 +547,7 @@ fun ExpenseItemCard(
 @Composable
 fun AddExpenseBottomSheet(
     currencySymbol: String,
+    availableCategories: List<String> = ExpenseViewModel.EXPENSE_CATEGORIES,
     onDismiss: () -> Unit,
     onSaveExpense: (title: String, amount: Double, category: String, date: LocalDate, receiptPath: String?) -> Unit
 ) {
@@ -521,7 +574,8 @@ fun AddExpenseBottomSheet(
             onSaveExpense = { title, amount, category, date, path ->
                 onSaveExpense(title, amount, category, date, path)
                 onDismiss()
-            }
+            },
+            availableCategories = availableCategories
         )
     }
 }
@@ -534,6 +588,7 @@ fun AddExpenseSheetContent(
     onReceiptChanged: (String?) -> Unit,
     onDismiss: () -> Unit,
     onSaveExpense: (title: String, amount: Double, category: String, date: LocalDate, receiptPath: String?) -> Unit,
+    availableCategories: List<String> = ExpenseViewModel.EXPENSE_CATEGORIES,
     initialAmount: String = "",
     initialTitle: String = "",
     initialCategory: String = "Food",
@@ -542,10 +597,19 @@ fun AddExpenseSheetContent(
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE, MMM d", locale) }
+    val categoryOptions = remember(availableCategories) {
+        availableCategories.ifEmpty { ExpenseViewModel.EXPENSE_CATEGORIES }
+    }
 
     var title by remember { mutableStateOf(initialTitle) }
     var amountText by remember { mutableStateOf(initialAmount) }
-    var selectedCategory by remember { mutableStateOf(initialCategory) }
+    var selectedCategory by remember(categoryOptions) {
+        mutableStateOf(
+            categoryOptions.firstOrNull { it.equals(initialCategory, ignoreCase = true) }
+                ?: categoryOptions.firstOrNull()
+                ?: "Other"
+        )
+    }
     var selectedDate by remember { mutableStateOf(initialDate) }
     var showDatePicker by remember { mutableStateOf(false) }
     var pendingCameraFile by remember { mutableStateOf<File?>(null) }
@@ -672,7 +736,7 @@ fun AddExpenseSheetContent(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ExpenseViewModel.EXPENSE_CATEGORIES.forEach { category ->
+                categoryOptions.forEach { category ->
                     val selected = selectedCategory == category
                     Box(
                         modifier = Modifier

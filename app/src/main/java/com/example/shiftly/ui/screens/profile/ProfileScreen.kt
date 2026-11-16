@@ -1,7 +1,12 @@
 package com.example.shiftly.ui.screens.profile
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,9 +49,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
@@ -56,6 +63,9 @@ import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
+import com.example.shiftly.ui.screens.expense.ExpenseViewModel
+import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
+import com.example.shiftly.ui.screens.lock.canUseBiometrics
 import com.example.shiftly.ui.theme.AzureInkOnWhite
 import com.example.shiftly.ui.theme.AzureSoftContainer
 import com.example.shiftly.ui.theme.CoralInkOnWhite
@@ -66,6 +76,7 @@ import com.example.shiftly.ui.theme.MintInkOnWhite
 import com.example.shiftly.ui.theme.MintSoftContainer
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.TextLightPrimary
+import com.example.shiftly.workers.ShiftlyDailyWorker
 import java.io.File
 
 private enum class ActiveSettingsSheet {
@@ -89,21 +100,89 @@ fun ProfileScreen(
     val viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val suppressNextRelock = LocalSuppressNextRelock.current
     var activeSheet by remember { mutableStateOf<ActiveSettingsSheet?>(null) }
+    var pendingFileRestoreMode by remember { mutableStateOf(RestoreMode.MERGE) }
+    var pendingNotificationAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val action = pendingNotificationAction
+        pendingNotificationAction = null
+        if (granted) {
+            action?.invoke()
+            ShiftlyDailyWorker.triggerImmediateCheck(context)
+        } else {
+            viewModel.updateNotificationsEnabled(false)
+            onShowMessage("Notification permission denied — enable in Android Settings")
+        }
+    }
+
+    fun ensureNotificationPermissionThen(onGranted: () -> Unit) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        ) {
+            onGranted()
+            ShiftlyDailyWorker.triggerImmediateCheck(context)
+        } else {
+            pendingNotificationAction = onGranted
+            suppressNextRelock()
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    val backupFilePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val bytes = runCatching {
+            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        }.getOrNull()
+        if (bytes == null) {
+            onShowMessage("Could not read selected backup file")
+            return@rememberLauncherForActivityResult
+        }
+        viewModel.restoreBackupBytes(bytes, pendingFileRestoreMode) { result ->
+            activeSheet = null
+            result.fold(
+                onSuccess = { msg -> onShowMessage(msg) },
+                onFailure = { err -> onShowMessage("Restore failed: ${err.message ?: "invalid backup"}") }
+            )
+        }
+    }
+
+    val triggerZipShare: () -> Unit = {
+        viewModel.exportBackupZip { zipFile ->
+            suppressNextRelock()
+            shareExportFile(
+                context = context,
+                file = zipFile,
+                mimeType = "application/zip",
+                chooserTitle = "Export Full Shiftly Backup (.zip)"
+            )
+            onShowMessage("Full backup archive ready to share")
+        }
+    }
 
     val triggerJsonShare: () -> Unit = {
         viewModel.exportBackup { backupJson ->
+            suppressNextRelock()
             val sendIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
                 putExtra(Intent.EXTRA_SUBJECT, "Shiftly Backup JSON")
                 putExtra(Intent.EXTRA_TEXT, backupJson)
             }
-            context.startActivity(Intent.createChooser(sendIntent, "Export Shiftly Backup"))
+            context.startActivity(Intent.createChooser(sendIntent, "Export Shiftly Backup JSON"))
         }
     }
 
     val triggerCsvShare: () -> Unit = {
         viewModel.exportCsv { csvFile ->
+            suppressNextRelock()
             shareExportFile(
                 context = context,
                 file = csvFile,
@@ -116,6 +195,7 @@ fun ProfileScreen(
 
     val triggerPdfShare: () -> Unit = {
         viewModel.exportPdf { pdfFile ->
+            suppressNextRelock()
             shareExportFile(
                 context = context,
                 file = pdfFile,
@@ -128,22 +208,40 @@ fun ProfileScreen(
 
     ProfileScreenContent(
         state = state,
-        onExportBackup = triggerJsonShare,
+        onExportBackup = triggerZipShare,
         onOpenRestore = { activeSheet = ActiveSettingsSheet.BACKUP_EXPORT },
         onExportCsv = triggerCsvShare,
         onExportPdf = triggerPdfShare,
         onOpenSheet = { activeSheet = it },
         onToggleNotifications = { enabled ->
-            viewModel.updateNotificationsEnabled(enabled)
-            onShowMessage(if (enabled) "Notifications enabled" else "Notifications paused")
+            if (enabled) {
+                ensureNotificationPermissionThen {
+                    viewModel.updateNotificationsEnabled(true)
+                    onShowMessage("Notifications enabled")
+                }
+            } else {
+                viewModel.updateNotificationsEnabled(false)
+                onShowMessage("Notifications paused")
+            }
         },
         onToggleAppLock = { enabled ->
-            viewModel.updateAppLock(
-                enabled = enabled,
-                method = state.settings.appLockMethod,
-                pin = state.settings.appLockPin
-            )
-            onShowMessage(if (enabled) "App lock active (${state.settings.appLockMethod})" else "App lock turned off")
+            val method = state.settings.appLockMethod
+            val needsPinSetup = enabled && method != "Fingerprint Only" && !state.settings.hasAppLockPin
+            val needsBiometricReview = enabled && method == "Fingerprint Only" && !canUseBiometrics(context)
+            if (needsPinSetup || needsBiometricReview) {
+                activeSheet = ActiveSettingsSheet.APP_LOCK
+                onShowMessage(
+                    if (needsPinSetup) "Set a 4-digit PIN to enable App Lock"
+                    else "Review lock method—no biometrics detected"
+                )
+            } else {
+                viewModel.updateAppLock(
+                    enabled = enabled,
+                    method = method,
+                    newPin = null
+                )
+                onShowMessage(if (enabled) "App lock active ($method)" else "App lock turned off")
+            }
         }
     )
 
@@ -173,10 +271,13 @@ fun ProfileScreen(
             ) {
                 CurrencyPickerSheetContent(
                     currentCurrency = state.currencySymbol,
-                    onSelectCurrency = { symbol ->
-                        viewModel.updateCurrency(symbol)
+                    onApplyCurrency = { symbol, conversionRate ->
+                        viewModel.changeCurrency(symbol, conversionRate)
                         activeSheet = null
-                        onShowMessage("Currency changed to $symbol")
+                        onShowMessage(
+                            if (conversionRate != null) "Converted amounts to $symbol"
+                            else "Currency changed to $symbol"
+                        )
                     }
                 )
             }
@@ -192,9 +293,17 @@ fun ProfileScreen(
                     currentPaydayReminder = state.settings.paydayReminderEnabled,
                     currentShiftReminder = state.settings.shiftReminderEnabled,
                     onSave = { schedule, paydayRem, shiftRem ->
-                        viewModel.updatePayCycle(schedule, paydayRem, shiftRem)
-                        activeSheet = null
-                        onShowMessage("Pay cycle saved ($schedule)")
+                        if ((paydayRem || shiftRem) && state.settings.notificationsEnabled) {
+                            ensureNotificationPermissionThen {
+                                viewModel.updatePayCycle(schedule, paydayRem, shiftRem)
+                                activeSheet = null
+                                onShowMessage("Pay cycle saved ($schedule)")
+                            }
+                        } else {
+                            viewModel.updatePayCycle(schedule, paydayRem, shiftRem)
+                            activeSheet = null
+                            onShowMessage("Pay cycle saved ($schedule)")
+                        }
                     }
                 )
             }
@@ -227,6 +336,7 @@ fun ProfileScreen(
                     currencySymbol = state.currencySymbol,
                     currentMonthlyBudget = state.monthlyBudget,
                     currentCategoryBudgets = state.settings.categoryBudgets,
+                    managedCategories = state.settings.managedCategories,
                     onSave = { monthly, categoryList ->
                         viewModel.updateBudgets(monthly, categoryList)
                         activeSheet = null
@@ -272,6 +382,15 @@ fun ProfileScreen(
         }
 
         ActiveSettingsSheet.RECURRING -> {
+            val visibleExpenseCategories = state.settings.managedCategories
+                .filter {
+                    it.isVisible &&
+                        it.name.isNotBlank() &&
+                        !it.name.equals("Split Bill", ignoreCase = true)
+                }
+                .map { it.name.trim() }
+                .ifEmpty { ExpenseViewModel.EXPENSE_CATEGORIES.filter { it != "Split Bill" } }
+
             SettingsSheetContainer(
                 title = "Recurring Entries",
                 onDismiss = { activeSheet = null }
@@ -279,10 +398,15 @@ fun ProfileScreen(
                 RecurringEntriesSheetContent(
                     currencySymbol = state.currencySymbol,
                     currentEntries = state.settings.recurringEntries,
+                    availableCategories = visibleExpenseCategories,
                     onSave = { updated ->
-                        viewModel.updateRecurringEntries(updated)
-                        activeSheet = null
-                        onShowMessage("Recurring entries saved")
+                        viewModel.updateRecurringEntries(updated) { posted ->
+                            activeSheet = null
+                            onShowMessage(
+                                if (posted > 0) "Saved & posted $posted recurring entry(s)"
+                                else "Recurring entries saved"
+                            )
+                        }
                     }
                 )
             }
@@ -296,9 +420,9 @@ fun ProfileScreen(
                 AppLockSheetContent(
                     currentEnabled = state.settings.appLockEnabled,
                     currentMethod = state.settings.appLockMethod,
-                    currentPin = state.settings.appLockPin,
-                    onSave = { enabled, method, pin ->
-                        viewModel.updateAppLock(enabled, method, pin)
+                    hasSavedPin = state.settings.hasAppLockPin,
+                    onSave = { enabled, method, newPin ->
+                        viewModel.updateAppLock(enabled, method, newPin)
                         activeSheet = null
                         onShowMessage(if (enabled) "App lock saved ($method)" else "App lock disabled")
                     }
@@ -312,6 +436,10 @@ fun ProfileScreen(
                 onDismiss = { activeSheet = null }
             ) {
                 BackupAndExportSheetContent(
+                    onExportZip = {
+                        activeSheet = null
+                        triggerZipShare()
+                    },
                     onExportJson = {
                         activeSheet = null
                         triggerJsonShare()
@@ -324,8 +452,13 @@ fun ProfileScreen(
                         activeSheet = null
                         triggerPdfShare()
                     },
-                    onRestoreJson = { rawJson ->
-                        viewModel.restoreBackup(rawJson) { result ->
+                    onPickBackupFile = { mode ->
+                        pendingFileRestoreMode = mode
+                        suppressNextRelock()
+                        backupFilePicker.launch(arrayOf("application/zip", "application/json", "text/plain", "*/*"))
+                    },
+                    onRestoreJson = { rawJson, mode ->
+                        viewModel.restoreBackup(rawJson, mode) { result ->
                             activeSheet = null
                             result.fold(
                                 onSuccess = { msg -> onShowMessage(msg) },
@@ -367,7 +500,6 @@ private fun ProfileScreenContent(
         contentPadding = PaddingValues(top = 12.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 0. Header
         item {
             ShiftlyScreenHeader(
                 title = "Profile & Settings",
@@ -376,7 +508,6 @@ private fun ProfileScreenContent(
             )
         }
 
-        // 1. Glass Snapshot Card (Shifts, Hours, Earnings, Expenses)
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ProfileSnapshotGlassCard(
@@ -389,7 +520,6 @@ private fun ProfileScreenContent(
             }
         }
 
-        // 2. Glass Backup & Export Card ("Export Backup" + Restore / CSV / PDF)
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ProfileBackupGlassCard(
@@ -401,7 +531,6 @@ private fun ProfileScreenContent(
             }
         }
 
-        // 3. Dark Bottom Sheet with Grouped Settings Cards
         item {
             Surface(
                 modifier = Modifier
@@ -436,7 +565,6 @@ private fun ProfileScreenContent(
                         color = TextLightPrimary
                     )
 
-                    // Group 1: Account & Preferences
                     SettingsGroupCard(groupTitle = "ACCOUNT & PREFERENCES") {
                         SettingsChevronRow(
                             icon = Icons.Outlined.Person,
@@ -469,7 +597,6 @@ private fun ProfileScreenContent(
                         )
                     }
 
-                    // Group 2: Pay, Rules & Budgets
                     SettingsGroupCard(groupTitle = "PAY, RULES & BUDGETS") {
                         SettingsChevronRow(
                             icon = Icons.Outlined.CalendarMonth,
@@ -507,7 +634,6 @@ private fun ProfileScreenContent(
                         )
                     }
 
-                    // Group 3: Categories & Recurring
                     SettingsGroupCard(groupTitle = "CATEGORIES & RECURRING") {
                         SettingsChevronRow(
                             icon = Icons.Outlined.Category,
@@ -519,14 +645,13 @@ private fun ProfileScreenContent(
                         SettingsChevronRow(
                             icon = Icons.Outlined.Repeat,
                             title = "Recurring Entries",
-                            subtitle = "$activeRecurringCount active (weekly allowance & subscriptions)",
+                            subtitle = if (activeRecurringCount > 0) "$activeRecurringCount active rules" else "Tap to add weekly or monthly rules",
                             iconBg = MintSoftContainer,
                             iconTint = MintInkOnWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.RECURRING) }
                         )
                     }
 
-                    // Group 4: Security & Data Export
                     SettingsGroupCard(groupTitle = "SECURITY & DATA EXPORT") {
                         SettingsSwitchRow(
                             icon = Icons.Outlined.Fingerprint,
@@ -546,8 +671,8 @@ private fun ProfileScreenContent(
                         SettingsChevronRow(
                             icon = Icons.Outlined.Backup,
                             title = "Data Export & Restore",
-                            subtitle = "JSON backup, restore, CSV sheet & PDF statement",
-                            trailingBadge = "CSV • PDF",
+                            subtitle = "ZIP + receipts, JSON backup, CSV sheet & PDF",
+                            trailingBadge = "ZIP • PDF",
                             onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }
                         )
                     }
@@ -634,11 +759,12 @@ private fun previewProfileState(): ProfileUiState = ProfileUiState(
         ),
         recurringEntries = listOf(
             RecurringEntrySetting("r1", "Weekly Allowance", 1500.0, "Weekly", isIncome = true, isEnabled = true),
-            RecurringEntrySetting("r2", "Campus Wi-Fi & Cloud", 199.0, "Monthly", isIncome = false, isEnabled = true)
+            RecurringEntrySetting("r2", "Campus Wi-Fi & Cloud", 199.0, "Monthly", isIncome = false, isEnabled = true, category = "Bills")
         ),
         appLockEnabled = true,
         appLockMethod = "PIN & Fingerprint",
-        appLockPin = "1234"
+        hasAppLockPin = true,
+        appLockPinHash = ""
     )
 )
 

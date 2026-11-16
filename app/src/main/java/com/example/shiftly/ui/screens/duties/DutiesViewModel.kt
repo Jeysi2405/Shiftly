@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.utils.DayType
 import com.example.shiftly.utils.WageCalculator
@@ -13,9 +14,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
-import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
-import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -33,6 +32,9 @@ data class DutiesUiState(
     val activeTimer: ActiveTimerState = ActiveTimerState(),
     val defaultHourlyRate: Double = 0.0,
     val currencySymbol: String = "₱",
+    val nightDiffStartHour: Int = 22,
+    val nightDiffMultiplier: Double = 1.10,
+    val overtimeMultiplier: Double = 1.25,
     val selectedDutyDate: LocalDate = LocalDate.now(),
     val displayedMonth: YearMonth = YearMonth.now(),
     val selectedCalendarDate: LocalDate? = null,
@@ -58,6 +60,7 @@ class DutiesViewModel(
         repository.defaultHourlyRate,
         repository.currencySymbol,
         repository.allShifts,
+        repository.settingsSnapshot,
         _selectedDutyDate,
         _displayedMonth,
         _selectedCalendarDate
@@ -67,17 +70,15 @@ class DutiesViewModel(
         val currency = values[2] as String
         @Suppress("UNCHECKED_CAST")
         val allShifts = values[3] as List<ShiftEntity>
-        val dutyDate = values[4] as LocalDate
-        val month = values[5] as YearMonth
-        val filterDate = values[6] as LocalDate?
+        val settings = values[4] as ShiftlySettingsSnapshot
+        val dutyDate = values[5] as LocalDate
+        val month = values[6] as YearMonth
+        val filterDate = values[7] as LocalDate?
 
         val today = LocalDate.now()
         val startOfWeek = today.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-        val endOfWeek = startOfWeek.plusDays(6)
-
         val shiftsByDay = allShifts.groupBy { it.dateEpochDay }
 
-        // Build Mon-Sun weekly chart data
         var weekTotalEarned = 0.0
         var weekTotalHours = 0.0
         var weekRegMins = 0L
@@ -87,13 +88,16 @@ class DutiesViewModel(
         (0..6).forEach { offset ->
             val date = startOfWeek.plusDays(offset.toLong())
             val dayShifts = shiftsByDay[date.toEpochDay()].orEmpty()
-            
+
             dayShifts.forEach { shift ->
                 val details = WageCalculator.calculateTotalEarned(
-                    shift.timeInMillis,
-                    shift.timeOutMillis,
-                    shift.lockedHourlyRate,
-                    shift.dayType
+                    startMillis = shift.timeInMillis,
+                    endMillis = shift.timeOutMillis,
+                    hourlyRate = shift.lockedHourlyRate,
+                    dayTypeStr = shift.dayType,
+                    nightDiffStartHour = settings.nightDiffStartHour,
+                    nightDiffMultiplier = settings.nightDiffMultiplier,
+                    ordinaryOvertimeMultiplier = settings.overtimeMultiplier
                 )
                 weekTotalEarned += shift.totalEarned
                 weekTotalHours += shift.durationMinutes / 60.0
@@ -121,6 +125,9 @@ class DutiesViewModel(
             activeTimer = activeTimer,
             defaultHourlyRate = defaultRate,
             currencySymbol = currency,
+            nightDiffStartHour = settings.nightDiffStartHour,
+            nightDiffMultiplier = settings.nightDiffMultiplier,
+            overtimeMultiplier = settings.overtimeMultiplier,
             selectedDutyDate = dutyDate,
             displayedMonth = month,
             selectedCalendarDate = filterDate,
@@ -155,19 +162,23 @@ class DutiesViewModel(
     }
 
     fun checkOutAndSave(overtimeNote: String, dayType: DayType) {
-        val timer = uiState.value.activeTimer
+        val current = uiState.value
+        val timer = current.activeTimer
         if (!timer.isRunning || isCheckingOut) return
         isCheckingOut = true
 
         val nowMillis = System.currentTimeMillis()
         val elapsedMillis = (nowMillis - timer.startTimeMillis).coerceAtLeast(0L)
         val durationMinutes = (elapsedMillis / 60_000L).toInt().coerceAtLeast(1)
-        
+
         val totalEarned = WageCalculator.calculateTotalEarned(
             startMillis = timer.startTimeMillis,
             endMillis = nowMillis,
             hourlyRate = timer.lockedRate,
-            dayTypeStr = dayType.name
+            dayTypeStr = dayType.name,
+            nightDiffStartHour = current.nightDiffStartHour,
+            nightDiffMultiplier = current.nightDiffMultiplier,
+            ordinaryOvertimeMultiplier = current.overtimeMultiplier
         ).totalEarned
 
         viewModelScope.launch {
@@ -206,6 +217,7 @@ class DutiesViewModel(
         overtimeNote: String,
         dayType: DayType
     ) {
+        val current = uiState.value
         val zone = ZoneId.systemDefault()
         val startDateTime = date.atTime(LocalTime.of(startHour, startMinute))
         var endDateTime = date.atTime(LocalTime.of(endHour, endMinute))
@@ -217,13 +229,16 @@ class DutiesViewModel(
         val startMillis = startDateTime.atZone(zone).toInstant().toEpochMilli()
         val endMillis = endDateTime.atZone(zone).toInstant().toEpochMilli()
         val durationMinutes = ((endMillis - startMillis) / 60_000L).toInt().coerceAtLeast(1)
-        val lockedRate = uiState.value.defaultHourlyRate
-        
+        val lockedRate = current.defaultHourlyRate
+
         val totalEarned = WageCalculator.calculateTotalEarned(
             startMillis = startMillis,
             endMillis = endMillis,
             hourlyRate = lockedRate,
-            dayTypeStr = dayType.name
+            dayTypeStr = dayType.name,
+            nightDiffStartHour = current.nightDiffStartHour,
+            nightDiffMultiplier = current.nightDiffMultiplier,
+            ordinaryOvertimeMultiplier = current.overtimeMultiplier
         ).totalEarned
 
         viewModelScope.launch {
@@ -251,9 +266,10 @@ class DutiesViewModel(
         dayType: DayType,
         overtimeNote: String
     ) {
+        val current = uiState.value
         val zone = ZoneId.systemDefault()
         val shiftDate = LocalDate.ofEpochDay(shift.dateEpochDay)
-        
+
         val startDateTime = shiftDate.atTime(LocalTime.of(startHour, startMinute))
         var endDateTime = shiftDate.atTime(LocalTime.of(endHour, endMinute))
         if (!endDateTime.isAfter(startDateTime)) {
@@ -263,12 +279,15 @@ class DutiesViewModel(
         val startMillis = startDateTime.atZone(zone).toInstant().toEpochMilli()
         val endMillis = endDateTime.atZone(zone).toInstant().toEpochMilli()
         val durationMinutes = ((endMillis - startMillis) / 60_000L).toInt().coerceAtLeast(1)
-        
+
         val totalEarned = WageCalculator.calculateTotalEarned(
             startMillis = startMillis,
             endMillis = endMillis,
             hourlyRate = shift.lockedHourlyRate,
-            dayTypeStr = dayType.name
+            dayTypeStr = dayType.name,
+            nightDiffStartHour = current.nightDiffStartHour,
+            nightDiffMultiplier = current.nightDiffMultiplier,
+            ordinaryOvertimeMultiplier = current.overtimeMultiplier
         ).totalEarned
 
         viewModelScope.launch {
@@ -312,12 +331,6 @@ class DutiesViewModel(
         val parsed = rateText.toDoubleOrNull() ?: return
         viewModelScope.launch {
             repository.updateDefaultHourlyRate(parsed)
-        }
-    }
-
-    fun selectCurrency(symbol: String) {
-        viewModelScope.launch {
-            repository.updateCurrencySymbol(symbol)
         }
     }
 

@@ -87,6 +87,7 @@ import com.example.shiftly.ui.theme.TextLightMuted
 import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
+import com.example.shiftly.utils.SplitBillMath
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -153,7 +154,7 @@ fun SplitBillSummaryCard(
                     }
                     if (totalParticipantsCount > 0) {
                         Text(
-                            text = "$paidParticipantsCount of $totalParticipantsCount shares settled",
+                            text = "$paidParticipantsCount of $totalParticipantsCount friend shares settled",
                             style = MaterialTheme.typography.labelSmall.tabular(),
                             color = TextLightSecondary
                         )
@@ -214,7 +215,7 @@ fun SplitBillCalculatorCard(
     }
 
     val totalAmount = amountInput.toDoubleOrNull() ?: 0.0
-    val perPersonShare = if (personCount > 0) totalAmount / personCount else 0.0
+    val perPersonShare = SplitBillMath.distributeEqualShares(totalAmount, personCount).firstOrNull() ?: 0.0
     val isValid = (totalAmount > 0.0) && (personCount >= 2)
     val quickCounts = listOf(2, 3, 4, 5, 6)
 
@@ -242,7 +243,7 @@ fun SplitBillCalculatorCard(
                 color = TextLightSecondary
             )
 
-            // Total (₱) + Label Fields
+            // Total + Label Fields
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -568,6 +569,7 @@ fun SplitBillCalculatorCard(
 
 @Composable
 fun SplitBillEmptyCard(
+    currencySymbol: String = "₱",
     onTrySampleSplit: () -> Unit
 ) {
     Surface(
@@ -611,7 +613,7 @@ fun SplitBillEmptyCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             ShiftlyPrimaryPillButton(
-                text = "Try ₱1,200 ÷ 4 dinner",
+                text = "Try ${currencySymbol}1,200 ÷ 4 dinner",
                 onClick = onTrySampleSplit
             )
         }
@@ -628,8 +630,10 @@ fun SplitBillLogItemCard(
 ) {
     val bill = item.bill
     val participants = item.participants
-    val paidCount = participants.count { it.hasPaid }
-    val allPaid = participants.isNotEmpty() && paidCount == participants.size
+    val friendParticipants = participants.filter { !it.isCurrentUser }
+    val trackedParticipants = friendParticipants.ifEmpty { participants }
+    val paidCount = trackedParticipants.count { it.hasPaid }
+    val allPaid = trackedParticipants.isNotEmpty() && paidCount == trackedParticipants.size
 
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
@@ -678,7 +682,7 @@ fun SplitBillLogItemCard(
                             color = if (allPaid) MintSoftContainer else AzureSoftContainer
                         ) {
                             Text(
-                                text = if (allPaid) "Paid" else "Pending ($paidCount/${participants.size})",
+                                text = if (allPaid) "Paid" else "Pending ($paidCount/${trackedParticipants.size})",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold
                                 ).tabular(),
@@ -731,20 +735,28 @@ fun SplitBillLogItemCard(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(if (participant.hasPaid) MintSoftContainer else AzureSoftContainer),
+                                    .background(if (participant.hasPaid || participant.isCurrentUser) MintSoftContainer else AzureSoftContainer),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Person,
                                     contentDescription = null,
-                                    tint = if (participant.hasPaid) MintInkOnWhite else AzureInkOnWhite,
+                                    tint = if (participant.hasPaid || participant.isCurrentUser) MintInkOnWhite else AzureInkOnWhite,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
+                                val displayLabel = if (
+                                    participant.isCurrentUser &&
+                                    !participant.personLabel.equals("You", ignoreCase = true)
+                                ) {
+                                    "${participant.personLabel} (You)"
+                                } else {
+                                    participant.personLabel
+                                }
                                 Text(
-                                    text = participant.personLabel,
+                                    text = displayLabel,
                                     style = MaterialTheme.typography.bodyMedium.copy(
                                         fontWeight = FontWeight.SemiBold
                                     ),
@@ -753,12 +765,39 @@ fun SplitBillLogItemCard(
                                 Text(
                                     text = "$currencySymbol${"%,.2f".format(participant.amountOwed)}",
                                     style = MaterialTheme.typography.labelSmall.tabular(),
-                                    color = if (participant.hasPaid) MintInkOnWhite else TextLightSecondary
+                                    color = if (participant.hasPaid || participant.isCurrentUser) MintInkOnWhite else TextLightSecondary
                                 )
                             }
                         }
 
-                        if (participant.hasPaid) {
+                        if (participant.isCurrentUser) {
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MintSoftContainer,
+                                modifier = Modifier.heightIn(min = 36.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Check,
+                                        contentDescription = null,
+                                        tint = MintInkOnWhite,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "Your share",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = ShiftlySerif,
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = MintInkOnWhite
+                                    )
+                                }
+                            }
+                        } else if (participant.hasPaid) {
                             Surface(
                                 shape = RoundedCornerShape(50),
                                 color = MintSoftContainer,

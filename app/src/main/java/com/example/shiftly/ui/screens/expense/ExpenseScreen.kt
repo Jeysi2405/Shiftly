@@ -80,6 +80,7 @@ fun ExpenseScreen(
     if (showAddSheet) {
         AddExpenseBottomSheet(
             currencySymbol = state.currencySymbol,
+            availableCategories = state.availableCategories,
             onDismiss = { showAddSheet = false },
             onSaveExpense = { title, amount, category, date, receiptPath ->
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -179,7 +180,7 @@ fun ExpenseScreenContent(
         // 2. Category Filter Chips with visible horizontal edge fade
         item {
             ExpenseCategoryFilterRow(
-                categories = ExpenseViewModel.FILTER_CATEGORIES,
+                categories = state.filterCategories,
                 selectedCategory = state.selectedCategory,
                 onSelectCategory = onSelectCategory
             )
@@ -295,8 +296,8 @@ private fun ExpenseListPreview() {
         categoryBreakdown = listOf(
             CategorySpendSummary("Split Bill", 300.0, 0.44f),
             CategorySpendSummary("Supplies", 180.0, 0.26f),
-            CategorySpendSummary("Food", 145.0, 0.21f),
-            CategorySpendSummary("Transport", 58.0, 0.09f)
+            CategorySpendSummary("Food", 145.0, 0.21f, monthlyLimit = 1200.0),
+            CategorySpendSummary("Transport", 58.0, 0.09f, monthlyLimit = 500.0)
         ),
         filteredExpenses = sampleExpenses,
         totalReceiptCount = 1
