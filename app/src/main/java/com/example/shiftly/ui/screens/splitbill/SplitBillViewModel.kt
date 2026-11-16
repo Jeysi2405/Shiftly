@@ -62,7 +62,7 @@ class SplitBillViewModel(
         if (totalAmount <= 0.0 || personCount < 2) return
 
         val cleanTitle = rawTitle.trim().ifBlank { "Group Bill" }
-        val perPerson = totalAmount / personCount
+        val perPerson = kotlin.math.round((totalAmount / personCount) * 100.0) / 100.0
         val todayEpoch = LocalDate.now().toEpochDay()
 
         val billEntity = SplitBillEntity(

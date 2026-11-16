@@ -52,6 +52,7 @@ class DutiesViewModel(
     private val _selectedDutyDate = MutableStateFlow(LocalDate.now())
     private val _displayedMonth = MutableStateFlow(YearMonth.now())
     private val _selectedCalendarDate = MutableStateFlow<LocalDate?>(null)
+    private var isCheckingOut = false
 
     val uiState: StateFlow<DutiesUiState> = combine(
         repository.activeTimerState,
@@ -147,7 +148,8 @@ class DutiesViewModel(
 
     fun checkOutAndSave(overtimeNote: String) {
         val timer = uiState.value.activeTimer
-        if (!timer.isRunning) return
+        if (!timer.isRunning || isCheckingOut) return
+        isCheckingOut = true
 
         val nowMillis = System.currentTimeMillis()
         val elapsedMillis = (nowMillis - timer.startTimeMillis).coerceAtLeast(0L)
@@ -155,18 +157,22 @@ class DutiesViewModel(
         val totalEarned = (durationMinutes / 60.0) * timer.lockedRate
 
         viewModelScope.launch {
-            repository.insertShift(
-                ShiftEntity(
-                    dateEpochDay = timer.shiftDateEpochDay,
-                    timeInMillis = timer.startTimeMillis,
-                    timeOutMillis = nowMillis,
-                    durationMinutes = durationMinutes,
-                    lockedHourlyRate = timer.lockedRate,
-                    totalEarned = totalEarned,
-                    overtimeNote = overtimeNote.trim()
+            try {
+                repository.insertShift(
+                    ShiftEntity(
+                        dateEpochDay = timer.shiftDateEpochDay,
+                        timeInMillis = timer.startTimeMillis,
+                        timeOutMillis = nowMillis,
+                        durationMinutes = durationMinutes,
+                        lockedHourlyRate = timer.lockedRate,
+                        totalEarned = totalEarned,
+                        overtimeNote = overtimeNote.trim()
+                    )
                 )
-            )
-            repository.stopShiftTimer()
+                repository.stopShiftTimer()
+            } finally {
+                isCheckingOut = false
+            }
         }
     }
 

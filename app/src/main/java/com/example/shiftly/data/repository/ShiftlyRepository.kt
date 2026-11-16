@@ -1,6 +1,7 @@
 package com.example.shiftly.data.repository
 
 import android.content.Context
+import androidx.room.withTransaction
 import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ShiftEntity
@@ -17,7 +18,7 @@ class ShiftlyRepository(context: Context) {
     private val shiftDao = db.shiftDao()
     private val expenseDao = db.expenseDao()
     private val splitBillDao = db.splitBillDao()
-    private val prefs = UserPreferencesManager(context)
+    private val prefs = UserPreferencesManager(context.applicationContext)
 
     // Preferences & Active Timer
     val defaultHourlyRate: Flow<Double> = prefs.defaultHourlyRate
@@ -56,11 +57,11 @@ class ShiftlyRepository(context: Context) {
     suspend fun createSplitBill(
         bill: SplitBillEntity,
         participants: List<SplitParticipantEntity>
-    ): Long {
+    ): Long = db.withTransaction {
         val billId = splitBillDao.insertBill(bill)
         val linkedParticipants = participants.map { it.copy(billId = billId) }
         splitBillDao.insertParticipants(linkedParticipants)
-        return billId
+        billId
     }
 
     suspend fun toggleParticipantPaid(participantId: Long, hasPaid: Boolean) =
@@ -68,16 +69,18 @@ class ShiftlyRepository(context: Context) {
 
     suspend fun logSplitShareAsExpense(bill: SplitBillEntity) {
         if (bill.isLoggedToExpense) return
-        expenseDao.insertExpense(
-            ExpenseEntity(
-                title = "Split: ${bill.title}",
-                amount = bill.perPersonAmount,
-                category = "Split Bill",
-                dateEpochDay = bill.dateEpochDay,
-                linkedSplitBillId = bill.id
+        db.withTransaction {
+            expenseDao.insertExpense(
+                ExpenseEntity(
+                    title = "Split: ${bill.title}",
+                    amount = bill.perPersonAmount,
+                    category = "Split Bill",
+                    dateEpochDay = bill.dateEpochDay,
+                    linkedSplitBillId = bill.id
+                )
             )
-        )
-        splitBillDao.markBillLoggedToExpense(bill.id)
+            splitBillDao.markBillLoggedToExpense(bill.id)
+        }
     }
 
     suspend fun deleteSplitBill(bill: SplitBillEntity) = splitBillDao.deleteBill(bill)
