@@ -7,12 +7,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,24 +30,27 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material.icons.outlined.WorkHistory
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,31 +61,43 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.ShiftEntity
-import com.example.shiftly.ui.components.ShiftlyStatusBadge
-import com.example.shiftly.ui.theme.BorderSubtle
-import com.example.shiftly.ui.theme.DeepBlueContainer
-import com.example.shiftly.ui.theme.ElectricBlue
-import com.example.shiftly.ui.theme.EmeraldContainer
-import com.example.shiftly.ui.theme.EmeraldSuccess
-import com.example.shiftly.ui.theme.RoseAlert
-import com.example.shiftly.ui.theme.SlateSurface
-import com.example.shiftly.ui.theme.SlateSurfaceVariant
-import com.example.shiftly.ui.theme.SoftBlue
-import com.example.shiftly.ui.theme.TextPrimary
-import com.example.shiftly.ui.theme.TextSecondary
+import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.theme.AzureInkOnWhite
+import com.example.shiftly.ui.theme.AzureSoftContainer
+import com.example.shiftly.ui.theme.CoralInkOnWhite
+import com.example.shiftly.ui.theme.CoralSoftContainer
+import com.example.shiftly.ui.theme.DeepAzureBottom
+import com.example.shiftly.ui.theme.HairlineLight
+import com.example.shiftly.ui.theme.InkBlack
+import com.example.shiftly.ui.theme.InkPrimary
+import com.example.shiftly.ui.theme.InkSecondary
+import com.example.shiftly.ui.theme.MintBright
+import com.example.shiftly.ui.theme.MintInkOnWhite
+import com.example.shiftly.ui.theme.MintSoftContainer
+import com.example.shiftly.ui.theme.MintTextOnBlue
+import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlySans
+import com.example.shiftly.ui.theme.ShiftlySerif
+import com.example.shiftly.ui.theme.SoftCloudWhite
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.DayType
+import com.example.shiftly.utils.WageCalculator
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -89,7 +105,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 import kotlinx.coroutines.delay
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayTypeSelector(
     selectedDayType: DayType,
@@ -105,28 +121,35 @@ fun DayTypeSelector(
             value = selectedDayType.label,
             onValueChange = {},
             readOnly = true,
-            label = { Text("Day Type") },
+            label = { Text("Day Type", fontFamily = ShiftlySerif) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            shape = RoundedCornerShape(16.dp),
             modifier = Modifier
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
                 .fillMaxWidth(),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = ElectricBlue,
-                unfocusedBorderColor = BorderSubtle,
-                focusedLabelColor = SoftBlue,
-                unfocusedLabelColor = TextSecondary,
-                focusedTextColor = TextPrimary,
-                unfocusedTextColor = TextPrimary
+                focusedBorderColor = AzureInkOnWhite,
+                unfocusedBorderColor = HairlineLight,
+                focusedLabelColor = AzureInkOnWhite,
+                unfocusedLabelColor = InkSecondary,
+                focusedTextColor = InkPrimary,
+                unfocusedTextColor = InkPrimary
             )
         )
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            modifier = Modifier.background(SlateSurface)
+            modifier = Modifier.background(PureWhite)
         ) {
             DayType.entries.forEach { dayType ->
                 DropdownMenuItem(
-                    text = { Text(dayType.label, color = TextPrimary) },
+                    text = {
+                        Text(
+                            text = dayType.label,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = InkPrimary
+                        )
+                    },
                     onClick = {
                         onDayTypeSelected(dayType)
                         expanded = false
@@ -155,73 +178,94 @@ fun DutiesRateSettingsCard(
             rateInput = if (defaultHourlyRate % 1.0 == 0.0) {
                 defaultHourlyRate.toInt().toString()
             } else {
-                defaultHourlyRate.toString()
+                "%.2f".format(defaultHourlyRate)
             }
         }
     }
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = SlateSurface,
-        border = BorderStroke(1.dp, BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Outlined.Lock,
-                    contentDescription = null,
-                    tint = ElectricBlue
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Rate & Currency",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextPrimary
-                )
+    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(PureWhite.copy(alpha = 0.16f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lock,
+                            contentDescription = "Rate locked per shift",
+                            tint = MintTextOnBlue,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Rate & Currency",
+                        style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                        color = PureWhite
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = PureWhite.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = "Locked per shift",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = PureWhite.copy(alpha = 0.90f),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
             }
 
-            // Currency Selector
+            // Currency Selector Pills (48x48dp min tap target)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 currencies.forEach { symbol ->
                     val selected = currencySymbol == symbol
-                    FilterChip(
-                        selected = selected,
-                        onClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            onSelectCurrency(symbol)
-                            onShowMessage("Currency set to $symbol")
-                        },
-                        label = {
-                            Text(
-                                text = symbol,
-                                fontWeight = FontWeight.Bold
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(
+                                if (selected) PureWhite else PureWhite.copy(alpha = 0.14f)
                             )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            containerColor = SlateSurfaceVariant,
-                            labelColor = TextSecondary,
-                            selectedContainerColor = DeepBlueContainer,
-                            selectedLabelColor = ElectricBlue
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = selected,
-                            borderColor = BorderSubtle,
-                            selectedBorderColor = ElectricBlue
+                            .border(
+                                width = 1.dp,
+                                color = if (selected) PureWhite else PureWhite.copy(alpha = 0.28f),
+                                shape = RoundedCornerShape(50)
+                            )
+                            .clickable {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSelectCurrency(symbol)
+                                onShowMessage("Currency set to $symbol")
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = symbol,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = ShiftlySans,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = if (selected) DeepAzureBottom else PureWhite
                         )
-                    )
+                    }
                 }
             }
 
-            // Hourly Rate Input + Save Button
+            // Hourly Rate Input + Black Pill Save Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -233,16 +277,32 @@ fun DutiesRateSettingsCard(
                         rateInput = it
                         savedBanner = false
                     },
-                    label = { Text("Rate ($currencySymbol/h)") },
+                    label = {
+                        Text(
+                            text = "Rate ($currencySymbol/hr)",
+                            fontFamily = ShiftlySerif
+                        )
+                    },
+                    prefix = {
+                        Text(
+                            text = currencySymbol,
+                            fontWeight = FontWeight.Bold,
+                            color = PureWhite
+                        )
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    shape = RoundedCornerShape(18.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ElectricBlue,
-                        unfocusedBorderColor = BorderSubtle,
-                        focusedLabelColor = SoftBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
+                        focusedBorderColor = PureWhite,
+                        unfocusedBorderColor = PureWhite.copy(alpha = 0.40f),
+                        focusedLabelColor = PureWhite,
+                        unfocusedLabelColor = PureWhite.copy(alpha = 0.85f),
+                        focusedTextColor = PureWhite,
+                        unfocusedTextColor = PureWhite,
+                        cursorColor = MintTextOnBlue,
+                        focusedContainerColor = PureWhite.copy(alpha = 0.10f),
+                        unfocusedContainerColor = PureWhite.copy(alpha = 0.08f)
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -254,21 +314,36 @@ fun DutiesRateSettingsCard(
                         savedBanner = true
                         onShowMessage("Rate saved")
                     },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
-                    modifier = Modifier.height(56.dp)
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = InkBlack,
+                        contentColor = PureWhite
+                    ),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+                    modifier = Modifier.heightIn(min = 52.dp)
                 ) {
-                    Icon(Icons.Outlined.Check, contentDescription = "Save")
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Save", fontWeight = FontWeight.SemiBold)
+                    Icon(
+                        imageVector = Icons.Outlined.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Save",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = PureWhite
+                    )
                 }
             }
 
             if (savedBanner) {
                 Text(
-                    text = "Saved $currencySymbol${"%.2f".format(defaultHourlyRate)}/h",
+                    text = "Saved $currencySymbol${"%.2f".format(defaultHourlyRate)}/hr — locked for upcoming shifts",
                     style = MaterialTheme.typography.labelMedium,
-                    color = EmeraldSuccess
+                    color = MintTextOnBlue
                 )
             }
         }
@@ -287,14 +362,16 @@ fun LiveShiftTimerCard(
     onRequestCheckOut: () -> Unit,
     onCancelTimer: () -> Unit,
     onOpenManualEntry: () -> Unit,
-    onEditExistingShift: () -> Unit
+    onEditExistingShift: () -> Unit,
+    previewElapsedSecondsOverride: Long? = null
 ) {
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
+    val locale = LocalConfiguration.current.locales[0]
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE, MMM d", locale) }
     val haptics = LocalHapticFeedback.current
 
-    var elapsedSeconds by remember(activeTimer.isRunning, activeTimer.startTimeMillis) {
+    var elapsedSeconds by remember(activeTimer.isRunning, activeTimer.startTimeMillis, previewElapsedSecondsOverride) {
         mutableLongStateOf(
-            if (activeTimer.isRunning) {
+            previewElapsedSecondsOverride ?: if (activeTimer.isRunning) {
                 ((System.currentTimeMillis() - activeTimer.startTimeMillis) / 1000L).coerceAtLeast(0L)
             } else {
                 0L
@@ -302,7 +379,8 @@ fun LiveShiftTimerCard(
         )
     }
 
-    LaunchedEffect(activeTimer.isRunning, activeTimer.startTimeMillis) {
+    LaunchedEffect(activeTimer.isRunning, activeTimer.startTimeMillis, previewElapsedSecondsOverride) {
+        if (previewElapsedSecondsOverride != null) return@LaunchedEffect
         while (activeTimer.isRunning) {
             elapsedSeconds = ((System.currentTimeMillis() - activeTimer.startTimeMillis) / 1000L)
                 .coerceAtLeast(0L)
@@ -310,85 +388,84 @@ fun LiveShiftTimerCard(
         }
     }
 
-    val activeBorder = if (activeTimer.isRunning) ElectricBlue else BorderSubtle
-
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = SlateSurface,
-        border = BorderStroke(if (activeTimer.isRunning) 1.5.dp else 1.dp, activeBorder),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            // Top Header Row: Status + Locked Rate Pill
+    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            // Top Row: Status + Locked Hourly Rate Pill
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (activeTimer.isRunning) {
-                    ShiftlyStatusBadge(
-                        label = "LIVE",
-                        containerColor = EmeraldContainer,
-                        contentColor = EmeraldSuccess,
-                        leadingContent = {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MintBright.copy(alpha = 0.22f),
+                        border = BorderStroke(1.dp, MintBright.copy(alpha = 0.55f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
                             Box(
                                 modifier = Modifier
-                                    .size(7.dp)
+                                    .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(EmeraldSuccess)
+                                    .background(MintBright)
+                            )
+                            Text(
+                                text = "LIVE SHIFT",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MintTextOnBlue
                             )
                         }
-                    )
+                    }
                 } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .size(9.dp)
                                 .clip(CircleShape)
-                                .background(ElectricBlue)
+                                .background(MintBright)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "TIMER",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = SoftBlue
+                            text = "Duty Timer",
+                            style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                            color = PureWhite
                         )
                     }
                 }
 
-                // Locked Hourly Rate Badge
                 val displayedRate = if (activeTimer.isRunning) activeTimer.lockedRate else defaultHourlyRate
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = DeepBlueContainer
+                    shape = RoundedCornerShape(50),
+                    color = PureWhite.copy(alpha = 0.16f),
+                    border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.28f))
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Lock,
                             contentDescription = null,
-                            tint = SoftBlue,
+                            tint = MintTextOnBlue,
                             modifier = Modifier.size(13.dp)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = "$currencySymbol${"%.2f".format(displayedRate)}/h",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = SoftBlue
+                            text = "$currencySymbol${"%.2f".format(displayedRate)}/hr",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold).tabular(),
+                            color = PureWhite
                         )
                     }
                 }
             }
 
             if (activeTimer.isRunning) {
-                // Live Ticking Stopwatch
                 val hours = elapsedSeconds / 3600
                 val minutes = (elapsedSeconds % 3600) / 60
                 val seconds = elapsedSeconds % 60
@@ -397,23 +474,35 @@ fun LiveShiftTimerCard(
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         text = formattedClock,
-                        style = MaterialTheme.typography.displaySmall.copy(
-                            fontFamily = FontFamily.Monospace
+                        style = MaterialTheme.typography.displayMedium.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 38.sp
                         ).tabular(),
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        color = PureWhite
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "$currencySymbol${"%.2f".format(liveAccrued)}",
-                        style = MaterialTheme.typography.titleMedium.tabular(),
-                        fontWeight = FontWeight.SemiBold,
-                        color = SoftBlue
-                    )
+
+                    // Live Income Counter Pill ("+₱ so far")
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MintBright.copy(alpha = 0.22f),
+                        border = BorderStroke(1.dp, MintBright.copy(alpha = 0.50f))
+                    ) {
+                        Text(
+                            text = "+$currencySymbol${"%,.2f".format(liveAccrued)} so far",
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = ShiftlySans,
+                                fontWeight = FontWeight.Bold
+                            ).tabular(),
+                            color = MintTextOnBlue,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp)
+                        )
+                    }
                 }
 
                 Row(
@@ -422,11 +511,16 @@ fun LiveShiftTimerCard(
                 ) {
                     OutlinedButton(
                         onClick = onCancelTimer,
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, BorderSubtle),
-                        modifier = Modifier.height(48.dp)
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.45f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PureWhite),
+                        modifier = Modifier.heightIn(min = 52.dp)
                     ) {
-                        Text("Discard", color = TextSecondary)
+                        Text(
+                            text = "Discard",
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = ShiftlySerif),
+                            color = PureWhite
+                        )
                     }
 
                     Button(
@@ -434,58 +528,76 @@ fun LiveShiftTimerCard(
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             onRequestCheckOut()
                         },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = InkBlack,
+                            contentColor = PureWhite
+                        ),
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
+                            .heightIn(min = 52.dp)
                     ) {
-                        Icon(Icons.Outlined.Stop, contentDescription = null)
+                        Icon(Icons.Outlined.Stop, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Check Out", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "Check Out",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontFamily = ShiftlySerif,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = PureWhite
+                        )
                     }
                 }
             } else {
-                // Idle State: Duty Date Selector + Time In + Manual Log
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = SlateSurfaceVariant.copy(alpha = 0.55f),
+                // Idle State: Selected Duty Date Row + Change Pill
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(PureWhite.copy(alpha = 0.14f))
+                        .border(1.dp, PureWhite.copy(alpha = 0.24f), RoundedCornerShape(16.dp))
                         .clickable { onPickDutyDate() }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.CalendarToday,
+                            contentDescription = null,
+                            tint = MintTextOnBlue,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = selectedDutyDate.format(dateFormatter),
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = ShiftlySans,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = PureWhite
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = PureWhite.copy(alpha = 0.18f)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Outlined.CalendarToday,
-                                contentDescription = null,
-                                tint = ElectricBlue,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = selectedDutyDate.format(dateFormatter),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary
-                            )
-                        }
                         Text(
                             text = "Change",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = SoftBlue
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = ShiftlySerif,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = PureWhite,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                         )
                     }
                 }
 
+                // Primary Actions Row: Black Pill "Time In" + Outlined Pill "Manual"
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -496,15 +608,22 @@ fun LiveShiftTimerCard(
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 onEditExistingShift()
                             },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = DeepBlueContainer),
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = InkBlack,
+                                contentColor = PureWhite
+                            ),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp)
+                                .heightIn(min = 52.dp)
                         ) {
-                            Icon(Icons.Outlined.EditNote, contentDescription = null, tint = ElectricBlue)
+                            Icon(Icons.Outlined.EditNote, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Edit Existing Shift", fontWeight = FontWeight.Bold, color = ElectricBlue)
+                            Text(
+                                text = "Edit Shift",
+                                style = MaterialTheme.typography.labelLarge.copy(fontFamily = ShiftlySerif),
+                                color = PureWhite
+                            )
                         }
                     } else {
                         Button(
@@ -512,32 +631,51 @@ fun LiveShiftTimerCard(
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 onTimeIn()
                             },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                            shape = RoundedCornerShape(50),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = InkBlack,
+                                contentColor = PureWhite
+                            ),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp)
+                                .heightIn(min = 52.dp)
                         ) {
-                            Icon(Icons.Outlined.PlayArrow, contentDescription = null)
+                            Icon(Icons.Outlined.PlayArrow, contentDescription = null, modifier = Modifier.size(19.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Time In", fontWeight = FontWeight.Bold)
-                        }
-
-                        OutlinedButton(
-                            onClick = onOpenManualEntry,
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, BorderSubtle),
-                            modifier = Modifier.height(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Add,
-                                contentDescription = "Manual Shift",
-                                tint = SoftBlue,
-                                modifier = Modifier.size(18.dp)
+                            Text(
+                                text = "Time In",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontFamily = ShiftlySerif,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = PureWhite
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Manual", color = TextPrimary)
                         }
+                    }
+
+                    OutlinedButton(
+                        onClick = onOpenManualEntry,
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(1.2.dp, PureWhite.copy(alpha = 0.55f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PureWhite),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                        modifier = Modifier.heightIn(min = 52.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Add,
+                            contentDescription = null,
+                            tint = PureWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "Manual",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontFamily = ShiftlySerif,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = PureWhite
+                        )
                     }
                 }
             }
@@ -552,71 +690,66 @@ fun TimeBreakdownCard(
     timeBreakdown: TimeBreakdown,
     currencySymbol: String
 ) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = SlateSurface,
-        border = BorderStroke(1.dp, BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
+                verticalAlignment = Alignment.Top
             ) {
                 Column {
                     Text(
-                        text = "WEEKLY",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = SoftBlue
+                        text = "Weekly Summary",
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                        color = PureWhite.copy(alpha = 0.88f)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "$currencySymbol${"%.2f".format(weeklyTotalEarnings)}",
-                        style = MaterialTheme.typography.headlineMedium.tabular(),
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        text = "$currencySymbol${"%,.2f".format(weeklyTotalEarnings)}",
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 32.sp
+                        ).tabular(),
+                        color = PureWhite
                     )
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = SlateSurfaceVariant
+                    shape = RoundedCornerShape(50),
+                    color = MintBright.copy(alpha = 0.20f),
+                    border = BorderStroke(1.dp, MintBright.copy(alpha = 0.45f))
                 ) {
                     Text(
                         text = "${"%.1f".format(weeklyTotalHours)}h total",
-                        style = MaterialTheme.typography.labelMedium.tabular(),
-                        color = TextSecondary,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.Bold
+                        ).tabular(),
+                        color = MintTextOnBlue,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
 
-            // Time breakdown indicators
+            // Three translucent stat tiles (Regular, Night Diff, Overtime in mint)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                TimeBreakdownItem(
+                TimeBreakdownTile(
                     label = "Regular",
                     hours = timeBreakdown.regularHours,
-                    color = ElectricBlue,
                     modifier = Modifier.weight(1f)
                 )
-                TimeBreakdownItem(
+                TimeBreakdownTile(
                     label = "Night Diff",
                     hours = timeBreakdown.nightDiffHours,
-                    color = SoftBlue,
                     modifier = Modifier.weight(1f)
                 )
-                TimeBreakdownItem(
+                TimeBreakdownTile(
                     label = "Overtime",
                     hours = timeBreakdown.overtimeHours,
-                    color = EmeraldSuccess,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -625,34 +758,38 @@ fun TimeBreakdownCard(
 }
 
 @Composable
-private fun TimeBreakdownItem(
+private fun TimeBreakdownTile(
     label: String,
     hours: Double,
-    color: androidx.compose.ui.graphics.Color,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = SlateSurfaceVariant.copy(alpha = 0.5f),
+    Column(
         modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(PureWhite.copy(alpha = 0.14f))
+            .border(1.dp, PureWhite.copy(alpha = 0.24f), RoundedCornerShape(18.dp))
+            .padding(horizontal = 10.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = "${"%.1f".format(hours)}h",
-                style = MaterialTheme.typography.titleMedium.tabular(),
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary
-            )
-        }
+        Text(
+            text = "${"%.1f".format(hours)}h",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = ShiftlySans,
+                fontWeight = FontWeight.Bold
+            ).tabular(),
+            color = MintTextOnBlue
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontFamily = ShiftlySerif,
+                fontWeight = FontWeight.Medium
+            ),
+            color = PureWhite.copy(alpha = 0.90f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -664,24 +801,18 @@ fun ShiftCalendarCard(
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onSelectDate: (LocalDate) -> Unit,
-    onClearFilter: () -> Unit
+    onClearFilter: () -> Unit,
+    todayOverride: LocalDate? = null
 ) {
-    val today = remember { LocalDate.now() }
-    val monthTitle = remember(displayedMonth) {
-        "${displayedMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault())} ${displayedMonth.year}"
+    val locale = LocalConfiguration.current.locales[0]
+    val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
+    val monthTitle = remember(displayedMonth, locale) {
+        "${displayedMonth.month.getDisplayName(TextStyle.FULL, locale)} ${displayedMonth.year}"
     }
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = SlateSurface,
-        border = BorderStroke(1.dp, BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Calendar Header
+    ShiftlyGlassCard(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 16.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Calendar Header with 48x48dp arrow buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -689,53 +820,102 @@ fun ShiftCalendarCard(
             ) {
                 Text(
                     text = monthTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = ShiftlySerif,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = PureWhite,
+                    modifier = Modifier.padding(start = 4.dp)
                 )
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     if (selectedCalendarDate != null) {
-                        TextButton(onClick = onClearFilter) {
-                            Text("Reset", color = SoftBlue, style = MaterialTheme.typography.labelMedium)
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = PureWhite.copy(alpha = 0.18f),
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .clip(RoundedCornerShape(50))
+                                .clickable(onClick = onClearFilter)
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Reset",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                                    color = PureWhite
+                                )
+                            }
                         }
                     }
-                    IconButton(onClick = onPreviousMonth, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Outlined.ChevronLeft, contentDescription = "Previous Month", tint = TextSecondary)
+
+                    IconButton(
+                        onClick = onPreviousMonth,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(PureWhite.copy(alpha = 0.12f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ChevronLeft,
+                            contentDescription = "Previous Month",
+                            tint = PureWhite
+                        )
                     }
-                    IconButton(onClick = onNextMonth, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Outlined.ChevronRight, contentDescription = "Next Month", tint = TextSecondary)
+
+                    IconButton(
+                        onClick = onNextMonth,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(PureWhite.copy(alpha = 0.12f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ChevronRight,
+                            contentDescription = "Next Month",
+                            tint = PureWhite
+                        )
                     }
                 }
             }
 
             // Day of Week Headers (Mon - Sun)
             val weekHeaders = listOf("M", "T", "W", "T", "F", "S", "S")
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
                 weekHeaders.forEach { day ->
                     Text(
                         text = day,
                         textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextSecondary,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = PureWhite.copy(alpha = 0.85f),
                         modifier = Modifier.weight(1f)
                     )
                 }
             }
 
-            // Calendar Cells Grid
+            // Larger, easier-to-tap Calendar Cells Grid (48dp height)
             val firstDayOfMonth = displayedMonth.atDay(1)
-            val startOffset = firstDayOfMonth.dayOfWeek.value - 1 // Monday = 0 .. Sunday = 6
+            val startOffset = firstDayOfMonth.dayOfWeek.value - 1
             val daysInMonth = displayedMonth.lengthOfMonth()
             val totalCells = startOffset + daysInMonth
             val rowCount = (totalCells + 6) / 7
 
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 for (row in 0 until rowCount) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         for (col in 0..6) {
                             val cellIndex = row * 7 + col
@@ -750,18 +930,28 @@ fun ShiftCalendarCard(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .aspectRatio(1f)
-                                        .clip(RoundedCornerShape(10.dp))
+                                        .heightIn(min = 48.dp)
+                                        .clip(RoundedCornerShape(14.dp))
                                         .background(
                                             when {
-                                                isSelected -> ElectricBlue
-                                                hasLoggedShift -> DeepBlueContainer
-                                                else -> SlateSurfaceVariant.copy(alpha = 0.25f)
+                                                isSelected -> PureWhite
+                                                hasLoggedShift -> MintBright.copy(alpha = 0.22f)
+                                                else -> PureWhite.copy(alpha = 0.08f)
                                             }
                                         )
                                         .then(
                                             if (isToday && !isSelected) {
-                                                Modifier.border(1.dp, ElectricBlue, RoundedCornerShape(10.dp))
+                                                Modifier.border(
+                                                    width = 1.6.dp,
+                                                    color = PureWhite,
+                                                    shape = RoundedCornerShape(14.dp)
+                                                )
+                                            } else if (hasLoggedShift && !isSelected) {
+                                                Modifier.border(
+                                                    width = 1.dp,
+                                                    color = MintBright.copy(alpha = 0.50f),
+                                                    shape = RoundedCornerShape(14.dp)
+                                                )
                                             } else {
                                                 Modifier
                                             }
@@ -772,36 +962,102 @@ fun ShiftCalendarCard(
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Text(
                                             text = dayNumber.toString(),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = if (isSelected || hasLoggedShift || isToday) {
-                                                FontWeight.Bold
-                                            } else {
-                                                FontWeight.Normal
-                                            },
+                                            style = MaterialTheme.typography.labelLarge.copy(
+                                                fontFamily = ShiftlySans,
+                                                fontWeight = if (isSelected || hasLoggedShift || isToday) {
+                                                    FontWeight.Bold
+                                                } else {
+                                                    FontWeight.Medium
+                                                }
+                                            ).tabular(),
                                             color = when {
-                                                isSelected -> TextPrimary
-                                                hasLoggedShift -> SoftBlue
-                                                else -> TextSecondary
+                                                isSelected -> DeepAzureBottom
+                                                hasLoggedShift -> MintTextOnBlue
+                                                else -> PureWhite
                                             }
                                         )
                                         if (hasLoggedShift) {
                                             Spacer(modifier = Modifier.height(2.dp))
                                             Box(
                                                 modifier = Modifier
-                                                    .size(4.dp)
+                                                    .size(5.dp)
                                                     .clip(CircleShape)
-                                                    .background(if (isSelected) TextPrimary else ElectricBlue)
+                                                    .background(
+                                                        if (isSelected) MintInkOnWhite else MintBright
+                                                    )
                                             )
                                         }
                                     }
                                 }
                             } else {
-                                Spacer(modifier = Modifier.weight(1f))
+                                Spacer(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
+                                )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ShiftHistoryEmptyCard(
+    isFiltered: Boolean,
+    onLogFirstShift: () -> Unit,
+    onClearFilter: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = SoftCloudWhite,
+        border = BorderStroke(1.dp, HairlineLight),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 26.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(MintSoftContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.WorkHistory,
+                    contentDescription = null,
+                    tint = MintInkOnWhite,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Text(
+                text = if (isFiltered) "No shifts on this day" else "No shifts logged yet",
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                color = InkPrimary,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = if (isFiltered) {
+                    "Pick another day on the calendar or reset the filter."
+                } else {
+                    "Tap below to log your hours and auto-compute your take-home pay."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = InkSecondary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            ShiftlyPrimaryPillButton(
+                text = if (isFiltered) "Show All Shifts" else "Log your first shift",
+                onClick = if (isFiltered) onClearFilter else onLogFirstShift
+            )
         }
     }
 }
@@ -813,14 +1069,15 @@ fun ShiftHistoryItemCard(
     onEditNote: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     val zone = remember { ZoneId.systemDefault() }
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
-    val timeFormatter = remember { DateTimeFormatter.ofPattern("hh:mm a") }
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE, MMM d", locale) }
+    val timeFormatter = remember(locale) { DateTimeFormatter.ofPattern("h:mm a", locale) }
 
-    val shiftDateText = remember(shift.dateEpochDay) {
+    val shiftDateText = remember(shift.dateEpochDay, dateFormatter) {
         LocalDate.ofEpochDay(shift.dateEpochDay).format(dateFormatter)
     }
-    val timeRangeText = remember(shift.timeInMillis, shift.timeOutMillis) {
+    val timeRangeText = remember(shift.timeInMillis, shift.timeOutMillis, timeFormatter) {
         val start = Instant.ofEpochMilli(shift.timeInMillis).atZone(zone).toLocalTime().format(timeFormatter)
         val end = Instant.ofEpochMilli(shift.timeOutMillis).atZone(zone).toLocalTime().format(timeFormatter)
         "$start – $end"
@@ -831,52 +1088,75 @@ fun ShiftHistoryItemCard(
     val durationLabel = if (hours > 0) "${hours}h ${mins}m" else "${mins}m"
 
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = SlateSurface,
-        border = BorderStroke(1.dp, BorderSubtle),
+        shape = RoundedCornerShape(20.dp),
+        color = PureWhite,
+        border = BorderStroke(1.dp, HairlineLight),
+        shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = shiftDateText,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "$timeRangeText ($durationLabel)",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(MintSoftContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Schedule,
+                            contentDescription = null,
+                            tint = MintInkOnWhite,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = shiftDateText,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = ShiftlySerif,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = InkPrimary
+                        )
+                        Text(
+                            text = "$timeRangeText ($durationLabel)",
+                            style = MaterialTheme.typography.bodySmall.tabular(),
+                            color = InkSecondary
+                        )
+                    }
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "$currencySymbol${"%.2f".format(shift.totalEarned)}",
-                        style = MaterialTheme.typography.titleMedium.tabular(),
-                        fontWeight = FontWeight.Bold,
-                        color = ElectricBlue
+                        text = "+$currencySymbol${"%,.2f".format(shift.totalEarned)}",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.Bold
+                        ).tabular(),
+                        color = MintInkOnWhite
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = (runCatching { DayType.valueOf(shift.dayType).label }.getOrNull() ?: shift.dayType),
+                        text = runCatching { DayType.valueOf(shift.dayType).label }.getOrNull() ?: shift.dayType,
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextSecondary
+                        color = InkSecondary
                     )
                 }
             }
 
-            // Optional Note & Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -884,40 +1164,338 @@ fun ShiftHistoryItemCard(
             ) {
                 if (shift.overtimeNote.isNotBlank()) {
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = DeepBlueContainer.copy(alpha = 0.7f),
-                        modifier = Modifier.weight(1f)
+                        shape = RoundedCornerShape(50),
+                        color = SoftCloudWhite,
+                        border = BorderStroke(1.dp, HairlineLight),
+                        modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Text(
                             text = shift.overtimeNote,
                             style = MaterialTheme.typography.labelSmall,
-                            color = SoftBlue,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                            color = InkPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
                 } else {
-                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "$currencySymbol${"%.2f".format(shift.lockedHourlyRate)}/hr locked",
+                        style = MaterialTheme.typography.labelSmall.tabular(),
+                        color = InkSecondary
+                    )
                 }
 
-                Row {
-                    IconButton(onClick = onEditNote, modifier = Modifier.size(32.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    IconButton(onClick = onEditNote, modifier = Modifier.size(48.dp)) {
                         Icon(
                             imageVector = Icons.Outlined.EditNote,
-                            contentDescription = "Edit Note",
-                            tint = SoftBlue,
-                            modifier = Modifier.size(18.dp)
+                            contentDescription = "Edit Shift",
+                            tint = AzureInkOnWhite,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = "Delete Shift",
-                            tint = RoseAlert.copy(alpha = 0.85f),
-                            modifier = Modifier.size(18.dp)
+                            tint = CoralInkOnWhite,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ManualShiftBottomSheet(
+    selectedDate: LocalDate,
+    hourlyRate: Double,
+    currencySymbol: String,
+    onPickDate: () -> Unit,
+    onDismiss: () -> Unit,
+    onSave: (
+        date: LocalDate,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        note: String,
+        dayType: DayType
+    ) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = PureWhite,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+    ) {
+        ManualShiftSheetContent(
+            selectedDate = selectedDate,
+            hourlyRate = hourlyRate,
+            currencySymbol = currencySymbol,
+            onPickDate = onPickDate,
+            onDismiss = onDismiss,
+            onSave = onSave
+        )
+    }
+}
+
+@Composable
+fun ManualShiftSheetContent(
+    selectedDate: LocalDate,
+    hourlyRate: Double,
+    currencySymbol: String,
+    onPickDate: () -> Unit,
+    onDismiss: () -> Unit,
+    onSave: (
+        date: LocalDate,
+        startHour: Int,
+        startMinute: Int,
+        endHour: Int,
+        endMinute: Int,
+        note: String,
+        dayType: DayType
+    ) -> Unit
+) {
+    val locale = LocalConfiguration.current.locales[0]
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE, MMM d, yyyy", locale) }
+
+    var startHour by remember { mutableStateOf("14") }
+    var startMin by remember { mutableStateOf("00") }
+    var endHour by remember { mutableStateOf("18") }
+    var endMin by remember { mutableStateOf("00") }
+    var manualNote by remember { mutableStateOf("Campus Café Shift") }
+    var selectedDayType by remember { mutableStateOf(DayType.ORDINARY) }
+
+    // Live Income Preview Calculation (hours × rate = ₱ amount)
+    val sH = (startHour.toIntOrNull() ?: 14).coerceIn(0, 23)
+    val sM = (startMin.toIntOrNull() ?: 0).coerceIn(0, 59)
+    val eH = (endHour.toIntOrNull() ?: 18).coerceIn(0, 23)
+    val eM = (endMin.toIntOrNull() ?: 0).coerceIn(0, 59)
+
+    val zone = remember { ZoneId.systemDefault() }
+    val startDateTime = selectedDate.atTime(LocalTime.of(sH, sM))
+    var endDateTime = selectedDate.atTime(LocalTime.of(eH, eM))
+    if (!endDateTime.isAfter(startDateTime)) {
+        endDateTime = endDateTime.plusDays(1)
+    }
+    val startMillis = startDateTime.atZone(zone).toInstant().toEpochMilli()
+    val endMillis = endDateTime.atZone(zone).toInstant().toEpochMilli()
+    val totalMinutes = ((endMillis - startMillis) / 60_000L).coerceAtLeast(0L)
+    val durationHours = totalMinutes / 60.0
+    val wageDetails = WageCalculator.calculateTotalEarned(
+        startMillis = startMillis,
+        endMillis = endMillis,
+        hourlyRate = hourlyRate,
+        dayTypeStr = selectedDayType.name
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Log Manual Shift",
+                style = MaterialTheme.typography.headlineSmall,
+                color = InkPrimary
+            )
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.heightIn(min = 48.dp)
+            ) {
+                Text("Cancel", fontFamily = ShiftlySerif, color = InkSecondary)
+            }
+        }
+
+        // Date Selector Row
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = SoftCloudWhite,
+            border = BorderStroke(1.dp, HairlineLight),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(onClick = onPickDate)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.CalendarToday,
+                        contentDescription = null,
+                        tint = AzureInkOnWhite,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = selectedDate.format(dateFormatter),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = InkPrimary
+                    )
+                }
+                Text(
+                    text = "Change",
+                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                    color = AzureInkOnWhite
+                )
+            }
+        }
+
+        // Quick Student Shift Presets (1-handed speed)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            listOf(
+                "2–6 PM" to listOf("14", "00", "18", "00"),
+                "9–1 PM" to listOf("9", "00", "13", "00"),
+                "6–11 PM" to listOf("18", "00", "23", "00")
+            ).forEach { (label, times) ->
+                val active = startHour == times[0] && endHour == times[2]
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (active) AzureSoftContainer else SoftCloudWhite,
+                    border = BorderStroke(1.dp, if (active) AzureInkOnWhite else HairlineLight),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(50))
+                        .clickable {
+                            startHour = times[0]
+                            startMin = times[1]
+                            endHour = times[2]
+                            endMin = times[3]
+                        }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium.tabular(),
+                            color = if (active) AzureInkOnWhite else InkSecondary
+                        )
+                    }
+                }
+            }
+        }
+
+        // Start & End Time Fields
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedTextField(
+                value = startHour,
+                onValueChange = { startHour = it.filter(Char::isDigit).take(2) },
+                label = { Text("Start Hr") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = startMin,
+                onValueChange = { startMin = it.filter(Char::isDigit).take(2) },
+                label = { Text("Min") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = endHour,
+                onValueChange = { endHour = it.filter(Char::isDigit).take(2) },
+                label = { Text("End Hr") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f)
+            )
+            OutlinedTextField(
+                value = endMin,
+                onValueChange = { endMin = it.filter(Char::isDigit).take(2) },
+                label = { Text("Min") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        DayTypeSelector(
+            selectedDayType = selectedDayType,
+            onDayTypeSelected = { selectedDayType = it }
+        )
+
+        OutlinedTextField(
+            value = manualNote,
+            onValueChange = { manualNote = it },
+            label = { Text("Shift Note (optional)", fontFamily = ShiftlySerif) },
+            singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Income Preview Card (hours × rate = ₱ amount)
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MintSoftContainer,
+            border = BorderStroke(1.dp, MintInkOnWhite.copy(alpha = 0.25f)),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Income Preview",
+                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                        color = MintInkOnWhite
+                    )
+                    Text(
+                        text = "${"%.1f".format(durationHours)} hrs × $currencySymbol${"%.2f".format(hourlyRate)}/hr",
+                        style = MaterialTheme.typography.bodySmall.tabular(),
+                        color = InkSecondary
+                    )
+                }
+
+                Text(
+                    text = "+$currencySymbol${"%,.2f".format(wageDetails.totalEarned)}",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontFamily = ShiftlySans,
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = MintInkOnWhite
+                )
+            }
+        }
+
+        ShiftlyPrimaryPillButton(
+            text = "Save Shift",
+            onClick = { onSave(selectedDate, sH, sM, eH, eM, manualNote, selectedDayType) }
+        )
     }
 }

@@ -55,12 +55,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.screens.HomeScreen
+import com.example.shiftly.ui.screens.WelcomeScreen
 import com.example.shiftly.ui.screens.duties.DutiesScreen
 import com.example.shiftly.ui.screens.expense.ExpenseScreen
-import com.example.shiftly.ui.screens.home.HomeScreen
 import com.example.shiftly.ui.screens.profile.ProfileScreen
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
-import com.example.shiftly.ui.screens.welcome.WelcomeScreen
 import com.example.shiftly.ui.theme.AzureInkOnWhite
 import com.example.shiftly.ui.theme.DeepAzureBottom
 import com.example.shiftly.ui.theme.HairlineLight
@@ -73,7 +73,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun MainAppScreen(
-    onLightBackgroundChanged: (Boolean) -> Unit = {}
+    onLightBackgroundChanged: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val repository = remember { ShiftlyRepository(context.applicationContext) }
@@ -90,11 +90,10 @@ fun MainAppScreen(
     AnimatedContent(
         targetState = hasCompletedOnboarding,
         transitionSpec = { fadeIn() togetherWith fadeOut() },
-        label = "OnboardingToMainTransition"
+        label = "OnboardingToMainTransition",
     ) { completed ->
         when (completed) {
             null -> {
-                // Brief neutral frame while DataStore resolves
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -111,14 +110,14 @@ fun MainAppScreen(
                             if (seedSample) {
                                 repository.seedSampleStudentData()
                             }
-                            repository.setOnboardingCompleted(true)
+                            repository.setOnboardingCompleted(completed = true)
                         }
                     },
                     onExistingAccount = {
                         scope.launch {
-                            repository.setOnboardingCompleted(true)
+                            repository.setOnboardingCompleted(completed = true)
                         }
-                    }
+                    },
                 )
             }
 
@@ -215,14 +214,7 @@ private fun MainDashboardShell(
                     )
                 }
                 composable(Screen.Duties.route) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .statusBarsPadding()
-                            .padding(bottom = 92.dp)
-                    ) {
-                        DutiesScreen(repository = repository, onShowMessage = showMessage)
-                    }
+                    DutiesScreen(repository = repository, onShowMessage = showMessage)
                 }
                 composable(Screen.Expense.route) {
                     Box(
