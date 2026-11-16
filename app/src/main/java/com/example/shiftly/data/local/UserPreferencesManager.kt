@@ -3,6 +3,7 @@ package com.example.shiftly.data.local
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -28,14 +29,36 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_ACTIVE_TIMER_START = longPreferencesKey("active_timer_start")
         private val KEY_ACTIVE_TIMER_DATE = longPreferencesKey("active_timer_date")
         private val KEY_ACTIVE_TIMER_RATE = doublePreferencesKey("active_timer_rate")
+
+        // Onboarding & Home Overview preferences
+        private val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        private val KEY_USER_NAME = stringPreferencesKey("user_name")
+        private val KEY_MONTHLY_BUDGET = doublePreferencesKey("monthly_budget")
+        private val KEY_SAVINGS_BUFFER = doublePreferencesKey("savings_buffer")
     }
 
     val defaultHourlyRate: Flow<Double> = context.dataStore.data.map { prefs ->
-        prefs[KEY_DEFAULT_HOURLY_RATE] ?: 0.0
+        prefs[KEY_DEFAULT_HOURLY_RATE] ?: 96.38
     }
 
     val currencySymbol: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_CURRENCY_SYMBOL] ?: "₱"
+    }
+
+    val hasCompletedOnboarding: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_ONBOARDING_COMPLETED] ?: false
+    }
+
+    val userName: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_USER_NAME] ?: "Maya"
+    }
+
+    val monthlyBudget: Flow<Double> = context.dataStore.data.map { prefs ->
+        prefs[KEY_MONTHLY_BUDGET] ?: 3000.0
+    }
+
+    val savingsBuffer: Flow<Double> = context.dataStore.data.map { prefs ->
+        prefs[KEY_SAVINGS_BUFFER] ?: 1000.0
     }
 
     val activeTimerState: Flow<ActiveTimerState> = context.dataStore.data.map { prefs ->
@@ -45,7 +68,7 @@ class UserPreferencesManager(private val context: Context) {
                 isRunning = true,
                 startTimeMillis = start,
                 shiftDateEpochDay = prefs[KEY_ACTIVE_TIMER_DATE] ?: 0L,
-                lockedRate = prefs[KEY_ACTIVE_TIMER_RATE] ?: 0.0
+                lockedRate = prefs[KEY_ACTIVE_TIMER_RATE] ?: 96.38
             )
         } else {
             ActiveTimerState(isRunning = false)
@@ -61,6 +84,33 @@ class UserPreferencesManager(private val context: Context) {
     suspend fun setCurrencySymbol(symbol: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_CURRENCY_SYMBOL] = symbol
+        }
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_ONBOARDING_COMPLETED] = completed
+        }
+    }
+
+    suspend fun setUserName(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isNotEmpty()) {
+            context.dataStore.edit { prefs ->
+                prefs[KEY_USER_NAME] = trimmed
+            }
+        }
+    }
+
+    suspend fun setMonthlyBudget(budget: Double) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_MONTHLY_BUDGET] = budget.coerceAtLeast(0.0)
+        }
+    }
+
+    suspend fun setSavingsBuffer(buffer: Double) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SAVINGS_BUFFER] = buffer.coerceAtLeast(0.0)
         }
     }
 
