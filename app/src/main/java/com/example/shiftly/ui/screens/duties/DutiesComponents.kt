@@ -18,9 +18,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Delete
@@ -30,10 +32,18 @@ import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +51,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -50,6 +61,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.shiftly.data.local.ActiveTimerState
@@ -67,6 +79,7 @@ import com.example.shiftly.ui.theme.SoftBlue
 import com.example.shiftly.ui.theme.TextPrimary
 import com.example.shiftly.ui.theme.TextSecondary
 import com.example.shiftly.ui.theme.tabular
+import com.example.shiftly.utils.DayType
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -75,6 +88,192 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlinx.coroutines.delay
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun DayTypeSelector(
+    selectedDayType: DayType,
+    onDayTypeSelected: (DayType) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = selectedDayType.label,
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("Day Type") },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, true)
+                .fillMaxWidth(),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = ElectricBlue,
+                unfocusedBorderColor = BorderSubtle,
+                focusedLabelColor = SoftBlue,
+                unfocusedLabelColor = TextSecondary,
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary
+            )
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.background(SlateSurface)
+        ) {
+            DayType.entries.forEach { dayType ->
+                DropdownMenuItem(
+                    text = { Text(dayType.label, color = TextPrimary) },
+                    onClick = {
+                        onDayTypeSelected(dayType)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DutiesRateSettingsCard(
+    defaultHourlyRate: Double,
+    currencySymbol: String,
+    onSaveRate: (String) -> Unit,
+    onSelectCurrency: (String) -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    var rateInput by remember { mutableStateOf("") }
+    var savedBanner by remember { mutableStateOf(false) }
+    val currencies = listOf("₱", "$", "€", "£", "¥")
+
+    LaunchedEffect(defaultHourlyRate) {
+        if (rateInput.isEmpty() && defaultHourlyRate > 0.0) {
+            rateInput = if (defaultHourlyRate % 1.0 == 0.0) {
+                defaultHourlyRate.toInt().toString()
+            } else {
+                defaultHourlyRate.toString()
+            }
+        }
+    }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = SlateSurface,
+        border = BorderStroke(1.dp, BorderSubtle),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.Lock,
+                    contentDescription = null,
+                    tint = ElectricBlue
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Rate & Currency",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary
+                )
+            }
+
+            // Currency Selector
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                currencies.forEach { symbol ->
+                    val selected = currencySymbol == symbol
+                    FilterChip(
+                        selected = selected,
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onSelectCurrency(symbol)
+                            onShowMessage("Currency set to $symbol")
+                        },
+                        label = {
+                            Text(
+                                text = symbol,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = SlateSurfaceVariant,
+                            labelColor = TextSecondary,
+                            selectedContainerColor = DeepBlueContainer,
+                            selectedLabelColor = ElectricBlue
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selected,
+                            borderColor = BorderSubtle,
+                            selectedBorderColor = ElectricBlue
+                        )
+                    )
+                }
+            }
+
+            // Hourly Rate Input + Save Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = rateInput,
+                    onValueChange = {
+                        rateInput = it
+                        savedBanner = false
+                    },
+                    label = { Text("Rate ($currencySymbol/h)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = ElectricBlue,
+                        unfocusedBorderColor = BorderSubtle,
+                        focusedLabelColor = SoftBlue,
+                        unfocusedLabelColor = TextSecondary,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    modifier = Modifier.weight(1f)
+                )
+
+                Button(
+                    onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSaveRate(rateInput)
+                        savedBanner = true
+                        onShowMessage("Rate saved")
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ElectricBlue),
+                    modifier = Modifier.height(56.dp)
+                ) {
+                    Icon(Icons.Outlined.Check, contentDescription = "Save")
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Save", fontWeight = FontWeight.SemiBold)
+                }
+            }
+
+            if (savedBanner) {
+                Text(
+                    text = "Saved $currencySymbol${"%.2f".format(defaultHourlyRate)}/h",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = EmeraldSuccess
+                )
+            }
+        }
+    }
+}
 
 @Composable
 fun LiveShiftTimerCard(
@@ -638,12 +837,20 @@ fun ShiftHistoryItemCard(
                     )
                 }
 
-                Text(
-                    text = "$currencySymbol${"%.2f".format(shift.totalEarned)}",
-                    style = MaterialTheme.typography.titleMedium.tabular(),
-                    fontWeight = FontWeight.Bold,
-                    color = ElectricBlue
-                )
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "$currencySymbol${"%.2f".format(shift.totalEarned)}",
+                        style = MaterialTheme.typography.titleMedium.tabular(),
+                        fontWeight = FontWeight.Bold,
+                        color = ElectricBlue
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = (runCatching { DayType.valueOf(shift.dayType).label }.getOrNull() ?: shift.dayType),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextSecondary
+                    )
+                }
             }
 
             // Optional Note & Action Buttons

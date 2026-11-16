@@ -49,6 +49,7 @@ import com.example.shiftly.ui.theme.SlateSurface
 import com.example.shiftly.ui.theme.SoftBlue
 import com.example.shiftly.ui.theme.TextPrimary
 import com.example.shiftly.ui.theme.TextSecondary
+import com.example.shiftly.utils.DayType
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -79,6 +80,16 @@ fun DutiesScreen(
         item {
             ShiftlyScreenHeader(
                 title = "Duties"
+            )
+        }
+
+        item {
+            DutiesRateSettingsCard(
+                defaultHourlyRate = state.defaultHourlyRate,
+                currencySymbol = state.currencySymbol,
+                onSaveRate = { viewModel.saveDefaultRate(it) },
+                onSelectCurrency = { viewModel.selectCurrency(it) },
+                onShowMessage = onShowMessage
             )
         }
 
@@ -195,6 +206,7 @@ fun DutiesScreen(
     // Check-Out & Overtime Note Dialog
     if (showCheckOutDialog) {
         var noteText by remember { mutableStateOf("") }
+        var selectedDayType by remember { mutableStateOf(DayType.ORDINARY) }
 
         AlertDialog(
             onDismissRequest = { showCheckOutDialog = false },
@@ -203,26 +215,32 @@ fun DutiesScreen(
                 Text("Check Out", color = TextPrimary, fontWeight = FontWeight.Bold)
             },
             text = {
-                OutlinedTextField(
-                    value = noteText,
-                    onValueChange = { noteText = it },
-                    label = { Text("Note") },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ElectricBlue,
-                        unfocusedBorderColor = BorderSubtle,
-                        focusedLabelColor = SoftBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    DayTypeSelector(
+                        selectedDayType = selectedDayType,
+                        onDayTypeSelected = { selectedDayType = it }
+                    )
+                    OutlinedTextField(
+                        value = noteText,
+                        onValueChange = { noteText = it },
+                        label = { Text("Note") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = ElectricBlue,
+                            unfocusedBorderColor = BorderSubtle,
+                            focusedLabelColor = SoftBlue,
+                            unfocusedLabelColor = TextSecondary,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        viewModel.checkOutAndSave(noteText)
+                        viewModel.checkOutAndSave(noteText, selectedDayType)
                         showCheckOutDialog = false
                         onShowMessage("Shift saved")
                     },
@@ -310,6 +328,7 @@ fun DutiesScreen(
         var endHour by remember { mutableStateOf("17") }
         var endMin by remember { mutableStateOf("00") }
         var manualNote by remember { mutableStateOf("") }
+        var selectedDayType by remember { mutableStateOf(DayType.ORDINARY) }
 
         AlertDialog(
             onDismissRequest = { showManualShiftDialog = false },
@@ -323,6 +342,11 @@ fun DutiesScreen(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    DayTypeSelector(
+                        selectedDayType = selectedDayType,
+                        onDayTypeSelected = { selectedDayType = it }
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -391,7 +415,8 @@ fun DutiesScreen(
                             startMinute = sM,
                             endHour = eH,
                             endMinute = eM,
-                            overtimeNote = manualNote
+                            overtimeNote = manualNote,
+                            dayType = selectedDayType
                         )
                         showManualShiftDialog = false
                         onShowMessage("Shift logged")

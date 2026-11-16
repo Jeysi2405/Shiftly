@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
+import com.example.shiftly.utils.DayType
+import com.example.shiftly.utils.WageCalculator
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
@@ -146,7 +148,7 @@ class DutiesViewModel(
         }
     }
 
-    fun checkOutAndSave(overtimeNote: String) {
+    fun checkOutAndSave(overtimeNote: String, dayType: DayType) {
         val timer = uiState.value.activeTimer
         if (!timer.isRunning || isCheckingOut) return
         isCheckingOut = true
@@ -154,7 +156,13 @@ class DutiesViewModel(
         val nowMillis = System.currentTimeMillis()
         val elapsedMillis = (nowMillis - timer.startTimeMillis).coerceAtLeast(0L)
         val durationMinutes = (elapsedMillis / 60_000L).toInt().coerceAtLeast(1)
-        val totalEarned = (durationMinutes / 60.0) * timer.lockedRate
+        
+        val totalEarned = WageCalculator.calculateTotalEarned(
+            startMillis = timer.startTimeMillis,
+            endMillis = nowMillis,
+            hourlyRate = timer.lockedRate,
+            dayTypeStr = dayType.name
+        )
 
         viewModelScope.launch {
             try {
@@ -166,7 +174,8 @@ class DutiesViewModel(
                         durationMinutes = durationMinutes,
                         lockedHourlyRate = timer.lockedRate,
                         totalEarned = totalEarned,
-                        overtimeNote = overtimeNote.trim()
+                        overtimeNote = overtimeNote.trim(),
+                        dayType = dayType.name
                     )
                 )
                 repository.stopShiftTimer()
@@ -188,7 +197,8 @@ class DutiesViewModel(
         startMinute: Int,
         endHour: Int,
         endMinute: Int,
-        overtimeNote: String
+        overtimeNote: String,
+        dayType: DayType
     ) {
         val zone = ZoneId.systemDefault()
         val startDateTime = date.atTime(LocalTime.of(startHour, startMinute))
@@ -202,7 +212,13 @@ class DutiesViewModel(
         val endMillis = endDateTime.atZone(zone).toInstant().toEpochMilli()
         val durationMinutes = ((endMillis - startMillis) / 60_000L).toInt().coerceAtLeast(1)
         val lockedRate = uiState.value.defaultHourlyRate
-        val totalEarned = (durationMinutes / 60.0) * lockedRate
+        
+        val totalEarned = WageCalculator.calculateTotalEarned(
+            startMillis = startMillis,
+            endMillis = endMillis,
+            hourlyRate = lockedRate,
+            dayTypeStr = dayType.name
+        )
 
         viewModelScope.launch {
             repository.insertShift(
@@ -213,7 +229,8 @@ class DutiesViewModel(
                     durationMinutes = durationMinutes,
                     lockedHourlyRate = lockedRate,
                     totalEarned = totalEarned,
-                    overtimeNote = overtimeNote.trim()
+                    overtimeNote = overtimeNote.trim(),
+                    dayType = dayType.name
                 )
             )
         }
@@ -241,6 +258,19 @@ class DutiesViewModel(
 
     fun clearCalendarFilter() {
         _selectedCalendarDate.value = null
+    }
+
+    fun saveDefaultRate(rateText: String) {
+        val parsed = rateText.toDoubleOrNull() ?: return
+        viewModelScope.launch {
+            repository.updateDefaultHourlyRate(parsed)
+        }
+    }
+
+    fun selectCurrency(symbol: String) {
+        viewModelScope.launch {
+            repository.updateCurrencySymbol(symbol)
+        }
     }
 
     class Factory(private val repository: ShiftlyRepository) : ViewModelProvider.Factory {

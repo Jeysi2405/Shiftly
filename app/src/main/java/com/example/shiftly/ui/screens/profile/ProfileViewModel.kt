@@ -52,19 +52,6 @@ class ProfileViewModel(
         initialValue = ProfileUiState()
     )
 
-    fun saveDefaultRate(rateText: String) {
-        val parsed = rateText.toDoubleOrNull() ?: return
-        viewModelScope.launch {
-            repository.updateDefaultHourlyRate(parsed)
-        }
-    }
-
-    fun selectCurrency(symbol: String) {
-        viewModelScope.launch {
-            repository.updateCurrencySymbol(symbol)
-        }
-    }
-
     fun exportBackup(onReady: (String) -> Unit) {
         viewModelScope.launch {
             val report = repository.generateOfflineBackupSummary()

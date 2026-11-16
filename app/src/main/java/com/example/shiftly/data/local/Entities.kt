@@ -16,7 +16,8 @@ data class ShiftEntity(
     val durationMinutes: Int,
     val lockedHourlyRate: Double,
     val totalEarned: Double,
-    val overtimeNote: String = ""
+    val overtimeNote: String = "",
+    val dayType: String = "ORDINARY"
 )
 
 @Entity(tableName = "expenses")

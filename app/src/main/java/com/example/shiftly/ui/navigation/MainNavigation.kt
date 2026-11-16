@@ -155,7 +155,7 @@ fun MainAppScreen() {
             composable(Screen.Duties.route) { DutiesScreen(repository = repository, onShowMessage = showMessage) }
             composable(Screen.Expense.route) { ExpenseScreen(repository = repository, onShowMessage = showMessage) }
             composable(Screen.SplitBill.route) { SplitBillScreen(repository = repository, onShowMessage = showMessage) }
-            composable(Screen.Profile.route) { ProfileScreen(repository = repository, onShowMessage = showMessage) }
+            composable(Screen.Profile.route) { ProfileScreen(repository = repository) }
         }
     }
 }
