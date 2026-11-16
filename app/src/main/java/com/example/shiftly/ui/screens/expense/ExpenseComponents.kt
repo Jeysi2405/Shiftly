@@ -5,17 +5,21 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,6 +29,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.CallSplit
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.CameraAlt
@@ -41,8 +46,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -63,28 +66,47 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ReceiptStorageHelper
-import com.example.shiftly.ui.theme.BorderSubtle
-import com.example.shiftly.ui.theme.DeepBlueContainer
-import com.example.shiftly.ui.theme.ElectricBlue
-import com.example.shiftly.ui.theme.ObsidianBackground
-import com.example.shiftly.ui.theme.RoseAlert
-import com.example.shiftly.ui.theme.SlateSurface
-import com.example.shiftly.ui.theme.SlateSurfaceVariant
-import com.example.shiftly.ui.theme.SoftBlue
-import com.example.shiftly.ui.theme.TextPrimary
-import com.example.shiftly.ui.theme.TextSecondary
+import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.theme.AzureInkOnWhite
+import com.example.shiftly.ui.theme.AzureSoftContainer
+import com.example.shiftly.ui.theme.CoralBright
+import com.example.shiftly.ui.theme.CoralInkOnWhite
+import com.example.shiftly.ui.theme.CoralSoftContainer
+import com.example.shiftly.ui.theme.CoralTextOnBlue
+import com.example.shiftly.ui.theme.DeepAzureBottom
+import com.example.shiftly.ui.theme.HairlineLight
+import com.example.shiftly.ui.theme.InkBlack
+import com.example.shiftly.ui.theme.InkMuted
+import com.example.shiftly.ui.theme.InkPrimary
+import com.example.shiftly.ui.theme.InkSecondary
+import com.example.shiftly.ui.theme.MintBright
+import com.example.shiftly.ui.theme.OrbSkyLight
+import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlySans
+import com.example.shiftly.ui.theme.ShiftlySerif
+import com.example.shiftly.ui.theme.SoftCloudWhite
 import com.example.shiftly.ui.theme.tabular
 import java.io.File
 import java.time.Instant
@@ -103,6 +125,17 @@ fun categoryIcon(category: String): ImageVector {
     }
 }
 
+private fun categorySegmentColor(index: Int): Color {
+    val palette = listOf(
+        CoralBright,
+        Color(0xFFFF9F7F),
+        OrbSkyLight,
+        MintBright,
+        Color(0xFFD8E8FF)
+    )
+    return palette[index % palette.size]
+}
+
 @Composable
 fun ExpenseSummaryCard(
     monthlyTotal: Double,
@@ -111,24 +144,8 @@ fun ExpenseSummaryCard(
     categoryBreakdown: List<CategorySpendSummary>,
     currencySymbol: String
 ) {
-    val barPalette = listOf(
-        ElectricBlue,
-        SoftBlue,
-        Color(0xFF818CF8),
-        Color(0xFF38BDF8),
-        SlateSurfaceVariant
-    )
-
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = SlateSurface,
-        border = BorderStroke(1.dp, BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -137,55 +154,75 @@ fun ExpenseSummaryCard(
                 Column {
                     Text(
                         text = "THIS MONTH",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = SoftBlue
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.8.sp
+                        ),
+                        color = PureWhite.copy(alpha = 0.88f)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "$currencySymbol${"%.2f".format(monthlyTotal)}",
-                        style = MaterialTheme.typography.headlineMedium.tabular(),
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        text = "$currencySymbol${"%,.2f".format(monthlyTotal)}",
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 34.sp
+                        ).tabular(),
+                        color = CoralTextOnBlue
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = SlateSurfaceVariant
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = "All-time: $currencySymbol${"%.2f".format(allTimeTotal)}",
-                        style = MaterialTheme.typography.labelSmall.tabular(),
-                        color = TextSecondary,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = PureWhite.copy(alpha = 0.16f),
+                        border = BorderStroke(1.dp, PureWhite.copy(alpha = 0.24f))
+                    ) {
+                        Text(
+                            text = "All-time: $currencySymbol${"%,.2f".format(allTimeTotal)}",
+                            style = MaterialTheme.typography.labelSmall.tabular(),
+                            color = PureWhite,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
+                    }
+                    if (totalReceiptCount > 0) {
+                        Text(
+                            text = "$totalReceiptCount receipt(s) saved",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PureWhite.copy(alpha = 0.80f)
+                        )
+                    }
                 }
             }
 
-            // Segmented Category Distribution Bar
             if (categoryBreakdown.isNotEmpty()) {
+                // Segmented Category Progress Bar
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(10.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(SlateSurfaceVariant),
+                        .clip(RoundedCornerShape(50))
+                        .background(PureWhite.copy(alpha = 0.18f)),
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     categoryBreakdown.forEachIndexed { index, item ->
                         if (item.fraction > 0f) {
                             Box(
                                 modifier = Modifier
-                                    .weight(item.fraction.coerceAtLeast(0.04f))
+                                    .weight(item.fraction.coerceAtLeast(0.05f))
                                     .fillMaxHeight()
-                                    .background(barPalette[index % barPalette.size])
+                                    .clip(RoundedCornerShape(50))
+                                    .background(categorySegmentColor(index))
                             )
                         }
                     }
                 }
 
-                // Top 3 Category Legend Pills
+                // Category Legend Pills
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -198,18 +235,131 @@ fun ExpenseSummaryCard(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(barPalette[index % barPalette.size])
+                                    .background(categorySegmentColor(index))
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "${item.category} ($currencySymbol${"%.0f".format(item.totalAmount)})",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondary
+                                text = "${item.category} ($currencySymbol${"%,.0f".format(item.totalAmount)})",
+                                style = MaterialTheme.typography.labelSmall.tabular(),
+                                color = PureWhite.copy(alpha = 0.92f)
                             )
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ExpenseCategoryFilterRow(
+    categories: List<String>,
+    selectedCategory: String,
+    onSelectCategory: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+            .drawWithContent {
+                drawContent()
+                drawRect(
+                    brush = Brush.horizontalGradient(
+                        0.0f to Color.Black,
+                        0.88f to Color.Black,
+                        1.0f to Color.Transparent
+                    ),
+                    blendMode = BlendMode.DstIn
+                )
+            }
+            .horizontalScroll(rememberScrollState())
+            .padding(start = 20.dp, end = 36.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        categories.forEach { category ->
+            val selected = selectedCategory == category
+            Box(
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(if (selected) PureWhite else PureWhite.copy(alpha = 0.14f))
+                    .border(
+                        width = 1.dp,
+                        color = if (selected) PureWhite else PureWhite.copy(alpha = 0.28f),
+                        shape = RoundedCornerShape(50)
+                    )
+                    .clickable { onSelectCategory(category) }
+                    .padding(horizontal = 18.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = category,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = ShiftlySerif,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                    ),
+                    color = if (selected) DeepAzureBottom else PureWhite
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ExpenseEmptyCard(
+    selectedCategory: String,
+    onAddExpense: () -> Unit,
+    onShowAll: () -> Unit
+) {
+    val isFiltered = selectedCategory != "All"
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = SoftCloudWhite,
+        border = BorderStroke(1.dp, HairlineLight),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 26.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(CoralSoftContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
+                    contentDescription = null,
+                    tint = CoralInkOnWhite,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Text(
+                text = if (isFiltered) "No $selectedCategory expenses" else "No expenses logged yet",
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                color = InkPrimary,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = if (isFiltered) {
+                    "Switch back to All or log a new $selectedCategory item."
+                } else {
+                    "Log meals, jeepney fares, and school supplies between classes."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = InkSecondary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            ShiftlyPrimaryPillButton(
+                text = if (isFiltered) "Show All Expenses" else "Log your first expense",
+                onClick = if (isFiltered) onShowAll else onAddExpense
+            )
         }
     }
 }
@@ -221,73 +371,80 @@ fun ExpenseItemCard(
     onViewReceipt: (ExpenseEntity) -> Unit,
     onDelete: () -> Unit
 ) {
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
-    val dateLabel = remember(expense.dateEpochDay) {
+    val locale = LocalConfiguration.current.locales[0]
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
+    val dateLabel = remember(expense.dateEpochDay, dateFormatter) {
         LocalDate.ofEpochDay(expense.dateEpochDay).format(dateFormatter)
     }
-    val hasReceipt = !expense.receiptImagePath.isNullOrBlank() && File(expense.receiptImagePath).exists()
+    val hasReceipt = remember(expense.receiptImagePath) {
+        !expense.receiptImagePath.isNullOrBlank() && File(expense.receiptImagePath).exists()
+    }
+    val isSplitItem = expense.category.equals("Split Bill", ignoreCase = true)
 
     Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = SlateSurface,
-        border = BorderStroke(1.dp, BorderSubtle),
+        shape = RoundedCornerShape(20.dp),
+        color = PureWhite,
+        border = BorderStroke(1.dp, HairlineLight),
+        shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Category Icon Box
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = DeepBlueContainer,
-                modifier = Modifier.size(44.dp)
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(if (isSplitItem) AzureSoftContainer else CoralSoftContainer),
+                contentAlignment = Alignment.Center
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = categoryIcon(expense.category),
-                        contentDescription = expense.category,
-                        tint = ElectricBlue,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                Icon(
+                    imageVector = categoryIcon(expense.category),
+                    contentDescription = expense.category,
+                    tint = if (isSplitItem) AzureInkOnWhite else CoralInkOnWhite,
+                    modifier = Modifier.size(21.dp)
+                )
             }
 
-            // Title, Category, Date, and Proof Badge
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = expense.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontFamily = ShiftlySerif,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = InkPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "${expense.category}  •  $dateLabel",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary
+                    color = InkSecondary
                 )
 
                 if (hasReceipt) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = DeepBlueContainer.copy(alpha = 0.85f),
+                        shape = RoundedCornerShape(50),
+                        color = AzureSoftContainer,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(50))
                             .clickable { onViewReceipt(expense) }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.AttachFile,
                                 contentDescription = null,
-                                tint = SoftBlue,
+                                tint = AzureInkOnWhite,
                                 modifier = Modifier.size(13.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -295,30 +452,34 @@ fun ExpenseItemCard(
                                 text = "Receipt",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.SemiBold,
-                                color = SoftBlue
+                                color = AzureInkOnWhite
                             )
                         }
                     }
                 }
             }
 
-            // Amount + Delete
-            Column(horizontalAlignment = Alignment.End) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 Text(
-                    text = "-$currencySymbol${"%.2f".format(expense.amount)}",
-                    style = MaterialTheme.typography.titleMedium.tabular(),
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    text = "-$currencySymbol${"%,.2f".format(expense.amount)}",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = ShiftlySans,
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = CoralInkOnWhite
                 )
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete",
-                        tint = RoseAlert.copy(alpha = 0.85f),
-                        modifier = Modifier.size(18.dp)
+                        contentDescription = "Delete Expense",
+                        tint = CoralInkOnWhite.copy(alpha = 0.85f),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -333,45 +494,8 @@ fun AddExpenseBottomSheet(
     onDismiss: () -> Unit,
     onSaveExpense: (title: String, amount: Double, category: String, date: LocalDate, receiptPath: String?) -> Unit
 ) {
-    val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    var title by remember { mutableStateOf("") }
-    var amountText by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Food") }
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
-    var showDatePicker by remember { mutableStateOf(false) }
-
     var savedReceiptPath by remember { mutableStateOf<String?>(null) }
-    var pendingCameraFile by remember { mutableStateOf<File?>(null) }
-
-    // Android Photo Picker Launcher
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
-            savedReceiptPath = ReceiptStorageHelper.saveUriToLocalReceipts(context, uri)
-        }
-    }
-
-    // Camera Capture Launcher
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture()
-    ) { success ->
-        val file = pendingCameraFile
-        if (success && file != null && file.exists() && file.length() > 0L) {
-            ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
-            savedReceiptPath = file.absolutePath
-        } else {
-            file?.delete()
-        }
-        pendingCameraFile = null
-    }
-
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("EEE, MMM d") }
-    val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
-    val isValid = title.isNotBlank() && parsedAmount > 0.0
 
     ModalBottomSheet(
         onDismissRequest = {
@@ -379,250 +503,365 @@ fun AddExpenseBottomSheet(
             onDismiss()
         },
         sheetState = sheetState,
-        containerColor = SlateSurface
+        containerColor = PureWhite,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+        AddExpenseSheetContent(
+            currencySymbol = currencySymbol,
+            savedReceiptPath = savedReceiptPath,
+            onReceiptChanged = { savedReceiptPath = it },
+            onDismiss = {
+                ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
+                onDismiss()
+            },
+            onSaveExpense = { title, amount, category, date, path ->
+                onSaveExpense(title, amount, category, date, path)
+                onDismiss()
+            }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddExpenseSheetContent(
+    currencySymbol: String,
+    savedReceiptPath: String?,
+    onReceiptChanged: (String?) -> Unit,
+    onDismiss: () -> Unit,
+    onSaveExpense: (title: String, amount: Double, category: String, date: LocalDate, receiptPath: String?) -> Unit,
+    initialAmount: String = "",
+    initialTitle: String = "",
+    initialCategory: String = "Food",
+    initialDate: LocalDate = LocalDate.now()
+) {
+    val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE, MMM d", locale) }
+
+    var title by remember { mutableStateOf(initialTitle) }
+    var amountText by remember { mutableStateOf(initialAmount) }
+    var selectedCategory by remember { mutableStateOf(initialCategory) }
+    var selectedDate by remember { mutableStateOf(initialDate) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var pendingCameraFile by remember { mutableStateOf<File?>(null) }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
+            onReceiptChanged(ReceiptStorageHelper.saveUriToLocalReceipts(context, uri))
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        val file = pendingCameraFile
+        if (success && file != null && file.exists() && file.length() > 0L) {
+            ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
+            onReceiptChanged(file.absolutePath)
+        } else {
+            file?.delete()
+        }
+        pendingCameraFile = null
+    }
+
+    val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
+    val isValid = title.isNotBlank() && parsedAmount > 0.0
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 26.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Add Expense",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary
+                style = MaterialTheme.typography.headlineSmall,
+                color = InkPrimary
             )
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.heightIn(min = 48.dp)
+            ) {
+                Text("Cancel", fontFamily = ShiftlySerif, color = InkSecondary)
+            }
+        }
 
-            // Amount Field
-            OutlinedTextField(
-                value = amountText,
-                onValueChange = { amountText = it },
-                label = { Text("Amount ($currencySymbol)") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = ElectricBlue,
-                    unfocusedBorderColor = BorderSubtle,
-                    focusedLabelColor = SoftBlue,
-                    unfocusedLabelColor = TextSecondary,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Title Field
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Title") },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = ElectricBlue,
-                    unfocusedBorderColor = BorderSubtle,
-                    focusedLabelColor = SoftBlue,
-                    unfocusedLabelColor = TextSecondary,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Category Pills
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        // Large Amount Input
+        OutlinedTextField(
+            value = amountText,
+            onValueChange = { amountText = it },
+            label = { Text("Amount", fontFamily = ShiftlySerif) },
+            placeholder = {
                 Text(
-                    text = "Category",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary
+                    text = "0.00",
+                    style = MaterialTheme.typography.headlineLarge.tabular(),
+                    color = InkMuted
                 )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ExpenseViewModel.EXPENSE_CATEGORIES.forEach { category ->
-                        val isSelected = selectedCategory == category
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedCategory = category },
-                            label = { Text(category) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = SlateSurfaceVariant,
-                                labelColor = TextSecondary,
-                                selectedContainerColor = DeepBlueContainer,
-                                selectedLabelColor = ElectricBlue
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = isSelected,
-                                borderColor = BorderSubtle,
-                                selectedBorderColor = ElectricBlue
+            },
+            prefix = {
+                Text(
+                    text = currencySymbol,
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontFamily = ShiftlySans,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = CoralInkOnWhite
+                )
+            },
+            textStyle = MaterialTheme.typography.headlineLarge.copy(
+                fontFamily = ShiftlySans,
+                fontWeight = FontWeight.Bold
+            ).tabular(),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            shape = RoundedCornerShape(18.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = CoralInkOnWhite,
+                unfocusedBorderColor = HairlineLight,
+                focusedLabelColor = CoralInkOnWhite,
+                unfocusedLabelColor = InkSecondary,
+                focusedTextColor = InkPrimary,
+                unfocusedTextColor = InkPrimary
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            label = { Text("Title", fontFamily = ShiftlySerif) },
+            placeholder = { Text("e.g., Tapsilog & Iced Coffee") },
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = AzureInkOnWhite,
+                unfocusedBorderColor = HairlineLight,
+                focusedLabelColor = AzureInkOnWhite,
+                unfocusedLabelColor = InkSecondary
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Category Pills
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = "Category",
+                style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                color = InkSecondary
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ExpenseViewModel.EXPENSE_CATEGORIES.forEach { category ->
+                    val selected = selectedCategory == category
+                    Box(
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(if (selected) CoralSoftContainer else SoftCloudWhite)
+                            .border(
+                                width = 1.dp,
+                                color = if (selected) CoralInkOnWhite else HairlineLight,
+                                shape = RoundedCornerShape(50)
                             )
+                            .clickable { selectedCategory = category }
+                            .padding(horizontal = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = category,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = ShiftlySerif,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                            ),
+                            color = if (selected) CoralInkOnWhite else InkSecondary
                         )
                     }
                 }
             }
+        }
 
-            // Date Selector Row
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = SlateSurfaceVariant.copy(alpha = 0.55f),
+        // Date Selector Row
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = SoftCloudWhite,
+            border = BorderStroke(1.dp, HairlineLight),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .clickable { showDatePicker = true }
+        ) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable { showDatePicker = true }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Outlined.CalendarToday,
-                            contentDescription = null,
-                            tint = ElectricBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = selectedDate.format(dateFormatter),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
-                        )
-                    }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.CalendarToday,
+                        contentDescription = null,
+                        tint = AzureInkOnWhite,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = "Change",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = SoftBlue,
-                        fontWeight = FontWeight.SemiBold
+                        text = selectedDate.format(dateFormatter),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = InkPrimary
                     )
                 }
-            }
-
-            // Receipt Section
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "Receipt",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary
+                    text = "Change",
+                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                    color = AzureInkOnWhite
                 )
+            }
+        }
 
-                if (savedReceiptPath != null) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = SlateSurfaceVariant.copy(alpha = 0.5f),
-                        border = BorderStroke(1.dp, ElectricBlue),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            AsyncImage(
-                                model = File(savedReceiptPath!!),
-                                contentDescription = "Receipt Preview",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                            )
-                            Text(
-                                text = "Attached",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary,
-                                modifier = Modifier.weight(1f)
-                            )
-                            IconButton(
-                                onClick = {
-                                    ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
-                                    savedReceiptPath = null
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Close,
-                                    contentDescription = "Remove",
-                                    tint = RoseAlert
-                                )
-                            }
-                        }
-                    }
-                } else {
+        // Receipt Section (Gallery or Camera)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "Receipt (optional)",
+                style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                color = InkSecondary
+            )
+
+            if (savedReceiptPath != null) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = SoftCloudWhite,
+                    border = BorderStroke(1.dp, AzureInkOnWhite),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        OutlinedButton(
-                            onClick = {
-                                galleryLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, BorderSubtle),
+                        AsyncImage(
+                            model = File(savedReceiptPath),
+                            contentDescription = "Receipt Preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                        )
+                        Text(
+                            text = "Receipt attached",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = InkPrimary,
                             modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = {
+                                ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
+                                onReceiptChanged(null)
+                            },
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.PhotoLibrary,
-                                contentDescription = null,
-                                tint = SoftBlue,
-                                modifier = Modifier.size(18.dp)
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = "Remove Receipt",
+                                tint = CoralInkOnWhite
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Gallery", color = TextPrimary)
-                        }
-
-                        OutlinedButton(
-                            onClick = {
-                                val (file, uri) = ReceiptStorageHelper.createCameraReceiptTarget(context)
-                                pendingCameraFile = file
-                                cameraLauncher.launch(uri)
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.dp, BorderSubtle),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.CameraAlt,
-                                contentDescription = null,
-                                tint = SoftBlue,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Camera", color = TextPrimary)
                         }
                     }
                 }
-            }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            galleryLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(1.dp, HairlineLight),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.PhotoLibrary,
+                            contentDescription = null,
+                            tint = AzureInkOnWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Gallery", fontFamily = ShiftlySerif, color = InkPrimary)
+                    }
 
-            // Save Expense CTA
-            Button(
-                onClick = {
-                    onSaveExpense(title, parsedAmount, selectedCategory, selectedDate, savedReceiptPath)
-                    onDismiss()
-                },
-                enabled = isValid,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = ElectricBlue,
-                    disabledContainerColor = SlateSurfaceVariant
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-            ) {
-                Text("Save", fontWeight = FontWeight.Bold)
+                    OutlinedButton(
+                        onClick = {
+                            val (file, uri) = ReceiptStorageHelper.createCameraReceiptTarget(context)
+                            pendingCameraFile = file
+                            cameraLauncher.launch(uri)
+                        },
+                        shape = RoundedCornerShape(50),
+                        border = BorderStroke(1.dp, HairlineLight),
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.CameraAlt,
+                            contentDescription = null,
+                            tint = AzureInkOnWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Camera", fontFamily = ShiftlySerif, color = InkPrimary)
+                    }
+                }
             }
+        }
+
+        // Full-width Black Pill Save Button with clear enabled / disabled states
+        Button(
+            onClick = {
+                onSaveExpense(title, parsedAmount, selectedCategory, selectedDate, savedReceiptPath)
+            },
+            enabled = isValid,
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = InkBlack,
+                contentColor = PureWhite,
+                disabledContainerColor = HairlineLight,
+                disabledContentColor = InkMuted
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+        ) {
+            Text(
+                text = if (isValid) "Save Expense" else "Enter amount & title to save",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontFamily = ShiftlySerif,
+                    fontWeight = FontWeight.SemiBold
+                )
+            )
         }
     }
 
@@ -643,12 +882,17 @@ fun AddExpenseBottomSheet(
                         showDatePicker = false
                     }
                 ) {
-                    Text("Select", color = ElectricBlue, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "Select",
+                        color = AzureInkOnWhite,
+                        fontFamily = ShiftlySerif,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel", color = TextSecondary)
+                    Text("Cancel", color = InkSecondary, fontFamily = ShiftlySerif)
                 }
             }
         ) {
@@ -664,8 +908,10 @@ fun ReceiptViewerDialog(
     onDismiss: () -> Unit
 ) {
     val path = expense.receiptImagePath ?: return
-    val dateLabel = remember(expense.dateEpochDay) {
-        LocalDate.ofEpochDay(expense.dateEpochDay).format(DateTimeFormatter.ofPattern("MMM d"))
+    val locale = LocalConfiguration.current.locales[0]
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
+    val dateLabel = remember(expense.dateEpochDay, dateFormatter) {
+        LocalDate.ofEpochDay(expense.dateEpochDay).format(dateFormatter)
     }
 
     Dialog(
@@ -673,7 +919,7 @@ fun ReceiptViewerDialog(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            color = ObsidianBackground.copy(alpha = 0.96f),
+            color = InkBlack.copy(alpha = 0.94f),
             modifier = Modifier.fillMaxSize()
         ) {
             Column(
@@ -681,7 +927,6 @@ fun ReceiptViewerDialog(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
-                // Top Bar
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -691,34 +936,38 @@ fun ReceiptViewerDialog(
                         Text(
                             text = expense.title,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            color = PureWhite
                         )
                         Text(
-                            text = "$currencySymbol${"%.2f".format(expense.amount)}  •  $dateLabel",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = SoftBlue
+                            text = "$currencySymbol${"%,.2f".format(expense.amount)}  •  $dateLabel",
+                            style = MaterialTheme.typography.bodySmall.tabular(),
+                            color = CoralTextOnBlue
                         )
                     }
 
-                    IconButton(onClick = onDismiss) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(PureWhite.copy(alpha = 0.14f))
+                    ) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Close",
-                            tint = TextPrimary
+                            tint = PureWhite
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Full Receipt Photo
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(SlateSurface),
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(PureWhite.copy(alpha = 0.08f)),
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(

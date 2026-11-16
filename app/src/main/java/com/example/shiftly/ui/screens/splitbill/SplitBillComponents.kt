@@ -2,24 +2,29 @@ package com.example.shiftly.ui.screens.splitbill
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
@@ -30,8 +35,6 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,7 +44,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -52,22 +54,34 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
-import com.example.shiftly.ui.theme.BorderSubtle
-import com.example.shiftly.ui.theme.DeepBlueContainer
-import com.example.shiftly.ui.theme.ElectricBlue
-import com.example.shiftly.ui.theme.EmeraldSuccess
-import com.example.shiftly.ui.theme.RoseAlert
-import com.example.shiftly.ui.theme.SlateSurface
-import com.example.shiftly.ui.theme.SlateSurfaceVariant
-import com.example.shiftly.ui.theme.SoftBlue
-import com.example.shiftly.ui.theme.TextPrimary
-import com.example.shiftly.ui.theme.TextSecondary
+import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.theme.AzureInkOnWhite
+import com.example.shiftly.ui.theme.AzureSoftContainer
+import com.example.shiftly.ui.theme.CoralInkOnWhite
+import com.example.shiftly.ui.theme.DeepAzureBottom
+import com.example.shiftly.ui.theme.HairlineLight
+import com.example.shiftly.ui.theme.InkBlack
+import com.example.shiftly.ui.theme.InkPrimary
+import com.example.shiftly.ui.theme.InkSecondary
+import com.example.shiftly.ui.theme.MintBright
+import com.example.shiftly.ui.theme.MintInkOnWhite
+import com.example.shiftly.ui.theme.MintSoftContainer
+import com.example.shiftly.ui.theme.MintTextOnBlue
+import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlySans
+import com.example.shiftly.ui.theme.ShiftlySerif
+import com.example.shiftly.ui.theme.SoftCloudWhite
 import com.example.shiftly.ui.theme.tabular
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -78,7 +92,7 @@ fun SplitBillSummaryCard(
     totalPendingAmount: Double,
     totalCollectedAmount: Double,
     paidParticipantsCount: Int,
-    totalParticipantsCount: Int
+    totalParticipantsCount: Int,
 ) {
     val paidFraction = if (totalParticipantsCount > 0) {
         (paidParticipantsCount.toFloat() / totalParticipantsCount.toFloat()).coerceIn(0f, 1f)
@@ -86,16 +100,8 @@ fun SplitBillSummaryCard(
         0f
     }
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = SlateSurface,
-        border = BorderStroke(1.dp, BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -104,48 +110,68 @@ fun SplitBillSummaryCard(
                 Column {
                     Text(
                         text = "PENDING",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = SoftBlue
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.8.sp
+                        ),
+                        color = PureWhite.copy(alpha = 0.88f)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "$currencySymbol${"%.2f".format(totalPendingAmount)}",
-                        style = MaterialTheme.typography.headlineMedium.tabular(),
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        text = "$currencySymbol${"%,.2f".format(totalPendingAmount)}",
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 32.sp
+                        ).tabular(),
+                        color = PureWhite
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = SlateSurfaceVariant
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = "Paid: $currencySymbol${"%.2f".format(totalCollectedAmount)}",
-                        style = MaterialTheme.typography.labelSmall.tabular(),
-                        color = EmeraldSuccess,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MintBright.copy(alpha = 0.22f),
+                        border = BorderStroke(1.dp, MintBright.copy(alpha = 0.50f))
+                    ) {
+                        Text(
+                            text = "Paid: $currencySymbol${"%,.2f".format(totalCollectedAmount)}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold
+                            ).tabular(),
+                            color = MintTextOnBlue,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
+                        )
+                    }
+                    if (totalParticipantsCount > 0) {
+                        Text(
+                            text = "$paidParticipantsCount of $totalParticipantsCount shares settled",
+                            style = MaterialTheme.typography.labelSmall.tabular(),
+                            color = PureWhite.copy(alpha = 0.82f)
+                        )
+                    }
                 }
             }
 
-            // Paid vs. Unpaid Progress Bar
+            // Paid vs Unpaid Mint Progress Bar
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(SlateSurfaceVariant)
+                    .clip(RoundedCornerShape(50))
+                    .background(PureWhite.copy(alpha = 0.20f))
             ) {
                 if (paidFraction > 0f) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(paidFraction)
                             .fillMaxHeight()
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(EmeraldSuccess)
+                            .clip(RoundedCornerShape(50))
+                            .background(MintBright)
                     )
                 }
             }
@@ -162,11 +188,15 @@ fun SplitBillCalculatorCard(
         personCount: Int,
         participantNames: List<String>,
         alsoLogAsExpense: Boolean
-    ) -> Unit
+    ) -> Unit,
+    initialAmount: String = "",
+    initialTitle: String = "",
+    initialPersonCount: Int = 2,
+    externalPrefillTrigger: Int = 0
 ) {
-    var titleInput by remember { mutableStateOf("") }
-    var amountInput by remember { mutableStateOf("") }
-    var personCount by remember { mutableIntStateOf(2) }
+    var titleInput by remember(externalPrefillTrigger) { mutableStateOf(initialTitle) }
+    var amountInput by remember(externalPrefillTrigger) { mutableStateOf(initialAmount) }
+    var personCount by remember(externalPrefillTrigger) { mutableIntStateOf(initialPersonCount) }
     var editNamesExpanded by remember { mutableStateOf(false) }
 
     val customNames = remember {
@@ -181,27 +211,34 @@ fun SplitBillCalculatorCard(
 
     val totalAmount = amountInput.toDoubleOrNull() ?: 0.0
     val perPersonShare = if (personCount > 0) totalAmount / personCount else 0.0
-    val isValid = totalAmount > 0.0 && personCount >= 2
+    val isValid = (totalAmount > 0.0) && (personCount >= 2)
     val quickCounts = listOf(2, 3, 4, 5, 6)
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = SlateSurface,
-        border = BorderStroke(1.dp, BorderSubtle),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+    val glassFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = PureWhite,
+        unfocusedBorderColor = PureWhite.copy(alpha = 0.42f),
+        focusedLabelColor = PureWhite,
+        unfocusedLabelColor = PureWhite.copy(alpha = 0.85f),
+        focusedTextColor = PureWhite,
+        unfocusedTextColor = PureWhite,
+        cursorColor = MintTextOnBlue,
+        focusedContainerColor = PureWhite.copy(alpha = 0.10f),
+        unfocusedContainerColor = PureWhite.copy(alpha = 0.08f)
+    )
+
+    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(
                 text = "NEW SPLIT",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                color = SoftBlue
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = ShiftlySerif,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.8.sp
+                ),
+                color = PureWhite.copy(alpha = 0.90f)
             )
 
-            // Total Bill Amount + Title Inputs
+            // Total (₱) + Label Fields
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -209,39 +246,33 @@ fun SplitBillCalculatorCard(
                 OutlinedTextField(
                     value = amountInput,
                     onValueChange = { amountInput = it },
-                    label = { Text("Total ($currencySymbol)") },
+                    label = { Text("Total ($currencySymbol)", fontFamily = ShiftlySerif) },
+                    placeholder = {
+                        Text("0.00", color = PureWhite.copy(alpha = 0.45f))
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ElectricBlue,
-                        unfocusedBorderColor = BorderSubtle,
-                        focusedLabelColor = SoftBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = glassFieldColors,
                     modifier = Modifier.weight(1f)
                 )
 
                 OutlinedTextField(
                     value = titleInput,
                     onValueChange = { titleInput = it },
-                    label = { Text("Label") },
+                    label = { Text("Label", fontFamily = ShiftlySerif) },
+                    placeholder = {
+                        Text("Dinner", color = PureWhite.copy(alpha = 0.45f))
+                    },
                     singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = ElectricBlue,
-                        unfocusedBorderColor = BorderSubtle,
-                        focusedLabelColor = SoftBlue,
-                        unfocusedLabelColor = TextSecondary,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = glassFieldColors,
                     modifier = Modifier.weight(1.15f)
                 )
             }
 
-            // Number of Persons Included Selector
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Persons Stepper (- / Count / +) with 48dp circular targets
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -249,129 +280,148 @@ fun SplitBillCalculatorCard(
                 ) {
                     Text(
                         text = "Persons",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = PureWhite
                     )
 
-                    // - / Count / + Stepper
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = SlateSurfaceVariant,
+                        Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(48.dp)
                                 .clip(CircleShape)
+                                .background(
+                                    if (personCount > 2) PureWhite.copy(alpha = 0.18f)
+                                    else PureWhite.copy(alpha = 0.08f)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (personCount > 2) PureWhite.copy(alpha = 0.35f)
+                                    else PureWhite.copy(alpha = 0.14f),
+                                    shape = CircleShape
+                                )
                                 .clickable(enabled = personCount > 2) {
                                     if (personCount > 2) personCount--
-                                }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Remove,
-                                    contentDescription = "Decrease",
-                                    tint = if (personCount > 2) TextPrimary else TextSecondary.copy(alpha = 0.4f),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Outlined.Remove,
+                                contentDescription = "Decrease persons",
+                                tint = if (personCount > 2) PureWhite else PureWhite.copy(alpha = 0.35f),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
 
                         Text(
-                            text = "$personCount",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = ElectricBlue,
-                            modifier = Modifier.padding(horizontal = 6.dp)
+                            text = personCount.toString(),
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontFamily = ShiftlySans,
+                                fontWeight = FontWeight.Bold
+                            ).tabular(),
+                            color = MintTextOnBlue,
+                            modifier = Modifier.padding(horizontal = 4.dp)
                         )
 
-                        Surface(
-                            shape = CircleShape,
-                            color = DeepBlueContainer,
+                        Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(48.dp)
                                 .clip(CircleShape)
+                                .background(PureWhite)
                                 .clickable(enabled = personCount < 20) {
                                     if (personCount < 20) {
                                         personCount++
                                         ensureNameCapacity(personCount)
                                     }
-                                }
+                                },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Add,
-                                    contentDescription = "Increase",
-                                    tint = ElectricBlue,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Outlined.Add,
+                                contentDescription = "Increase persons",
+                                tint = DeepAzureBottom,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
 
-                // Quick-Pick Person Count Chips (2..6)
+                // Quick-Pick Person Chips (2p to 6p) + 48dp Edit Names Icon Button
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     quickCounts.forEach { count ->
                         val selected = personCount == count
-                        FilterChip(
-                            selected = selected,
-                            onClick = {
-                                personCount = count
-                                ensureNameCapacity(count)
-                            },
-                            label = {
-                                Text(
-                                    text = "${count}p",
-                                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                        Box(
+                            modifier = Modifier
+                                .widthIn(min = 48.dp)
+                                .heightIn(min = 48.dp)
+                                .clip(RoundedCornerShape(50))
+                                .background(
+                                    if (selected) PureWhite else PureWhite.copy(alpha = 0.14f)
                                 )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                containerColor = SlateSurfaceVariant,
-                                labelColor = TextSecondary,
-                                selectedContainerColor = DeepBlueContainer,
-                                selectedLabelColor = ElectricBlue
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = selected,
-                                borderColor = BorderSubtle,
-                                selectedBorderColor = ElectricBlue
+                                .border(
+                                    width = 1.dp,
+                                    color = if (selected) PureWhite else PureWhite.copy(alpha = 0.28f),
+                                    shape = RoundedCornerShape(50)
+                                )
+                                .clickable {
+                                    personCount = count
+                                    ensureNameCapacity(count)
+                                }
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${count}p",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = ShiftlySans,
+                                    fontWeight = FontWeight.Bold
+                                ).tabular(),
+                                color = if (selected) DeepAzureBottom else PureWhite
                             )
-                        )
+                        }
                     }
 
-                    TextButton(
-                        onClick = {
-                            ensureNameCapacity(personCount)
-                            editNamesExpanded = !editNamesExpanded
-                        }
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (editNamesExpanded) MintBright.copy(alpha = 0.28f)
+                                else PureWhite.copy(alpha = 0.14f)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = if (editNamesExpanded) MintTextOnBlue
+                                else PureWhite.copy(alpha = 0.32f),
+                                shape = CircleShape
+                            )
+                            .clickable {
+                                ensureNameCapacity(personCount)
+                                editNamesExpanded = !editNamesExpanded
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
-                            contentDescription = null,
-                            tint = SoftBlue,
-                            modifier = Modifier.size(15.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (editNamesExpanded) "Hide" else "Names",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = SoftBlue
+                            contentDescription = if (editNamesExpanded) "Hide participant names" else "Edit participant names",
+                            tint = MintTextOnBlue,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
             }
 
-            // Optional Inline Participant Name Editor
             if (editNamesExpanded) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (index in 0 until personCount) {
@@ -381,52 +431,60 @@ fun SplitBillCalculatorCard(
                                 ensureNameCapacity(index + 1)
                                 customNames[index] = updated
                             },
-                            label = { Text(if (index == 0) "Your Name" else "Person ${index + 1}") },
+                            label = {
+                                Text(
+                                    text = if (index == 0) "Your Name" else "Person ${index + 1}",
+                                    fontFamily = ShiftlySerif
+                                )
+                            },
                             singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = ElectricBlue,
-                                unfocusedBorderColor = BorderSubtle,
-                                focusedLabelColor = SoftBlue,
-                                unfocusedLabelColor = TextSecondary,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            ),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = glassFieldColors,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
             }
 
-            // Live Per-Person Calculation Banner
+            // Large Bold "Per Person" Result Banner
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = DeepBlueContainer.copy(alpha = 0.7f),
-                border = BorderStroke(1.dp, ElectricBlue.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(18.dp),
+                color = MintBright.copy(alpha = 0.18f),
+                border = BorderStroke(1.dp, MintBright.copy(alpha = 0.45f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Column {
+                        Text(
+                            text = "Per Person",
+                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                            color = PureWhite
+                        )
+                        Text(
+                            text = "Split evenly among $personCount",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PureWhite.copy(alpha = 0.80f)
+                        )
+                    }
                     Text(
-                        text = "Per Person",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = SoftBlue
-                    )
-                    Text(
-                        text = "$currencySymbol${"%.2f".format(perPersonShare)}",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
+                        text = "$currencySymbol${"%,.2f".format(perPersonShare)}",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 26.sp
+                        ).tabular(),
+                        color = MintTextOnBlue
                     )
                 }
             }
 
-            // Action Buttons: Save OR Split & Log
+            // Distinct Action Buttons: "Save" (pending) vs "Split & Log" (pending + log share)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -444,16 +502,25 @@ fun SplitBillCalculatorCard(
                         amountInput = ""
                     },
                     enabled = isValid,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, if (isValid) ElectricBlue else BorderSubtle),
+                    shape = RoundedCornerShape(50),
+                    border = BorderStroke(
+                        width = 1.4.dp,
+                        color = if (isValid) PureWhite else PureWhite.copy(alpha = 0.28f)
+                    ),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = PureWhite,
+                        disabledContentColor = PureWhite.copy(alpha = 0.45f)
+                    ),
                     modifier = Modifier
                         .weight(1f)
-                        .height(48.dp)
+                        .heightIn(min = 52.dp)
                 ) {
                     Text(
                         text = "Save",
-                        color = if (isValid) ElectricBlue else TextSecondary,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     )
                 }
 
@@ -470,21 +537,78 @@ fun SplitBillCalculatorCard(
                         amountInput = ""
                     },
                     enabled = isValid,
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = ElectricBlue,
-                        disabledContainerColor = SlateSurfaceVariant
+                        containerColor = InkBlack,
+                        contentColor = PureWhite,
+                        disabledContainerColor = InkBlack.copy(alpha = 0.35f),
+                        disabledContentColor = PureWhite.copy(alpha = 0.52f)
                     ),
                     modifier = Modifier
-                        .weight(1.25f)
-                        .height(48.dp)
+                        .weight(1.3f)
+                        .heightIn(min = 52.dp)
                 ) {
                     Text(
                         text = "Split & Log",
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SplitBillEmptyCard(
+    onTrySampleSplit: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = SoftCloudWhite,
+        border = BorderStroke(1.dp, HairlineLight),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 26.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(AzureSoftContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Outlined.CallSplit,
+                    contentDescription = null,
+                    tint = AzureInkOnWhite,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Text(
+                text = "No split bills yet",
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                color = InkPrimary,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "Enter a group total above to divide shares and log your portion.",
+                style = MaterialTheme.typography.bodySmall,
+                color = InkSecondary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            ShiftlyPrimaryPillButton(
+                text = "Try ₱1,200 ÷ 4 dinner",
+                onClick = onTrySampleSplit
+            )
         }
     }
 }
@@ -502,20 +626,25 @@ fun SplitBillLogItemCard(
     val paidCount = participants.count { it.hasPaid }
     val allPaid = participants.isNotEmpty() && paidCount == participants.size
 
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
-    val dateLabel = remember(bill.dateEpochDay) {
+    val locale = LocalConfiguration.current.locales[0]
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
+    val dateLabel = remember(bill.dateEpochDay, dateFormatter) {
         LocalDate.ofEpochDay(bill.dateEpochDay).format(dateFormatter)
     }
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = SlateSurface,
-        border = BorderStroke(1.dp, if (allPaid) EmeraldSuccess.copy(alpha = 0.5f) else BorderSubtle),
+        shape = RoundedCornerShape(20.dp),
+        color = PureWhite,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (allPaid) MintInkOnWhite.copy(alpha = 0.45f) else HairlineLight
+        ),
+        shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Top Bill Header
             Row(
@@ -524,64 +653,68 @@ fun SplitBillLogItemCard(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Text(
                             text = bill.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = ShiftlySerif,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = InkPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
                         Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (allPaid) {
-                                EmeraldSuccess.copy(alpha = 0.16f)
-                            } else {
-                                DeepBlueContainer
-                            }
+                            shape = RoundedCornerShape(50),
+                            color = if (allPaid) MintSoftContainer else AzureSoftContainer
                         ) {
                             Text(
-                                text = if (allPaid) "Paid" else "$paidCount/${participants.size}",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (allPaid) EmeraldSuccess else SoftBlue,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                text = if (allPaid) "Paid" else "Pending ($paidCount/${participants.size})",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.SemiBold
+                                ).tabular(),
+                                color = if (allPaid) MintInkOnWhite else AzureInkOnWhite,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(2.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Text(
-                        text = "$dateLabel  •  $currencySymbol${"%.2f".format(bill.totalAmount)}",
+                        text = "$dateLabel  •  $currencySymbol${"%,.2f".format(bill.totalAmount)} (${bill.personCount} people)",
                         style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = TextSecondary
+                        color = InkSecondary
                     )
                 }
 
                 IconButton(
                     onClick = { onDeleteBill(bill) },
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete",
-                        tint = RoseAlert.copy(alpha = 0.85f),
-                        modifier = Modifier.size(18.dp)
+                        contentDescription = "Delete Split Bill",
+                        tint = CoralInkOnWhite,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            HorizontalDivider(thickness = 1.dp, color = BorderSubtle)
+            HorizontalDivider(thickness = 1.dp, color = HairlineLight)
 
-            // Participant Rows with Individual "Paid" Toggle Buttons
+            // Participant Rows with 48dp Min Height Paid / Mark Paid Actions
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 participants.forEach { participant ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(SlateSurfaceVariant.copy(alpha = 0.4f))
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(SoftCloudWhite)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -589,63 +722,82 @@ fun SplitBillLogItemCard(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Person,
-                                contentDescription = null,
-                                tint = if (participant.hasPaid) EmeraldSuccess else SoftBlue,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(if (participant.hasPaid) MintSoftContainer else AzureSoftContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Person,
+                                    contentDescription = null,
+                                    tint = if (participant.hasPaid) MintInkOnWhite else AzureInkOnWhite,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
                                     text = participant.personLabel,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = TextPrimary
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = InkPrimary
                                 )
                                 Text(
-                                    text = "$currencySymbol${"%.2f".format(participant.amountOwed)}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = if (participant.hasPaid) EmeraldSuccess else TextSecondary
+                                    text = "$currencySymbol${"%,.2f".format(participant.amountOwed)}",
+                                    style = MaterialTheme.typography.labelSmall.tabular(),
+                                    color = if (participant.hasPaid) MintInkOnWhite else InkSecondary
                                 )
                             }
                         }
 
-                        // Person Paid Toggle Button
                         if (participant.hasPaid) {
-                            Button(
-                                onClick = { onToggleParticipantPaid(participant) },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = EmeraldSuccess.copy(alpha = 0.2f),
-                                    contentColor = EmeraldSuccess
-                                ),
-                                modifier = Modifier.height(34.dp)
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = MintSoftContainer,
+                                modifier = Modifier
+                                    .heightIn(min = 48.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .clickable { onToggleParticipantPaid(participant) }
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Paid",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Check,
+                                        contentDescription = null,
+                                        tint = MintInkOnWhite,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = "Paid",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontFamily = ShiftlySerif,
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = MintInkOnWhite
+                                    )
+                                }
                             }
                         } else {
                             OutlinedButton(
                                 onClick = { onToggleParticipantPaid(participant) },
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, ElectricBlue),
-                                modifier = Modifier.height(34.dp)
+                                shape = RoundedCornerShape(50),
+                                border = BorderStroke(1.dp, AzureInkOnWhite),
+                                contentPadding = PaddingValues(horizontal = 14.dp),
+                                modifier = Modifier.heightIn(min = 48.dp)
                             ) {
                                 Text(
                                     text = "Mark Paid",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = ElectricBlue
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontFamily = ShiftlySerif,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = AzureInkOnWhite
                                 )
                             }
                         }
@@ -653,54 +805,62 @@ fun SplitBillLogItemCard(
                 }
             }
 
-            // One-Tap "Log Share as Expense" Action Button
+            // One-Tap "Log Share as Expense" Action or Logged Confirmation Banner
             if (bill.isLoggedToExpense) {
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = EmeraldSuccess.copy(alpha = 0.14f),
+                    shape = RoundedCornerShape(50),
+                    color = MintSoftContainer,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 10.dp),
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.CheckCircle,
                             contentDescription = null,
-                            tint = EmeraldSuccess,
-                            modifier = Modifier.size(17.dp)
+                            tint = MintInkOnWhite,
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Logged to Expenses ($currencySymbol${"%.2f".format(bill.perPersonAmount)})",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = EmeraldSuccess
+                            text = "Logged to Expenses ($currencySymbol${"%,.2f".format(bill.perPersonAmount)})",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = ShiftlySerif,
+                                fontWeight = FontWeight.SemiBold
+                            ).tabular(),
+                            color = MintInkOnWhite
                         )
                     }
                 }
             } else {
                 Button(
                     onClick = { onLogAsExpense(bill) },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = DeepBlueContainer),
-                    modifier = Modifier.fillMaxWidth()
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = InkBlack,
+                        contentColor = PureWhite
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
                         contentDescription = null,
-                        tint = ElectricBlue,
-                        modifier = Modifier.size(17.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Log Share ($currencySymbol${"%.2f".format(bill.perPersonAmount)})",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = ElectricBlue
+                        text = "Log Share to Expenses ($currencySymbol${"%,.2f".format(bill.perPersonAmount)})",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold
+                        ).tabular(),
+                        color = PureWhite
                     )
                 }
             }

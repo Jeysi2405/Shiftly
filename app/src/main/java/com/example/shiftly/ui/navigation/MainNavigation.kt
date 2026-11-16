@@ -217,24 +217,10 @@ private fun MainDashboardShell(
                     DutiesScreen(repository = repository, onShowMessage = showMessage)
                 }
                 composable(Screen.Expense.route) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .statusBarsPadding()
-                            .padding(bottom = 92.dp)
-                    ) {
-                        ExpenseScreen(repository = repository, onShowMessage = showMessage)
-                    }
+                    ExpenseScreen(repository = repository, onShowMessage = showMessage)
                 }
                 composable(Screen.SplitBill.route) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .statusBarsPadding()
-                            .padding(bottom = 92.dp)
-                    ) {
-                        SplitBillScreen(repository = repository, onShowMessage = showMessage)
-                    }
+                    SplitBillScreen(repository = repository, onShowMessage = showMessage)
                 }
                 composable(Screen.Profile.route) {
                     Box(
