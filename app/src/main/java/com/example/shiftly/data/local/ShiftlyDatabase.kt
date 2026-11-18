@@ -12,18 +12,22 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ShiftEntity::class,
         ExpenseEntity::class,
         ExtraIncomeEntity::class,
+        RecurringBillEntity::class,
+        AllowanceEntryEntity::class,
         SplitBillEntity::class,
         SplitParticipantEntity::class,
         SavingsGoalEntity::class,
         SavingsDepositEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class ShiftlyDatabase : RoomDatabase() {
     abstract fun shiftDao(): ShiftDao
     abstract fun expenseDao(): ExpenseDao
     abstract fun extraIncomeDao(): ExtraIncomeDao
+    abstract fun recurringBillDao(): RecurringBillDao
+    abstract fun allowanceDao(): AllowanceDao
     abstract fun splitBillDao(): SplitBillDao
     abstract fun savingsGoalDao(): SavingsGoalDao
 
@@ -108,6 +112,50 @@ abstract class ShiftlyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE expenses ADD COLUMN linkedRecurringBillId INTEGER")
+                db.execSQL("ALTER TABLE expenses ADD COLUMN recurringOccurrenceEpochDay INTEGER")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_expenses_linkedRecurringBillId ON expenses(linkedRecurringBillId)"
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS recurring_bills (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        amount REAL NOT NULL,
+                        category TEXT NOT NULL,
+                        frequency TEXT NOT NULL,
+                        dueEpochDay INTEGER NOT NULL,
+                        dueHour INTEGER NOT NULL DEFAULT 9,
+                        dueMinute INTEGER NOT NULL DEFAULT 0,
+                        isEnabled INTEGER NOT NULL DEFAULT 1,
+                        lastExecutedEpochDay INTEGER NOT NULL DEFAULT 0,
+                        lastExecutedAtMillis INTEGER NOT NULL DEFAULT 0,
+                        createdAtMillis INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS allowance_entries (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        title TEXT NOT NULL,
+                        amount REAL NOT NULL,
+                        source TEXT NOT NULL,
+                        dateEpochDay INTEGER NOT NULL,
+                        cutoffKey TEXT,
+                        createdAtMillis INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_allowance_entries_cutoffKey ON allowance_entries(cutoffKey)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): ShiftlyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -115,7 +163,14 @@ abstract class ShiftlyDatabase : RoomDatabase() {
                     ShiftlyDatabase::class.java,
                     "shiftly_offline.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_6,
+                        MIGRATION_6_7
+                    )
                     .build()
                 INSTANCE = instance
                 instance

@@ -5,10 +5,14 @@ import com.example.shiftly.data.backup.BackupExpenseRecord
 import com.example.shiftly.data.backup.BackupPayload
 import com.example.shiftly.data.backup.BackupSavingsGoal
 import com.example.shiftly.data.backup.BackupSplitBill
+import com.example.shiftly.data.local.AllowanceEntryEntity
+import com.example.shiftly.data.local.AllowanceSource
 import com.example.shiftly.data.local.CategoryBudgetSetting
+import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
+import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
@@ -61,7 +65,12 @@ class BackupCodecTest {
                 ),
                 shiftTimePresets = listOf(
                     ShiftTimePreset("p1", "12 AM – 6 AM", 0, 0, 6, 0)
-                )
+                ),
+                cutoffMode = CutoffScheduleConfig.MODE_MONTHLY,
+                cutoffDay1 = 19,
+                cutoffDay2 = 31,
+                cutoffWeeklyDay = 5,
+                legacyRecurringMigrated = true
             ),
             shifts = listOf(
                 ShiftEntity(
@@ -151,6 +160,42 @@ class BackupCodecTest {
                     )
                 )
             ),
+            recurringBills = listOf(
+                RecurringBillEntity(
+                    id = 12L,
+                    title = "Dorm Wi-Fi",
+                    amount = 1299.0,
+                    category = "Bills",
+                    frequency = "Monthly",
+                    dueEpochDay = 20415L,
+                    dueHour = 14,
+                    dueMinute = 30,
+                    isEnabled = true,
+                    lastExecutedEpochDay = 20385L,
+                    lastExecutedAtMillis = 1_763_000_100_000L,
+                    createdAtMillis = 1_763_000_000_000L
+                )
+            ),
+            allowanceEntries = listOf(
+                AllowanceEntryEntity(
+                    id = 1L,
+                    title = "Salary Payout (1st Cutoff)",
+                    amount = 469.33,
+                    source = AllowanceSource.SALARY,
+                    dateEpochDay = 20406L,
+                    cutoffKey = "SEMI_2025-11-15",
+                    createdAtMillis = 1_763_000_500_000L
+                ),
+                AllowanceEntryEntity(
+                    id = 2L,
+                    title = "Freelance Logo",
+                    amount = 2500.0,
+                    source = AllowanceSource.BUSINESS,
+                    dateEpochDay = 20408L,
+                    cutoffKey = null,
+                    createdAtMillis = 1_763_000_600_000L
+                )
+            ),
             receiptFiles = mapOf("receipt_dinner.jpg" to receiptBytes)
         )
 
@@ -163,6 +208,9 @@ class BackupCodecTest {
         assertEquals(4500.0, decoded.monthlyBudget ?: 0.0, 0.001)
         assertEquals(1500.0, decoded.savingsBuffer ?: 0.0, 0.001)
         assertNotNull(decoded.settings)
+        assertEquals(CutoffScheduleConfig.MODE_MONTHLY, decoded.settings?.cutoffMode)
+        assertEquals(19, decoded.settings?.cutoffDay1)
+        assertTrue(decoded.settings?.legacyRecurringMigrated == true)
         // Fixed DOLE shift calculation rules enforced regardless of legacy fields
         assertEquals(WageCalculator.FIXED_NIGHT_DIFF_START_HOUR, decoded.settings?.nightDiffStartHour)
         assertEquals(WageCalculator.FIXED_NIGHT_DIFF_MULTIPLIER, decoded.settings?.nightDiffMultiplier ?: 0.0, 0.001)
@@ -191,6 +239,14 @@ class BackupCodecTest {
         assertEquals(1, decoded.savingsGoals.first().deposits.size)
         assertEquals(99L, decoded.savingsGoals.first().deposits.first().id)
         assertEquals("First cutoff savings", decoded.savingsGoals.first().deposits.first().note)
+        assertEquals(1, decoded.recurringBills.size)
+        assertEquals("Dorm Wi-Fi", decoded.recurringBills.first().title)
+        assertEquals(14, decoded.recurringBills.first().dueHour)
+        assertEquals(30, decoded.recurringBills.first().dueMinute)
+        assertEquals(2, decoded.allowanceEntries.size)
+        assertEquals("SEMI_2025-11-15", decoded.allowanceEntries[0].cutoffKey)
+        assertEquals(AllowanceSource.BUSINESS, decoded.allowanceEntries[1].source)
+        assertNull(decoded.allowanceEntries[1].cutoffKey)
         assertArrayEquals(receiptBytes, decoded.receiptFiles["receipt_dinner.jpg"])
     }
 
@@ -247,7 +303,7 @@ class BackupCodecTest {
     }
 
     @Test
-    fun csvExport_escapesRfc4180FieldsAndIncludesExtraIncomes() {
+    fun csvExport_escapesRfc4180FieldsAndExcludesAutoCreditedAllowances() {
         val csv = BackupCodec.buildCsvExport(
             currencySymbol = "₱",
             shifts = listOf(
@@ -280,6 +336,24 @@ class BackupCodecTest {
                     dateEpochDay = 20400L,
                     sourceRuleId = "r1"
                 )
+            ),
+            allowanceEntries = listOf(
+                AllowanceEntryEntity(
+                    id = 1L,
+                    title = "Auto Cutoff Salary",
+                    amount = 200.5,
+                    source = AllowanceSource.SALARY,
+                    dateEpochDay = 20406L,
+                    cutoffKey = "SEMI_2025-11-15"
+                ),
+                AllowanceEntryEntity(
+                    id = 2L,
+                    title = "Manual Business Side",
+                    amount = 750.0,
+                    source = AllowanceSource.BUSINESS,
+                    dateEpochDay = 20407L,
+                    cutoffKey = null
+                )
             )
         )
 
@@ -288,8 +362,12 @@ class BackupCodecTest {
         assertTrue(csv.contains("\"Late, \"\"Desk\"\"\nNote\""))
         assertTrue(csv.contains("\"Bonus, \"\"Q4\"\"\""))
         assertTrue(csv.contains("ExtraIncome,"))
+        assertTrue(csv.contains("Allowance,"))
+        assertTrue(csv.contains("Manual Business Side"))
+        assertFalse(csv.contains("Auto Cutoff Salary"))
         assertTrue(csv.contains("125.75"))
         assertTrue(csv.contains("1500.00"))
+        assertTrue(csv.contains("750.00"))
     }
 
     @Test

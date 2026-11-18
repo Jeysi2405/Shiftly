@@ -1,0 +1,341 @@
+package com.example.shiftly.ui.screens.recurring
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.shiftly.R
+import com.example.shiftly.data.local.RecurringBillEntity
+import com.example.shiftly.data.repository.ShiftlyRepository
+import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.ShiftlySectionHeader
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyTheme
+import com.example.shiftly.utils.RecurringEngine
+import com.example.shiftly.workers.ShiftlyDailyWorker
+import java.time.LocalDate
+
+@Composable
+fun RecurringBillsScreen(
+    repository: ShiftlyRepository,
+    onBack: () -> Unit = {},
+    onShowMessage: (String) -> Unit = {}
+) {
+    val viewModel: RecurringBillsViewModel = viewModel(factory = RecurringBillsViewModel.Factory(repository))
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
+
+    var showEditorSheet by remember { mutableStateOf(false) }
+    var editingBill by remember { mutableStateOf<RecurringBillEntity?>(null) }
+    var pendingDeleteBill by remember { mutableStateOf<RecurringBillEntity?>(null) }
+
+    LaunchedEffect(state.bills) {
+        ShiftlyDailyWorker.scheduleNextRecurringCheck(
+            context = context,
+            nextDue = RecurringEngine.earliestNextDueDateTime(state.bills)
+        )
+    }
+
+    RecurringBillsScreenContent(
+        state = state,
+        onBack = onBack,
+        onOpenAddSheet = {
+            editingBill = null
+            showEditorSheet = true
+        },
+        onEditBill = { bill ->
+            editingBill = bill
+            showEditorSheet = true
+        },
+        onToggleEnabled = { bill, enabled ->
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            viewModel.toggleBillEnabled(bill, enabled) { posted ->
+                if (posted > 0) {
+                    onShowMessage("Logged $posted due bill(s) to Expenses")
+                }
+            }
+        },
+        onDeleteBill = { pendingDeleteBill = it }
+    )
+
+    if (showEditorSheet) {
+        AddEditRecurringBillBottomSheet(
+            currencySymbol = state.currencySymbol,
+            availableCategories = state.availableCategories,
+            editingBill = editingBill,
+            onDismiss = {
+                showEditorSheet = false
+                editingBill = null
+            },
+            onSave = { title, amount, category, frequency, dueDate, dueHour, dueMinute, isEnabled ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                val isNew = editingBill == null
+                viewModel.saveBill(
+                    existing = editingBill,
+                    title = title,
+                    amount = amount,
+                    category = category,
+                    frequency = frequency,
+                    dueDate = dueDate,
+                    dueHour = dueHour,
+                    dueMinute = dueMinute,
+                    isEnabled = isEnabled
+                ) { posted ->
+                    showEditorSheet = false
+                    editingBill = null
+                    onShowMessage(
+                        when {
+                            posted > 0 -> "Saved & posted $posted due bill(s) to Expenses"
+                            isNew -> "Recurring bill added"
+                            else -> "Recurring bill updated"
+                        }
+                    )
+                }
+            }
+        )
+    }
+
+    pendingDeleteBill?.let { billToDelete ->
+        ShiftlyConfirmDeleteDialog(
+            title = "Delete Recurring Bill?",
+            message = "Stop future automatic logging for \"${billToDelete.title}\"?",
+            onDismiss = { pendingDeleteBill = null },
+            onConfirm = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                viewModel.deleteBill(billToDelete)
+                pendingDeleteBill = null
+                onShowMessage("Recurring bill deleted")
+            }
+        )
+    }
+}
+
+@Composable
+fun RecurringBillsScreenContent(
+    state: RecurringBillsUiState,
+    onBack: () -> Unit = {},
+    onOpenAddSheet: () -> Unit = {},
+    onEditBill: (RecurringBillEntity) -> Unit = {},
+    onToggleEnabled: (RecurringBillEntity, Boolean) -> Unit = { _, _ -> },
+    onDeleteBill: (RecurringBillEntity) -> Unit = {}
+) {
+    val colors = ShiftlyColors.current
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+        contentPadding = PaddingValues(top = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            ShiftlyScreenHeader(
+                title = "Recurring Bills",
+                subtitle = null,
+                onBackClick = onBack,
+                modifier = Modifier.padding(horizontal = 20.dp),
+                trailing = {
+                    Button(
+                        onClick = onOpenAddSheet,
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.azurePrimary,
+                            contentColor = colors.onAzurePrimary
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp
+                        ),
+                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_plus),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Add",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = colors.onAzurePrimary
+                        )
+                    }
+                }
+            )
+        }
+
+        item {
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                RecurringBillsSummaryCard(
+                    activeCount = state.activeCount,
+                    totalCount = state.bills.size,
+                    monthlyEstimate = state.enabledMonthlyEstimate,
+                    dueSoonCount = state.dueSoonCount,
+                    currencySymbol = state.currencySymbol
+                )
+            }
+        }
+
+        item {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 620.dp),
+                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.cardBorder),
+                shadowElevation = 0.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    ShiftlySheetDragHandle()
+
+                    ShiftlySectionHeader(
+                        title = "Scheduled Bills",
+                        count = state.bills.size,
+                        onLightSurface = true
+                    )
+
+                    if (state.bills.isEmpty()) {
+                        RecurringBillsEmptyCard(onAddBill = onOpenAddSheet)
+                    } else {
+                        state.bills.forEach { bill ->
+                            RecurringBillItemCard(
+                                bill = bill,
+                                currencySymbol = state.currencySymbol,
+                                onToggleEnabled = { enabled -> onToggleEnabled(bill, enabled) },
+                                onEdit = { onEditBill(bill) },
+                                onDelete = { onDeleteBill(bill) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "1. Recurring Bills Empty")
+@Composable
+private fun RecurringBillsEmptyPreview() {
+    ShiftlyTheme {
+        ShiftlyBlueGradientBackground {
+            RecurringBillsScreenContent(state = RecurringBillsUiState())
+        }
+    }
+}
+
+@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "2. Recurring Bills List")
+@Composable
+private fun RecurringBillsFilledPreview() {
+    val tomorrow = LocalDate.now().plusDays(1)
+    val nextWeek = LocalDate.now().plusDays(6)
+    val sampleBills = listOf(
+        RecurringBillEntity(
+            id = 1L,
+            title = "Dorm Wi-Fi",
+            amount = 999.0,
+            category = "Bills",
+            frequency = "Monthly",
+            dueEpochDay = tomorrow.toEpochDay(),
+            dueHour = 9,
+            dueMinute = 0,
+            isEnabled = true
+        ),
+        RecurringBillEntity(
+            id = 2L,
+            title = "Weekly Commute Pass",
+            amount = 250.0,
+            category = "Transport",
+            frequency = "Weekly",
+            dueEpochDay = nextWeek.toEpochDay(),
+            dueHour = 7,
+            dueMinute = 30,
+            isEnabled = true
+        ),
+        RecurringBillEntity(
+            id = 3L,
+            title = "Cloud Storage",
+            amount = 149.0,
+            category = "Bills",
+            frequency = "Monthly",
+            dueEpochDay = nextWeek.plusDays(8).toEpochDay(),
+            dueHour = 12,
+            dueMinute = 0,
+            isEnabled = false
+        )
+    )
+    ShiftlyTheme {
+        ShiftlyBlueGradientBackground {
+            RecurringBillsScreenContent(
+                state = RecurringBillsUiState(
+                    bills = sampleBills,
+                    enabledMonthlyEstimate = 999.0 + (250.0 * 4.33),
+                    activeCount = 2,
+                    dueSoonCount = 1
+                )
+            )
+        }
+    }
+}
+
+@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "3. Add Recurring Bill Sheet")
+@Composable
+private fun AddRecurringBillSheetPreview() {
+    ShiftlyTheme {
+        ShiftlyBlueGradientBackground {
+            RecurringBillsScreenContent(state = RecurringBillsUiState())
+            AddEditRecurringBillBottomSheet(
+                currencySymbol = "₱",
+                availableCategories = listOf("Bills", "Food", "Transport", "Supplies", "Other"),
+                onDismiss = {},
+                onSave = { _, _, _, _, _, _, _, _ -> }
+            )
+        }
+    }
+}

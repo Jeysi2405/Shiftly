@@ -31,19 +31,26 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.shiftly.R
 import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 /**
  * Full-bleed screen backdrop reacting to the active Shiftly theme.
@@ -247,6 +254,107 @@ fun ShiftlyScreenHeader(
         if (trailing != null) {
             Spacer(modifier = Modifier.width(12.dp))
             trailing()
+        }
+    }
+}
+
+/**
+ * Reusable `< MMM yyyy >` + `"All"` month filter bar for Expenses & Split Bill screens.
+ */
+@Composable
+fun ShiftlyMonthFilterBar(
+    selectedMonth: YearMonth?,
+    onPreviousMonth: () -> Unit,
+    onNextMonth: () -> Unit,
+    onToggleAllMonths: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    val locale = LocalConfiguration.current.locales[0]
+    val monthFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM yyyy", locale) }
+    val monthLabel = selectedMonth?.format(monthFormatter) ?: "All Months"
+    val isAllSelected = selectedMonth == null
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = colors.surface,
+            border = BorderStroke(1.dp, colors.cardBorder),
+            shadowElevation = 0.dp,
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 48.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onPreviousMonth,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_chevron_left),
+                        contentDescription = "Previous month",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Text(
+                    text = monthLabel,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.Center
+                )
+
+                IconButton(
+                    onClick = onNextMonth,
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                        contentDescription = "Next month",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(50))
+                .background(if (isAllSelected) colors.azurePrimary else colors.surface)
+                .border(
+                    width = 1.dp,
+                    color = if (isAllSelected) colors.azureAccent else colors.cardBorder,
+                    shape = RoundedCornerShape(50)
+                )
+                .clickable(role = Role.Tab) { onToggleAllMonths() }
+                .semantics { selected = isAllSelected }
+                .padding(horizontal = 18.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "All",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = if (isAllSelected) FontWeight.SemiBold else FontWeight.Medium
+                ),
+                color = if (isAllSelected) colors.onAzurePrimary else colors.textSecondary
+            )
         }
     }
 }

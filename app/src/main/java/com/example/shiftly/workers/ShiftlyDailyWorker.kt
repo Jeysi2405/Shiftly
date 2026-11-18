@@ -13,6 +13,7 @@ import com.example.shiftly.notifications.ShiftlyNotificationHelper
 import com.example.shiftly.utils.RecurringEngine
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
@@ -25,17 +26,31 @@ class ShiftlyDailyWorker(
 
     override suspend fun doWork(): Result {
         val repository = ShiftlyRepository(applicationContext)
-        val today = LocalDate.now()
+        val now = LocalDateTime.now()
+        val today = now.toLocalDate()
         val todayEpoch = today.toEpochDay()
         val zone = ZoneId.systemDefault()
 
-        // 1. Auto-post any due recurring income/expense entries
+        // 1. Auto-post any due recurring bills & legacy entries
         runCatching {
+            repository.processDueRecurringBills(now)
             repository.processDueRecurringEntries(today)
         }
 
-        // 2. Evaluate the 3 allowed reminders:
-        //    (a) Recurring bills < 1 day before due date
+        // 2. Credit any reached Duties cutoff windows into Allowance
+        runCatching {
+            repository.processDueCutoffAllowances(today)
+        }
+
+        // 3. Schedule exact-delay worker for the earliest upcoming recurring bill due timestamp
+        runCatching {
+            val allBills = repository.allRecurringBills.first()
+            val earliestDue = RecurringEngine.earliestNextDueDateTime(allBills)
+            scheduleNextRecurringCheck(applicationContext, earliestDue)
+        }
+
+        // 4. Evaluate the 3 allowed reminders:
+        //    (a) Recurring bills < 1 day before due date/time
         //    (b) Log shift reminder
         //    (c) Log saving & add deposit reminder
         val settings = repository.settingsSnapshot.first()
@@ -46,11 +61,12 @@ class ShiftlyDailyWorker(
 
         val lastDays = repository.getNotificationLastDays()
 
-        // (a) Recurring bills due within < 1 day
+        // (a) Recurring bills due within < 24 hours
         if (settings.billReminderEnabled && lastDays.lastBillDay < todayEpoch) {
+            val allBills = repository.allRecurringBills.first()
             val dueSoonBills = RecurringEngine.findBillsDueWithinOneDay(
-                entries = settings.recurringEntries,
-                today = today
+                bills = allBills,
+                now = now
             )
             if (dueSoonBills.isNotEmpty()) {
                 val currency = repository.currencySymbol.first()
@@ -91,7 +107,7 @@ class ShiftlyDailyWorker(
                 Instant.ofEpochMilli(dep.timestampMillis).atZone(zone).toLocalDate() == today
             }
         }
-        val isPayday = RecurringEngine.isPaydayToday(settings.payCycleSchedule, today)
+        val isPayday = RecurringEngine.isPaydayToday(settings.cutoffScheduleConfig(), today)
 
         if (lastDays.lastSavingsDay < todayEpoch &&
             RecurringEngine.shouldSendSavingsDepositReminder(
@@ -117,6 +133,7 @@ class ShiftlyDailyWorker(
     companion object {
         private const val PERIODIC_WORK_NAME = "shiftly_daily_maintenance"
         private const val IMMEDIATE_WORK_NAME = "shiftly_immediate_maintenance"
+        private const val NEXT_RECURRING_WORK_NAME = "shiftly_next_recurring_execution"
 
         fun scheduleDailyMaintenance(context: Context) {
             val request = PeriodicWorkRequestBuilder<ShiftlyDailyWorker>(
@@ -133,6 +150,23 @@ class ShiftlyDailyWorker(
             val request = OneTimeWorkRequestBuilder<ShiftlyDailyWorker>().build()
             WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
                 IMMEDIATE_WORK_NAME,
+                ExistingWorkPolicy.REPLACE,
+                request
+            )
+        }
+
+        fun scheduleNextRecurringCheck(context: Context, nextDue: LocalDateTime?) {
+            val wm = WorkManager.getInstance(context.applicationContext)
+            if (nextDue == null) {
+                wm.cancelUniqueWork(NEXT_RECURRING_WORK_NAME)
+                return
+            }
+            val delayMillis = RecurringEngine.millisUntilDue(nextDue)
+            val request = OneTimeWorkRequestBuilder<ShiftlyDailyWorker>()
+                .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+                .build()
+            wm.enqueueUniqueWork(
+                NEXT_RECURRING_WORK_NAME,
                 ExistingWorkPolicy.REPLACE,
                 request
             )

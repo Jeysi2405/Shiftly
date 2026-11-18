@@ -43,6 +43,7 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
@@ -53,6 +54,7 @@ import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
+import java.time.YearMonth
 
 @Composable
 fun ExpenseScreen(
@@ -72,7 +74,11 @@ fun ExpenseScreen(
         state = state,
         onBack = onBack,
         onOpenAddSheet = { showAddSheet = true },
+        onPreviousMonth = { viewModel.shiftMonth(-1L) },
+        onNextMonth = { viewModel.shiftMonth(1L) },
+        onToggleAllMonths = { viewModel.toggleAllMonths() },
         onSelectCategory = { viewModel.selectCategory(it) },
+        onResetFilters = { viewModel.resetFilters() },
         onViewReceipt = { viewingReceiptExpense = it },
         onDeleteExpense = { pendingDeleteExpense = it },
     )
@@ -120,7 +126,11 @@ fun ExpenseScreenContent(
     onSelectCategory: (String) -> Unit,
     onViewReceipt: (ExpenseEntity) -> Unit,
     onDeleteExpense: (ExpenseEntity) -> Unit,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onPreviousMonth: () -> Unit = {},
+    onNextMonth: () -> Unit = {},
+    onToggleAllMonths: () -> Unit = {},
+    onResetFilters: () -> Unit = { onSelectCategory("All") }
 ) {
     val colors = ShiftlyColors.current
     LazyColumn(
@@ -171,6 +181,16 @@ fun ExpenseScreenContent(
         }
 
         item {
+            ShiftlyMonthFilterBar(
+                selectedMonth = state.selectedMonth,
+                onPreviousMonth = onPreviousMonth,
+                onNextMonth = onNextMonth,
+                onToggleAllMonths = onToggleAllMonths,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+        }
+
+        item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ExpenseSummaryCard(
                     monthlyTotal = state.monthlyTotal,
@@ -178,7 +198,8 @@ fun ExpenseScreenContent(
                     monthlyBudget = state.monthlyBudget,
                     totalReceiptCount = state.totalReceiptCount,
                     categoryBreakdown = state.categoryBreakdown,
-                    currencySymbol = state.currencySymbol
+                    currencySymbol = state.currencySymbol,
+                    selectedMonth = state.selectedMonth
                 )
             }
         }
@@ -224,8 +245,9 @@ fun ExpenseScreenContent(
                     if (state.filteredExpenses.isEmpty()) {
                         ExpenseEmptyCard(
                             selectedCategory = state.selectedCategory,
+                            selectedMonth = state.selectedMonth,
                             onAddExpense = onOpenAddSheet,
-                            onShowAll = { onSelectCategory("All") }
+                            onShowAll = onResetFilters
                         )
                     } else {
                         state.filteredExpenses.forEach { expense ->
@@ -285,6 +307,7 @@ private fun ExpenseListPreview() {
     val state = ExpenseUiState(
         currencySymbol = "₱",
         monthlyBudget = 3000.0,
+        selectedMonth = YearMonth.of(2026, 5),
         selectedCategory = "All",
         monthlyTotal = 683.0,
         allTimeTotal = 1420.0,
@@ -325,6 +348,7 @@ private fun AddExpenseSheetPreview() {
     val today = LocalDate.of(2026, 5, 16)
     val emptyState = ExpenseUiState(
         currencySymbol = "₱",
+        selectedMonth = YearMonth.of(2026, 5),
         selectedCategory = "All",
         monthlyTotal = 683.0,
         allTimeTotal = 1420.0
@@ -380,7 +404,10 @@ private fun AddExpenseSheetPreview() {
 @Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "3. Expenses Empty")
 @Composable
 private fun ExpenseEmptyPreview() {
-    val state = ExpenseUiState(currencySymbol = "₱")
+    val state = ExpenseUiState(
+        currencySymbol = "₱",
+        selectedMonth = YearMonth.of(2026, 5)
+    )
 
     ShiftlyTheme {
         ShiftlyBlueGradientBackground {

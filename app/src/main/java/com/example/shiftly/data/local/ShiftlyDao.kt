@@ -56,6 +56,11 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE linkedSplitBillId = :billId")
     suspend fun getExpensesByLinkedSplitBillIdOnce(billId: Long): List<ExpenseEntity>
 
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM expenses WHERE linkedRecurringBillId = :billId AND recurringOccurrenceEpochDay = :occurrenceEpochDay)"
+    )
+    suspend fun existsRecurringOccurrenceExpense(billId: Long, occurrenceEpochDay: Long): Boolean
+
     @Query("SELECT SUM(amount) FROM expenses")
     fun getTotalExpenseAmount(): Flow<Double?>
 
@@ -109,6 +114,54 @@ interface ExtraIncomeDao {
 }
 
 @Dao
+interface RecurringBillDao {
+    @Query("SELECT * FROM recurring_bills ORDER BY dueEpochDay ASC, dueHour ASC, dueMinute ASC, id DESC")
+    fun getAllBills(): Flow<List<RecurringBillEntity>>
+
+    @Query("SELECT * FROM recurring_bills ORDER BY dueEpochDay ASC, dueHour ASC, dueMinute ASC, id DESC")
+    suspend fun getAllBillsOnce(): List<RecurringBillEntity>
+
+    @Query("SELECT * FROM recurring_bills WHERE id = :id LIMIT 1")
+    suspend fun getBillByIdOnce(id: Long): RecurringBillEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertBill(bill: RecurringBillEntity): Long
+
+    @Update
+    suspend fun updateBill(bill: RecurringBillEntity)
+
+    @Delete
+    suspend fun deleteBill(bill: RecurringBillEntity)
+
+    @Query("DELETE FROM recurring_bills")
+    suspend fun deleteAllBills()
+}
+
+@Dao
+interface AllowanceDao {
+    @Query("SELECT * FROM allowance_entries ORDER BY dateEpochDay DESC, createdAtMillis DESC, id DESC")
+    fun getAllEntries(): Flow<List<AllowanceEntryEntity>>
+
+    @Query("SELECT * FROM allowance_entries ORDER BY dateEpochDay DESC, createdAtMillis DESC, id DESC")
+    suspend fun getAllEntriesOnce(): List<AllowanceEntryEntity>
+
+    @Query("SELECT * FROM allowance_entries WHERE cutoffKey = :cutoffKey LIMIT 1")
+    suspend fun getByCutoffKeyOnce(cutoffKey: String): AllowanceEntryEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertEntry(entry: AllowanceEntryEntity): Long
+
+    @Update
+    suspend fun updateEntry(entry: AllowanceEntryEntity)
+
+    @Delete
+    suspend fun deleteEntry(entry: AllowanceEntryEntity)
+
+    @Query("DELETE FROM allowance_entries")
+    suspend fun deleteAllEntries()
+}
+
+@Dao
 interface SplitBillDao {
     @Transaction
     @Query("SELECT * FROM split_bills ORDER BY dateEpochDay DESC, id DESC")
@@ -149,11 +202,11 @@ interface SplitBillDao {
 @Dao
 interface SavingsGoalDao {
     @Transaction
-    @Query("SELECT * FROM savings_goals ORDER BY isActive DESC, createdAtMillis DESC, id DESC")
+    @Query("SELECT * FROM savings_goals ORDER BY createdAtMillis ASC, id ASC")
     fun getAllGoalsWithDeposits(): Flow<List<SavingsGoalWithDeposits>>
 
     @Transaction
-    @Query("SELECT * FROM savings_goals ORDER BY isActive DESC, createdAtMillis DESC, id DESC")
+    @Query("SELECT * FROM savings_goals ORDER BY createdAtMillis ASC, id ASC")
     suspend fun getAllGoalsWithDepositsOnce(): List<SavingsGoalWithDeposits>
 
     @Query("SELECT * FROM savings_goals WHERE id = :goalId LIMIT 1")

@@ -13,8 +13,12 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.shiftly.MainActivity
 import com.example.shiftly.R
+import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.utils.ShiftlyFormatters
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 object ShiftlyNotificationHelper {
     const val CHANNEL_RECURRING_BILLS = "recurring_bill_reminders"
@@ -95,6 +99,46 @@ object ShiftlyNotificationHelper {
             val names = dueBills.take(2).joinToString(", ") { it.title }
             val extra = if (dueBills.size > 2) " +${dueBills.size - 2} more" else ""
             "$names$extra (${ShiftlyFormatters.formatCurrency(currencySymbol, total)}) due in less than 1 day."
+        }
+        val notification = NotificationCompat.Builder(context, CHANNEL_RECURRING_BILLS)
+            .setSmallIcon(R.drawable.ic_stat_shiftly)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setAutoCancel(true)
+            .setContentIntent(launchAppPendingIntent(context))
+            .build()
+        return try {
+            NotificationManagerCompat.from(context).notify(NOTIFICATION_ID_BILLS, notification)
+            true
+        } catch (_: SecurityException) {
+            false
+        }
+    }
+
+    @JvmName("showRecurringBillEntityReminder")
+    fun showRecurringBillReminder(
+        context: Context,
+        dueBills: List<RecurringBillEntity>,
+        currencySymbol: String
+    ): Boolean {
+        if (dueBills.isEmpty() || !canPostNotifications(context)) return false
+        ensureChannels(context)
+        val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
+        val title = if (dueBills.size == 1) {
+            "Bill Due Soon: ${dueBills.first().title}"
+        } else {
+            "${dueBills.size} Recurring Bills Due Soon"
+        }
+        val body = if (dueBills.size == 1) {
+            val bill = dueBills.first()
+            val timeStr = LocalTime.of(bill.dueHour.coerceIn(0, 23), bill.dueMinute.coerceIn(0, 59))
+                .format(timeFormatter)
+            "${ShiftlyFormatters.formatCurrency(currencySymbol, bill.amount)} is due soon ($timeStr)."
+        } else {
+            val total = dueBills.sumOf { it.amount }
+            val names = dueBills.take(2).joinToString(", ") { it.title }
+            val extra = if (dueBills.size > 2) " +${dueBills.size - 2} more" else ""
+            "$names$extra (${ShiftlyFormatters.formatCurrency(currencySymbol, total)}) due within 24 hours."
         }
         val notification = NotificationCompat.Builder(context, CHANNEL_RECURRING_BILLS)
             .setSmallIcon(R.drawable.ic_stat_shiftly)

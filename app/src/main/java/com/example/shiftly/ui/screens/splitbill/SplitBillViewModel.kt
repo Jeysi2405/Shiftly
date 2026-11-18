@@ -9,6 +9,8 @@ import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.utils.SplitBillMath
 import java.time.LocalDate
+import java.time.YearMonth
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -17,8 +19,10 @@ import kotlinx.coroutines.launch
 
 data class SplitBillUiState(
     val currencySymbol: String = "₱",
+    val selectedMonth: YearMonth? = YearMonth.now(),
     val billsWithParticipants: List<SplitBillWithParticipants> = emptyList(),
     val totalBillsCount: Int = 0,
+    val hasAnyBillsAtAll: Boolean = false,
     val totalCollectedAmount: Double = 0.0,
     val totalPendingAmount: Double = 0.0,
     val paidParticipantsCount: Int = 0,
@@ -29,16 +33,34 @@ class SplitBillViewModel(
     private val repository: ShiftlyRepository
 ) : ViewModel() {
 
+    companion object {
+        fun filterBillsByMonth(
+            bills: List<SplitBillWithParticipants>,
+            selectedMonth: YearMonth?
+        ): List<SplitBillWithParticipants> {
+            if (selectedMonth == null) return bills
+            val startEpoch = selectedMonth.atDay(1).toEpochDay()
+            val endEpoch = selectedMonth.atEndOfMonth().toEpochDay()
+            return bills.filter { it.bill.dateEpochDay in startEpoch..endEpoch }
+        }
+    }
+
+    private val _selectedMonth = MutableStateFlow<YearMonth?>(YearMonth.now())
+
     val uiState: StateFlow<SplitBillUiState> = combine(
         repository.currencySymbol,
-        repository.allSplitBills
-    ) { currency, bills ->
-        val friendSummary = SplitBillMath.summarizeFriendsOwed(bills)
+        repository.allSplitBills,
+        _selectedMonth
+    ) { currency, allBills, selectedMonth ->
+        val filteredBills = filterBillsByMonth(allBills, selectedMonth)
+        val friendSummary = SplitBillMath.summarizeFriendsOwed(filteredBills)
 
         SplitBillUiState(
             currencySymbol = currency,
-            billsWithParticipants = bills,
-            totalBillsCount = bills.size,
+            selectedMonth = selectedMonth,
+            billsWithParticipants = filteredBills,
+            totalBillsCount = filteredBills.size,
+            hasAnyBillsAtAll = allBills.isNotEmpty(),
             totalCollectedAmount = friendSummary.collectedFriendsAmount,
             totalPendingAmount = friendSummary.pendingFriendsAmount,
             paidParticipantsCount = friendSummary.paidFriendsCount,
@@ -49,6 +71,19 @@ class SplitBillViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = SplitBillUiState()
     )
+
+    fun shiftMonth(delta: Long) {
+        val base = _selectedMonth.value ?: YearMonth.now()
+        _selectedMonth.value = base.plusMonths(delta)
+    }
+
+    fun toggleAllMonths() {
+        _selectedMonth.value = if (_selectedMonth.value == null) YearMonth.now() else null
+    }
+
+    fun showAllMonths() {
+        _selectedMonth.value = null
+    }
 
     fun createSplitBill(
         rawTitle: String,

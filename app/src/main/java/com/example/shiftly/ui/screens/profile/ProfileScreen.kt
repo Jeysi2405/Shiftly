@@ -66,7 +66,6 @@ import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
@@ -84,7 +83,6 @@ private enum class ActiveSettingsSheet {
     NOTIFICATIONS,
     THEME,
     BUDGETS,
-    RECURRING,
     APP_LOCK,
     BACKUP_EXPORT
 }
@@ -460,37 +458,6 @@ fun ProfileScreen(
                         viewModel.updateBudgets(monthly, categoryList)
                         activeSheet = null
                         onShowMessage("Budgets saved")
-                    }
-                )
-            }
-        }
-
-        ActiveSettingsSheet.RECURRING -> {
-            val visibleExpenseCategories = state.settings.managedCategories
-                .filter {
-                    it.isVisible &&
-                        it.name.isNotBlank() &&
-                        !it.name.equals("Split Bill", ignoreCase = true)
-                }
-                .map { it.name.trim() }
-                .ifEmpty { ExpenseViewModel.EXPENSE_CATEGORIES.filter { it != "Split Bill" } }
-
-            SettingsSheetContainer(
-                title = "Recurring Entries",
-                onDismiss = { activeSheet = null }
-            ) {
-                RecurringEntriesSheetContent(
-                    currencySymbol = state.currencySymbol,
-                    currentEntries = state.settings.recurringEntries,
-                    availableCategories = visibleExpenseCategories,
-                    onSave = { updated ->
-                        viewModel.updateRecurringEntries(updated) { posted ->
-                            activeSheet = null
-                            onShowMessage(
-                                if (posted > 0) "Saved & posted $posted recurring entry(s)"
-                                else "Recurring entries saved"
-                            )
-                        }
                     }
                 )
             }

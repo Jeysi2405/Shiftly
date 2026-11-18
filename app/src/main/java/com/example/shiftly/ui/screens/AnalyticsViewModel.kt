@@ -3,6 +3,7 @@ package com.example.shiftly.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.SavingsDepositEntity
@@ -120,7 +121,8 @@ class AnalyticsViewModel(
         repository.allExtraIncomes,
         repository.allExpenses,
         repository.allSplitBills,
-        repository.allSavingsGoals
+        repository.allSavingsGoals,
+        repository.allAllowanceEntries
     ) { values ->
         val prefs = values[0] as AnalyticsPrefsBundle
         val range = prefs.range
@@ -137,6 +139,11 @@ class AnalyticsViewModel(
         val splitBills = values[4] as List<SplitBillWithParticipants>
         @Suppress("UNCHECKED_CAST")
         val savingsGoals = values[5] as List<SavingsGoalWithDeposits>
+        @Suppress("UNCHECKED_CAST")
+        val allowanceEntries = values[6] as List<AllowanceEntryEntity>
+
+        // Exclude auto-credited Duties cutoff entries (cutoffKey != null) to avoid double counting
+        val manualAllowances = allowanceEntries.filter { it.cutoffKey.isNullOrBlank() }
 
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
@@ -148,11 +155,16 @@ class AnalyticsViewModel(
         val periodExtraIncomes = extraIncomes.filter {
             it.dateEpochDay in periodStart.toEpochDay()..periodEnd.toEpochDay()
         }
+        val periodManualAllowances = manualAllowances.filter {
+            it.dateEpochDay in periodStart.toEpochDay()..periodEnd.toEpochDay()
+        }
         val periodExpenses = expenses.filter {
             it.dateEpochDay in periodStart.toEpochDay()..periodEnd.toEpochDay()
         }
 
-        val totalIncome = periodShifts.sumOf { it.totalEarned } + periodExtraIncomes.sumOf { it.amount }
+        val totalIncome = periodShifts.sumOf { it.totalEarned } +
+            periodExtraIncomes.sumOf { it.amount } +
+            periodManualAllowances.sumOf { it.amount }
         val totalExpense = periodExpenses.sumOf { it.amount }
 
         var regMins = 0L
@@ -171,7 +183,15 @@ class AnalyticsViewModel(
         }
         val totalHours = periodShifts.sumOf { it.durationMinutes } / 60.0
 
-        val buckets = buildChartBuckets(range, today, zone, shifts, extraIncomes, expenses)
+        val buckets = buildChartBuckets(
+            range = range,
+            today = today,
+            zone = zone,
+            shifts = shifts,
+            extraIncomes = extraIncomes,
+            manualAllowances = manualAllowances,
+            expenses = expenses
+        )
 
         val spendDenom = totalExpense.takeIf { it > 0.0 } ?: 1.0
         val categoryInsights = periodExpenses
@@ -334,10 +354,12 @@ class AnalyticsViewModel(
         zone: ZoneId,
         shifts: List<ShiftEntity>,
         extraIncomes: List<ExtraIncomeEntity>,
+        manualAllowances: List<AllowanceEntryEntity>,
         expenses: List<ExpenseEntity>
     ): List<IncomeExpenseBarBucket> {
         val shiftsByDay = shifts.groupBy { it.dateEpochDay }
         val extraByDay = extraIncomes.groupBy { it.dateEpochDay }
+        val allowanceByDay = manualAllowances.groupBy { it.dateEpochDay }
         val expensesByDay = expenses.groupBy { it.dateEpochDay }
 
         return when (range) {
@@ -345,6 +367,7 @@ class AnalyticsViewModel(
                 val todayEpoch = today.toEpochDay()
                 val dayShifts = shiftsByDay[todayEpoch].orEmpty()
                 val dayExtra = extraByDay[todayEpoch].orEmpty()
+                val dayManualAllowance = allowanceByDay[todayEpoch].orEmpty()
                 val dayExpenses = expensesByDay[todayEpoch].orEmpty()
                 val slots = listOf(
                     "12am" to (0..5),
@@ -356,7 +379,11 @@ class AnalyticsViewModel(
                 slots.mapIndexed { index, (label, hours) ->
                     val inc = dayShifts.filter {
                         Instant.ofEpochMilli(it.timeInMillis).atZone(zone).hour in hours
-                    }.sumOf { it.totalEarned } + if (index == 0) dayExtra.sumOf { it.amount } else 0.0
+                    }.sumOf { it.totalEarned } + if (index == 0) {
+                        dayExtra.sumOf { it.amount } + dayManualAllowance.sumOf { it.amount }
+                    } else {
+                        0.0
+                    }
                     val exp = dayExpenses.filter {
                         Instant.ofEpochMilli(it.dateEpochDay * 86400000L).atZone(zone).hour in hours
                     }.sumOf { it.amount }
@@ -373,7 +400,8 @@ class AnalyticsViewModel(
                     IncomeExpenseBarBucket(
                         label = label,
                         income = shiftsByDay[ep].orEmpty().sumOf { it.totalEarned } +
-                            extraByDay[ep].orEmpty().sumOf { it.amount },
+                            extraByDay[ep].orEmpty().sumOf { it.amount } +
+                            allowanceByDay[ep].orEmpty().sumOf { it.amount },
                         expense = expensesByDay[ep].orEmpty().sumOf { it.amount }
                     )
                 }
@@ -395,7 +423,8 @@ class AnalyticsViewModel(
                         label = label,
                         income = eps.sumOf { ep ->
                             shiftsByDay[ep].orEmpty().sumOf { it.totalEarned } +
-                                extraByDay[ep].orEmpty().sumOf { it.amount }
+                                extraByDay[ep].orEmpty().sumOf { it.amount } +
+                                allowanceByDay[ep].orEmpty().sumOf { it.amount }
                         },
                         expense = eps.sumOf { ep -> expensesByDay[ep].orEmpty().sumOf { it.amount } }
                     )
@@ -412,7 +441,8 @@ class AnalyticsViewModel(
                     IncomeExpenseBarBucket(
                         label = label,
                         income = shifts.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.totalEarned } +
-                            extraIncomes.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount },
+                            extraIncomes.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount } +
+                            manualAllowances.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount },
                         expense = expenses.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount }
                     )
                 }

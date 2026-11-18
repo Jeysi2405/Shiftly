@@ -23,7 +23,10 @@ data class ShiftEntity(
     val dayType: String = "ORDINARY"
 )
 
-@Entity(tableName = "expenses")
+@Entity(
+    tableName = "expenses",
+    indices = [Index(value = ["linkedRecurringBillId"])]
+)
 data class ExpenseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
@@ -33,7 +36,9 @@ data class ExpenseEntity(
     val receiptImagePath: String? = null,
     val linkedSplitBillId: Long? = null,
     val createdAtMillis: Long = 0L,
-    val linkedSavingsDepositId: Long? = null
+    val linkedSavingsDepositId: Long? = null,
+    val linkedRecurringBillId: Long? = null,
+    val recurringOccurrenceEpochDay: Long? = null
 )
 
 @Entity(tableName = "extra_incomes")
@@ -43,6 +48,44 @@ data class ExtraIncomeEntity(
     val amount: Double,
     val dateEpochDay: Long,
     val sourceRuleId: String? = null,
+    val createdAtMillis: Long = 0L
+)
+
+@Entity(tableName = "recurring_bills")
+data class RecurringBillEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val amount: Double,
+    val category: String,
+    val frequency: String,
+    val dueEpochDay: Long,
+    val dueHour: Int = 9,
+    val dueMinute: Int = 0,
+    val isEnabled: Boolean = true,
+    val lastExecutedEpochDay: Long = 0L,
+    val lastExecutedAtMillis: Long = 0L,
+    val createdAtMillis: Long = 0L
+)
+
+object AllowanceSource {
+    const val SALARY = "Salary (from Duties / Income)"
+    const val BUSINESS = "Business"
+    const val OTHERS = "Others"
+
+    val ALL = listOf(SALARY, BUSINESS, OTHERS)
+}
+
+@Entity(
+    tableName = "allowance_entries",
+    indices = [Index(value = ["cutoffKey"], unique = true)]
+)
+data class AllowanceEntryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val amount: Double,
+    val source: String,
+    val dateEpochDay: Long,
+    val cutoffKey: String? = null,
     val createdAtMillis: Long = 0L
 )
 

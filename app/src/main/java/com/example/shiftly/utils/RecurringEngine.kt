@@ -1,9 +1,14 @@
 package com.example.shiftly.utils
 
+import com.example.shiftly.data.local.CutoffScheduleConfig
+import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import java.time.DayOfWeek
+import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.Month
 import java.time.temporal.ChronoUnit
 
@@ -14,6 +19,85 @@ data class DueRecurringOccurrence(
 
 object RecurringEngine {
     private const val MAX_CATCH_UP_OCCURRENCES = 12
+
+    fun dueDateTimeOf(bill: RecurringBillEntity): LocalDateTime {
+        val date = LocalDate.ofEpochDay(bill.dueEpochDay)
+        val time = LocalTime.of(bill.dueHour.coerceIn(0, 23), bill.dueMinute.coerceIn(0, 59))
+        return LocalDateTime.of(date, time)
+    }
+
+    fun advanceDate(date: LocalDate, frequency: String): LocalDate {
+        val isWeekly = frequency.equals("Weekly", ignoreCase = true)
+        return if (isWeekly) date.plusDays(7) else date.plusMonths(1)
+    }
+
+    /**
+     * Evaluates a Room [RecurringBillEntity] against exact [now] timestamp.
+     * Returns all due [LocalDateTime] occurrences up to [MAX_CATCH_UP_OCCURRENCES],
+     * starting from [bill.dueEpochDay] at [bill.dueHour]:[bill.dueMinute].
+     */
+    fun computeDueBillOccurrences(
+        bill: RecurringBillEntity,
+        now: LocalDateTime = LocalDateTime.now()
+    ): List<LocalDateTime> {
+        if (!bill.isEnabled || bill.amount <= 0.0 || bill.title.isBlank()) {
+            return emptyList()
+        }
+        val results = mutableListOf<LocalDateTime>()
+        var cursorDate = LocalDate.ofEpochDay(bill.dueEpochDay)
+        val dueTime = LocalTime.of(bill.dueHour.coerceIn(0, 23), bill.dueMinute.coerceIn(0, 59))
+
+        while (results.size < MAX_CATCH_UP_OCCURRENCES) {
+            val candidate = LocalDateTime.of(cursorDate, dueTime)
+            if (candidate.isAfter(now)) break
+            results.add(candidate)
+            cursorDate = advanceDate(cursorDate, bill.frequency)
+        }
+        return results
+    }
+
+    /**
+     * Advances a bill's due date strictly past [now], returning the next scheduled [LocalDate].
+     */
+    fun nextScheduledDueDateAfter(
+        bill: RecurringBillEntity,
+        now: LocalDateTime = LocalDateTime.now()
+    ): LocalDate {
+        var cursorDate = LocalDate.ofEpochDay(bill.dueEpochDay)
+        val dueTime = LocalTime.of(bill.dueHour.coerceIn(0, 23), bill.dueMinute.coerceIn(0, 59))
+        var guard = 0
+        while (!LocalDateTime.of(cursorDate, dueTime).isAfter(now) && guard < 120) {
+            cursorDate = advanceDate(cursorDate, bill.frequency)
+            guard++
+        }
+        return cursorDate
+    }
+
+    fun findBillsDueWithinOneDay(
+        bills: List<RecurringBillEntity>,
+        now: LocalDateTime = LocalDateTime.now()
+    ): List<RecurringBillEntity> {
+        val cutoff = now.plusHours(24)
+        return bills.filter { bill ->
+            if (!bill.isEnabled || bill.amount <= 0.0 || bill.title.isBlank()) {
+                return@filter false
+            }
+            val due = dueDateTimeOf(bill)
+            !due.isBefore(now) && !due.isAfter(cutoff)
+        }
+    }
+
+    fun earliestNextDueDateTime(bills: List<RecurringBillEntity>): LocalDateTime? {
+        return bills
+            .asSequence()
+            .filter { it.isEnabled && it.amount > 0.0 && it.title.isNotBlank() }
+            .map { dueDateTimeOf(it) }
+            .minOrNull()
+    }
+
+    fun millisUntilDue(due: LocalDateTime, now: LocalDateTime = LocalDateTime.now()): Long {
+        return Duration.between(now, due).toMillis().coerceAtLeast(1_000L)
+    }
 
     fun computeDueOccurrences(
         entry: RecurringEntrySetting,
@@ -81,8 +165,13 @@ object RecurringEngine {
                     (date.month == Month.FEBRUARY && date.dayOfMonth == date.lengthOfMonth())
             }
             "Monthly" -> date.dayOfMonth == date.lengthOfMonth()
-            else -> false
+            else -> isPaydayToday(CutoffScheduleConfig.fromLegacySchedule(payCycleSchedule), date)
         }
+    }
+
+    fun isPaydayToday(config: CutoffScheduleConfig, date: LocalDate): Boolean {
+        val window = CutoffCalculator.resolveCutoffWindow(date = date, config = config)
+        return window.endDate == date
     }
 
     fun shouldSendShiftReminder(

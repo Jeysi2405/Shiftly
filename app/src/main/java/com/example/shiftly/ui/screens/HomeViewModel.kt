@@ -4,12 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.shiftly.data.local.ActiveTimerState
+import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
@@ -84,7 +86,8 @@ sealed class TimelineActivityItem(
         val timeLabel: String,
         val amount: Double,
         epochDay: Long,
-        timestamp: Long
+        timestamp: Long,
+        val subtitleTag: String = "Recurring"
     ) : TimelineActivityItem(epochDay, timestamp)
 }
 
@@ -166,7 +169,9 @@ class HomeViewModel(
         repository.allExtraIncomes,
         repository.allExpenses,
         repository.allSplitBills,
-        repository.allSavingsGoals
+        repository.allSavingsGoals,
+        repository.allAllowanceEntries,
+        repository.settingsSnapshot
     ) { values ->
         val prefs = values[0] as CorePrefs
         @Suppress("UNCHECKED_CAST")
@@ -179,6 +184,9 @@ class HomeViewModel(
         val splitBills = values[4] as List<SplitBillWithParticipants>
         @Suppress("UNCHECKED_CAST")
         val rawGoals = values[5] as List<SavingsGoalWithDeposits>
+        @Suppress("UNCHECKED_CAST")
+        val allowanceEntries = values[6] as List<AllowanceEntryEntity>
+        val settings = values[7] as ShiftlySettingsSnapshot
 
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
@@ -186,13 +194,21 @@ class HomeViewModel(
         val monthStartEpoch = currentMonth.atDay(1).toEpochDay()
         val monthEndEpoch = currentMonth.atEndOfMonth().toEpochDay()
 
-        val totalIncome = shifts.sumOf { it.totalEarned } + extraIncomes.sumOf { it.amount }
+        // Exclude auto-credited Duties cutoff entries (cutoffKey != null) so shifts are never double-counted
+        val manualAllowances = allowanceEntries.filter { it.cutoffKey.isNullOrBlank() }
+
+        val totalIncome = shifts.sumOf { it.totalEarned } +
+            extraIncomes.sumOf { it.amount } +
+            manualAllowances.sumOf { it.amount }
         val totalExpenses = expenses.sumOf { it.amount }
         val totalBalance = totalIncome - totalExpenses
 
         val monthShifts = shifts.filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
         val mtdIncome = monthShifts.sumOf { it.totalEarned } +
             extraIncomes
+                .filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
+                .sumOf { it.amount } +
+            manualAllowances
                 .filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
                 .sumOf { it.amount }
         val mtdExpensesList = expenses.filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
@@ -222,7 +238,8 @@ class HomeViewModel(
 
         val cutoffSummary = CutoffCalculator.summarizeCutoffShifts(
             shifts = shifts,
-            referenceDate = today
+            referenceDate = today,
+            config = settings.cutoffScheduleConfig()
         )
 
         val savingsGoalItems = rawGoals.map { goalWithDeps ->
@@ -274,7 +291,21 @@ class HomeViewModel(
                 timeLabel = dateLabel,
                 amount = inc.amount,
                 epochDay = inc.dateEpochDay,
-                timestamp = inc.createdAtMillis.takeIf { it > 0L } ?: (inc.dateEpochDay * 86_400_000L + inc.id)
+                timestamp = inc.createdAtMillis.takeIf { it > 0L } ?: (inc.dateEpochDay * 86_400_000L + inc.id),
+                subtitleTag = "Recurring"
+            )
+        }
+
+        val manualAllowanceItems = manualAllowances.take(4).map { entry ->
+            val dateLabel = LocalDate.ofEpochDay(entry.dateEpochDay).format(monthDayFormatter)
+            TimelineActivityItem.ExtraIncomeActivity(
+                id = entry.id,
+                title = entry.title,
+                timeLabel = dateLabel,
+                amount = entry.amount,
+                epochDay = entry.dateEpochDay,
+                timestamp = entry.createdAtMillis.takeIf { it > 0L } ?: (entry.dateEpochDay * 86_400_000L + entry.id),
+                subtitleTag = "Allowance"
             )
         }
 
@@ -291,7 +322,7 @@ class HomeViewModel(
             )
         }
 
-        val combinedTimeline = (shiftItems + extraItems + expenseItems)
+        val combinedTimeline = (shiftItems + extraItems + manualAllowanceItems + expenseItems)
             .sortedWith(compareByDescending<TimelineActivityItem> { it.sortEpochDay }.thenByDescending { it.sortTimestamp })
 
         HomeUiState(

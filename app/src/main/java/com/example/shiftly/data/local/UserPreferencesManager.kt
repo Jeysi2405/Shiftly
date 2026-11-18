@@ -10,6 +10,9 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import java.time.DayOfWeek
+import java.time.format.TextStyle
+import java.util.Locale
 import kotlin.math.roundToLong
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -62,6 +65,101 @@ data class NotificationLastDays(
     val lastSavingsDay: Long = 0L
 )
 
+data class CutoffScheduleConfig(
+    val mode: String = MODE_SEMI_MONTHLY,
+    val day1: Int = 15,
+    val day2: Int = END_OF_MONTH_DAY,
+    val weeklyDayOfWeek: Int = 5
+) {
+    companion object {
+        const val MODE_SEMI_MONTHLY = "SEMI_MONTHLY"
+        const val MODE_MONTHLY = "MONTHLY"
+        const val MODE_WEEKLY = "WEEKLY"
+        const val END_OF_MONTH_DAY = 31
+
+        fun formatDayLabel(day: Int): String =
+            if (day >= END_OF_MONTH_DAY) "End of month" else ordinalDay(day)
+
+        fun ordinalDay(day: Int): String {
+            val d = day.coerceIn(1, 31)
+            val mod100 = d % 100
+            val suffix = if (mod100 in 11..13) {
+                "th"
+            } else {
+                when (d % 10) {
+                    1 -> "st"
+                    2 -> "nd"
+                    3 -> "rd"
+                    else -> "th"
+                }
+            }
+            return "$d$suffix"
+        }
+
+        fun fromLegacySchedule(schedule: String): CutoffScheduleConfig {
+            return when {
+                schedule.equals("Monthly", ignoreCase = true) ->
+                    CutoffScheduleConfig(mode = MODE_MONTHLY, day1 = END_OF_MONTH_DAY)
+                schedule.startsWith("Weekly", ignoreCase = true) ->
+                    CutoffScheduleConfig(mode = MODE_WEEKLY, weeklyDayOfWeek = 5)
+                else -> CutoffScheduleConfig(
+                    mode = MODE_SEMI_MONTHLY,
+                    day1 = 15,
+                    day2 = END_OF_MONTH_DAY
+                )
+            }
+        }
+    }
+
+    fun normalized(): CutoffScheduleConfig {
+        return when (mode) {
+            MODE_MONTHLY -> copy(day1 = day1.coerceIn(1, END_OF_MONTH_DAY))
+            MODE_WEEKLY -> copy(weeklyDayOfWeek = weeklyDayOfWeek.coerceIn(1, 7))
+            else -> {
+                val safeD1 = day1.coerceIn(1, 27)
+                val safeD2 = day2.coerceIn(safeD1 + 1, END_OF_MONTH_DAY)
+                copy(mode = MODE_SEMI_MONTHLY, day1 = safeD1, day2 = safeD2)
+            }
+        }
+    }
+
+    fun displayLabel(locale: Locale = Locale.ENGLISH): String {
+        val norm = normalized()
+        return when (norm.mode) {
+            MODE_MONTHLY -> {
+                if (norm.day1 >= END_OF_MONTH_DAY) {
+                    "Monthly (End of month)"
+                } else {
+                    "Monthly (${ordinalDay(norm.day1)})"
+                }
+            }
+            MODE_WEEKLY -> {
+                val dow = DayOfWeek.of(norm.weeklyDayOfWeek)
+                    .getDisplayName(TextStyle.SHORT, locale)
+                "Weekly ($dow)"
+            }
+            else -> {
+                val first = ordinalDay(norm.day1)
+                val second = if (norm.day2 >= END_OF_MONTH_DAY) "30th / End" else ordinalDay(norm.day2)
+                "$first & $second"
+            }
+        }
+    }
+
+    fun toPayCycleScheduleString(): String {
+        val norm = normalized()
+        return when (norm.mode) {
+            MODE_MONTHLY -> "Monthly"
+            MODE_WEEKLY -> {
+                val dow = DayOfWeek.of(norm.weeklyDayOfWeek)
+                    .getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+                "Weekly ($dow)"
+            }
+            else -> if (norm.day1 == 15 && norm.day2 >= 30) "15th & 30th" else displayLabel()
+        }
+    }
+}
+
 data class ShiftlySettingsSnapshot(
     val payCycleSchedule: String = "15th & 30th",
     val paydayReminderEnabled: Boolean = true,
@@ -82,8 +180,21 @@ data class ShiftlySettingsSnapshot(
     val appLockMethod: String = "PIN & Fingerprint",
     val hasAppLockPin: Boolean = false,
     val appLockPinHash: String = "",
-    val themeMode: String = "SYSTEM"
+    val themeMode: String = "SYSTEM",
+    val cutoffMode: String = CutoffScheduleConfig.MODE_SEMI_MONTHLY,
+    val cutoffDay1: Int = 15,
+    val cutoffDay2: Int = CutoffScheduleConfig.END_OF_MONTH_DAY,
+    val cutoffWeeklyDay: Int = 5,
+    val legacyRecurringMigrated: Boolean = false
 ) {
+    fun cutoffScheduleConfig(): CutoffScheduleConfig =
+        CutoffScheduleConfig(
+            mode = cutoffMode,
+            day1 = cutoffDay1,
+            day2 = cutoffDay2,
+            weeklyDayOfWeek = cutoffWeeklyDay
+        ).normalized()
+
     companion object {
         val DEFAULT_CATEGORY_BUDGETS: List<CategoryBudgetSetting> = emptyList()
 
@@ -326,6 +437,11 @@ class UserPreferencesManager(private val context: Context) {
 
         // Profile & Settings / Analytics preferences
         private val KEY_PAY_CYCLE_SCHEDULE = stringPreferencesKey("pay_cycle_schedule")
+        private val KEY_CUTOFF_MODE = stringPreferencesKey("cutoff_mode")
+        private val KEY_CUTOFF_DAY_1 = intPreferencesKey("cutoff_day_1")
+        private val KEY_CUTOFF_DAY_2 = intPreferencesKey("cutoff_day_2")
+        private val KEY_CUTOFF_WEEKLY_DAY = intPreferencesKey("cutoff_weekly_day")
+        private val KEY_LEGACY_RECURRING_MIGRATED = booleanPreferencesKey("legacy_recurring_migrated")
         private val KEY_PAYDAY_REMINDER = booleanPreferencesKey("payday_reminder")
         private val KEY_SHIFT_REMINDER = booleanPreferencesKey("shift_reminder")
         private val KEY_BILL_REMINDER = booleanPreferencesKey("bill_reminder")
@@ -391,8 +507,21 @@ class UserPreferencesManager(private val context: Context) {
             prefs[KEY_APP_LOCK_PIN].orEmpty()
         }
         val legacyPayday = prefs[KEY_PAYDAY_REMINDER] ?: true
+        val payCycleSchedule = prefs[KEY_PAY_CYCLE_SCHEDULE] ?: "15th & 30th"
+        val fallbackCutoff = CutoffScheduleConfig.fromLegacySchedule(payCycleSchedule)
+        val cutoffMode = prefs[KEY_CUTOFF_MODE] ?: fallbackCutoff.mode
+        val cutoffDay1 = prefs[KEY_CUTOFF_DAY_1] ?: fallbackCutoff.day1
+        val cutoffDay2 = prefs[KEY_CUTOFF_DAY_2] ?: fallbackCutoff.day2
+        val cutoffWeeklyDay = prefs[KEY_CUTOFF_WEEKLY_DAY] ?: fallbackCutoff.weeklyDayOfWeek
+        val normalizedCutoff = CutoffScheduleConfig(
+            mode = cutoffMode,
+            day1 = cutoffDay1,
+            day2 = cutoffDay2,
+            weeklyDayOfWeek = cutoffWeeklyDay
+        ).normalized()
+
         ShiftlySettingsSnapshot(
-            payCycleSchedule = prefs[KEY_PAY_CYCLE_SCHEDULE] ?: "15th & 30th",
+            payCycleSchedule = payCycleSchedule,
             paydayReminderEnabled = legacyPayday,
             shiftReminderEnabled = prefs[KEY_SHIFT_REMINDER] ?: true,
             billReminderEnabled = prefs[KEY_BILL_REMINDER] ?: true,
@@ -411,7 +540,12 @@ class UserPreferencesManager(private val context: Context) {
             appLockMethod = prefs[KEY_APP_LOCK_METHOD] ?: "PIN & Fingerprint",
             hasAppLockPin = pinHash.isNotBlank(),
             appLockPinHash = pinHash,
-            themeMode = prefs[KEY_THEME_MODE] ?: "SYSTEM"
+            themeMode = prefs[KEY_THEME_MODE] ?: "SYSTEM",
+            cutoffMode = normalizedCutoff.mode,
+            cutoffDay1 = normalizedCutoff.day1,
+            cutoffDay2 = normalizedCutoff.day2,
+            cutoffWeeklyDay = normalizedCutoff.weeklyDayOfWeek,
+            legacyRecurringMigrated = prefs[KEY_LEGACY_RECURRING_MIGRATED] ?: false
         )
     }
 
@@ -569,8 +703,30 @@ class UserPreferencesManager(private val context: Context) {
     }
 
     suspend fun setPayCycleSchedule(schedule: String) {
+        val config = CutoffScheduleConfig.fromLegacySchedule(schedule).normalized()
         context.dataStore.edit { prefs ->
             prefs[KEY_PAY_CYCLE_SCHEDULE] = schedule
+            prefs[KEY_CUTOFF_MODE] = config.mode
+            prefs[KEY_CUTOFF_DAY_1] = config.day1
+            prefs[KEY_CUTOFF_DAY_2] = config.day2
+            prefs[KEY_CUTOFF_WEEKLY_DAY] = config.weeklyDayOfWeek
+        }
+    }
+
+    suspend fun updateCutoffSchedule(config: CutoffScheduleConfig) {
+        val norm = config.normalized()
+        context.dataStore.edit { prefs ->
+            prefs[KEY_CUTOFF_MODE] = norm.mode
+            prefs[KEY_CUTOFF_DAY_1] = norm.day1
+            prefs[KEY_CUTOFF_DAY_2] = norm.day2
+            prefs[KEY_CUTOFF_WEEKLY_DAY] = norm.weeklyDayOfWeek
+            prefs[KEY_PAY_CYCLE_SCHEDULE] = norm.toPayCycleScheduleString()
+        }
+    }
+
+    suspend fun markLegacyRecurringMigrated(migrated: Boolean = true) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_LEGACY_RECURRING_MIGRATED] = migrated
         }
     }
 
@@ -671,7 +827,13 @@ class UserPreferencesManager(private val context: Context) {
                 prefs[KEY_PROFILE_PHOTO_PATH] = profilePhotoPath
             }
             if (settings != null) {
+                val normCutoff = settings.cutoffScheduleConfig()
                 prefs[KEY_PAY_CYCLE_SCHEDULE] = settings.payCycleSchedule
+                prefs[KEY_CUTOFF_MODE] = normCutoff.mode
+                prefs[KEY_CUTOFF_DAY_1] = normCutoff.day1
+                prefs[KEY_CUTOFF_DAY_2] = normCutoff.day2
+                prefs[KEY_CUTOFF_WEEKLY_DAY] = normCutoff.weeklyDayOfWeek
+                prefs[KEY_LEGACY_RECURRING_MIGRATED] = settings.legacyRecurringMigrated
                 prefs[KEY_PAYDAY_REMINDER] = settings.paydayReminderEnabled
                 prefs[KEY_SHIFT_REMINDER] = settings.shiftReminderEnabled
                 prefs[KEY_BILL_REMINDER] = settings.billReminderEnabled

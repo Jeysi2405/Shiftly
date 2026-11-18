@@ -53,6 +53,7 @@ import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
@@ -63,6 +64,7 @@ import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
+import java.time.YearMonth
 
 @Composable
 fun SplitBillScreen(
@@ -87,6 +89,10 @@ fun SplitBillScreen(
         state = state,
         onBack = onBack,
         listState = listState,
+        onPreviousMonth = { viewModel.shiftMonth(-1L) },
+        onNextMonth = { viewModel.shiftMonth(1L) },
+        onToggleAllMonths = { viewModel.toggleAllMonths() },
+        onShowAllMonths = { viewModel.showAllMonths() },
         onOpenNewSplit = {
             prefillAmount = ""
             prefillTitle = ""
@@ -266,7 +272,11 @@ fun SplitBillScreenContent(
     onDeleteBill: (SplitBillEntity) -> Unit,
     onTrySampleSplit: () -> Unit,
     onBack: () -> Unit = {},
-    listState: LazyListState = rememberLazyListState()
+    listState: LazyListState = rememberLazyListState(),
+    onPreviousMonth: () -> Unit = {},
+    onNextMonth: () -> Unit = {},
+    onToggleAllMonths: () -> Unit = {},
+    onShowAllMonths: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
     LazyColumn(
@@ -318,6 +328,17 @@ fun SplitBillScreenContent(
             )
         }
 
+        // 0b. Month / All-time Filter Bar
+        item {
+            ShiftlyMonthFilterBar(
+                selectedMonth = state.selectedMonth,
+                onPreviousMonth = onPreviousMonth,
+                onNextMonth = onNextMonth,
+                onToggleAllMonths = onToggleAllMonths,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+        }
+
         // 1. Summary Card (Pending + Paid Mint Badge + Progress Bar)
         item {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
@@ -359,6 +380,9 @@ fun SplitBillScreenContent(
                     if (state.billsWithParticipants.isEmpty()) {
                         SplitBillEmptyCard(
                             currencySymbol = state.currencySymbol,
+                            selectedMonth = state.selectedMonth,
+                            hasAnyBillsAtAll = state.hasAnyBillsAtAll,
+                            onShowAllMonths = onShowAllMonths,
                             onTrySampleSplit = onTrySampleSplit
                         )
                     } else {
@@ -385,7 +409,10 @@ fun SplitBillScreenContent(
 @Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "1. Split Bill Empty")
 @Composable
 private fun SplitBillEmptyPreview() {
-    val state = SplitBillUiState(currencySymbol = "₱")
+    val state = SplitBillUiState(
+        currencySymbol = "₱",
+        selectedMonth = YearMonth.of(2026, 5)
+    )
 
     ShiftlyTheme {
         ShiftlyBlueGradientBackground {
@@ -414,6 +441,7 @@ private fun SplitBillEmptyPreview() {
 private fun NewSplitBillSheetPreview() {
     val state = SplitBillUiState(
         currencySymbol = "₱",
+        selectedMonth = YearMonth.of(2026, 5),
         totalPendingAmount = 600.0,
         totalCollectedAmount = 600.0,
         paidParticipantsCount = 2,
@@ -510,8 +538,10 @@ private fun SplitBillListPreview() {
 
     val state = SplitBillUiState(
         currencySymbol = "₱",
+        selectedMonth = YearMonth.of(2026, 5),
         billsWithParticipants = bills,
         totalBillsCount = bills.size,
+        hasAnyBillsAtAll = true,
         totalCollectedAmount = 600.0,
         totalPendingAmount = 600.0,
         paidParticipantsCount = 3,

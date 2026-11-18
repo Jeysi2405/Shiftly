@@ -102,6 +102,7 @@ import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.YearMonth
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
@@ -138,9 +139,18 @@ fun ExpenseSummaryCard(
     monthlyBudget: Double = 0.0,
     totalReceiptCount: Int,
     categoryBreakdown: List<CategorySpendSummary>,
-    currencySymbol: String
+    currencySymbol: String,
+    selectedMonth: YearMonth? = YearMonth.now()
 ) {
     val colors = ShiftlyColors.current
+    val locale = LocalConfiguration.current.locales[0]
+    val periodLabel = remember(selectedMonth, locale) {
+        if (selectedMonth == null) {
+            "ALL TIME"
+        } else {
+            selectedMonth.format(DateTimeFormatter.ofPattern("MMM yyyy", locale)).uppercase()
+        }
+    }
     ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
@@ -150,7 +160,7 @@ fun ExpenseSummaryCard(
             ) {
                 Column {
                     Text(
-                        text = "THIS MONTH",
+                        text = periodLabel,
                         style = MaterialTheme.typography.labelMedium.copy(
                             fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold,
@@ -203,7 +213,7 @@ fun ExpenseSummaryCard(
                 }
             }
 
-            if (monthlyBudget > 0.0) {
+            if (selectedMonth != null && monthlyBudget > 0.0) {
                 val budgetUsed = (monthlyTotal / monthlyBudget).toFloat().coerceIn(0f, 1f)
                 val isOver = monthlyTotal > monthlyBudget
                 val isNear = monthlyTotal >= monthlyBudget * 0.85
@@ -430,10 +440,28 @@ fun ExpenseCategoryFilterRow(
 fun ExpenseEmptyCard(
     selectedCategory: String,
     onAddExpense: () -> Unit,
-    onShowAll: () -> Unit
+    onShowAll: () -> Unit,
+    selectedMonth: YearMonth? = YearMonth.now()
 ) {
     val colors = ShiftlyColors.current
-    val isFiltered = selectedCategory != "All"
+    val locale = LocalConfiguration.current.locales[0]
+    val monthLabel = remember(selectedMonth, locale) {
+        selectedMonth?.format(DateTimeFormatter.ofPattern("MMM yyyy", locale))
+    }
+    val isCategoryFiltered = selectedCategory != "All"
+    val isMonthFiltered = selectedMonth != null
+    val isFiltered = isCategoryFiltered || isMonthFiltered
+    val emptyTitle = when {
+        isCategoryFiltered && monthLabel != null -> "No $selectedCategory expenses in $monthLabel"
+        isCategoryFiltered -> "No $selectedCategory expenses"
+        monthLabel != null -> "No expenses in $monthLabel"
+        else -> "No expenses logged yet"
+    }
+    val buttonText = when {
+        isCategoryFiltered -> "Show All Expenses"
+        isMonthFiltered -> "Show All Months"
+        else -> "Log your first expense"
+    }
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = colors.card,
@@ -463,16 +491,28 @@ fun ExpenseEmptyCard(
                 )
             }
             Text(
-                text = if (isFiltered) "No $selectedCategory expenses" else "No expenses logged yet",
+                text = emptyTitle,
                 style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))
             ShiftlyPrimaryPillButton(
-                text = if (isFiltered) "Show All Expenses" else "Log your first expense",
+                text = buttonText,
                 onClick = if (isFiltered) onShowAll else onAddExpense
             )
+            if (isFiltered) {
+                TextButton(onClick = onAddExpense) {
+                    Text(
+                        text = "Log Expense",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.azureInk
+                    )
+                }
+            }
         }
     }
 }

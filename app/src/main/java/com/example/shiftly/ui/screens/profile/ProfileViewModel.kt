@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.shiftly.data.backup.RestoreMode
+import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
@@ -89,12 +90,25 @@ class ProfileViewModel(
         repository.totalMinutesWorked,
         repository.totalLifetimeEarnings,
         repository.totalExtraIncomeAmount,
+        repository.allAllowanceEntries,
         repository.totalExpenseAmount
-    ) { shiftCount, minutes, shiftEarnings, extraIncome, expenses ->
+    ) { values ->
+        val shiftCount = values[0] as Int
+        val minutes = values[1] as Int?
+        val shiftEarnings = values[2] as Double?
+        val extraIncome = values[3] as Double?
+        @Suppress("UNCHECKED_CAST")
+        val allowanceEntries = values[4] as List<AllowanceEntryEntity>
+        val expenses = values[5] as Double?
+
+        val manualAllowancesTotal = allowanceEntries
+            .filter { it.cutoffKey.isNullOrBlank() }
+            .sumOf { it.amount }
+
         ProfileTotals(
             totalShifts = shiftCount,
             totalMinutes = minutes ?: 0,
-            totalEarnings = (shiftEarnings ?: 0.0) + (extraIncome ?: 0.0),
+            totalEarnings = (shiftEarnings ?: 0.0) + (extraIncome ?: 0.0) + manualAllowancesTotal,
             totalExpenses = expenses ?: 0.0
         )
     }

@@ -44,8 +44,10 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.R
+import com.example.shiftly.data.local.AllowanceEntryEntity
+import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
-import com.example.shiftly.data.local.RecurringEntrySetting
+import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
@@ -55,11 +57,9 @@ import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
 import com.example.shiftly.ui.screens.profile.ManageCategoriesSheetContent
 import com.example.shiftly.ui.screens.profile.ProfileViewModel
-import com.example.shiftly.ui.screens.profile.RecurringEntriesSheetContent
 import com.example.shiftly.ui.screens.profile.SettingsSheetContainer
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
@@ -71,17 +71,14 @@ import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.LocalDate
 import java.time.YearMonth
 
-private enum class ToolsSheet {
-    BUDGETS,
-    RECURRING_BILLS
-}
-
 @Composable
 fun ToolsScreen(
     repository: ShiftlyRepository,
     onOpenDuties: () -> Unit,
     onOpenExpense: () -> Unit,
     onOpenSplitBill: () -> Unit,
+    onOpenRecurringBills: () -> Unit = {},
+    onOpenAllowance: () -> Unit = {},
     onQuickLogShift: () -> Unit,
     onQuickAddExpense: () -> Unit,
     onShowMessage: (String) -> Unit = {}
@@ -92,8 +89,10 @@ fun ToolsScreen(
     val shifts by repository.allShifts.collectAsStateWithLifecycle(initialValue = emptyList())
     val expenses by repository.allExpenses.collectAsStateWithLifecycle(initialValue = emptyList())
     val splitBills by repository.allSplitBills.collectAsStateWithLifecycle(initialValue = emptyList())
+    val recurringBills by repository.allRecurringBills.collectAsStateWithLifecycle(initialValue = emptyList())
+    val allowanceEntries by repository.allAllowanceEntries.collectAsStateWithLifecycle(initialValue = emptyList())
 
-    var activeSheet by remember { mutableStateOf<ToolsSheet?>(null) }
+    var showBudgetsSheet by remember { mutableStateOf(false) }
     var showManageCategoriesSheet by remember { mutableStateOf(false) }
     var showAddSavingsGoalSheet by remember { mutableStateOf(false) }
     var showSavingsGoalDetailSheet by remember { mutableStateOf(false) }
@@ -105,13 +104,15 @@ fun ToolsScreen(
         splitBills = splitBills,
         monthlyBudget = profileState.monthlyBudget,
         savingsGoals = profileState.savingsGoals,
-        recurringEntries = profileState.settings.recurringEntries,
+        recurringBills = recurringBills,
+        allowanceEntries = allowanceEntries,
+        cutoffScheduleLabel = profileState.settings.cutoffScheduleConfig().displayLabel(),
         onOpenDuties = onOpenDuties,
         onOpenExpense = onOpenExpense,
         onOpenSplitBill = onOpenSplitBill,
         onQuickLogShift = onQuickLogShift,
         onQuickAddExpense = onQuickAddExpense,
-        onOpenBudgets = { activeSheet = ToolsSheet.BUDGETS },
+        onOpenBudgets = { showBudgetsSheet = true },
         onOpenSavingsGoals = {
             if (profileState.savingsGoals.isEmpty()) {
                 showAddSavingsGoalSheet = true
@@ -119,66 +120,32 @@ fun ToolsScreen(
                 showSavingsGoalDetailSheet = true
             }
         },
-        onOpenRecurringBills = { activeSheet = ToolsSheet.RECURRING_BILLS }
+        onOpenRecurringBills = onOpenRecurringBills,
+        onOpenAllowance = onOpenAllowance
     )
 
-    when (activeSheet) {
-        ToolsSheet.BUDGETS -> {
-            SettingsSheetContainer(
-                title = "Monthly & Category Budgets",
-                onDismiss = {
-                    showManageCategoriesSheet = false
-                    activeSheet = null
-                }
-            ) {
-                BudgetsEditorSheetContent(
-                    currencySymbol = profileState.currencySymbol,
-                    currentMonthlyBudget = profileState.monthlyBudget,
-                    currentCategoryBudgets = profileState.settings.categoryBudgets,
-                    managedCategories = profileState.settings.managedCategories,
-                    onManageCategories = { showManageCategoriesSheet = true },
-                    onDismiss = { activeSheet = null },
-                    onSave = { monthly, categoryList ->
-                        profileViewModel.updateBudgets(monthly, categoryList)
-                        activeSheet = null
-                        onShowMessage("Budgets saved")
-                    }
-                )
+    if (showBudgetsSheet) {
+        SettingsSheetContainer(
+            title = "Monthly & Category Budgets",
+            onDismiss = {
+                showManageCategoriesSheet = false
+                showBudgetsSheet = false
             }
-        }
-
-        ToolsSheet.RECURRING_BILLS -> {
-            val visibleExpenseCategories = profileState.settings.managedCategories
-                .filter {
-                    it.isVisible &&
-                        it.name.isNotBlank() &&
-                        !it.name.equals("Split Bill", ignoreCase = true)
+        ) {
+            BudgetsEditorSheetContent(
+                currencySymbol = profileState.currencySymbol,
+                currentMonthlyBudget = profileState.monthlyBudget,
+                currentCategoryBudgets = profileState.settings.categoryBudgets,
+                managedCategories = profileState.settings.managedCategories,
+                onManageCategories = { showManageCategoriesSheet = true },
+                onDismiss = { showBudgetsSheet = false },
+                onSave = { monthly, categoryList ->
+                    profileViewModel.updateBudgets(monthly, categoryList)
+                    showBudgetsSheet = false
+                    onShowMessage("Budgets saved")
                 }
-                .map { it.name.trim() }
-                .ifEmpty { ExpenseViewModel.EXPENSE_CATEGORIES.filter { it != "Split Bill" } }
-
-            SettingsSheetContainer(
-                title = "Recurring Bills",
-                onDismiss = { activeSheet = null }
-            ) {
-                RecurringEntriesSheetContent(
-                    currencySymbol = profileState.currencySymbol,
-                    currentEntries = profileState.settings.recurringEntries,
-                    availableCategories = visibleExpenseCategories,
-                    onSave = { updated ->
-                        profileViewModel.updateRecurringEntries(updated) { posted ->
-                            activeSheet = null
-                            onShowMessage(
-                                if (posted > 0) "Saved & posted $posted recurring bill(s)"
-                                else "Recurring bills saved"
-                            )
-                        }
-                    }
-                )
-            }
+            )
         }
-
-        null -> {}
     }
 
     if (showManageCategoriesSheet) {
@@ -246,7 +213,9 @@ fun ToolsScreenContent(
     splitBills: List<SplitBillWithParticipants>,
     monthlyBudget: Double,
     savingsGoals: List<SavingsGoalWithDeposits> = emptyList(),
-    recurringEntries: List<RecurringEntrySetting> = emptyList(),
+    recurringBills: List<RecurringBillEntity> = emptyList(),
+    allowanceEntries: List<AllowanceEntryEntity> = emptyList(),
+    cutoffScheduleLabel: String = CutoffScheduleConfig().displayLabel(),
     onOpenDuties: () -> Unit,
     onOpenExpense: () -> Unit,
     onOpenSplitBill: () -> Unit,
@@ -254,7 +223,8 @@ fun ToolsScreenContent(
     onQuickAddExpense: () -> Unit,
     onOpenBudgets: () -> Unit = {},
     onOpenSavingsGoals: () -> Unit = {},
-    onOpenRecurringBills: () -> Unit = {}
+    onOpenRecurringBills: () -> Unit = {},
+    onOpenAllowance: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
     val currentMonth = YearMonth.now()
@@ -278,7 +248,8 @@ fun ToolsScreenContent(
     }
 
     val activeGoal = savingsGoals.firstOrNull { it.goal.isActive } ?: savingsGoals.firstOrNull()
-    val enabledRecurringCount = recurringEntries.count { it.isEnabled }
+    val enabledRecurringCount = recurringBills.count { it.isEnabled }
+    val totalAllowanceAmount = allowanceEntries.sumOf { it.amount }
 
     LazyColumn(
         modifier = Modifier
@@ -396,7 +367,7 @@ fun ToolsScreenContent(
                 ToolHubCard(
                     title = "Recurring Bills",
                     metric = "$enabledRecurringCount active",
-                    metricSub = "${recurringEntries.size} total recurring bill(s)",
+                    metricSub = "${recurringBills.size} scheduled bill(s)",
                     iconRes = R.drawable.ic_lucide_repeat,
                     iconBg = colors.azureContainer,
                     iconTint = colors.azureInk,
@@ -404,6 +375,23 @@ fun ToolsScreenContent(
                     quickActionLabel = null,
                     onQuickAction = null,
                     onClick = onOpenRecurringBills
+                )
+            }
+        }
+
+        item {
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ToolHubCard(
+                    title = "Allowance",
+                    metric = ShiftlyFormatters.formatCurrency(currencySymbol, totalAllowanceAmount),
+                    metricSub = "$cutoffScheduleLabel • ${allowanceEntries.size} entry(s)",
+                    iconRes = R.drawable.ic_lucide_wallet,
+                    iconBg = colors.mintContainer,
+                    iconTint = colors.mintInk,
+                    metricColor = colors.mintInk,
+                    quickActionLabel = null,
+                    onQuickAction = null,
+                    onClick = onOpenAllowance
                 )
             }
         }

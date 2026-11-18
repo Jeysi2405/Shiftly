@@ -1,10 +1,14 @@
 package com.example.shiftly.data.backup
 
+import com.example.shiftly.data.local.AllowanceEntryEntity
+import com.example.shiftly.data.local.AllowanceSource
 import com.example.shiftly.data.local.CategoryBudgetSetting
+import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.PreferenceJsonCodec
+import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
@@ -60,10 +64,12 @@ data class BackupPayload(
     val extraIncomes: List<ExtraIncomeEntity> = emptyList(),
     val splitBills: List<BackupSplitBill> = emptyList(),
     val savingsGoals: List<BackupSavingsGoal> = emptyList(),
+    val recurringBills: List<RecurringBillEntity> = emptyList(),
+    val allowanceEntries: List<AllowanceEntryEntity> = emptyList(),
     val receiptFiles: Map<String, ByteArray> = emptyMap()
 ) {
     companion object {
-        const val CURRENT_VERSION = 5
+        const val CURRENT_VERSION = 6
     }
 }
 
@@ -100,6 +106,11 @@ object BackupCodec {
                     "settings",
                     JSONObject().apply {
                         put("payCycleSchedule", s.payCycleSchedule)
+                        put("cutoffMode", s.cutoffMode)
+                        put("cutoffDay1", s.cutoffDay1)
+                        put("cutoffDay2", s.cutoffDay2)
+                        put("cutoffWeeklyDay", s.cutoffWeeklyDay)
+                        put("legacyRecurringMigrated", s.legacyRecurringMigrated)
                         put("paydayReminderEnabled", s.paydayReminderEnabled)
                         put("shiftReminderEnabled", s.shiftReminderEnabled)
                         put("billReminderEnabled", s.billReminderEnabled)
@@ -155,6 +166,12 @@ object BackupCodec {
                                 }
                                 if (e.linkedSavingsDepositId != null) {
                                     put("linkedSavingsDepositId", e.linkedSavingsDepositId)
+                                }
+                                if (e.linkedRecurringBillId != null) {
+                                    put("linkedRecurringBillId", e.linkedRecurringBillId)
+                                }
+                                if (e.recurringOccurrenceEpochDay != null) {
+                                    put("recurringOccurrenceEpochDay", e.recurringOccurrenceEpochDay)
                                 }
                                 val receiptName = sanitizeReceiptFileName(
                                     record.receiptFileName ?: e.receiptImagePath
@@ -255,6 +272,50 @@ object BackupCodec {
                     }
                 }
             )
+
+            put(
+                "recurringBills",
+                JSONArray().apply {
+                    payload.recurringBills.forEach { rb ->
+                        put(
+                            JSONObject().apply {
+                                put("id", rb.id)
+                                put("title", rb.title)
+                                put("amount", rb.amount)
+                                put("category", rb.category)
+                                put("frequency", rb.frequency)
+                                put("dueEpochDay", rb.dueEpochDay)
+                                put("dueHour", rb.dueHour)
+                                put("dueMinute", rb.dueMinute)
+                                put("isEnabled", rb.isEnabled)
+                                put("lastExecutedEpochDay", rb.lastExecutedEpochDay)
+                                put("lastExecutedAtMillis", rb.lastExecutedAtMillis)
+                                put("createdAtMillis", rb.createdAtMillis)
+                            }
+                        )
+                    }
+                }
+            )
+
+            put(
+                "allowanceEntries",
+                JSONArray().apply {
+                    payload.allowanceEntries.forEach { a ->
+                        put(
+                            JSONObject().apply {
+                                put("title", a.title)
+                                put("amount", a.amount)
+                                put("source", a.source)
+                                put("dateEpochDay", a.dateEpochDay)
+                                if (!a.cutoffKey.isNullOrBlank()) {
+                                    put("cutoffKey", a.cutoffKey)
+                                }
+                                put("createdAtMillis", a.createdAtMillis)
+                            }
+                        )
+                    }
+                }
+            )
         }
         return root.toString(2)
     }
@@ -284,8 +345,16 @@ object BackupCodec {
             val goalTarget = s.optDouble("savingsGoalTarget", 0.0)
                 .takeIf { it.isFinite() } ?: 0.0
             val legacyPayday = s.optBoolean("paydayReminderEnabled", true)
+            val payCycle = s.optString("payCycleSchedule", "15th & 30th")
+            val fallbackCutoff = CutoffScheduleConfig.fromLegacySchedule(payCycle)
+            val cutoffConfig = CutoffScheduleConfig(
+                mode = s.optString("cutoffMode", fallbackCutoff.mode).ifBlank { fallbackCutoff.mode },
+                day1 = s.optInt("cutoffDay1", fallbackCutoff.day1),
+                day2 = s.optInt("cutoffDay2", fallbackCutoff.day2),
+                weeklyDayOfWeek = s.optInt("cutoffWeeklyDay", fallbackCutoff.weeklyDayOfWeek)
+            ).normalized()
             ShiftlySettingsSnapshot(
-                payCycleSchedule = s.optString("payCycleSchedule", "15th & 30th"),
+                payCycleSchedule = payCycle,
                 paydayReminderEnabled = legacyPayday,
                 shiftReminderEnabled = s.optBoolean("shiftReminderEnabled", true),
                 billReminderEnabled = s.optBoolean("billReminderEnabled", true),
@@ -299,7 +368,12 @@ object BackupCodec {
                 categoryBudgets = parseCategoryBudgetArray(s.optJSONArray("categoryBudgets")),
                 managedCategories = parseManagedCategoryArray(s.optJSONArray("managedCategories")),
                 recurringEntries = parseRecurringEntryArray(s.optJSONArray("recurringEntries")),
-                shiftTimePresets = PreferenceJsonCodec.decodeShiftTimePresets(s.optJSONArray("shiftTimePresets")?.toString())
+                shiftTimePresets = PreferenceJsonCodec.decodeShiftTimePresets(s.optJSONArray("shiftTimePresets")?.toString()),
+                cutoffMode = cutoffConfig.mode,
+                cutoffDay1 = cutoffConfig.day1,
+                cutoffDay2 = cutoffConfig.day2,
+                cutoffWeeklyDay = cutoffConfig.weeklyDayOfWeek,
+                legacyRecurringMigrated = s.optBoolean("legacyRecurringMigrated", false)
             )
         }
 
@@ -348,6 +422,16 @@ object BackupCodec {
                 } else {
                     null
                 }
+                val linkedRecurringId = if (obj.has("linkedRecurringBillId") && !obj.isNull("linkedRecurringBillId")) {
+                    obj.getLong("linkedRecurringBillId")
+                } else {
+                    null
+                }
+                val recurringOccEpoch = if (obj.has("recurringOccurrenceEpochDay") && !obj.isNull("recurringOccurrenceEpochDay")) {
+                    obj.getLong("recurringOccurrenceEpochDay")
+                } else {
+                    null
+                }
                 val receiptFileName = sanitizeReceiptFileName(obj.optString("receiptFileName", ""))
                 add(
                     BackupExpenseRecord(
@@ -358,7 +442,9 @@ object BackupCodec {
                             dateEpochDay = obj.getLong("dateEpochDay"),
                             linkedSplitBillId = linkedId,
                             createdAtMillis = obj.optLong("createdAtMillis", 0L),
-                            linkedSavingsDepositId = linkedDepositId
+                            linkedSavingsDepositId = linkedDepositId,
+                            linkedRecurringBillId = linkedRecurringId,
+                            recurringOccurrenceEpochDay = recurringOccEpoch
                         ),
                         receiptFileName = receiptFileName
                     )
@@ -472,6 +558,54 @@ object BackupCodec {
             }
         }
 
+        val recurringBillsArray = root.optJSONArray("recurringBills") ?: JSONArray()
+        val recurringBills = buildList {
+            for (i in 0 until recurringBillsArray.length()) {
+                val obj = recurringBillsArray.optJSONObject(i) ?: continue
+                val title = obj.optString("title", "").trim()
+                val amount = obj.optDouble("amount", Double.NaN)
+                if (title.isEmpty() || !amount.isFinite() || amount <= 0.0) continue
+                add(
+                    RecurringBillEntity(
+                        id = obj.optLong("id", 0L),
+                        title = title,
+                        amount = amount,
+                        category = obj.optString("category", "Bills").ifBlank { "Bills" },
+                        frequency = obj.optString("frequency", "Monthly").ifBlank { "Monthly" },
+                        dueEpochDay = obj.optLong("dueEpochDay", LocalDate.now().toEpochDay()),
+                        dueHour = obj.optInt("dueHour", 9).coerceIn(0, 23),
+                        dueMinute = obj.optInt("dueMinute", 0).coerceIn(0, 59),
+                        isEnabled = obj.optBoolean("isEnabled", true),
+                        lastExecutedEpochDay = obj.optLong("lastExecutedEpochDay", 0L),
+                        lastExecutedAtMillis = obj.optLong("lastExecutedAtMillis", 0L),
+                        createdAtMillis = obj.optLong("createdAtMillis", 0L)
+                    )
+                )
+            }
+        }
+
+        val allowanceArray = root.optJSONArray("allowanceEntries") ?: JSONArray()
+        val allowanceEntries = buildList {
+            for (i in 0 until allowanceArray.length()) {
+                val obj = allowanceArray.optJSONObject(i) ?: continue
+                val title = obj.optString("title", "").trim()
+                val amount = obj.optDouble("amount", Double.NaN)
+                if (title.isEmpty() || !amount.isFinite() || amount <= 0.0) continue
+                val rawSource = obj.optString("source", AllowanceSource.OTHERS).trim()
+                val safeSource = if (rawSource in AllowanceSource.ALL) rawSource else AllowanceSource.OTHERS
+                add(
+                    AllowanceEntryEntity(
+                        title = title,
+                        amount = amount,
+                        source = safeSource,
+                        dateEpochDay = obj.optLong("dateEpochDay", LocalDate.now().toEpochDay()),
+                        cutoffKey = obj.optString("cutoffKey", "").takeIf { it.isNotBlank() },
+                        createdAtMillis = obj.optLong("createdAtMillis", 0L)
+                    )
+                )
+            }
+        }
+
         return BackupPayload(
             version = version,
             exportedAtMillis = exportedAt,
@@ -486,7 +620,9 @@ object BackupCodec {
             expenses = expenses,
             extraIncomes = extraIncomes,
             splitBills = splitBills,
-            savingsGoals = savingsGoals
+            savingsGoals = savingsGoals,
+            recurringBills = recurringBills,
+            allowanceEntries = allowanceEntries
         )
     }
 
@@ -569,6 +705,7 @@ object BackupCodec {
         extraIncomes: List<ExtraIncomeEntity>,
         expenses: List<ExpenseEntity>,
         currencySymbol: String,
+        allowanceEntries: List<AllowanceEntryEntity> = emptyList(),
         locale: Locale = Locale.US
     ): String = buildString {
         appendLine("Type,Date,Title_Or_Note,Category_Or_DayType,Duration_Min,${escapeCsvField("Amount ($currencySymbol)")}")
@@ -579,6 +716,15 @@ object BackupCodec {
             val amount = String.format(locale, "%.2f", s.totalEarned)
             appendLine("Shift,$date,$note,$dayType,${s.durationMinutes},$amount")
         }
+        allowanceEntries
+            .filter { it.cutoffKey == null }
+            .forEach { a ->
+                val date = LocalDate.ofEpochDay(a.dateEpochDay)
+                val title = escapeCsvField(a.title)
+                val source = escapeCsvField(a.source)
+                val amount = String.format(locale, "%.2f", a.amount)
+                appendLine("Allowance,$date,$title,$source,0,$amount")
+            }
         extraIncomes.forEach { inc ->
             val date = LocalDate.ofEpochDay(inc.dateEpochDay)
             val title = escapeCsvField(inc.title)
@@ -624,6 +770,16 @@ object BackupCodec {
 
     fun savingsGoalSignature(g: SavingsGoalEntity): String =
         "${g.title.trim().lowercase()}|${(g.targetAmount * 100.0).roundToLong()}|${g.targetDateEpochDay}"
+
+    fun recurringBillSignature(b: RecurringBillEntity): String =
+        "${b.title.trim().lowercase()}|${(b.amount * 100.0).roundToLong()}|${b.category.trim().lowercase()}|${b.frequency.trim().lowercase()}|${b.dueHour}:${b.dueMinute}"
+
+    fun allowanceEntrySignature(a: AllowanceEntryEntity): String =
+        if (!a.cutoffKey.isNullOrBlank()) {
+            "CUTOFF|${a.cutoffKey}"
+        } else {
+            "MANUAL|${a.dateEpochDay}|${a.title.trim().lowercase()}|${(a.amount * 100.0).roundToLong()}|${a.source.trim().lowercase()}"
+        }
 
     private fun parseCategoryBudgetArray(array: JSONArray?): List<CategoryBudgetSetting> {
         if (array == null) return ShiftlySettingsSnapshot.DEFAULT_CATEGORY_BUDGETS

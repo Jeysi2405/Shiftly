@@ -29,7 +29,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -401,8 +401,12 @@ private fun SavingsGoalsHeroCard(
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
-    var goalIndex by remember(goals.size) { mutableIntStateOf(0) }
-    val safeIdx = goalIndex.coerceIn(0, (goals.size - 1).coerceAtLeast(0))
+    var selectedGoalId by remember { mutableStateOf<Long?>(null) }
+    val effectiveGoalId = selectedGoalId?.takeIf { id ->
+        goals.any { it.goalWithDeposits.goal.id == id }
+    } ?: goals.firstOrNull { it.goalWithDeposits.goal.isActive }?.goalWithDeposits?.goal?.id
+        ?: goals.firstOrNull()?.goalWithDeposits?.goal?.id
+    val safeIdx = goals.indexOfFirst { it.goalWithDeposits.goal.id == effectiveGoalId }.coerceAtLeast(0)
     val current = goals.getOrNull(safeIdx)
 
     ShiftlyGlassCard(
@@ -512,8 +516,9 @@ private fun SavingsGoalsHeroCard(
                                         .border(1.dp, colors.cardBorder, CircleShape)
                                         .clickable {
                                             val prev = if (safeIdx > 0) safeIdx - 1 else goals.lastIndex
-                                            goalIndex = prev
-                                            onSelectActiveGoal(goals[prev].goalWithDeposits.goal.id)
+                                            val targetId = goals[prev].goalWithDeposits.goal.id
+                                            selectedGoalId = targetId
+                                            onSelectActiveGoal(targetId)
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -540,8 +545,9 @@ private fun SavingsGoalsHeroCard(
                                         .border(1.dp, colors.cardBorder, CircleShape)
                                         .clickable {
                                             val next = if (safeIdx < goals.lastIndex) safeIdx + 1 else 0
-                                            goalIndex = next
-                                            onSelectActiveGoal(goals[next].goalWithDeposits.goal.id)
+                                            val targetId = goals[next].goalWithDeposits.goal.id
+                                            selectedGoalId = targetId
+                                            onSelectActiveGoal(targetId)
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -1115,7 +1121,7 @@ fun HomeTimelineRow(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "Recurring • ${item.timeLabel}",
+                        text = "${item.subtitleTag} • ${item.timeLabel}",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textSecondary
                     )

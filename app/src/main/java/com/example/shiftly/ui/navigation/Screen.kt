@@ -58,6 +58,20 @@ sealed class Screen(
         unselectedIconRes = R.drawable.ic_lucide_split
     )
 
+    data object RecurringBills : Screen(
+        route = "recurring_bills",
+        label = "Recurring Bills",
+        selectedIconRes = R.drawable.ic_lucide_repeat,
+        unselectedIconRes = R.drawable.ic_lucide_repeat
+    )
+
+    data object Allowance : Screen(
+        route = "allowance",
+        label = "Allowance",
+        selectedIconRes = R.drawable.ic_lucide_wallet,
+        unselectedIconRes = R.drawable.ic_lucide_wallet
+    )
+
     data object Profile : Screen(
         route = "profile",
         label = "Profile",

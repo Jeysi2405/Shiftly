@@ -103,6 +103,7 @@ import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
 import com.example.shiftly.ui.screens.ToolsScreen
 import com.example.shiftly.ui.screens.WelcomeScreen
+import com.example.shiftly.ui.screens.allowance.AllowanceScreen
 import com.example.shiftly.ui.screens.duties.DutiesScreen
 import com.example.shiftly.ui.screens.duties.DutiesViewModel
 import com.example.shiftly.ui.screens.duties.ManualShiftBottomSheet
@@ -112,6 +113,7 @@ import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.lock.AppLockGateScreen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.ProfileScreen
+import com.example.shiftly.ui.screens.recurring.RecurringBillsScreen
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.splitbill.NewSplitBillBottomSheet
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
@@ -120,11 +122,13 @@ import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.DayType
+import com.example.shiftly.utils.RecurringEngine
 import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.workers.ShiftlyDailyWorker
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -248,7 +252,9 @@ private fun MainDashboardShell(
     val currentRoute = currentDestination?.route
     val isSubScreen = currentRoute == Screen.Duties.route ||
         currentRoute == Screen.Expense.route ||
-        currentRoute == Screen.SplitBill.route
+        currentRoute == Screen.SplitBill.route ||
+        currentRoute == Screen.RecurringBills.route ||
+        currentRoute == Screen.Allowance.route
 
     val dutiesViewModel: DutiesViewModel = viewModel(factory = DutiesViewModel.Factory(repository))
     val dutiesState by dutiesViewModel.uiState.collectAsStateWithLifecycle()
@@ -268,13 +274,39 @@ private fun MainDashboardShell(
     val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
     val savingsGoals by repository.allSavingsGoals.collectAsStateWithLifecycle(initialValue = emptyList())
 
-    LaunchedEffect(Unit) {
-        repository.processDueRecurringEntries()
-        ShiftlyDailyWorker.scheduleDailyMaintenance(context)
-    }
-
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    LaunchedEffect(Unit) {
+        repository.processDueRecurringEntries()
+        repository.processDueCutoffAllowances()
+        ShiftlyDailyWorker.scheduleDailyMaintenance(context)
+        val bills = repository.allRecurringBills.first()
+        ShiftlyDailyWorker.scheduleNextRecurringCheck(
+            context = context,
+            nextDue = RecurringEngine.earliestNextDueDateTime(bills)
+        )
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                scope.launch {
+                    repository.processDueRecurringEntries()
+                    repository.processDueCutoffAllowances()
+                    val bills = repository.allRecurringBills.first()
+                    ShiftlyDailyWorker.scheduleNextRecurringCheck(
+                        context = context,
+                        nextDue = RecurringEngine.earliestNextDueDateTime(bills)
+                    )
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     val showMessage: (String) -> Unit = { message ->
         scope.launch {
             snackbarHostState.currentSnackbarData?.dismiss()
@@ -300,7 +332,9 @@ private fun MainDashboardShell(
         if (screen == Screen.Tools && (
                 route == Screen.Duties.route ||
                 route == Screen.Expense.route ||
-                route == Screen.SplitBill.route
+                route == Screen.SplitBill.route ||
+                route == Screen.RecurringBills.route ||
+                route == Screen.Allowance.route
             )
         ) {
             val popped = navController.popBackStack(Screen.Tools.route, inclusive = false)
@@ -445,6 +479,12 @@ private fun MainDashboardShell(
                         onOpenSplitBill = {
                             navController.navigate(Screen.SplitBill.route) { launchSingleTop = true }
                         },
+                        onOpenRecurringBills = {
+                            navController.navigate(Screen.RecurringBills.route) { launchSingleTop = true }
+                        },
+                        onOpenAllowance = {
+                            navController.navigate(Screen.Allowance.route) { launchSingleTop = true }
+                        },
                         onQuickLogShift = { showQuickLogShiftSheet = true },
                         onQuickAddExpense = { showQuickAddExpenseSheet = true },
                         onShowMessage = showMessage
@@ -466,6 +506,20 @@ private fun MainDashboardShell(
                 }
                 composable(Screen.SplitBill.route) {
                     SplitBillScreen(
+                        repository = repository,
+                        onBack = { navController.popBackStack() },
+                        onShowMessage = showMessage
+                    )
+                }
+                composable(Screen.RecurringBills.route) {
+                    RecurringBillsScreen(
+                        repository = repository,
+                        onBack = { navController.popBackStack() },
+                        onShowMessage = showMessage
+                    )
+                }
+                composable(Screen.Allowance.route) {
+                    AllowanceScreen(
                         repository = repository,
                         onBack = { navController.popBackStack() },
                         onShowMessage = showMessage

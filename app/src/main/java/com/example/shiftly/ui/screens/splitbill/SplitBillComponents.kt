@@ -70,8 +70,8 @@ import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.utils.SplitBillMath
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
-import kotlin.math.roundToInt
 
 @Composable
 fun SplitBillSummaryCard(
@@ -640,9 +640,17 @@ fun NewSplitBillSheetContent(
 @Composable
 fun SplitBillEmptyCard(
     currencySymbol: String = "₱",
-    onTrySampleSplit: () -> Unit
+    onTrySampleSplit: () -> Unit,
+    selectedMonth: YearMonth? = YearMonth.now(),
+    hasAnyBillsAtAll: Boolean = false,
+    onShowAllMonths: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
+    val locale = LocalConfiguration.current.locales[0]
+    val monthLabel = remember(selectedMonth, locale) {
+        selectedMonth?.format(DateTimeFormatter.ofPattern("MMM yyyy", locale))
+    }
+    val showMonthReset = hasAnyBillsAtAll && monthLabel != null
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = colors.card,
@@ -672,16 +680,23 @@ fun SplitBillEmptyCard(
                 )
             }
             Text(
-                text = "No split bills yet",
+                text = if (showMonthReset) "No split bills in $monthLabel" else "No split bills yet",
                 style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))
-            ShiftlyPrimaryPillButton(
-                text = "Try ${currencySymbol}1,200 ÷ 4 dinner",
-                onClick = onTrySampleSplit
-            )
+            if (showMonthReset) {
+                ShiftlyPrimaryPillButton(
+                    text = "Show All Months",
+                    onClick = onShowAllMonths
+                )
+            } else {
+                ShiftlyPrimaryPillButton(
+                    text = "Try ${currencySymbol}1,200 ÷ 4 dinner",
+                    onClick = onTrySampleSplit
+                )
+            }
         }
     }
 }
