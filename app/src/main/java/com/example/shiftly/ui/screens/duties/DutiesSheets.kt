@@ -484,7 +484,7 @@ private fun BasicDateAndTimeSelectorCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -521,7 +521,7 @@ private fun BasicDateAndTimeSelectorCard(
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = colors.surface,
-                    border = BorderStroke(1.dp, colors.border),
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     shadowElevation = 0.dp
                 ) {
                     Row(
@@ -576,7 +576,7 @@ private fun BasicDateAndTimeSelectorCard(
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = colors.surface,
-                    border = BorderStroke(1.dp, colors.border),
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     shadowElevation = 0.dp
                 ) {
                     Row(
@@ -631,7 +631,7 @@ private fun BasicDateAndTimeSelectorCard(
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = colors.surface,
-                    border = BorderStroke(1.dp, colors.border),
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     shadowElevation = 0.dp
                 ) {
                     Row(
@@ -882,7 +882,7 @@ private fun ShiftTimePresetsBox(
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -912,7 +912,7 @@ private fun ShiftTimePresetsBox(
                     color = if (alreadyExists) colors.surface else colors.azureContainer,
                     border = BorderStroke(
                         1.dp,
-                        if (alreadyExists) colors.border else colors.azureAccent.copy(alpha = 0.55f)
+                        if (alreadyExists) colors.cardBorder else colors.azureAccent.copy(alpha = 0.55f)
                     ),
                     shadowElevation = 0.dp,
                     modifier = Modifier
@@ -960,7 +960,7 @@ private fun ShiftTimePresetsBox(
                         color = if (isActive) colors.azureContainer else colors.surface,
                         border = BorderStroke(
                             width = 1.dp,
-                            color = if (isActive) colors.azureAccent else colors.border
+                            color = if (isActive) colors.azureAccent else colors.cardBorder
                         ),
                         shadowElevation = 0.dp,
                         modifier = Modifier
@@ -1049,7 +1049,7 @@ private fun LogShiftReceiptPreviewCard(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1076,7 +1076,7 @@ private fun LogShiftReceiptPreviewCard(
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = colors.surface,
-                    border = BorderStroke(1.dp, colors.border),
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     shadowElevation = 0.dp
                 ) {
                     Text(
@@ -1516,7 +1516,7 @@ fun ManageShiftPresetsSheet(
                         Surface(
                             shape = RoundedCornerShape(16.dp),
                             color = colors.card,
-                            border = BorderStroke(1.dp, colors.border),
+                            border = BorderStroke(1.dp, colors.cardBorder),
                             shadowElevation = 0.dp,
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -1612,7 +1612,7 @@ private fun BasicPresetTimeSelectorCard(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1649,7 +1649,7 @@ private fun BasicPresetTimeSelectorCard(
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = colors.surface,
-                    border = BorderStroke(1.dp, colors.border),
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     shadowElevation = 0.dp
                 ) {
                     Row(
@@ -1704,7 +1704,7 @@ private fun BasicPresetTimeSelectorCard(
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = colors.surface,
-                    border = BorderStroke(1.dp, colors.border),
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     shadowElevation = 0.dp
                 ) {
                     Row(

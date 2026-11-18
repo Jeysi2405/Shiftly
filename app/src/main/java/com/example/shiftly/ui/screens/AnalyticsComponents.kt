@@ -106,7 +106,7 @@ fun AnalyticsRangeSegmentedControl(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(50),
         color = colors.surface,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
     ) {
         Row(
@@ -176,6 +176,7 @@ fun IncomeVsExpenseGlassChartCard(
                             text = "INCOME",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium,
                                 letterSpacing = 0.6.sp
                             ),
                             color = colors.textSecondary
@@ -195,6 +196,7 @@ fun IncomeVsExpenseGlassChartCard(
                             text = "EXPENSES",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium,
                                 letterSpacing = 0.6.sp
                             ),
                             color = colors.textSecondary
@@ -237,7 +239,7 @@ fun IncomeVsExpenseGlassChartCard(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
                     .background(colors.card)
-                    .border(1.dp, colors.border, RoundedCornerShape(18.dp))
+                    .border(1.dp, colors.cardBorder, RoundedCornerShape(18.dp))
                     .semantics(mergeDescendants = true) {
                         contentDescription = chartDescription
                     }
@@ -352,7 +354,10 @@ fun IncomeVsExpenseGlassChartCard(
                         state.chartBuckets.forEach { bucket ->
                             Text(
                                 text = bucket.label,
-                                style = MaterialTheme.typography.labelSmall.tabular(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Medium
+                                ).tabular(),
                                 color = colors.textSecondary
                             )
                         }
@@ -373,7 +378,10 @@ fun IncomeVsExpenseGlassChartCard(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Income",
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Medium
+                                ),
                                 color = colors.textSecondary
                             )
                         }
@@ -388,7 +396,10 @@ fun IncomeVsExpenseGlassChartCard(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Expenses",
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Medium
+                                ),
                                 color = colors.textSecondary
                             )
                         }
@@ -410,7 +421,7 @@ fun InsightCardContainer(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -479,6 +490,7 @@ fun TopSpendingCategoriesCard(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
                             .background(colors.surface)
+                            .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(7.dp)
                     ) {
@@ -618,21 +630,18 @@ fun EarningsHoursBreakdownCard(
             HoursSplitMiniTile(
                 label = "Regular",
                 hours = regularHours,
-                containerColor = colors.surface,
                 accentColor = colors.textPrimary,
                 modifier = Modifier.weight(1f)
             )
             HoursSplitMiniTile(
                 label = "Night Diff",
                 hours = nightDiffHours,
-                containerColor = colors.nightDiffPurpleContainer,
                 accentColor = colors.nightDiffPurple,
                 modifier = Modifier.weight(1f)
             )
             HoursSplitMiniTile(
                 label = "Overtime",
                 hours = overtimeHours,
-                containerColor = colors.coralContainer,
                 accentColor = colors.coralBright,
                 modifier = Modifier.weight(1f)
             )
@@ -644,14 +653,14 @@ fun EarningsHoursBreakdownCard(
 private fun HoursSplitMiniTile(
     label: String,
     hours: Double,
-    containerColor: Color,
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = containerColor,
+        color = colors.surface,
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = modifier
     ) {
@@ -661,8 +670,13 @@ private fun HoursSplitMiniTile(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
-                color = colors.textSecondary
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = ShiftlyFormatters.formatHours(hours, compact = true),
@@ -707,6 +721,7 @@ fun HoursOfWorkCostCard(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = colors.surface,
+                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {

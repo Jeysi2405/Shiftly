@@ -177,12 +177,15 @@ fun ExpenseSummaryCard(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.card,
-                        border = BorderStroke(1.dp, colors.border),
+                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "All-time: ${ShiftlyFormatters.formatCurrency(currencySymbol, allTimeTotal)}",
-                            style = MaterialTheme.typography.labelSmall.tabular(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
                             color = colors.textPrimary,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
@@ -190,7 +193,10 @@ fun ExpenseSummaryCard(
                     if (totalReceiptCount > 0) {
                         Text(
                             text = "$totalReceiptCount receipt(s) saved",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ),
                             color = colors.textSecondary
                         )
                     }
@@ -211,7 +217,10 @@ fun ExpenseSummaryCard(
                     ) {
                         Text(
                             text = "Monthly Budget",
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans).tabular(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
                             color = colors.textSecondary
                         )
                         Text(
@@ -286,7 +295,10 @@ fun ExpenseSummaryCard(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "${item.category} (${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)})",
-                                style = MaterialTheme.typography.labelSmall.tabular(),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Medium
+                                ).tabular(),
                                 color = colors.textSecondary
                             )
                         }
@@ -309,7 +321,10 @@ fun ExpenseSummaryCard(
                                 ) {
                                     Text(
                                         text = item.category,
-                                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = PlusJakartaSans,
+                                            fontWeight = FontWeight.Medium
+                                        ),
                                         color = colors.textPrimary
                                     )
                                     Text(
@@ -318,7 +333,10 @@ fun ExpenseSummaryCard(
                                         } else {
                                             "${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)} / ${ShiftlyFormatters.formatCurrency(currencySymbol, limit)}"
                                         },
-                                        style = MaterialTheme.typography.labelSmall.tabular(),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = PlusJakartaSans,
+                                            fontWeight = FontWeight.Medium
+                                        ).tabular(),
                                         color = if (isNearOrOver) colors.coralTextOnSurface else colors.mintTextOnSurface
                                     )
                                 }
@@ -384,7 +402,7 @@ fun ExpenseCategoryFilterRow(
                     .background(if (isSelected) colors.azurePrimary else colors.surface)
                     .border(
                         width = 1.dp,
-                        color = if (isSelected) colors.azureAccent else colors.border,
+                        color = if (isSelected) colors.azureAccent else colors.cardBorder,
                         shape = RoundedCornerShape(50)
                     )
                     .clickable(role = Role.Tab) { onSelectCategory(category) }
@@ -419,7 +437,7 @@ fun ExpenseEmptyCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -481,7 +499,7 @@ fun ExpenseItemCard(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -819,7 +837,7 @@ fun AddExpenseSheetContent(
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = colors.card,
-            border = BorderStroke(1.dp, colors.border),
+            border = BorderStroke(1.dp, colors.cardBorder),
             shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -855,7 +873,10 @@ fun AddExpenseSheetContent(
                     Column {
                         Text(
                             text = "Category",
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ),
                             color = colors.textSecondary
                         )
                         Text(
@@ -885,7 +906,7 @@ fun AddExpenseSheetContent(
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = colors.card,
-                border = BorderStroke(1.dp, colors.border),
+                border = BorderStroke(1.dp, colors.cardBorder),
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .weight(1f)
@@ -915,7 +936,7 @@ fun AddExpenseSheetContent(
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = colors.card,
-                border = BorderStroke(1.dp, colors.border),
+                border = BorderStroke(1.dp, colors.cardBorder),
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .weight(1f)
@@ -1286,7 +1307,7 @@ fun CategoryPromptSheet(
                     color = if (isSelected) colors.coralContainer else colors.card,
                     border = BorderStroke(
                         width = if (isSelected) 1.5.dp else 1.dp,
-                        color = if (isSelected) colors.coralInk else colors.border
+                        color = if (isSelected) colors.coralInk else colors.cardBorder
                     ),
                     shadowElevation = 0.dp,
                     modifier = Modifier

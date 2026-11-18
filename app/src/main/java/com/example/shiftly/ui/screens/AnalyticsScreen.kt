@@ -1,7 +1,6 @@
 package com.example.shiftly.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -26,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -35,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
@@ -157,27 +155,16 @@ fun AnalyticsScreenContent(
                     .heightIn(min = 520.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                 color = colors.surface,
-                border = BorderStroke(1.dp, colors.border),
+                border = BorderStroke(1.dp, colors.cardBorder),
                 shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 14.dp)
-                        .padding(bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(width = 40.dp, height = 4.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(colors.border)
-                        )
-                    }
+                    ShiftlySheetDragHandle()
 
                     Text(
                         text = "Insights",

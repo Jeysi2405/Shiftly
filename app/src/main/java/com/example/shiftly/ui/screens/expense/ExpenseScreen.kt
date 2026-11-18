@@ -30,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -46,6 +45,7 @@ import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.InkBlack
@@ -198,27 +198,16 @@ fun ExpenseScreenContent(
                     .heightIn(min = 620.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                 color = colors.surface,
-                border = BorderStroke(1.dp, colors.border),
+                border = BorderStroke(1.dp, colors.cardBorder),
                 shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 14.dp)
-                        .padding(bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(width = 40.dp, height = 4.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(colors.border)
-                        )
-                    }
+                    ShiftlySheetDragHandle()
 
                     val listTitle = if (state.selectedCategory == "All") {
                         "Expense History"
@@ -360,24 +349,14 @@ private fun AddExpenseSheetPreview() {
                     Surface(
                         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.border),
+                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
                     ) {
-                        Column(modifier = Modifier.padding(top = 12.dp)) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(width = 36.dp, height = 4.dp)
-                                        .clip(RoundedCornerShape(50))
-                                        .background(colors.border)
-                                )
-                            }
+                        Column {
+                            ShiftlySheetDragHandle()
                             Spacer(modifier = Modifier.height(6.dp))
                             AddExpenseSheetContent(
                                 currencySymbol = "₱",

@@ -475,7 +475,7 @@ private fun GlassSnapshotTile(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
     ) {
         Column(
@@ -484,7 +484,10 @@ private fun GlassSnapshotTile(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Medium
+                ),
                 color = colors.textSecondary
             )
             Text(
@@ -522,7 +525,7 @@ fun SettingsGroupCard(
         Surface(
             shape = RoundedCornerShape(22.dp),
             color = colors.card,
-            border = BorderStroke(1.dp, colors.border),
+            border = BorderStroke(1.dp, colors.cardBorder),
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -588,7 +591,7 @@ fun SettingsChevronRow(
             Surface(
                 shape = RoundedCornerShape(50),
                 color = colors.cardElevated,
-                border = BorderStroke(1.dp, colors.border),
+                border = BorderStroke(1.dp, colors.cardBorder),
                 shadowElevation = 0.dp
             ) {
                 Text(
@@ -758,7 +761,7 @@ fun ThemeSelectorSheetContent(
                 color = if (isSelected) colors.azureContainer else colors.card,
                 border = BorderStroke(
                     width = if (isSelected) 1.5.dp else 1.dp,
-                    color = if (isSelected) colors.azureAccent else colors.border
+                    color = if (isSelected) colors.azureAccent else colors.cardBorder
                 ),
                 shadowElevation = 0.dp,
                 modifier = Modifier
@@ -946,7 +949,7 @@ fun CurrencyPickerSheetContent(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = if (isSelected) colors.azureContainer else colors.card,
-                    border = BorderStroke(1.dp, if (isSelected) colors.azureInk else colors.border),
+                    border = BorderStroke(1.dp, if (isSelected) colors.azureInk else colors.cardBorder),
                     shadowElevation = 0.dp,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1121,7 +1124,7 @@ fun NotificationsSheetContent(
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
     ) {
         Column {
@@ -1253,7 +1256,7 @@ private fun SelectableRulePill(
             .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(50))
             .background(if (selected) colors.azurePrimary else colors.card)
-            .border(1.dp, if (selected) colors.azureAccent else colors.border, RoundedCornerShape(50))
+            .border(1.dp, if (selected) colors.azureAccent else colors.cardBorder, RoundedCornerShape(50))
             .clickable(role = Role.Tab, onClick = onClick)
             .semantics(mergeDescendants = true) {
                 this.selected = selected
@@ -1432,7 +1435,7 @@ fun ManageCategoriesSheetContent(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
                 .background(colors.card)
-                .border(1.dp, colors.border, RoundedCornerShape(14.dp))
+                .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -1500,7 +1503,7 @@ fun RecurringEntriesSheetContent(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
                     .background(colors.card)
-                    .border(1.dp, colors.border, RoundedCornerShape(14.dp))
+                    .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -1588,7 +1591,7 @@ fun RecurringEntriesSheetContent(
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = colors.card,
-            border = BorderStroke(1.dp, colors.border),
+            border = BorderStroke(1.dp, colors.cardBorder),
             shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -1624,7 +1627,10 @@ fun RecurringEntriesSheetContent(
                     Column {
                         Text(
                             text = "Expense Category",
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ),
                             color = colors.textSecondary
                         )
                         Text(
@@ -1715,7 +1721,7 @@ fun AppLockSheetContent(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(colors.card)
-            .border(1.dp, colors.border, RoundedCornerShape(16.dp))
+            .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically

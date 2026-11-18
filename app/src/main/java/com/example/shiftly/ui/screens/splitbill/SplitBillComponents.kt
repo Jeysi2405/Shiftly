@@ -135,7 +135,10 @@ fun SplitBillSummaryCard(
                     if (totalParticipantsCount > 0) {
                         Text(
                             text = "$paidParticipantsCount of $totalParticipantsCount friend shares settled",
-                            style = MaterialTheme.typography.labelSmall.tabular(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
                             color = colors.textSecondary
                         )
                     }
@@ -570,7 +573,7 @@ fun SplitBillEmptyCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -639,7 +642,7 @@ fun SplitBillLogItemCard(
         color = colors.card,
         border = BorderStroke(
             width = 1.dp,
-            color = if (allPaid) colors.mintBright.copy(alpha = 0.45f) else colors.border
+            color = if (allPaid) colors.mintBright.copy(alpha = 0.45f) else colors.cardBorder
         ),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
@@ -763,7 +766,10 @@ fun SplitBillLogItemCard(
                                 )
                                 Text(
                                     text = ShiftlyFormatters.formatCurrency(currencySymbol, participant.amountOwed),
-                                    style = MaterialTheme.typography.labelSmall.tabular(),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = PlusJakartaSans,
+                                        fontWeight = FontWeight.Medium
+                                    ).tabular(),
                                     color = if (participant.hasPaid) colors.mintInk else colors.textSecondary
                                 )
                             }

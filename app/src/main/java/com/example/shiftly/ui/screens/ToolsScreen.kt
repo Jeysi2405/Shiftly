@@ -446,70 +446,66 @@ private fun ToolHubCard(
                 )
             }
 
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.border),
-                shadowElevation = 0.dp,
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = metric,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontFamily = PlusJakartaSans,
-                                fontWeight = FontWeight.Bold
-                            ).tabular(),
-                            color = metricColor
-                        )
-                        Text(
-                            text = metricSub,
-                            style = MaterialTheme.typography.labelSmall.tabular(),
-                            color = colors.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Text(
+                        text = metric,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.Bold
+                        ).tabular(),
+                        color = metricColor
+                    )
+                    Text(
+                        text = metricSub,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.Medium
+                        ).tabular(),
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
-                    if (quickActionLabel != null && onQuickAction != null) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = colors.surface,
-                            border = BorderStroke(1.dp, colors.border),
-                            shadowElevation = 0.dp,
-                            modifier = Modifier
-                                .heightIn(min = 40.dp)
-                                .clip(RoundedCornerShape(50))
-                                .clickable(onClick = onQuickAction)
+                if (quickActionLabel != null && onQuickAction != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = colors.card,
+                        border = BorderStroke(1.dp, colors.cardBorder),
+                        shadowElevation = 0.dp,
+                        modifier = Modifier
+                            .heightIn(min = 40.dp)
+                            .clip(RoundedCornerShape(50))
+                            .clickable(onClick = onQuickAction)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_plus),
-                                    contentDescription = null,
-                                    tint = colors.azureAccent,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Text(
-                                    text = quickActionLabel,
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontFamily = PlusJakartaSans,
-                                        fontWeight = FontWeight.SemiBold
-                                    ),
-                                    color = colors.azureAccent
-                                )
-                            }
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_plus),
+                                contentDescription = null,
+                                tint = colors.azureAccent,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = quickActionLabel,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.azureAccent
+                            )
                         }
                     }
                 }

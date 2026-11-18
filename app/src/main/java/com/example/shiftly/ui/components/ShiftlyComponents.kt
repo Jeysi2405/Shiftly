@@ -64,6 +64,27 @@ fun ShiftlyBlueGradientBackground(
 }
 
 /**
+ * Standardized top drag handle for anchored sheet containers with uniform vertical rhythm.
+ */
+@Composable
+fun ShiftlySheetDragHandle(modifier: Modifier = Modifier) {
+    val colors = ShiftlyColors.current
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 36.dp, height = 4.dp)
+                .clip(RoundedCornerShape(50))
+                .background(if (colors.isDark) Color.White.copy(alpha = 0.16f) else colors.border)
+        )
+    }
+}
+
+/**
  * Elevated container with crisp subtle border and zero box shadow.
  */
 @Composable
@@ -85,7 +106,7 @@ fun ShiftlyGlassCard(
                 if (showBorder) {
                     Modifier.border(
                         width = 1.dp,
-                        color = colors.border,
+                        color = colors.cardBorder,
                         shape = shape
                     )
                 } else {
@@ -151,7 +172,7 @@ fun ShiftlyPrimaryPillButton(
 fun ShiftlyCard(
     modifier: Modifier = Modifier,
     containerColor: Color = ShiftlyColors.current.card,
-    borderColor: Color = ShiftlyColors.current.border,
+    borderColor: Color = ShiftlyColors.current.cardBorder,
     cornerRadius: Dp = 22.dp,
     contentPadding: Dp = 16.dp,
     content: @Composable ColumnScope.() -> Unit
@@ -267,7 +288,7 @@ fun ShiftlySectionHeader(
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = countBg,
-                    border = BorderStroke(1.dp, colors.border),
+                    border = BorderStroke(1.dp, colors.cardBorder),
                     shadowElevation = 0.dp
                 ) {
                     Text(

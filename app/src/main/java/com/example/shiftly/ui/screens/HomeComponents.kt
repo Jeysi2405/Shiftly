@@ -68,7 +68,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 /**
- * Top header displaying the day name on top and numeric date (MM / dd / yyyy) below,
+ * Top header displaying a refined muted date subtitle (e.g. "Wednesday, Nov 18, 2026"),
  * plus notifications and profile avatar.
  */
 @Composable
@@ -82,8 +82,7 @@ fun HomeGreetingHeader(
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
-    val dayNameFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE", locale) }
-    val numericDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MM / dd / yyyy", locale) }
+    val fullDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy", locale) }
 
     val notificationDescription = if (pendingAlertsCount > 0) {
         "Notifications, $pendingAlertsCount pending split bill(s)"
@@ -98,19 +97,19 @@ fun HomeGreetingHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = today.format(dayNameFormatter),
-                style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
-                color = colors.textSecondary
-            )
-            Text(
-                text = today.format(numericDateFormatter),
-                style = MaterialTheme.typography.headlineLarge.tabular(),
-                color = colors.textPrimary,
-                modifier = Modifier.semantics { heading() }
-            )
-        }
+        Text(
+            text = today.format(fullDateFormatter),
+            style = MaterialTheme.typography.titleSmall.copy(
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.Medium
+            ).tabular(),
+            color = colors.textMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 12.dp)
+        )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(contentAlignment = Alignment.Center) {
@@ -120,7 +119,7 @@ fun HomeGreetingHeader(
                         .size(48.dp)
                         .clip(CircleShape)
                         .background(colors.card)
-                        .border(1.dp, colors.border, CircleShape)
+                        .border(1.dp, colors.cardBorder, CircleShape)
                         .semantics { contentDescription = notificationDescription }
                 ) {
                     Icon(
@@ -302,7 +301,10 @@ fun HomeHeroPager(
                                     )
                                     Text(
                                         text = cutoff.window.label,
-                                        style = MaterialTheme.typography.labelSmall.tabular(),
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = PlusJakartaSans,
+                                            fontWeight = FontWeight.Medium
+                                        ).tabular(),
                                         color = colors.mintTextOnSurface
                                     )
                                 }
@@ -511,7 +513,7 @@ private fun SavingsGoalsHeroCard(
                                         .size(24.dp)
                                         .clip(CircleShape)
                                         .background(colors.card)
-                                        .border(1.dp, colors.border, CircleShape)
+                                        .border(1.dp, colors.cardBorder, CircleShape)
                                         .clickable {
                                             val prev = if (safeIdx > 0) safeIdx - 1 else goals.lastIndex
                                             goalIndex = prev
@@ -528,7 +530,10 @@ private fun SavingsGoalsHeroCard(
                                 }
                                 Text(
                                     text = "${safeIdx + 1}/${goals.size}",
-                                    style = MaterialTheme.typography.labelSmall.tabular(),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = PlusJakartaSans,
+                                        fontWeight = FontWeight.Medium
+                                    ).tabular(),
                                     color = colors.textSecondary
                                 )
                                 Box(
@@ -536,7 +541,7 @@ private fun SavingsGoalsHeroCard(
                                         .size(24.dp)
                                         .clip(CircleShape)
                                         .background(colors.card)
-                                        .border(1.dp, colors.border, CircleShape)
+                                        .border(1.dp, colors.cardBorder, CircleShape)
                                         .clickable {
                                             val next = if (safeIdx < goals.lastIndex) safeIdx + 1 else 0
                                             goalIndex = next
@@ -554,7 +559,10 @@ private fun SavingsGoalsHeroCard(
                             } else {
                                 Text(
                                     text = "Goal • $targetDateLabel",
-                                    style = MaterialTheme.typography.labelSmall.tabular(),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = PlusJakartaSans,
+                                        fontWeight = FontWeight.Medium
+                                    ).tabular(),
                                     color = colors.mintTextOnSurface
                                 )
                             }
@@ -614,7 +622,7 @@ private fun SavingsGoalsHeroCard(
                         Surface(
                             shape = RoundedCornerShape(50),
                             color = colors.card,
-                            border = BorderStroke(1.dp, colors.border),
+                            border = BorderStroke(1.dp, colors.cardBorder),
                             shadowElevation = 0.dp,
                             modifier = Modifier
                                 .weight(1f)
@@ -674,7 +682,7 @@ private fun HeroMetricPill(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
     ) {
         Row(
@@ -693,7 +701,10 @@ private fun HeroMetricPill(
             Column {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Medium
+                    ),
                     color = colors.textSecondary
                 )
                 Text(
@@ -721,7 +732,7 @@ private fun GlassSubStatPill(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
     ) {
         Column(
@@ -732,7 +743,10 @@ private fun GlassSubStatPill(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Medium
+                ),
                 color = colors.textSecondary
             )
             Text(
@@ -764,7 +778,7 @@ fun MonthlyTopCategoriesCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -894,7 +908,7 @@ fun MonthlyHoursIndicatorCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -914,7 +928,10 @@ fun MonthlyHoursIndicatorCard(
                 )
                 Text(
                     text = "Full month",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Medium
+                    ),
                     color = colors.textSecondary
                 )
             }
@@ -958,7 +975,7 @@ private fun MonthlyHoursMetricTile(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         color = colors.surface,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
     ) {
         Column(
@@ -976,7 +993,10 @@ private fun MonthlyHoursMetricTile(
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Medium
+                ),
                 color = colors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

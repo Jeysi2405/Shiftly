@@ -94,7 +94,7 @@ fun DayTypeSelectorRow(
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
@@ -112,7 +112,10 @@ fun DayTypeSelectorRow(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = "Day Type",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Medium
+                    ),
                     color = colors.textSecondary
                 )
                 Row(
@@ -209,7 +212,7 @@ fun DayTypePromptSheet(
                     color = if (isSelected) colors.azureContainer else colors.card,
                     border = BorderStroke(
                         width = if (isSelected) 1.5.dp else 1.dp,
-                        color = if (isSelected) colors.azureAccent else colors.border
+                        color = if (isSelected) colors.azureAccent else colors.cardBorder
                     ),
                     shadowElevation = 0.dp,
                     modifier = Modifier
@@ -366,7 +369,7 @@ private fun TimeBreakdownTile(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
             .background(colors.card)
-            .border(1.dp, colors.border, RoundedCornerShape(18.dp))
+            .border(1.dp, colors.cardBorder, RoundedCornerShape(18.dp))
             .padding(horizontal = 10.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -438,7 +441,7 @@ fun ShiftCalendarCard(
                         Surface(
                             shape = RoundedCornerShape(50),
                             color = colors.card,
-                            border = BorderStroke(1.dp, colors.border),
+                            border = BorderStroke(1.dp, colors.cardBorder),
                             shadowElevation = 0.dp,
                             modifier = Modifier
                                 .heightIn(min = 48.dp)
@@ -628,7 +631,7 @@ fun ShiftHistoryEmptyCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -717,7 +720,7 @@ fun ShiftHistoryItemCard(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -778,7 +781,10 @@ fun ShiftHistoryItemCard(
                     )
                     Text(
                         text = runCatching { DayType.valueOf(shift.dayType).label }.getOrNull() ?: shift.dayType,
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.Medium
+                        ),
                         color = colors.textSecondary
                     )
                 }
@@ -794,12 +800,15 @@ fun ShiftHistoryItemCard(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.border),
+                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "Reg ${formatPillDuration(wageDetails.regularBaseMinutes)}",
-                            style = MaterialTheme.typography.labelSmall.tabular(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
                             color = colors.textPrimary,
                             modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                         )
@@ -814,7 +823,10 @@ fun ShiftHistoryItemCard(
                     ) {
                         Text(
                             text = "ND ${formatPillDuration(wageDetails.nightDiffMinutes)}",
-                            style = MaterialTheme.typography.labelSmall.tabular(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
                             color = colors.nightDiffPurple,
                             modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                         )
@@ -829,7 +841,10 @@ fun ShiftHistoryItemCard(
                     ) {
                         Text(
                             text = "OT ${formatPillDuration(wageDetails.overtimeMinutes)}",
-                            style = MaterialTheme.typography.labelSmall.tabular(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
                             color = colors.coralBright,
                             modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                         )
@@ -846,13 +861,16 @@ fun ShiftHistoryItemCard(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.border),
+                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp,
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Text(
                             text = shift.overtimeNote,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ),
                             color = colors.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -862,7 +880,10 @@ fun ShiftHistoryItemCard(
                 } else {
                     Text(
                         text = "${ShiftlyFormatters.formatCurrency(currencySymbol, shift.lockedHourlyRate)}/hr",
-                        style = MaterialTheme.typography.labelSmall.tabular(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.Medium
+                        ).tabular(),
                         color = colors.textSecondary
                     )
                 }
