@@ -216,10 +216,7 @@ fun ShiftlyScreenHeader(
             if (onBackClick != null) {
                 IconButton(
                     onClick = onBackClick,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(DarkCard)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.ChevronLeft,
@@ -227,7 +224,7 @@ fun ShiftlyScreenHeader(
                         tint = TextLightPrimary
                     )
                 }
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(6.dp))
             }
 
             Column(modifier = Modifier.weight(1f)) {

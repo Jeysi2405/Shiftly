@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
@@ -56,6 +57,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
+import com.example.shiftly.ui.screens.expense.categoryIcon
+import com.example.shiftly.ui.theme.ShiftlyTheme
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -96,6 +100,7 @@ import com.example.shiftly.ui.theme.AzureInkOnWhite
 import com.example.shiftly.ui.theme.AzurePrimaryButton
 import com.example.shiftly.ui.theme.AzureSoftContainer
 import com.example.shiftly.ui.theme.CoralInkOnWhite
+import com.example.shiftly.ui.theme.CoralSoftContainer
 import com.example.shiftly.ui.theme.CoralTextOnBlue
 import com.example.shiftly.ui.theme.DarkBorder
 import com.example.shiftly.ui.theme.DarkCard
@@ -674,6 +679,7 @@ fun SettingsSwitchRow(
 fun SettingsSheetContainer(
     title: String,
     onDismiss: () -> Unit,
+    showTopClose: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -703,11 +709,17 @@ fun SettingsSheetContainer(
                     style = MaterialTheme.typography.headlineSmall,
                     color = TextLightPrimary
                 )
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 48.dp)
-                ) {
-                    Text("x", style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold), color = TextLightSecondary)
+                if (showTopClose) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = "Close",
+                            tint = TextLightSecondary
+                        )
+                    }
                 }
             }
             content()
@@ -1156,6 +1168,7 @@ fun BudgetsEditorSheetContent(
     currentMonthlyBudget: Double,
     currentCategoryBudgets: List<CategoryBudgetSetting>,
     managedCategories: List<ManagedCategorySetting> = emptyList(),
+    onDismiss: () -> Unit = {},
     onSave: (Double, List<CategoryBudgetSetting>) -> Unit
 ) {
     var monthlyInput by remember {
@@ -1231,6 +1244,17 @@ fun BudgetsEditorSheetContent(
             onSave(monthly, list)
         }
     )
+
+    OutlinedButton(
+        onClick = onDismiss,
+        shape = RoundedCornerShape(50),
+        border = BorderStroke(1.dp, DarkBorder),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+    ) {
+        Text("Close", fontFamily = ShiftlySerif, color = TextLightSecondary)
+    }
 }
 
 @Composable
@@ -1327,11 +1351,12 @@ fun RecurringEntriesSheetContent(
     var newAmount by remember { mutableStateOf("") }
     var isIncome by remember { mutableStateOf(true) }
     var newCategory by remember(selectableCategories) { mutableStateOf(selectableCategories.first()) }
+    var showCategoryPrompt by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (entries.isEmpty()) {
             Text(
-                text = "No recurring rules yet. Add weekly allowances or monthly bills below.",
+                text = "No recurring entries",
                 style = MaterialTheme.typography.bodySmall,
                 color = TextLightMuted
             )
@@ -1381,7 +1406,7 @@ fun RecurringEntriesSheetContent(
     }
 
     HorizontalDivider(color = DarkBorder)
-    Text("Add Recurring Entry", style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
+    Text("Add Entry", style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = newTitle,
@@ -1411,7 +1436,7 @@ fun RecurringEntriesSheetContent(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         SelectableRulePill(
-            label = "Weekly Allowance (+)",
+            label = "Allowance (+)",
             selected = isIncome,
             onClick = { isIncome = true },
             modifier = Modifier.weight(1f)
@@ -1425,41 +1450,73 @@ fun RecurringEntriesSheetContent(
     }
 
     if (!isIncome) {
-        Text("Expense Category", style = MaterialTheme.typography.labelMedium, color = TextLightSecondary)
-        Row(
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = DarkCard,
+            border = BorderStroke(1.dp, DarkBorder),
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .selectableGroup(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .heightIn(min = 52.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .clickable { showCategoryPrompt = true }
         ) {
-            selectableCategories.forEach { cat ->
-                val isSelected = cat.equals(newCategory, ignoreCase = true)
-                Box(
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(50))
-                        .background(if (isSelected) AzurePrimaryButton else DarkCard)
-                        .border(1.dp, if (isSelected) AzureAccent else DarkBorder, RoundedCornerShape(50))
-                        .clickable(role = Role.Tab) { newCategory = cat }
-                        .semantics(mergeDescendants = true) {
-                            selected = isSelected
-                            contentDescription = "$cat expense category"
-                        }
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = cat,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = ShiftlySerif,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = if (isSelected) PureWhite else TextLightPrimary
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(CoralSoftContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = categoryIcon(newCategory),
+                            contentDescription = null,
+                            tint = CoralInkOnWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column {
+                        Text(
+                            text = "Expense Category",
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                            color = TextLightSecondary
+                        )
+                        Text(
+                            text = newCategory,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = ShiftlySerif,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = TextLightPrimary
+                        )
+                    }
                 }
+                Icon(
+                    imageVector = Icons.Outlined.ChevronRight,
+                    contentDescription = "Select Category",
+                    tint = TextLightSecondary
+                )
             }
         }
+    }
+
+    if (showCategoryPrompt) {
+        CategoryPromptSheet(
+            categoryOptions = selectableCategories,
+            selectedCategory = newCategory,
+            onSelectCategory = { newCategory = it },
+            onDismiss = { showCategoryPrompt = false }
+        )
     }
 
     OutlinedButton(
@@ -1487,11 +1544,11 @@ fun RecurringEntriesSheetContent(
             .fillMaxWidth()
             .heightIn(min = 48.dp)
     ) {
-        Text("Add to Recurring List", fontFamily = ShiftlySerif, color = AzureInkOnWhite)
+        Text("Add to List", fontFamily = ShiftlySerif, color = AzureInkOnWhite)
     }
 
     ShiftlyPrimaryPillButton(
-        text = "Save Recurring Rules",
+        text = "Save Rules",
         onClick = { onSave(entries.toList()) }
     )
 }

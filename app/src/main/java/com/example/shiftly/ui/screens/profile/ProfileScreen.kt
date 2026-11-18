@@ -447,6 +447,7 @@ fun ProfileScreen(
         ActiveSettingsSheet.BUDGETS -> {
             SettingsSheetContainer(
                 title = "Monthly & Category Budgets",
+                showTopClose = false,
                 onDismiss = { activeSheet = null }
             ) {
                 BudgetsEditorSheetContent(
@@ -454,6 +455,7 @@ fun ProfileScreen(
                     currentMonthlyBudget = state.monthlyBudget,
                     currentCategoryBudgets = state.settings.categoryBudgets,
                     managedCategories = state.settings.managedCategories,
+                    onDismiss = { activeSheet = null },
                     onSave = { monthly, categoryList ->
                         viewModel.updateBudgets(monthly, categoryList)
                         activeSheet = null

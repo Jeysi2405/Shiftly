@@ -59,6 +59,7 @@ import java.time.LocalDate
 @Composable
 fun ExpenseScreen(
     repository: ShiftlyRepository,
+    onBack: () -> Unit = {},
     onShowMessage: (String) -> Unit = {},
 ) {
     val viewModel: ExpenseViewModel = viewModel(factory = ExpenseViewModel.Factory(repository))
@@ -71,6 +72,7 @@ fun ExpenseScreen(
 
     ExpenseScreenContent(
         state = state,
+        onBack = onBack,
         onOpenAddSheet = { showAddSheet = true },
         onSelectCategory = { viewModel.selectCategory(it) },
         onViewReceipt = { viewingReceiptExpense = it },
@@ -119,7 +121,8 @@ fun ExpenseScreenContent(
     onOpenAddSheet: () -> Unit,
     onSelectCategory: (String) -> Unit,
     onViewReceipt: (ExpenseEntity) -> Unit,
-    onDeleteExpense: (ExpenseEntity) -> Unit
+    onDeleteExpense: (ExpenseEntity) -> Unit,
+    onBack: () -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier
@@ -131,7 +134,8 @@ fun ExpenseScreenContent(
         item {
             ShiftlyScreenHeader(
                 title = "Expenses",
-                subtitle = "Track daily spending & savings",
+                subtitle = null,
+                onBackClick = onBack,
                 modifier = Modifier.padding(horizontal = 20.dp),
                 trailing = {
                     Button(

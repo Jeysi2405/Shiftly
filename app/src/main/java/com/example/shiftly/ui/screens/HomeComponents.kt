@@ -152,6 +152,7 @@ fun HomeGreetingHeader(
                         .size(48.dp)
                         .clip(CircleShape)
                         .background(DarkCard)
+                        .border(1.dp, DarkBorder, CircleShape)
                         .semantics { contentDescription = notificationDescription }
                 ) {
                     Icon(
@@ -168,6 +169,7 @@ fun HomeGreetingHeader(
                             .size(10.dp)
                             .clip(CircleShape)
                             .background(CoralBright)
+                            .border(1.dp, DarkCard, CircleShape)
                     )
                 }
             }
@@ -177,6 +179,7 @@ fun HomeGreetingHeader(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(AzureDarkContainer)
+                    .border(1.dp, AzureAccent.copy(alpha = 0.45f), CircleShape)
             ) {
                 val photoFile = remember(profilePhotoPath) {
                     profilePhotoPath?.let { File(it) }?.takeIf { it.exists() && it.isFile }
@@ -257,8 +260,7 @@ fun HomeHeroPager(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(uniformHeroHeight),
-                        contentPadding = PaddingValues(16.dp),
-                        showBorder = false
+                        contentPadding = PaddingValues(16.dp)
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -309,8 +311,7 @@ fun HomeHeroPager(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(uniformHeroHeight),
-                        contentPadding = PaddingValues(16.dp),
-                        showBorder = false
+                        contentPadding = PaddingValues(16.dp)
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -695,7 +696,8 @@ private fun HeroMetricPill(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = DarkCard
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
@@ -737,7 +739,8 @@ private fun GlassSubStatPill(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = DarkCard
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder)
     ) {
         Column(
             modifier = Modifier.padding(
@@ -778,6 +781,7 @@ fun MonthlyTopCategoriesCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -905,6 +909,7 @@ fun MonthlyHoursIndicatorCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -965,7 +970,8 @@ private fun MonthlyHoursMetricTile(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = DarkSurface
+        color = DarkSurface,
+        border = BorderStroke(1.dp, DarkBorder)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
@@ -1001,6 +1007,7 @@ fun PendingSplitsBanner(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = AzureSoftContainer,
+        border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.35f)),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)

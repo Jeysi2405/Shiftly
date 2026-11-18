@@ -1,11 +1,14 @@
 package com.example.shiftly.ui.navigation
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -342,21 +345,25 @@ private fun MainDashboardShell(
                 }
             },
             bottomBar = {
-                FloatingPillBottomBar(
-                    items = Screen.bottomNavItems,
-                    isSelected = { screen ->
-                        val currentRoute = currentDestination?.route
-                        when (screen) {
-                            Screen.Tools -> currentRoute == Screen.Tools.route ||
-                                currentRoute == Screen.Duties.route ||
-                                currentRoute == Screen.Expense.route ||
-                                currentRoute == Screen.SplitBill.route
-                            else -> currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                        }
-                    },
-                    onSelect = ::onBottomBarSelect,
-                    onFabClick = { showQuickActionSheet = true }
-                )
+                val currentRoute = currentDestination?.route
+                val isSubScreen = currentRoute == Screen.Duties.route ||
+                    currentRoute == Screen.Expense.route ||
+                    currentRoute == Screen.SplitBill.route
+
+                AnimatedVisibility(
+                    visible = !isSubScreen,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                ) {
+                    FloatingPillBottomBar(
+                        items = Screen.bottomNavItems,
+                        isSelected = { screen ->
+                            currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                        },
+                        onSelect = ::onBottomBarSelect,
+                        onFabClick = { showQuickActionSheet = true }
+                    )
+                }
             }
         ) { innerPadding ->
             NavHost(
@@ -414,7 +421,11 @@ private fun MainDashboardShell(
                     )
                 }
                 composable(Screen.Expense.route) {
-                    ExpenseScreen(repository = repository, onShowMessage = showMessage)
+                    ExpenseScreen(
+                        repository = repository,
+                        onBack = { navController.popBackStack() },
+                        onShowMessage = showMessage
+                    )
                 }
                 composable(Screen.SplitBill.route) {
                     SplitBillScreen(

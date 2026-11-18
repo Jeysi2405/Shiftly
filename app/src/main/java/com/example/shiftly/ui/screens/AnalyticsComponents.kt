@@ -90,7 +90,7 @@ import kotlin.math.roundToInt
 @Composable
 fun AnalyticsTopBar(
     rangeLabel: String,
-    onBack: () -> Unit
+    onBack: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -103,19 +103,17 @@ fun AnalyticsTopBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(DarkCard)
-                    .border(1.dp, DarkBorder, CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Back to Home",
-                    tint = TextLightPrimary
-                )
+            if (onBack != null) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        contentDescription = "Back",
+                        tint = TextLightPrimary
+                    )
+                }
             }
             Text(
                 text = "Analytics",

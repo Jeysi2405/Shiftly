@@ -396,8 +396,7 @@ fun TimeBreakdownCard(
     val monthLabel = remember(displayedMonth, locale) {
         displayedMonth.month.getDisplayName(TextStyle.FULL, locale)
     }
-    val isCurrentMonth = displayedMonth == YearMonth.now()
-    val headerTitle = if (isCurrentMonth) "$monthLabel (Current Month) Summary" else "$monthLabel Summary"
+    val headerTitle = "$monthLabel Summary"
 
     ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -421,22 +420,6 @@ fun TimeBreakdownCard(
                             fontSize = 32.sp
                         ).tabular(),
                         color = TextLightPrimary
-                    )
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = MintSoftContainer,
-                    border = BorderStroke(1.dp, MintBright.copy(alpha = 0.45f))
-                ) {
-                    Text(
-                        text = formatHoursLabel(monthlyTotalHours),
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = ShiftlySans,
-                            fontWeight = FontWeight.Bold
-                        ).tabular(),
-                        color = MintTextOnBlue,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }
             }
@@ -572,11 +555,7 @@ fun ShiftCalendarCard(
 
                     IconButton(
                         onClick = onPreviousMonth,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(DarkCard)
-                            .border(1.dp, DarkBorder, CircleShape)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ChevronLeft,
@@ -587,11 +566,7 @@ fun ShiftCalendarCard(
 
                     IconButton(
                         onClick = onNextMonth,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(DarkCard)
-                            .border(1.dp, DarkBorder, CircleShape)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.ChevronRight,
@@ -2371,47 +2346,20 @@ fun ManageShiftPresetsSheet(
                 color = TextLightPrimary
             )
 
-            Surface(
-                shape = RoundedCornerShape(22.dp),
-                color = DarkCard,
-                border = BorderStroke(1.dp, DarkBorder),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "Start Time",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                        color = TextLightPrimary
-                    )
-                    InlineTime12hWheel(
-                        hour24 = startHour24,
-                        minute = startMin,
-                        onTimeChanged = { h, m ->
-                            startHour24 = h
-                            startMin = m
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "End Time",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                        color = TextLightPrimary
-                    )
-                    InlineTime12hWheel(
-                        hour24 = endHour24,
-                        minute = endMin,
-                        onTimeChanged = { h, m ->
-                            endHour24 = h
-                            endMin = m
-                        }
-                    )
+            BasicPresetTimeSelectorCard(
+                startHour24 = startHour24,
+                startMinute = startMin,
+                endHour24 = endHour24,
+                endMinute = endMin,
+                onStartTimeChanged = { h, m ->
+                    startHour24 = h
+                    startMin = m
+                },
+                onEndTimeChanged = { h, m ->
+                    endHour24 = h
+                    endMin = m
                 }
-            }
+            )
 
             ShiftlyPrimaryPillButton(
                 text = "Save New Preset",
@@ -2419,6 +2367,258 @@ fun ManageShiftPresetsSheet(
                     onSavePreset(startHour24, startMin, endHour24, endMin)
                 }
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BasicPresetTimeSelectorCard(
+    startHour24: Int,
+    startMinute: Int,
+    endHour24: Int,
+    endMinute: Int,
+    onStartTimeChanged: (Int, Int) -> Unit,
+    onEndTimeChanged: (Int, Int) -> Unit
+) {
+    var showStartTimePicker by remember { mutableStateOf(false) }
+    var showEndTimePicker by remember { mutableStateOf(false) }
+
+    val startLocal = LocalTime.of(startHour24, startMinute)
+    val endLocal = LocalTime.of(endHour24, endMinute)
+    val endsNextDay = !endLocal.isAfter(startLocal)
+
+    fun format12h(time: LocalTime): String {
+        val (h12, isPm) = to12HourParts(time.hour)
+        val amPm = if (isPm) "PM" else "AM"
+        return String.format(java.util.Locale.US, "%02d:%02d %s", h12, time.minute, amPm)
+    }
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = DarkCard,
+        border = BorderStroke(1.dp, DarkBorder),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Start Time Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showStartTimePicker = true },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Start time",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = TextLightPrimary
+                    )
+                    Text(
+                        text = "Shift begins",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextLightSecondary
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = DarkSurface,
+                    border = BorderStroke(1.dp, DarkBorder)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AccessTime,
+                            contentDescription = null,
+                            tint = AzureAccent,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = format12h(startLocal),
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = ShiftlySans,
+                                fontWeight = FontWeight.Bold
+                            ).tabular(),
+                            color = TextLightPrimary
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(color = DarkBorder.copy(alpha = 0.65f))
+
+            // End Time Row
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showEndTimePicker = true },
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "End time",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = ShiftlySerif,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = TextLightPrimary
+                    )
+                    Text(
+                        text = if (endsNextDay) "Ends next day" else "Ends same day",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (endsNextDay) AzureAccent else TextLightSecondary
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = DarkSurface,
+                    border = BorderStroke(1.dp, DarkBorder)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.AccessTime,
+                            contentDescription = null,
+                            tint = AzureAccent,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Text(
+                            text = format12h(endLocal),
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = ShiftlySans,
+                                fontWeight = FontWeight.Bold
+                            ).tabular(),
+                            color = TextLightPrimary
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Start Time Dialog
+    if (showStartTimePicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = startHour24,
+            initialMinute = startMinute,
+            is24Hour = false
+        )
+        DatePickerDialog(
+            onDismissRequest = { showStartTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onStartTimeChanged(timePickerState.hour, timePickerState.minute)
+                        showStartTimePicker = false
+                    }
+                ) {
+                    Text("OK", color = AzureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStartTimePicker = false }) {
+                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
+                }
+            }
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                TimePicker(
+                    state = timePickerState,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = DarkSurface,
+                        clockDialSelectedContentColor = PureWhite,
+                        clockDialUnselectedContentColor = TextLightSecondary,
+                        selectorColor = AzurePrimaryButton,
+                        containerColor = DarkSurface,
+                        periodSelectorBorderColor = DarkBorder,
+                        periodSelectorSelectedContainerColor = AzurePrimaryButton,
+                        periodSelectorUnselectedContainerColor = DarkSurface,
+                        periodSelectorSelectedContentColor = PureWhite,
+                        periodSelectorUnselectedContentColor = TextLightSecondary,
+                        timeSelectorSelectedContainerColor = DarkCardElevated,
+                        timeSelectorUnselectedContainerColor = DarkSurface,
+                        timeSelectorSelectedContentColor = PureWhite,
+                        timeSelectorUnselectedContentColor = TextLightSecondary
+                    )
+                )
+            }
+        }
+    }
+
+    // End Time Dialog
+    if (showEndTimePicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = endHour24,
+            initialMinute = endMinute,
+            is24Hour = false
+        )
+        DatePickerDialog(
+            onDismissRequest = { showEndTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onEndTimeChanged(timePickerState.hour, timePickerState.minute)
+                        showEndTimePicker = false
+                    }
+                ) {
+                    Text("OK", color = AzureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndTimePicker = false }) {
+                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
+                }
+            }
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                TimePicker(
+                    state = timePickerState,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = DarkSurface,
+                        clockDialSelectedContentColor = PureWhite,
+                        clockDialUnselectedContentColor = TextLightSecondary,
+                        selectorColor = AzurePrimaryButton,
+                        containerColor = DarkSurface,
+                        periodSelectorBorderColor = DarkBorder,
+                        periodSelectorSelectedContainerColor = AzurePrimaryButton,
+                        periodSelectorUnselectedContainerColor = DarkSurface,
+                        periodSelectorSelectedContentColor = PureWhite,
+                        periodSelectorUnselectedContentColor = TextLightSecondary,
+                        timeSelectorSelectedContainerColor = DarkCardElevated,
+                        timeSelectorUnselectedContainerColor = DarkSurface,
+                        timeSelectorSelectedContentColor = PureWhite,
+                        timeSelectorUnselectedContentColor = TextLightSecondary
+                    )
+                )
+            }
         }
     }
 }

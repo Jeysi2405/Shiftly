@@ -248,7 +248,7 @@ fun ExpenseSummaryCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Monthly Budget (${ShiftlyFormatters.formatCurrency(currencySymbol, monthlyBudget)})",
+                            text = "Monthly Budget",
                             style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif).tabular(),
                             color = TextLightSecondary
                         )
@@ -480,16 +480,6 @@ fun ExpenseEmptyCard(
                 text = if (isFiltered) "No $selectedCategory expenses" else "No expenses logged yet",
                 style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
                 color = TextLightPrimary,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = if (isFiltered) {
-                    "Switch back to All or log a new $selectedCategory item."
-                } else {
-                    "Log meals, jeepney fares, and school supplies between classes."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = TextLightSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))

@@ -137,8 +137,7 @@ fun AnalyticsScreenContent(
     ) {
         item {
             AnalyticsTopBar(
-                rangeLabel = state.selectedRange.fullLabel,
-                onBack = onBack
+                rangeLabel = state.selectedRange.fullLabel
             )
         }
 
