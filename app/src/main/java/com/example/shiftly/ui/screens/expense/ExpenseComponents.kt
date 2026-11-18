@@ -3,6 +3,7 @@ package com.example.shiftly.ui.screens.expense
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,24 +32,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.CallSplit
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.AccessTime
-import androidx.compose.material.icons.outlined.AttachFile
-import androidx.compose.material.icons.outlined.CalendarToday
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.DirectionsCar
-import androidx.compose.material.icons.outlined.Fastfood
-import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material.icons.outlined.Receipt
-import androidx.compose.material.icons.outlined.Savings
-import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
@@ -87,10 +70,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -104,6 +87,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import com.example.shiftly.R
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.ui.components.ShiftlyGlassCard
@@ -122,15 +106,16 @@ import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
-fun categoryIcon(category: String): ImageVector {
+@DrawableRes
+fun categoryIcon(category: String): Int {
     return when (category.lowercase()) {
-        "food" -> Icons.Outlined.Fastfood
-        "transport" -> Icons.Outlined.DirectionsCar
-        "bills" -> Icons.Outlined.Receipt
-        "supplies" -> Icons.Outlined.Inventory2
-        "savings" -> Icons.Outlined.Savings
-        "split bill" -> Icons.AutoMirrored.Outlined.CallSplit
-        else -> Icons.Outlined.ShoppingBag
+        "food" -> R.drawable.ic_lucide_utensils
+        "transport" -> R.drawable.ic_lucide_car
+        "bills" -> R.drawable.ic_lucide_receipt
+        "supplies" -> R.drawable.ic_lucide_package
+        "savings" -> R.drawable.ic_lucide_piggy_bank
+        "split bill" -> R.drawable.ic_lucide_split
+        else -> R.drawable.ic_lucide_shopping_bag
     }
 }
 
@@ -451,7 +436,7 @@ fun ExpenseEmptyCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
+                    painter = painterResource(R.drawable.ic_lucide_receipt_text),
                     contentDescription = null,
                     tint = colors.coralInk,
                     modifier = Modifier.size(26.dp)
@@ -519,7 +504,7 @@ fun ExpenseItemCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = categoryIcon(expense.category),
+                    painter = painterResource(categoryIcon(expense.category)),
                     contentDescription = expense.category,
                     tint = when {
                         isSavingsItem -> colors.mintInk
@@ -571,7 +556,7 @@ fun ExpenseItemCard(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.AttachFile,
+                                    painter = painterResource(R.drawable.ic_lucide_paperclip),
                                     contentDescription = null,
                                     tint = colors.azureInk,
                                     modifier = Modifier.size(13.dp)
@@ -606,7 +591,7 @@ fun ExpenseItemCard(
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Delete,
+                        painter = painterResource(R.drawable.ic_lucide_trash_2),
                         contentDescription = "Delete Expense ${expense.title}",
                         tint = colors.coralInk.copy(alpha = 0.85f),
                         modifier = Modifier.size(20.dp)
@@ -848,7 +833,7 @@ fun AddExpenseSheetContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = categoryIcon(selectedCategory),
+                            painter = painterResource(categoryIcon(selectedCategory)),
                             contentDescription = null,
                             tint = colors.coralInk,
                             modifier = Modifier.size(18.dp)
@@ -871,9 +856,10 @@ fun AddExpenseSheetContent(
                     }
                 }
                 Icon(
-                    imageVector = Icons.Outlined.ChevronRight,
+                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
                     contentDescription = "Select Category",
-                    tint = colors.textSecondary
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -900,7 +886,7 @@ fun AddExpenseSheetContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.CalendarToday,
+                        painter = painterResource(R.drawable.ic_lucide_calendar),
                         contentDescription = null,
                         tint = colors.azureInk,
                         modifier = Modifier.size(18.dp)
@@ -930,7 +916,7 @@ fun AddExpenseSheetContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.AccessTime,
+                        painter = painterResource(R.drawable.ic_lucide_clock),
                         contentDescription = null,
                         tint = colors.azureInk,
                         modifier = Modifier.size(18.dp)
@@ -988,9 +974,10 @@ fun AddExpenseSheetContent(
                             modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Close,
+                                painter = painterResource(R.drawable.ic_lucide_x),
                                 contentDescription = "Remove Receipt",
-                                tint = colors.coralInk
+                                tint = colors.coralInk,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -1014,7 +1001,7 @@ fun AddExpenseSheetContent(
                             .heightIn(min = 48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.PhotoLibrary,
+                            painter = painterResource(R.drawable.ic_lucide_image),
                             contentDescription = null,
                             tint = colors.azureInk,
                             modifier = Modifier.size(18.dp)
@@ -1045,7 +1032,7 @@ fun AddExpenseSheetContent(
                             .heightIn(min = 48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.CameraAlt,
+                            painter = painterResource(R.drawable.ic_lucide_camera),
                             contentDescription = null,
                             tint = colors.azureInk,
                             modifier = Modifier.size(18.dp)
@@ -1246,9 +1233,10 @@ fun CategoryPromptSheet(
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
                     Icon(
-                        imageVector = Icons.Outlined.Close,
+                        painter = painterResource(R.drawable.ic_lucide_x),
                         contentDescription = "Close",
-                        tint = colors.textSecondary
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -1293,7 +1281,7 @@ fun CategoryPromptSheet(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = categoryIcon(category),
+                                    painter = painterResource(categoryIcon(category)),
                                     contentDescription = null,
                                     tint = if (isSelected) colors.coralInk else colors.textSecondary,
                                     modifier = Modifier.size(18.dp)
@@ -1317,7 +1305,7 @@ fun CategoryPromptSheet(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Check,
+                                    painter = painterResource(R.drawable.ic_lucide_check),
                                     contentDescription = "Selected",
                                     tint = colors.onAccentDark,
                                     modifier = Modifier.size(14.dp)
@@ -1385,9 +1373,10 @@ fun ReceiptViewerDialog(
                             .background(colors.card)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Close,
+                            painter = painterResource(R.drawable.ic_lucide_x),
                             contentDescription = "Close",
-                            tint = colors.textPrimary
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

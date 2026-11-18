@@ -22,12 +22,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.automirrored.outlined.CallSplit
-import androidx.compose.material.icons.outlined.AccessTime
-import androidx.compose.material.icons.outlined.LocalFireDepartment
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -45,6 +39,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -53,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.shiftly.R
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -84,9 +80,10 @@ fun AnalyticsTopBar(
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        painter = painterResource(R.drawable.ic_lucide_arrow_left),
                         contentDescription = "Back",
-                        tint = colors.textPrimary
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(21.dp)
                     )
                 }
             }
@@ -503,7 +500,7 @@ fun TopSpendingCategoriesCard(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = categoryIcon(item.category),
+                                        painter = painterResource(categoryIcon(item.category)),
                                         contentDescription = null,
                                         tint = colors.coralInk,
                                         modifier = Modifier.size(16.dp)
@@ -729,7 +726,7 @@ fun HoursOfWorkCostCard(
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.AccessTime,
+                                        painter = painterResource(R.drawable.ic_lucide_clock),
                                         contentDescription = null,
                                         tint = colors.mintInk,
                                         modifier = Modifier.size(16.dp)
@@ -798,7 +795,7 @@ fun OnBudgetStreakCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.LocalFireDepartment,
+                        painter = painterResource(R.drawable.ic_lucide_flame),
                         contentDescription = null,
                         tint = colors.mintInk,
                         modifier = Modifier.size(22.dp)
@@ -877,7 +874,7 @@ fun UnsettledSplitsTrackerCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.CallSplit,
+                        painter = painterResource(R.drawable.ic_lucide_split),
                         contentDescription = null,
                         tint = colors.azureInk,
                         modifier = Modifier.size(20.dp)
@@ -931,7 +928,7 @@ fun UnsettledSplitsTrackerCard(
                         color = colors.azureInk
                     )
                     Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                        painter = painterResource(R.drawable.ic_lucide_arrow_right),
                         contentDescription = "Open Split Bill",
                         tint = colors.azureInk,
                         modifier = Modifier.size(16.dp)

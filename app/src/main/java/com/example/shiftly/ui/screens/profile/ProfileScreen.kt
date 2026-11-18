@@ -28,15 +28,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AddAPhoto
-import androidx.compose.material.icons.outlined.Backup
-import androidx.compose.material.icons.outlined.Category
-import androidx.compose.material.icons.outlined.CurrencyExchange
-import androidx.compose.material.icons.outlined.Fingerprint
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Palette
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -59,6 +51,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.shiftly.R
 import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
@@ -640,7 +633,7 @@ private fun ProfileScreenContent(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.Outlined.Person,
+                                painter = painterResource(R.drawable.ic_lucide_user),
                                 contentDescription = "Add profile photo",
                                 tint = colors.textSecondary,
                                 modifier = Modifier.size(26.dp)
@@ -657,7 +650,7 @@ private fun ProfileScreenContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.AddAPhoto,
+                            painter = painterResource(R.drawable.ic_lucide_camera),
                             contentDescription = null,
                             tint = colors.onAzurePrimary,
                             modifier = Modifier.size(12.dp)
@@ -733,13 +726,13 @@ private fun ProfileScreenContent(
 
                     SettingsGroupCard(groupTitle = "ACCOUNT & PREFERENCES") {
                         SettingsChevronRow(
-                            icon = Icons.Outlined.Person,
+                            iconRes = R.drawable.ic_lucide_user,
                             title = "Account",
                             onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
                         )
                         HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
-                            icon = Icons.Outlined.CurrencyExchange,
+                            iconRes = R.drawable.ic_lucide_circle_dollar_sign,
                             title = "Currency",
                             trailingBadge = currency,
                             iconBg = colors.mintContainer,
@@ -748,7 +741,7 @@ private fun ProfileScreenContent(
                         )
                         HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
                         SettingsSwitchRow(
-                            icon = Icons.Outlined.Notifications,
+                            iconRes = R.drawable.ic_lucide_bell,
                             title = "Notifications",
                             checked = state.settings.notificationsEnabled,
                             onCheckedChange = onToggleNotifications,
@@ -756,7 +749,7 @@ private fun ProfileScreenContent(
                         )
                         HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
-                            icon = Icons.Outlined.Palette,
+                            iconRes = R.drawable.ic_lucide_palette,
                             title = "App Theme",
                             subtitle = when (state.settings.themeMode.uppercase()) {
                                 "LIGHT" -> "Light Mode"
@@ -771,7 +764,7 @@ private fun ProfileScreenContent(
 
                     SettingsGroupCard(groupTitle = "CATEGORIES & PREFERENCES") {
                         SettingsChevronRow(
-                            icon = Icons.Outlined.Category,
+                            iconRes = R.drawable.ic_lucide_tags,
                             title = "Manage Categories",
                             onClick = { onOpenSheet(ActiveSettingsSheet.CATEGORIES) }
                         )
@@ -779,7 +772,7 @@ private fun ProfileScreenContent(
 
                     SettingsGroupCard(groupTitle = "SECURITY & DATA EXPORT") {
                         SettingsSwitchRow(
-                            icon = Icons.Outlined.Fingerprint,
+                            iconRes = R.drawable.ic_lucide_fingerprint,
                             title = "App Lock",
                             checked = state.settings.appLockEnabled,
                             onCheckedChange = onToggleAppLock,
@@ -789,7 +782,7 @@ private fun ProfileScreenContent(
                         )
                         HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
-                            icon = Icons.Outlined.Backup,
+                            iconRes = R.drawable.ic_lucide_cloud_upload,
                             title = "Data Export & Restore",
                             trailingBadge = "ZIP • PDF",
                             onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }

@@ -20,16 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.CallSplit
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -54,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -62,6 +53,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.shiftly.R
 import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
@@ -326,7 +318,7 @@ fun SplitBillCalculatorCard(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Remove,
+                                painter = painterResource(R.drawable.ic_lucide_minus),
                                 contentDescription = "Decrease persons",
                                 tint = if (personCount > 2) colors.textPrimary else colors.textMuted,
                                 modifier = Modifier.size(18.dp)
@@ -361,7 +353,7 @@ fun SplitBillCalculatorCard(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Add,
+                                painter = painterResource(R.drawable.ic_lucide_plus),
                                 contentDescription = "Increase persons",
                                 tint = if (personCount < 20) colors.onAzurePrimary else colors.disabledContent,
                                 modifier = Modifier.size(18.dp)
@@ -423,7 +415,9 @@ fun SplitBillCalculatorCard(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(
-                                        imageVector = if (isPaid) Icons.Outlined.Check else Icons.Outlined.Close,
+                                        painter = painterResource(
+                                            if (isPaid) R.drawable.ic_lucide_check else R.drawable.ic_lucide_x
+                                        ),
                                         contentDescription = null,
                                         tint = if (isPaid) colors.mintInk else colors.textSecondary,
                                         modifier = Modifier.size(16.dp)
@@ -587,7 +581,7 @@ fun SplitBillEmptyCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.CallSplit,
+                    painter = painterResource(R.drawable.ic_lucide_split),
                     contentDescription = null,
                     tint = colors.azureInk,
                     modifier = Modifier.size(26.dp)
@@ -697,7 +691,7 @@ fun SplitBillLogItemCard(
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Delete,
+                        painter = painterResource(R.drawable.ic_lucide_trash_2),
                         contentDescription = "Delete Split Bill ${bill.title}",
                         tint = colors.coralInk,
                         modifier = Modifier.size(20.dp)
@@ -742,7 +736,7 @@ fun SplitBillLogItemCard(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Person,
+                                    painter = painterResource(R.drawable.ic_lucide_user),
                                     contentDescription = null,
                                     tint = if (participant.hasPaid) colors.mintInk else colors.azureInk,
                                     modifier = Modifier.size(18.dp)
@@ -786,7 +780,7 @@ fun SplitBillLogItemCard(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.Check,
+                                        painter = painterResource(R.drawable.ic_lucide_check),
                                         contentDescription = null,
                                         tint = colors.mintInk,
                                         modifier = Modifier.size(16.dp)
@@ -843,7 +837,7 @@ fun SplitBillLogItemCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.CheckCircle,
+                            painter = painterResource(R.drawable.ic_lucide_circle_check),
                             contentDescription = null,
                             tint = colors.mintInk,
                             modifier = Modifier.size(18.dp)
@@ -876,7 +870,7 @@ fun SplitBillLogItemCard(
                         .heightIn(min = 48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
+                        painter = painterResource(R.drawable.ic_lucide_receipt_text),
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -911,7 +905,9 @@ fun SplitBillLogItemCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (participant.hasPaid) Icons.Outlined.Close else Icons.Outlined.Check,
+                        painter = painterResource(
+                            if (participant.hasPaid) R.drawable.ic_lucide_x else R.drawable.ic_lucide_check
+                        ),
                         contentDescription = null,
                         tint = if (participant.hasPaid) colors.textSecondary else colors.mintInk,
                         modifier = Modifier.size(22.dp)

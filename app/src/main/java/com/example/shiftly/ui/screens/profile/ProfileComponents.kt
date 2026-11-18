@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.profile
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,22 +25,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.AddAPhoto
-import androidx.compose.material.icons.outlined.Backup
-import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.FolderZip
-import androidx.compose.material.icons.outlined.Payments
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.PictureAsPdf
-import androidx.compose.material.icons.outlined.Restore
-import androidx.compose.material.icons.outlined.TableChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,11 +53,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -84,6 +69,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.shiftly.R
 import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
@@ -249,7 +235,7 @@ fun ProfileWageRateCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Payments,
+                            painter = painterResource(R.drawable.ic_lucide_banknote),
                             contentDescription = null,
                             tint = colors.mintTextOnSurface,
                             modifier = Modifier.size(18.dp)
@@ -280,7 +266,7 @@ fun ProfileWageRateCard(
                             .border(1.dp, colors.border, CircleShape)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Edit,
+                            painter = painterResource(R.drawable.ic_lucide_pencil),
                             contentDescription = "Edit wage rates",
                             tint = colors.azureAccent,
                             modifier = Modifier.size(19.dp)
@@ -437,7 +423,7 @@ fun ProfileWageRateCard(
                         .heightIn(min = 50.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Check,
+                        painter = painterResource(R.drawable.ic_lucide_check),
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -526,7 +512,7 @@ fun SettingsGroupCard(
 
 @Composable
 fun SettingsChevronRow(
-    icon: ImageVector,
+    @DrawableRes iconRes: Int,
     title: String,
     onClick: () -> Unit,
     subtitle: String? = null,
@@ -552,7 +538,7 @@ fun SettingsChevronRow(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = icon,
+                painter = painterResource(iconRes),
                 contentDescription = null,
                 tint = iconTint,
                 modifier = Modifier.size(20.dp)
@@ -596,7 +582,7 @@ fun SettingsChevronRow(
             }
         }
         Icon(
-            imageVector = Icons.Outlined.ChevronRight,
+            painter = painterResource(R.drawable.ic_lucide_chevron_right),
             contentDescription = null,
             tint = colors.textSecondary,
             modifier = Modifier.size(20.dp)
@@ -606,7 +592,7 @@ fun SettingsChevronRow(
 
 @Composable
 fun SettingsSwitchRow(
-    icon: ImageVector,
+    @DrawableRes iconRes: Int,
     title: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
@@ -635,7 +621,7 @@ fun SettingsSwitchRow(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = icon,
+                painter = painterResource(iconRes),
                 contentDescription = null,
                 tint = iconTint,
                 modifier = Modifier.size(20.dp)
@@ -715,9 +701,10 @@ fun SettingsSheetContainer(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Close,
+                            painter = painterResource(R.drawable.ic_lucide_x),
                             contentDescription = "Close",
-                            tint = colors.textSecondary
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -787,7 +774,7 @@ fun ThemeSelectorSheetContent(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Check,
+                                painter = painterResource(R.drawable.ic_lucide_check),
                                 contentDescription = "Selected",
                                 tint = colors.onAzurePrimary,
                                 modifier = Modifier.size(14.dp)
@@ -837,7 +824,7 @@ fun AccountEditSheetContent(
                 )
             } else {
                 Icon(
-                    imageVector = Icons.Outlined.Person,
+                    painter = painterResource(R.drawable.ic_lucide_user),
                     contentDescription = "Profile photo",
                     tint = colors.textSecondary,
                     modifier = Modifier.size(28.dp)
@@ -855,7 +842,7 @@ fun AccountEditSheetContent(
                     modifier = Modifier.heightIn(min = 44.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.AddAPhoto,
+                        painter = painterResource(R.drawable.ic_lucide_camera),
                         contentDescription = null,
                         tint = colors.azureAccent,
                         modifier = Modifier.size(16.dp)
@@ -1373,7 +1360,11 @@ fun ManageCategoriesSheetContent(
             colors = ButtonDefaults.buttonColors(containerColor = colors.azurePrimary, contentColor = colors.onAzurePrimary),
             modifier = Modifier.heightIn(min = 52.dp)
         ) {
-            Icon(Icons.Outlined.Add, contentDescription = "Add", modifier = Modifier.size(18.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_plus),
+                contentDescription = "Add",
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 
@@ -1480,9 +1471,10 @@ fun RecurringEntriesSheetContent(
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Delete,
+                            painter = painterResource(R.drawable.ic_lucide_trash_2),
                             contentDescription = "Remove ${entry.title}",
-                            tint = colors.coralInk
+                            tint = colors.coralInk,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -1565,7 +1557,7 @@ fun RecurringEntriesSheetContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = categoryIcon(newCategory),
+                            painter = painterResource(categoryIcon(newCategory)),
                             contentDescription = null,
                             tint = colors.coralInk,
                             modifier = Modifier.size(18.dp)
@@ -1588,9 +1580,10 @@ fun RecurringEntriesSheetContent(
                     }
                 }
                 Icon(
-                    imageVector = Icons.Outlined.ChevronRight,
+                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
                     contentDescription = "Select Category",
-                    tint = colors.textSecondary
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -1789,7 +1782,12 @@ fun BackupAndExportSheetContent(
             .fillMaxWidth()
             .heightIn(min = 48.dp)
     ) {
-        Icon(Icons.Outlined.FolderZip, contentDescription = null, tint = colors.azureAccent, modifier = Modifier.size(18.dp))
+        Icon(
+            painter = painterResource(R.drawable.ic_lucide_folder_archive),
+            contentDescription = null,
+            tint = colors.azureAccent,
+            modifier = Modifier.size(18.dp)
+        )
         Spacer(modifier = Modifier.width(8.dp))
         Text("Export Full Backup (.zip + Receipts)", fontFamily = ShiftlySerif)
     }
@@ -1804,7 +1802,11 @@ fun BackupAndExportSheetContent(
                 .weight(1f)
                 .heightIn(min = 48.dp)
         ) {
-            Icon(Icons.Outlined.Backup, contentDescription = null, modifier = Modifier.size(16.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_cloud_upload),
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
             Spacer(modifier = Modifier.width(6.dp))
             Text("JSON", fontFamily = ShiftlySerif)
         }
@@ -1817,7 +1819,11 @@ fun BackupAndExportSheetContent(
                 .weight(1f)
                 .heightIn(min = 48.dp)
         ) {
-            Icon(Icons.Outlined.TableChart, contentDescription = null, modifier = Modifier.size(16.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_file_spreadsheet),
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
             Spacer(modifier = Modifier.width(6.dp))
             Text("CSV", fontFamily = ShiftlySerif)
         }
@@ -1830,7 +1836,11 @@ fun BackupAndExportSheetContent(
                 .weight(1f)
                 .heightIn(min = 48.dp)
         ) {
-            Icon(Icons.Outlined.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_file_text),
+                contentDescription = null,
+                modifier = Modifier.size(16.dp)
+            )
             Spacer(modifier = Modifier.width(6.dp))
             Text("PDF", fontFamily = ShiftlySerif)
         }
@@ -1874,7 +1884,12 @@ fun BackupAndExportSheetContent(
             .fillMaxWidth()
             .heightIn(min = 48.dp)
     ) {
-        Icon(Icons.Outlined.Restore, contentDescription = null, tint = colors.mintTextOnSurface, modifier = Modifier.size(18.dp))
+        Icon(
+            painter = painterResource(R.drawable.ic_lucide_rotate_ccw),
+            contentDescription = null,
+            tint = colors.mintTextOnSurface,
+            modifier = Modifier.size(18.dp)
+        )
         Spacer(modifier = Modifier.width(8.dp))
         Text("Choose Backup File (.zip or .json)", fontFamily = ShiftlySerif)
     }
@@ -1894,7 +1909,11 @@ fun BackupAndExportSheetContent(
         text = if (restoreMode == RestoreMode.REPLACE) "Replace & Restore JSON" else "Merge & Restore JSON",
         enabled = restoreJsonInput.isNotBlank(),
         leadingIcon = {
-            Icon(Icons.Outlined.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_download),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
         },
         onClick = { onRestoreJson(restoreJsonInput, restoreMode) }
     )

@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,15 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.CallSplit
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Repeat
-import androidx.compose.material.icons.outlined.Savings
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -41,13 +33,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.shiftly.R
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
@@ -284,7 +277,7 @@ fun ToolsScreenContent(
                     title = "Duties & Shifts",
                     metric = ShiftlyFormatters.formatCurrency(currencySymbol, monthShiftEarnings),
                     metricSub = "${ShiftlyFormatters.formatHours(monthShiftHours, compact = true)} this month • ${monthShifts.size} shift(s)",
-                    icon = Icons.Outlined.Schedule,
+                    iconRes = R.drawable.ic_lucide_clock,
                     iconBg = colors.mintContainer,
                     iconTint = colors.mintInk,
                     metricColor = colors.mintInk,
@@ -305,7 +298,7 @@ fun ToolsScreenContent(
                     } else {
                         "${monthExpenses.size} expense(s) this month"
                     },
-                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                    iconRes = R.drawable.ic_lucide_receipt_text,
                     iconBg = colors.coralContainer,
                     iconTint = colors.coralInk,
                     metricColor = colors.coralInk,
@@ -326,7 +319,7 @@ fun ToolsScreenContent(
                     } else {
                         "${splitBills.size} bill(s) • all settled"
                     },
-                    icon = Icons.AutoMirrored.Outlined.CallSplit,
+                    iconRes = R.drawable.ic_lucide_split,
                     iconBg = colors.azureContainer,
                     iconTint = colors.azureInk,
                     metricColor = colors.azureInk,
@@ -343,7 +336,7 @@ fun ToolsScreenContent(
                     title = "Monthly & Category Budgets",
                     metric = if (monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, monthlyBudget) else "Set Budget",
                     metricSub = "Monthly spend limit & category targets",
-                    icon = Icons.Outlined.AccountBalanceWallet,
+                    iconRes = R.drawable.ic_lucide_wallet,
                     iconBg = colors.coralContainer,
                     iconTint = colors.coralInk,
                     metricColor = colors.coralInk,
@@ -364,7 +357,7 @@ fun ToolsScreenContent(
                     } else {
                         "Track savings progress"
                     },
-                    icon = Icons.Outlined.Savings,
+                    iconRes = R.drawable.ic_lucide_piggy_bank,
                     iconBg = colors.mintContainer,
                     iconTint = colors.mintInk,
                     metricColor = colors.mintInk,
@@ -381,7 +374,7 @@ fun ToolsScreenContent(
                     title = "Recurring Bills",
                     metric = "$enabledRecurringCount active",
                     metricSub = "${recurringEntries.size} total recurring bill(s)",
-                    icon = Icons.Outlined.Repeat,
+                    iconRes = R.drawable.ic_lucide_repeat,
                     iconBg = colors.azureContainer,
                     iconTint = colors.azureInk,
                     metricColor = colors.azureInk,
@@ -399,7 +392,7 @@ private fun ToolHubCard(
     title: String,
     metric: String,
     metricSub: String,
-    icon: ImageVector,
+    @DrawableRes iconRes: Int,
     iconBg: Color,
     iconTint: Color,
     metricColor: Color,
@@ -429,7 +422,7 @@ private fun ToolHubCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = icon,
+                        painter = painterResource(iconRes),
                         contentDescription = null,
                         tint = iconTint,
                         modifier = Modifier.size(23.dp)
@@ -447,7 +440,7 @@ private fun ToolHubCard(
                 )
 
                 Icon(
-                    imageVector = Icons.Outlined.ChevronRight,
+                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
                     contentDescription = "Open $title",
                     tint = colors.textSecondary,
                     modifier = Modifier.size(22.dp)
@@ -504,7 +497,7 @@ private fun ToolHubCard(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Add,
+                                    painter = painterResource(R.drawable.ic_lucide_plus),
                                     contentDescription = null,
                                     tint = colors.azureAccent,
                                     modifier = Modifier.size(15.dp)

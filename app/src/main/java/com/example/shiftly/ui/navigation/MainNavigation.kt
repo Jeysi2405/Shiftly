@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.navigation
 
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -37,16 +38,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.CallSplit
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Savings
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -76,10 +67,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -101,6 +92,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.shiftly.R
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.repository.ShiftlyRepository
@@ -347,7 +339,7 @@ private fun MainDashboardShell(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.CheckCircle,
+                                    painter = painterResource(R.drawable.ic_lucide_circle_check),
                                     contentDescription = null,
                                     tint = colors.mintInk,
                                     modifier = Modifier.size(14.dp)
@@ -619,44 +611,45 @@ private fun QuickAddActionSheet(
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
                     Icon(
-                        imageVector = Icons.Outlined.Close,
+                        painter = painterResource(R.drawable.ic_lucide_x),
                         contentDescription = "Close",
-                        tint = colors.textSecondary
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
             QuickAddOptionRow(
                 title = "Log Shift",
-                icon = Icons.Outlined.Schedule,
+                iconRes = R.drawable.ic_lucide_clock,
                 iconBg = colors.mintContainer,
                 iconTint = colors.mintInk,
                 onClick = onLogShift
             )
             QuickAddOptionRow(
                 title = "Add Expense",
-                icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                iconRes = R.drawable.ic_lucide_receipt_text,
                 iconBg = colors.coralContainer,
                 iconTint = colors.coralInk,
                 onClick = onAddExpense
             )
             QuickAddOptionRow(
                 title = "Split Bill",
-                icon = Icons.AutoMirrored.Outlined.CallSplit,
+                iconRes = R.drawable.ic_lucide_split,
                 iconBg = colors.azureContainer,
                 iconTint = colors.azureInk,
                 onClick = onSplitBill
             )
             QuickAddOptionRow(
                 title = "Add Savings Goal",
-                icon = Icons.Outlined.Savings,
+                iconRes = R.drawable.ic_lucide_piggy_bank,
                 iconBg = colors.mintContainer,
                 iconTint = colors.mintInk,
                 onClick = onAddSavingsGoal
             )
             QuickAddOptionRow(
                 title = "Add Deposit",
-                icon = Icons.Outlined.AccountBalanceWallet,
+                iconRes = R.drawable.ic_lucide_wallet,
                 iconBg = colors.azureContainer,
                 iconTint = colors.azureInk,
                 onClick = onAddDeposit
@@ -668,7 +661,7 @@ private fun QuickAddActionSheet(
 @Composable
 private fun QuickAddOptionRow(
     title: String,
-    icon: ImageVector,
+    @DrawableRes iconRes: Int,
     iconBg: Color,
     iconTint: Color,
     onClick: () -> Unit
@@ -699,7 +692,7 @@ private fun QuickAddOptionRow(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = icon,
+                    painter = painterResource(iconRes),
                     contentDescription = null,
                     tint = iconTint,
                     modifier = Modifier.size(22.dp)
@@ -715,9 +708,10 @@ private fun QuickAddOptionRow(
                 modifier = Modifier.weight(1f)
             )
             Icon(
-                imageVector = Icons.Outlined.ChevronRight,
+                painter = painterResource(R.drawable.ic_lucide_chevron_right),
                 contentDescription = null,
-                tint = colors.textSecondary
+                tint = colors.textSecondary,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -768,9 +762,10 @@ private fun QuickDepositPromptSheet(
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
                     Icon(
-                        imageVector = Icons.Outlined.Close,
+                        painter = painterResource(R.drawable.ic_lucide_x),
                         contentDescription = "Close",
-                        tint = colors.textSecondary
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -910,7 +905,7 @@ fun FloatingPillBottomBar(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Outlined.Add,
+                                painter = painterResource(R.drawable.ic_lucide_plus),
                                 contentDescription = null,
                                 tint = colors.onAzurePrimary,
                                 modifier = Modifier.size(26.dp)
@@ -965,7 +960,9 @@ private fun BottomNavItemSlot(
             verticalArrangement = Arrangement.Center
         ) {
             Icon(
-                imageVector = if (selected) screen.selectedIcon else screen.unselectedIcon,
+                painter = painterResource(
+                    if (selected) screen.selectedIconRes else screen.unselectedIconRes
+                ),
                 contentDescription = null,
                 tint = contentTint,
                 modifier = Modifier.size(21.dp)

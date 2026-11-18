@@ -2,6 +2,7 @@ package com.example.shiftly.ui.screens.lock
 
 import android.content.Context
 import android.os.Build
+import androidx.annotation.DrawableRes
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.BorderStroke
@@ -22,10 +23,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Backspace
-import androidx.compose.material.icons.outlined.Fingerprint
-import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -42,7 +39,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -52,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.example.shiftly.R
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
@@ -204,7 +204,9 @@ fun AppLockGateScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (method == "Fingerprint Only") Icons.Outlined.Fingerprint else Icons.Outlined.Lock,
+                    painter = painterResource(
+                        if (method == "Fingerprint Only") R.drawable.ic_lucide_fingerprint else R.drawable.ic_lucide_lock
+                    ),
                     contentDescription = "Shiftly locked",
                     tint = colors.azureAccent,
                     modifier = Modifier.size(30.dp)
@@ -279,7 +281,7 @@ fun AppLockGateScreen(
                                     "BIO" -> {
                                         if (supportsBiometric) {
                                             KeypadIconKey(
-                                                icon = Icons.Outlined.Fingerprint,
+                                                iconRes = R.drawable.ic_lucide_fingerprint,
                                                 description = "Unlock with fingerprint",
                                                 tint = colors.azureAccent,
                                                 onClick = { triggerBiometric() }
@@ -291,7 +293,7 @@ fun AppLockGateScreen(
 
                                     "DEL" -> {
                                         KeypadIconKey(
-                                            icon = Icons.AutoMirrored.Outlined.Backspace,
+                                            iconRes = R.drawable.ic_lucide_delete,
                                             description = "Delete digit",
                                             tint = colors.textSecondary,
                                             onClick = {
@@ -325,7 +327,7 @@ fun AppLockGateScreen(
                         .height(52.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Fingerprint,
+                        painter = painterResource(R.drawable.ic_lucide_fingerprint),
                         contentDescription = null,
                         tint = colors.azureAccent,
                         modifier = Modifier.size(20.dp)
@@ -383,9 +385,9 @@ private fun KeypadDigitKey(
 
 @Composable
 private fun KeypadIconKey(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    @DrawableRes iconRes: Int,
     description: String,
-    tint: androidx.compose.ui.graphics.Color,
+    tint: Color,
     onClick: () -> Unit
 ) {
     val colors = ShiftlyColors.current
@@ -402,7 +404,7 @@ private fun KeypadIconKey(
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                imageVector = icon,
+                painter = painterResource(iconRes),
                 contentDescription = description,
                 tint = tint,
                 modifier = Modifier.size(26.dp)

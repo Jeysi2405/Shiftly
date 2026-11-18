@@ -21,20 +21,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
-import androidx.compose.material.icons.automirrored.outlined.CallSplit
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.automirrored.outlined.TrendingDown
-import androidx.compose.material.icons.automirrored.outlined.TrendingUp
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.ChevronLeft
-import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Savings
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -54,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -65,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.shiftly.R
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
 import com.example.shiftly.ui.screens.expense.categoryIcon
@@ -137,9 +125,10 @@ fun HomeGreetingHeader(
                         .semantics { contentDescription = notificationDescription }
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Notifications,
+                        painter = painterResource(R.drawable.ic_lucide_bell),
                         contentDescription = null,
-                        tint = colors.textPrimary
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(21.dp)
                     )
                 }
                 if (pendingAlertsCount > 0) {
@@ -176,9 +165,10 @@ fun HomeGreetingHeader(
                     )
                 } else {
                     Icon(
-                        imageVector = Icons.Outlined.Person,
+                        painter = painterResource(R.drawable.ic_lucide_user),
                         contentDescription = "Open Profile and Settings",
-                        tint = colors.azureAccent
+                        tint = colors.azureAccent,
+                        modifier = Modifier.size(21.dp)
                     )
                 }
             }
@@ -439,7 +429,7 @@ private fun SavingsGoalsHeroCard(
                             color = colors.textSecondary
                         )
                         Icon(
-                            imageVector = Icons.Outlined.Savings,
+                            painter = painterResource(R.drawable.ic_lucide_piggy_bank),
                             contentDescription = null,
                             tint = colors.mintTextOnSurface,
                             modifier = Modifier.size(18.dp)
@@ -476,7 +466,7 @@ private fun SavingsGoalsHeroCard(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Add,
+                            painter = painterResource(R.drawable.ic_lucide_plus),
                             contentDescription = null,
                             tint = colors.onAzurePrimary,
                             modifier = Modifier.size(16.dp)
@@ -531,7 +521,7 @@ private fun SavingsGoalsHeroCard(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.ChevronLeft,
+                                        painter = painterResource(R.drawable.ic_lucide_chevron_left),
                                         contentDescription = "Previous goal",
                                         tint = colors.textPrimary,
                                         modifier = Modifier.size(15.dp)
@@ -556,7 +546,7 @@ private fun SavingsGoalsHeroCard(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.ChevronRight,
+                                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
                                         contentDescription = "Next goal",
                                         tint = colors.textPrimary,
                                         modifier = Modifier.size(15.dp)
@@ -654,7 +644,7 @@ private fun SavingsGoalsHeroCard(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.Add,
+                                    painter = painterResource(R.drawable.ic_lucide_plus),
                                     contentDescription = null,
                                     tint = colors.onAzurePrimary,
                                     modifier = Modifier.size(14.dp)
@@ -694,7 +684,9 @@ private fun HeroMetricPill(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
-                imageVector = if (isIncome) Icons.AutoMirrored.Outlined.TrendingUp else Icons.AutoMirrored.Outlined.TrendingDown,
+                painter = painterResource(
+                    if (isIncome) R.drawable.ic_lucide_trending_up else R.drawable.ic_lucide_trending_down
+                ),
                 contentDescription = null,
                 tint = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface,
                 modifier = Modifier.size(17.dp)
@@ -790,7 +782,7 @@ fun MonthlyTopCategoriesCard(
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.BarChart,
+                    painter = painterResource(R.drawable.ic_lucide_chart_column),
                     contentDescription = null,
                     tint = colors.azureInk,
                     modifier = Modifier.size(16.dp)
@@ -852,7 +844,7 @@ fun MonthlyTopCategoriesCard(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
-                                                imageVector = categoryIcon(item.category),
+                                                painter = painterResource(categoryIcon(item.category)),
                                                 contentDescription = null,
                                                 tint = colors.coralInk,
                                                 modifier = Modifier.size(15.dp)
@@ -1026,9 +1018,10 @@ fun PendingSplitsBanner(
                 modifier = Modifier.weight(1f)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.CallSplit,
+                    painter = painterResource(R.drawable.ic_lucide_split),
                     contentDescription = null,
-                    tint = colors.azureInk
+                    tint = colors.azureInk,
+                    modifier = Modifier.size(21.dp)
                 )
                 Column {
                     Text(
@@ -1047,9 +1040,10 @@ fun PendingSplitsBanner(
                 }
             }
             Icon(
-                imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                painter = painterResource(R.drawable.ic_lucide_arrow_right),
                 contentDescription = "Open Split Bill",
-                tint = colors.azureInk
+                tint = colors.azureInk,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -1063,10 +1057,10 @@ fun HomeTimelineRow(
 ) {
     val colors = ShiftlyColors.current
     val isIncome = item is TimelineActivityItem.ShiftActivity || item is TimelineActivityItem.ExtraIncomeActivity
-    val iconVector = when (item) {
-        is TimelineActivityItem.ShiftActivity -> Icons.Outlined.Schedule
-        is TimelineActivityItem.ExtraIncomeActivity -> Icons.AutoMirrored.Outlined.TrendingUp
-        is TimelineActivityItem.ExpenseActivity -> Icons.AutoMirrored.Outlined.ReceiptLong
+    val iconRes = when (item) {
+        is TimelineActivityItem.ShiftActivity -> R.drawable.ic_lucide_clock
+        is TimelineActivityItem.ExtraIncomeActivity -> R.drawable.ic_lucide_trending_up
+        is TimelineActivityItem.ExpenseActivity -> R.drawable.ic_lucide_receipt_text
     }
     Row(
         modifier = Modifier
@@ -1087,7 +1081,7 @@ fun HomeTimelineRow(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = iconVector,
+                painter = painterResource(iconRes),
                 contentDescription = null,
                 tint = if (isIncome) colors.mintInk else colors.coralInk,
                 modifier = Modifier.size(20.dp)

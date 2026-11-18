@@ -1,82 +1,68 @@
 package com.example.shiftly.ui.navigation
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.CallSplit
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.automirrored.outlined.CallSplit
-import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
-import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.GridView
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.annotation.DrawableRes
+import com.example.shiftly.R
 
 sealed class Screen(
     val route: String,
     val label: String,
-    val selectedIcon: ImageVector,
-    val unselectedIcon: ImageVector
+    @DrawableRes val selectedIconRes: Int,
+    @DrawableRes val unselectedIconRes: Int
 ) {
     data object Welcome : Screen(
         route = "welcome",
         label = "Welcome",
-        selectedIcon = Icons.Filled.Home,
-        unselectedIcon = Icons.Outlined.Home
+        selectedIconRes = R.drawable.ic_lucide_house,
+        unselectedIconRes = R.drawable.ic_lucide_house
     )
 
     data object Home : Screen(
         route = "home",
         label = "Home",
-        selectedIcon = Icons.Filled.Home,
-        unselectedIcon = Icons.Outlined.Home
+        selectedIconRes = R.drawable.ic_lucide_house,
+        unselectedIconRes = R.drawable.ic_lucide_house
     )
 
     data object Analytics : Screen(
         route = "analytics",
         label = "Analytics",
-        selectedIcon = Icons.Filled.BarChart,
-        unselectedIcon = Icons.Outlined.BarChart
+        selectedIconRes = R.drawable.ic_lucide_chart_column,
+        unselectedIconRes = R.drawable.ic_lucide_chart_column
     )
 
     data object Tools : Screen(
         route = "tools",
         label = "Tools",
-        selectedIcon = Icons.Filled.GridView,
-        unselectedIcon = Icons.Outlined.GridView
+        selectedIconRes = R.drawable.ic_lucide_layout_grid,
+        unselectedIconRes = R.drawable.ic_lucide_layout_grid
     )
 
     data object Duties : Screen(
         route = "duties",
         label = "Duties",
-        selectedIcon = Icons.Filled.Schedule,
-        unselectedIcon = Icons.Outlined.Schedule
+        selectedIconRes = R.drawable.ic_lucide_clock,
+        unselectedIconRes = R.drawable.ic_lucide_clock
     )
 
     data object Expense : Screen(
         route = "expense",
         label = "Expense",
-        selectedIcon = Icons.AutoMirrored.Filled.ReceiptLong,
-        unselectedIcon = Icons.AutoMirrored.Outlined.ReceiptLong
+        selectedIconRes = R.drawable.ic_lucide_receipt_text,
+        unselectedIconRes = R.drawable.ic_lucide_receipt_text
     )
 
     data object SplitBill : Screen(
         route = "split_bill",
         label = "Split Bill",
-        selectedIcon = Icons.AutoMirrored.Filled.CallSplit,
-        unselectedIcon = Icons.AutoMirrored.Outlined.CallSplit
+        selectedIconRes = R.drawable.ic_lucide_split,
+        unselectedIconRes = R.drawable.ic_lucide_split
     )
 
     data object Profile : Screen(
         route = "profile",
         label = "Profile",
-        selectedIcon = Icons.Filled.Person,
-        unselectedIcon = Icons.Outlined.Person
+        selectedIconRes = R.drawable.ic_lucide_user,
+        unselectedIconRes = R.drawable.ic_lucide_user
     )
 
     companion object {

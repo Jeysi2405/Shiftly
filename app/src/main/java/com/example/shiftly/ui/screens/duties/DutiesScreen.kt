@@ -20,10 +20,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -43,10 +39,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.shiftly.R
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
@@ -250,9 +248,10 @@ fun DutiesScreenContent(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            painter = painterResource(R.drawable.ic_lucide_arrow_left),
                             contentDescription = "Back",
-                            tint = colors.textPrimary
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                     Text(
@@ -271,9 +270,10 @@ fun DutiesScreenContent(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Settings,
+                            painter = painterResource(R.drawable.ic_lucide_settings),
                             contentDescription = "Preset Settings",
-                            tint = colors.textPrimary
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
@@ -292,7 +292,7 @@ fun DutiesScreenContent(
                         modifier = Modifier.size(44.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Add,
+                            painter = painterResource(R.drawable.ic_lucide_plus),
                             contentDescription = "Log Shift",
                             modifier = Modifier.size(22.dp)
                         )

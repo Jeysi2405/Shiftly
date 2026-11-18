@@ -23,9 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AddAPhoto
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
@@ -55,6 +53,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.shiftly.R
 import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
@@ -262,7 +261,7 @@ fun WelcomeScreen(
                             )
                         } else {
                             Icon(
-                                imageVector = Icons.Outlined.AddAPhoto,
+                                painter = painterResource(R.drawable.ic_lucide_camera),
                                 contentDescription = "Add profile photo",
                                 tint = colors.azureAccent,
                                 modifier = Modifier.size(26.dp)
@@ -299,7 +298,7 @@ fun WelcomeScreen(
                                     }
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.Close,
+                                        painter = painterResource(R.drawable.ic_lucide_x),
                                         contentDescription = null,
                                         tint = colors.coralTextOnSurface,
                                         modifier = Modifier.size(16.dp)
