@@ -49,9 +49,8 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySans
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.DayType
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -113,7 +112,7 @@ fun DayTypeSelectorRow(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = "Day Type",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                     color = colors.textSecondary
                 )
                 Row(
@@ -123,7 +122,7 @@ fun DayTypeSelectorRow(
                     Text(
                         text = selectedDayType.label,
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
@@ -138,7 +137,7 @@ fun DayTypeSelectorRow(
                             Text(
                                 text = badge,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = ShiftlySans,
+                                    fontFamily = PlusJakartaSans,
                                     fontWeight = FontWeight.Bold
                                 ),
                                 color = colors.coralInk,
@@ -190,7 +189,7 @@ fun DayTypePromptSheet(
             ) {
                 Text(
                     text = "Select Day Type",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = ShiftlySerif),
+                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = PlusJakartaSans),
                     color = colors.textPrimary
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
@@ -239,7 +238,7 @@ fun DayTypePromptSheet(
                             Text(
                                 text = dayType.label,
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    fontFamily = ShiftlySans,
+                                    fontFamily = PlusJakartaSans,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = colors.textPrimary
@@ -254,7 +253,7 @@ fun DayTypePromptSheet(
                                     Text(
                                         text = badge,
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = ShiftlySans,
+                                            fontFamily = PlusJakartaSans,
                                             fontWeight = FontWeight.Bold
                                         ),
                                         color = colors.coralInk,
@@ -311,14 +310,14 @@ fun TimeBreakdownCard(
                 Column {
                     Text(
                         text = headerTitle,
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
                         color = colors.textSecondary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotalEarnings),
                         style = MaterialTheme.typography.displaySmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold,
                             fontSize = 32.sp
                         ).tabular(),
@@ -375,7 +374,7 @@ private fun TimeBreakdownTile(
         Text(
             text = ShiftlyFormatters.formatHours(hours, compact = true),
             style = MaterialTheme.typography.titleMedium.copy(
-                fontFamily = ShiftlySans,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.Bold
             ).tabular(),
             color = valueColor
@@ -383,7 +382,7 @@ private fun TimeBreakdownTile(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontFamily = ShiftlySerif,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.Medium
             ),
             color = colors.textSecondary,
@@ -424,7 +423,7 @@ fun ShiftCalendarCard(
                 Text(
                     text = monthTitle,
                     style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = ShiftlySerif,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary,
@@ -452,7 +451,7 @@ fun ShiftCalendarCard(
                             ) {
                                 Text(
                                     text = "Reset",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
                                     color = colors.textPrimary
                                 )
                             }
@@ -495,7 +494,7 @@ fun ShiftCalendarCard(
                         text = day,
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textSecondary,
@@ -578,7 +577,7 @@ fun ShiftCalendarCard(
                                         Text(
                                             text = dayNumber.toString(),
                                             style = MaterialTheme.typography.labelLarge.copy(
-                                                fontFamily = ShiftlySans,
+                                                fontFamily = PlusJakartaSans,
                                                 fontWeight = if (isSelected || hasLoggedShift || isToday) {
                                                     FontWeight.Bold
                                                 } else {
@@ -656,7 +655,7 @@ fun ShiftHistoryEmptyCard(
             }
             Text(
                 text = if (isFiltered) "No shifts on this day" else "No shifts logged yet",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
@@ -755,7 +754,7 @@ fun ShiftHistoryItemCard(
                         Text(
                             text = shiftDateText,
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = ShiftlySerif,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary
@@ -772,7 +771,7 @@ fun ShiftHistoryItemCard(
                     Text(
                         text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, shift.totalEarned)}",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.mintInk

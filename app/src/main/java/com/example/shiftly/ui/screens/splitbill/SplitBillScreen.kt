@@ -54,8 +54,8 @@ import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
 import kotlinx.coroutines.launch
@@ -179,7 +179,13 @@ fun SplitBillScreen(
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Delete Both", fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = "Delete Both",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
                         }
                         OutlinedButton(
                             onClick = {
@@ -193,13 +199,25 @@ fun SplitBillScreen(
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Keep Expense", fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                            Text(
+                                text = "Keep Expense",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
                         }
                         TextButton(
                             onClick = { pendingDeleteBill = null },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Cancel", fontFamily = ShiftlySerif, color = colors.textSecondary)
+                            Text(
+                                text = "Cancel",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontFamily = PlusJakartaSans
+                                ),
+                                color = colors.textSecondary
+                            )
                         }
                     }
                 }

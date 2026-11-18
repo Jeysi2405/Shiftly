@@ -42,8 +42,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.shiftly.R
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySerif
 
 /**
  * Full-bleed screen backdrop reacting to the active Shiftly theme.
@@ -99,7 +99,7 @@ fun ShiftlyGlassCard(
 }
 
 /**
- * Full-width pill primary action button with refined editorial serif label.
+ * Full-width pill primary action button.
  */
 @Composable
 fun ShiftlyPrimaryPillButton(
@@ -136,7 +136,7 @@ fun ShiftlyPrimaryPillButton(
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge.copy(
-                fontFamily = ShiftlySerif,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.SemiBold
             ),
             color = if (enabled) colors.onAzurePrimary else colors.disabledContent
@@ -292,7 +292,7 @@ fun ShiftlySectionHeader(
                     Text(
                         text = trailingText,
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.azureInk
@@ -366,12 +366,24 @@ fun ShiftlyConfirmDeleteDialog(
                     pressedElevation = 0.dp
                 )
             ) {
-                Text("Delete", fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = "Delete",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = colors.textSecondary)
+                Text(
+                    text = "Cancel",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = PlusJakartaSans
+                    ),
+                    color = colors.textSecondary
+                )
             }
         }
     )

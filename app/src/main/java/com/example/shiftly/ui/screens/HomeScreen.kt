@@ -45,8 +45,8 @@ import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.CutoffShiftSummary
@@ -237,7 +237,7 @@ fun HomeScreenContent(
                         ) {
                             Text(
                                 text = "Monthly Budget",
-                                style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                                style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
                                 color = colors.textPrimary
                             )
                             Text(

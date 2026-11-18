@@ -113,8 +113,8 @@ import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.ProfileScreen
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.workers.ShiftlyDailyWorker
@@ -348,7 +348,7 @@ private fun MainDashboardShell(
                             Text(
                                 text = data.visuals.message,
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontFamily = ShiftlySerif,
+                                    fontFamily = PlusJakartaSans,
                                     fontWeight = FontWeight.Medium
                                 ),
                                 color = colors.textPrimary,
@@ -364,7 +364,7 @@ private fun MainDashboardShell(
                                     Text(
                                         text = actionLabel,
                                         style = MaterialTheme.typography.labelMedium.copy(
-                                            fontFamily = ShiftlySerif,
+                                            fontFamily = PlusJakartaSans,
                                             fontWeight = FontWeight.SemiBold
                                         ),
                                         color = colors.azureAccent
@@ -701,7 +701,7 @@ private fun QuickAddOptionRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = ShiftlySerif,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = colors.textPrimary,
@@ -779,7 +779,7 @@ private fun QuickDepositPromptSheet(
             } else {
                 Text(
                     text = "Target Goal: ${selectedGoal?.title}",
-                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
                     color = colors.textPrimary
                 )
 
@@ -798,8 +798,14 @@ private fun QuickDepositPromptSheet(
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Deposit Amount ($currencySymbol)", fontFamily = ShiftlySerif) },
-                    placeholder = { Text("0.00", color = colors.textMuted) },
+                    label = { Text("Deposit Amount ($currencySymbol)", fontFamily = PlusJakartaSans) },
+                    placeholder = {
+                        Text(
+                            text = "0.00",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textMuted
+                        )
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
@@ -810,8 +816,14 @@ private fun QuickDepositPromptSheet(
                 OutlinedTextField(
                     value = noteText,
                     onValueChange = { noteText = it },
-                    label = { Text("Deposit Note (optional)", fontFamily = ShiftlySerif) },
-                    placeholder = { Text("Add note", color = colors.textMuted) },
+                    label = { Text("Deposit Note (optional)", fontFamily = PlusJakartaSans) },
+                    placeholder = {
+                        Text(
+                            text = "Add note",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textMuted
+                        )
+                    },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                     colors = fieldColors,
@@ -971,7 +983,7 @@ private fun BottomNavItemSlot(
             Text(
                 text = screen.label,
                 style = MaterialTheme.typography.labelSmall.copy(
-                    fontFamily = ShiftlySerif,
+                    fontFamily = PlusJakartaSans,
                     fontSize = 10.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                 ),

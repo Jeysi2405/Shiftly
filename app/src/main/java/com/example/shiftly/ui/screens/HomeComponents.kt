@@ -56,9 +56,8 @@ import com.example.shiftly.R
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
 import com.example.shiftly.ui.screens.expense.categoryIcon
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySans
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.io.File
@@ -102,7 +101,7 @@ fun HomeGreetingHeader(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = today.format(dayNameFormatter),
-                style = MaterialTheme.typography.labelLarge.copy(fontFamily = ShiftlySerif),
+                style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
                 color = colors.textSecondary
             )
             Text(
@@ -188,13 +187,13 @@ fun DashboardGreetingBanner(
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = greeting,
-            style = MaterialTheme.typography.labelLarge.copy(fontFamily = ShiftlySerif),
+            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
             color = colors.textSecondary
         )
         Text(
             text = display,
             style = MaterialTheme.typography.headlineSmall.copy(
-                fontFamily = ShiftlySans,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.Bold
             ),
             color = colors.textPrimary,
@@ -242,14 +241,14 @@ fun HomeHeroPager(
                             Column {
                                 Text(
                                     text = "Total Balance",
-                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
                                     color = colors.textSecondary
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = ShiftlyFormatters.formatCurrency(currency, state.totalBalance),
                                     style = MaterialTheme.typography.displayMedium.copy(
-                                        fontFamily = ShiftlySans,
+                                        fontFamily = PlusJakartaSans,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
                                     ).tabular(),
@@ -298,7 +297,7 @@ fun HomeHeroPager(
                                 ) {
                                     Text(
                                         text = "Shift Earnings",
-                                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
                                         color = colors.textSecondary
                                     )
                                     Text(
@@ -311,7 +310,7 @@ fun HomeHeroPager(
                                 Text(
                                     text = ShiftlyFormatters.formatCurrency(currency, cutoff.totalEarnings),
                                     style = MaterialTheme.typography.displayMedium.copy(
-                                        fontFamily = ShiftlySans,
+                                        fontFamily = PlusJakartaSans,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
                                     ).tabular(),
@@ -425,7 +424,7 @@ private fun SavingsGoalsHeroCard(
                     ) {
                         Text(
                             text = "Savings Goals",
-                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
                             color = colors.textSecondary
                         )
                         Icon(
@@ -438,7 +437,7 @@ private fun SavingsGoalsHeroCard(
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, 0.0),
                         style = MaterialTheme.typography.displayMedium.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold,
                             fontSize = 30.sp
                         ).tabular(),
@@ -473,7 +472,7 @@ private fun SavingsGoalsHeroCard(
                         )
                         Text(
                             text = "Add Savings Goal",
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
                             color = colors.onAzurePrimary
                         )
                     }
@@ -496,7 +495,7 @@ private fun SavingsGoalsHeroCard(
                     ) {
                         Text(
                             text = goal.title,
-                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
                             color = colors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -566,7 +565,7 @@ private fun SavingsGoalsHeroCard(
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, progress.savedAmount),
                         style = MaterialTheme.typography.displayMedium.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold,
                             fontSize = 28.sp
                         ).tabular(),
@@ -624,7 +623,7 @@ private fun SavingsGoalsHeroCard(
                         ) {
                             Text(
                                 text = "View Goal",
-                                style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                                style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
                                 color = colors.textPrimary,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(vertical = 6.dp)
@@ -651,7 +650,7 @@ private fun SavingsGoalsHeroCard(
                                 )
                                 Text(
                                     text = "Add Goal",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
                                     color = colors.onAzurePrimary
                                 )
                             }
@@ -694,13 +693,13 @@ private fun HeroMetricPill(
             Column {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                     color = colors.textSecondary
                 )
                 Text(
                     text = amount,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface
@@ -733,13 +732,13 @@ private fun GlassSubStatPill(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                 color = colors.textSecondary
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = ShiftlySans,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.Bold
                 ).tabular(),
                 color = colors.textPrimary,
@@ -789,7 +788,7 @@ fun MonthlyTopCategoriesCard(
                 )
                 Text(
                     text = "View insights",
-                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
                     color = colors.azureInk
                 )
             }
@@ -803,13 +802,13 @@ fun MonthlyTopCategoriesCard(
                 Column(modifier = Modifier.padding(end = 118.dp)) {
                     Text(
                         text = "Top Spending • $monthName",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
                         color = colors.textSecondary
                     )
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotalSpent),
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.textPrimary
@@ -859,7 +858,7 @@ fun MonthlyTopCategoriesCard(
                                     Text(
                                         text = "$pct% • ${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)}",
                                         style = MaterialTheme.typography.labelMedium.copy(
-                                            fontFamily = ShiftlySans,
+                                            fontFamily = PlusJakartaSans,
                                             fontWeight = FontWeight.Bold
                                         ).tabular(),
                                         color = colors.textPrimary
@@ -910,12 +909,12 @@ fun MonthlyHoursIndicatorCard(
             ) {
                 Text(
                     text = "Shift Hours • $monthName",
-                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
                     color = colors.textSecondary
                 )
                 Text(
                     text = "Full month",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                     color = colors.textSecondary
                 )
             }
@@ -970,14 +969,14 @@ private fun MonthlyHoursMetricTile(
             Text(
                 text = ShiftlyFormatters.formatHours(hours, compact = true),
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = ShiftlySans,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.Bold
                 ).tabular(),
                 color = valueColor
             )
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                 color = colors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -1027,7 +1026,7 @@ fun PendingSplitsBanner(
                     Text(
                         text = "${ShiftlyFormatters.formatCurrency(currencySymbol, pendingAmount)} owed to you",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.textPrimary
@@ -1142,7 +1141,7 @@ fun HomeTimelineRow(
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, item.amount, showPlus = true),
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.mintInk
@@ -1153,7 +1152,7 @@ fun HomeTimelineRow(
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, item.amount, showPlus = true),
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.mintInk
@@ -1164,7 +1163,7 @@ fun HomeTimelineRow(
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, item.amount, showMinus = true),
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.coralInk

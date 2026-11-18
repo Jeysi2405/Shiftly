@@ -75,9 +75,8 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySans
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.DayType
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -213,7 +212,7 @@ private fun WheelPickerColumn(
                     Text(
                         text = label,
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = if (dist == 0) FontWeight.Bold else FontWeight.Medium,
                             fontSize = if (dist == 0) 19.sp else 15.sp
                         ).tabular(),
@@ -244,7 +243,7 @@ private fun TimeBoxChip(
         Text(
             text = text,
             style = MaterialTheme.typography.titleSmall.copy(
-                fontFamily = ShiftlySans,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.Bold
             ).tabular(),
             color = colors.textPrimary
@@ -281,7 +280,10 @@ private fun TimeDisplayPill(
         TimeBoxChip(text = hourStr, highlighted = expanded)
         Text(
             text = ":",
-            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.titleSmall.copy(
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.Bold
+            ),
             color = colors.textSecondary
         )
         TimeBoxChip(text = minStr, highlighted = expanded)
@@ -337,7 +339,7 @@ private fun InlineTime12hWheel(
             Text(
                 text = ":",
                 style = MaterialTheme.typography.titleLarge.copy(
-                    fontFamily = ShiftlySans,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.Bold
                 ),
                 color = colors.textPrimary,
@@ -504,7 +506,7 @@ private fun BasicDateAndTimeSelectorCard(
                     Text(
                         text = "Date",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
@@ -536,7 +538,7 @@ private fun BasicDateAndTimeSelectorCard(
                         Text(
                             text = date.format(dateFormatter),
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = ShiftlySans,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.textPrimary
@@ -559,7 +561,7 @@ private fun BasicDateAndTimeSelectorCard(
                     Text(
                         text = "Start time",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
@@ -591,7 +593,7 @@ private fun BasicDateAndTimeSelectorCard(
                         Text(
                             text = format12h(startLocal),
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = ShiftlySans,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.textPrimary
@@ -614,7 +616,7 @@ private fun BasicDateAndTimeSelectorCard(
                     Text(
                         text = "End time",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
@@ -646,7 +648,7 @@ private fun BasicDateAndTimeSelectorCard(
                         Text(
                             text = format12h(endLocal),
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = ShiftlySans,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.textPrimary
@@ -679,12 +681,23 @@ private fun BasicDateAndTimeSelectorCard(
                         showDatePicker = false
                     }
                 ) {
-                    Text("Select", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "Select",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.azureAccent
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
+                    )
                 }
             }
         ) {
@@ -729,12 +742,23 @@ private fun BasicDateAndTimeSelectorCard(
                         showStartTimePicker = false
                     }
                 ) {
-                    Text("OK", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "OK",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.azureAccent
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showStartTimePicker = false }) {
-                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
+                    )
                 }
             }
         ) {
@@ -785,12 +809,23 @@ private fun BasicDateAndTimeSelectorCard(
                         showEndTimePicker = false
                     }
                 ) {
-                    Text("OK", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "OK",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.azureAccent
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showEndTimePicker = false }) {
-                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
+                    )
                 }
             }
         ) {
@@ -865,7 +900,7 @@ private fun ShiftTimePresetsBox(
                 Text(
                     text = "PRESETS",
                     style = MaterialTheme.typography.labelMedium.copy(
-                        fontFamily = ShiftlySerif,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 0.8.sp
                     ),
@@ -900,7 +935,7 @@ private fun ShiftTimePresetsBox(
                         Text(
                             text = if (alreadyExists) "Saved" else "Save Time",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = ShiftlySerif,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = if (alreadyExists) colors.mintTextOnSurface else colors.azureAccent
@@ -946,7 +981,7 @@ private fun ShiftTimePresetsBox(
                             Text(
                                 text = preset.label,
                                 style = MaterialTheme.typography.labelMedium.copy(
-                                    fontFamily = ShiftlySans,
+                                    fontFamily = PlusJakartaSans,
                                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
                                 ).tabular(),
                                 color = if (isActive) colors.textPrimary else colors.textSecondary
@@ -1032,7 +1067,7 @@ private fun LogShiftReceiptPreviewCard(
                 Text(
                     text = "INCOME PREVIEW",
                     style = MaterialTheme.typography.labelMedium.copy(
-                        fontFamily = ShiftlySerif,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 0.8.sp
                     ),
@@ -1047,7 +1082,7 @@ private fun LogShiftReceiptPreviewCard(
                     Text(
                         text = formatDurationCompact(totalMinutes),
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.textPrimary,
@@ -1072,7 +1107,7 @@ private fun LogShiftReceiptPreviewCard(
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.regularPay),
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.textPrimary
@@ -1096,7 +1131,7 @@ private fun LogShiftReceiptPreviewCard(
                     Text(
                         text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.nightDiffPay)}",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.nightDiffPurple
@@ -1121,7 +1156,7 @@ private fun LogShiftReceiptPreviewCard(
                     Text(
                         text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.overtimePay)}",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.coralBright
@@ -1140,7 +1175,7 @@ private fun LogShiftReceiptPreviewCard(
                 Text(
                     text = "Total Earned",
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = ShiftlySerif,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary
@@ -1148,7 +1183,7 @@ private fun LogShiftReceiptPreviewCard(
                 Text(
                     text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.totalEarned)}",
                     style = MaterialTheme.typography.headlineMedium.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold,
                         fontSize = 28.sp
                     ).tabular(),
@@ -1309,7 +1344,11 @@ fun ManualShiftSheetContent(
                 onClick = onDismiss,
                 modifier = Modifier.heightIn(min = 48.dp)
             ) {
-                Text("Cancel", fontFamily = ShiftlySerif, color = colors.textSecondary)
+                Text(
+                    text = "Cancel",
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                    color = colors.textSecondary
+                )
             }
         }
 
@@ -1358,8 +1397,14 @@ fun ManualShiftSheetContent(
         OutlinedTextField(
             value = manualNote,
             onValueChange = { manualNote = it },
-            label = { Text("Shift Note (optional)", fontFamily = ShiftlySerif) },
-            placeholder = { Text("Add shift note (optional)", color = colors.textMuted) },
+            label = { Text("Shift Note (optional)", fontFamily = PlusJakartaSans) },
+            placeholder = {
+                Text(
+                    text = "Add shift note (optional)",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                    color = colors.textMuted
+                )
+            },
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             colors = sheetFieldColors,
@@ -1485,7 +1530,7 @@ fun ManageShiftPresetsSheet(
                                 Text(
                                     text = preset.label,
                                     style = MaterialTheme.typography.titleMedium.copy(
-                                        fontFamily = ShiftlySans,
+                                        fontFamily = PlusJakartaSans,
                                         fontWeight = FontWeight.Bold
                                     ).tabular(),
                                     color = colors.textPrimary
@@ -1589,7 +1634,7 @@ private fun BasicPresetTimeSelectorCard(
                     Text(
                         text = "Start time",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
@@ -1621,7 +1666,7 @@ private fun BasicPresetTimeSelectorCard(
                         Text(
                             text = format12h(startLocal),
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = ShiftlySans,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.textPrimary
@@ -1644,7 +1689,7 @@ private fun BasicPresetTimeSelectorCard(
                     Text(
                         text = "End time",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
@@ -1676,7 +1721,7 @@ private fun BasicPresetTimeSelectorCard(
                         Text(
                             text = format12h(endLocal),
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = ShiftlySans,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.textPrimary
@@ -1705,12 +1750,23 @@ private fun BasicPresetTimeSelectorCard(
                         showStartTimePicker = false
                     }
                 ) {
-                    Text("OK", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "OK",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.azureAccent
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showStartTimePicker = false }) {
-                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
+                    )
                 }
             }
         ) {
@@ -1761,12 +1817,23 @@ private fun BasicPresetTimeSelectorCard(
                         showEndTimePicker = false
                     }
                 ) {
-                    Text("OK", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "OK",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.azureAccent
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showEndTimePicker = false }) {
-                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
+                    )
                 }
             }
         ) {

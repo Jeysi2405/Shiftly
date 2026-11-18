@@ -52,9 +52,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.example.shiftly.R
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySans
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.utils.PinSecurity
 
 /**
@@ -217,7 +216,7 @@ fun AppLockGateScreen(
                 Text(
                     text = "Shiftly Locked",
                     style = MaterialTheme.typography.headlineSmall.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ),
                     color = colors.textPrimary
@@ -335,8 +334,10 @@ fun AppLockGateScreen(
                     Spacer(modifier = Modifier.size(8.dp))
                     Text(
                         text = "Unlock with Biometrics",
-                        fontFamily = ShiftlySerif,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     )
                 }
                 if (!biometricsSupported && method == "Fingerprint Only") {
@@ -373,7 +374,7 @@ private fun KeypadDigitKey(
             Text(
                 text = digit,
                 style = MaterialTheme.typography.headlineSmall.copy(
-                    fontFamily = ShiftlySans,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 24.sp
                 ),

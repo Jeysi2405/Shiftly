@@ -79,9 +79,8 @@ import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySans
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.PinSecurity
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -139,7 +138,7 @@ fun ProfileSnapshotGlassCard(
             Text(
                 text = "SNAPSHOT",
                 style = MaterialTheme.typography.labelMedium.copy(
-                    fontFamily = ShiftlySerif,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.8.sp
                 ),
@@ -244,7 +243,7 @@ fun ProfileWageRateCard(
                     Text(
                         text = "WAGE & RATE SETTINGS",
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.8.sp
                         ),
@@ -281,7 +280,11 @@ fun ProfileWageRateCard(
                         },
                         modifier = Modifier.heightIn(min = 44.dp)
                     ) {
-                        Text("Cancel", fontFamily = ShiftlySerif, color = colors.textSecondary)
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textSecondary
+                        )
                     }
                 }
             }
@@ -316,12 +319,21 @@ fun ProfileWageRateCard(
                     OutlinedTextField(
                         value = hourlyInput,
                         onValueChange = { hourlyInput = filterSingleDecimalInput(it, hourlyInput) },
-                        label = { Text("Hourly ($currencySymbol/hr)", fontFamily = ShiftlySerif) },
-                        placeholder = { Text("0", color = colors.textMuted) },
+                        label = { Text("Hourly ($currencySymbol/hr)", fontFamily = PlusJakartaSans) },
+                        placeholder = {
+                            Text(
+                                text = "0",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                                color = colors.textMuted
+                            )
+                        },
                         prefix = {
                             Text(
                                 text = currencySymbol,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Bold
+                                ),
                                 color = colors.textPrimary
                             )
                         },
@@ -335,12 +347,21 @@ fun ProfileWageRateCard(
                     OutlinedTextField(
                         value = minWageInput,
                         onValueChange = { minWageInput = filterSingleDecimalInput(it, minWageInput) },
-                        label = { Text("Min Wage/Day", fontFamily = ShiftlySerif) },
-                        placeholder = { Text("0", color = colors.textMuted) },
+                        label = { Text("Min Wage/Day", fontFamily = PlusJakartaSans) },
+                        placeholder = {
+                            Text(
+                                text = "0",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                                color = colors.textMuted
+                            )
+                        },
                         prefix = {
                             Text(
                                 text = currencySymbol,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Bold
+                                ),
                                 color = colors.textPrimary
                             )
                         },
@@ -378,7 +399,7 @@ fun ProfileWageRateCard(
                             Text(
                                 text = "Use ÷ 8h",
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = ShiftlySerif,
+                                    fontFamily = PlusJakartaSans,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = colors.azureInk,
@@ -431,7 +452,7 @@ fun ProfileWageRateCard(
                     Text(
                         text = "Save",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.onAzurePrimary
@@ -463,13 +484,13 @@ private fun GlassSnapshotTile(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                 color = colors.textSecondary
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = ShiftlySans,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.Bold,
                     fontSize = 19.sp
                 ).tabular(),
@@ -491,7 +512,7 @@ fun SettingsGroupCard(
         Text(
             text = groupTitle,
             style = MaterialTheme.typography.labelMedium.copy(
-                fontFamily = ShiftlySerif,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.6.sp
             ),
@@ -548,7 +569,7 @@ fun SettingsChevronRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = ShiftlySerif,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = colors.textPrimary
@@ -573,7 +594,7 @@ fun SettingsChevronRow(
                 Text(
                     text = trailingBadge,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.textPrimary,
@@ -631,7 +652,7 @@ fun SettingsSwitchRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = ShiftlySerif,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = colors.textPrimary
@@ -760,7 +781,7 @@ fun ThemeSelectorSheetContent(
                     Text(
                         text = modeLabel,
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = if (isSelected) colors.azureInk else colors.textPrimary
@@ -850,7 +871,7 @@ fun AccountEditSheetContent(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (hasPhoto) "Change Photo" else "Add Photo",
-                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
                         color = colors.azureAccent
                     )
                 }
@@ -861,7 +882,7 @@ fun AccountEditSheetContent(
                     ) {
                         Text(
                             text = "Remove",
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
                             color = colors.coralTextOnSurface
                         )
                     }
@@ -873,8 +894,14 @@ fun AccountEditSheetContent(
     OutlinedTextField(
         value = nameInput,
         onValueChange = { nameInput = it },
-        label = { Text("Display Name", fontFamily = ShiftlySerif) },
-        placeholder = { Text("What I gonna call you?", color = colors.textMuted) },
+        label = { Text("Display Name", fontFamily = PlusJakartaSans) },
+        placeholder = {
+            Text(
+                text = "What I gonna call you?",
+                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                color = colors.textMuted
+            )
+        },
         singleLine = true,
         shape = RoundedCornerShape(16.dp),
         colors = shiftlySheetFieldColors(),
@@ -949,7 +976,10 @@ fun CurrencyPickerSheetContent(
                         if (isSelected) {
                             Text(
                                 text = "Active",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Bold
+                                ),
                                 color = colors.azureInk
                             )
                         }
@@ -976,7 +1006,7 @@ fun CurrencyPickerSheetContent(
                 ) {
                     Text(
                         text = "Switch $currentCurrency -> $targetSymbol ($targetLabel)",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
                         color = colors.textPrimary
                     )
                     Text(
@@ -998,8 +1028,10 @@ fun CurrencyPickerSheetContent(
             ) {
                 Text(
                     text = "Switch Symbol Only (Keep Numbers)",
-                    fontFamily = ShiftlySerif,
-                    fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 )
             }
 
@@ -1016,10 +1048,16 @@ fun CurrencyPickerSheetContent(
                 label = {
                     Text(
                         "Exchange Rate (1 $currentCurrency = ? $targetSymbol)",
-                        fontFamily = ShiftlySerif
+                        fontFamily = PlusJakartaSans
                     )
                 },
-                placeholder = { Text("e.g. 0.018 or 56.0", color = colors.textMuted) },
+                placeholder = {
+                    Text(
+                        text = "e.g. 0.018 or 56.0",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textMuted
+                    )
+                },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 shape = RoundedCornerShape(16.dp),
@@ -1051,7 +1089,11 @@ fun CurrencyPickerSheetContent(
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
             ) {
-                Text("Back to Currency List", fontFamily = ShiftlySerif, color = colors.textSecondary)
+                Text(
+                    text = "Back to Currency List",
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                    color = colors.textSecondary
+                )
             }
         }
     }
@@ -1221,7 +1263,7 @@ private fun SelectableRulePill(
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium.copy(
-                fontFamily = ShiftlySans,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.Bold
             ).tabular(),
             color = if (selected) colors.onAzurePrimary else colors.textPrimary
@@ -1270,8 +1312,14 @@ fun BudgetsEditorSheetContent(
     OutlinedTextField(
         value = monthlyInput,
         onValueChange = { monthlyInput = filterSingleDecimalInput(it, monthlyInput) },
-        label = { Text("Monthly Budget ($currencySymbol)", fontFamily = ShiftlySerif) },
-        placeholder = { Text("What is your monthly budget?", color = colors.textMuted) },
+        label = { Text("Monthly Budget ($currencySymbol)", fontFamily = PlusJakartaSans) },
+        placeholder = {
+            Text(
+                text = "What is your monthly budget?",
+                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                color = colors.textMuted
+            )
+        },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         shape = RoundedCornerShape(16.dp),
@@ -1286,8 +1334,14 @@ fun BudgetsEditorSheetContent(
             onValueChange = { updated ->
                 editedBudgets[idx] = cat to filterSingleDecimalInput(updated, limitStr)
             },
-            label = { Text("$cat ($currencySymbol)", fontFamily = ShiftlySerif) },
-            placeholder = { Text("Optional monthly cap", color = colors.textMuted) },
+            label = { Text("$cat ($currencySymbol)", fontFamily = PlusJakartaSans) },
+            placeholder = {
+                Text(
+                    text = "Optional monthly cap",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                    color = colors.textMuted
+                )
+            },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             shape = RoundedCornerShape(14.dp),
@@ -1321,7 +1375,11 @@ fun BudgetsEditorSheetContent(
             .fillMaxWidth()
             .heightIn(min = 48.dp)
     ) {
-        Text("Close", fontFamily = ShiftlySerif, color = colors.textSecondary)
+        Text(
+            text = "Close",
+            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+            color = colors.textSecondary
+        )
     }
 }
 
@@ -1342,7 +1400,7 @@ fun ManageCategoriesSheetContent(
         OutlinedTextField(
             value = newCategoryName,
             onValueChange = { newCategoryName = it },
-            label = { Text("Add Category", fontFamily = ShiftlySerif) },
+            label = { Text("Add Category", fontFamily = PlusJakartaSans) },
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             colors = shiftlySheetFieldColors(),
@@ -1488,7 +1546,7 @@ fun RecurringEntriesSheetContent(
         OutlinedTextField(
             value = newTitle,
             onValueChange = { newTitle = it },
-            label = { Text("Label", fontFamily = ShiftlySerif) },
+            label = { Text("Label", fontFamily = PlusJakartaSans) },
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             colors = shiftlySheetFieldColors(),
@@ -1497,7 +1555,7 @@ fun RecurringEntriesSheetContent(
         OutlinedTextField(
             value = newAmount,
             onValueChange = { newAmount = filterSingleDecimalInput(it, newAmount) },
-            label = { Text(currencySymbol, fontFamily = ShiftlySerif) },
+            label = { Text(currencySymbol, fontFamily = PlusJakartaSans) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             shape = RoundedCornerShape(14.dp),
@@ -1566,13 +1624,13 @@ fun RecurringEntriesSheetContent(
                     Column {
                         Text(
                             text = "Expense Category",
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                             color = colors.textSecondary
                         )
                         Text(
                             text = newCategory,
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = ShiftlySerif,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary
@@ -1623,7 +1681,11 @@ fun RecurringEntriesSheetContent(
             .fillMaxWidth()
             .heightIn(min = 48.dp)
     ) {
-        Text("Add to List", fontFamily = ShiftlySerif, color = colors.azureInk)
+        Text(
+            text = "Add to List",
+            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+            color = colors.azureInk
+        )
     }
 
     ShiftlyPrimaryPillButton(
@@ -1713,10 +1775,16 @@ fun AppLockSheetContent(
             label = {
                 Text(
                     if (hasSavedPin) "New 4-Digit PIN (leave blank to keep current)" else "Set 4-Digit PIN",
-                    fontFamily = ShiftlySerif
+                    fontFamily = PlusJakartaSans
                 )
             },
-            placeholder = { Text(if (hasSavedPin) "••••" else "Enter 4 digits", color = colors.textMuted) },
+            placeholder = {
+                Text(
+                    text = if (hasSavedPin) "••••" else "Enter 4 digits",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                    color = colors.textMuted
+                )
+            },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
@@ -1789,7 +1857,10 @@ fun BackupAndExportSheetContent(
             modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text("Export Full Backup (.zip + Receipts)", fontFamily = ShiftlySerif)
+        Text(
+            text = "Export Full Backup (.zip + Receipts)",
+            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
+        )
     }
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1808,7 +1879,10 @@ fun BackupAndExportSheetContent(
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Text("JSON", fontFamily = ShiftlySerif)
+            Text(
+                text = "JSON",
+                style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
+            )
         }
         OutlinedButton(
             onClick = onExportCsv,
@@ -1825,7 +1899,10 @@ fun BackupAndExportSheetContent(
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Text("CSV", fontFamily = ShiftlySerif)
+            Text(
+                text = "CSV",
+                style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
+            )
         }
         OutlinedButton(
             onClick = onExportPdf,
@@ -1842,7 +1919,10 @@ fun BackupAndExportSheetContent(
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Text("PDF", fontFamily = ShiftlySerif)
+            Text(
+                text = "PDF",
+                style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
+            )
         }
     }
 
@@ -1891,13 +1971,16 @@ fun BackupAndExportSheetContent(
             modifier = Modifier.size(18.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
-        Text("Choose Backup File (.zip or .json)", fontFamily = ShiftlySerif)
+        Text(
+            text = "Choose Backup File (.zip or .json)",
+            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
+        )
     }
 
     OutlinedTextField(
         value = restoreJsonInput,
         onValueChange = { restoreJsonInput = it },
-        label = { Text("Or paste exported JSON backup", fontFamily = ShiftlySerif) },
+        label = { Text("Or paste exported JSON backup", fontFamily = PlusJakartaSans) },
         minLines = 3,
         maxLines = 5,
         shape = RoundedCornerShape(16.dp),

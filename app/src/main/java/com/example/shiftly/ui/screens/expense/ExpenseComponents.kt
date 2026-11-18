@@ -94,9 +94,8 @@ import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.theme.OrbSkyLight
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySans
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.io.File
@@ -153,7 +152,7 @@ fun ExpenseSummaryCard(
                     Text(
                         text = "THIS MONTH",
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.8.sp
                         ),
@@ -163,7 +162,7 @@ fun ExpenseSummaryCard(
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotal),
                         style = MaterialTheme.typography.displaySmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold,
                             fontSize = 34.sp
                         ).tabular(),
@@ -212,7 +211,7 @@ fun ExpenseSummaryCard(
                     ) {
                         Text(
                             text = "Monthly Budget",
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif).tabular(),
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans).tabular(),
                             color = colors.textSecondary
                         )
                         Text(
@@ -221,7 +220,10 @@ fun ExpenseSummaryCard(
                             } else {
                                 "${ShiftlyFormatters.formatCurrency(currencySymbol, remaining)} left"
                             },
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold).tabular(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.SemiBold
+                            ).tabular(),
                             color = if (isNear) colors.coralTextOnSurface else colors.mintTextOnSurface
                         )
                     }
@@ -307,7 +309,7 @@ fun ExpenseSummaryCard(
                                 ) {
                                     Text(
                                         text = item.category,
-                                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                                         color = colors.textPrimary
                                     )
                                     Text(
@@ -396,7 +398,7 @@ fun ExpenseCategoryFilterRow(
                 Text(
                     text = category,
                     style = MaterialTheme.typography.labelMedium.copy(
-                        fontFamily = ShiftlySerif,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                     ),
                     color = if (isSelected) colors.onAzurePrimary else colors.textSecondary
@@ -444,7 +446,7 @@ fun ExpenseEmptyCard(
             }
             Text(
                 text = if (isFiltered) "No $selectedCategory expenses" else "No expenses logged yet",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
@@ -519,7 +521,7 @@ fun ExpenseItemCard(
                 Text(
                     text = expense.title,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = ShiftlySerif,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary,
@@ -564,8 +566,10 @@ fun ExpenseItemCard(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "Receipt",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = PlusJakartaSans,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
                                     color = colors.azureInk
                                 )
                             }
@@ -581,7 +585,7 @@ fun ExpenseItemCard(
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, expense.amount, showMinus = true),
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.coralInk
@@ -734,7 +738,11 @@ fun AddExpenseSheetContent(
                 onClick = onDismiss,
                 modifier = Modifier.heightIn(min = 48.dp)
             ) {
-                Text("Cancel", fontFamily = ShiftlySerif, color = colors.textSecondary)
+                Text(
+                    text = "Cancel",
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                    color = colors.textSecondary
+                )
             }
         }
 
@@ -746,7 +754,7 @@ fun AddExpenseSheetContent(
                     amountText = filtered
                 }
             },
-            label = { Text("Amount", fontFamily = ShiftlySerif) },
+            label = { Text("Amount", fontFamily = PlusJakartaSans) },
             placeholder = {
                 Text(
                     text = "0",
@@ -758,14 +766,14 @@ fun AddExpenseSheetContent(
                 Text(
                     text = "$currencySymbol ",
                     style = MaterialTheme.typography.headlineLarge.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ),
                     color = colors.coralInk
                 )
             },
             textStyle = MaterialTheme.typography.headlineLarge.copy(
-                fontFamily = ShiftlySans,
+                fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.Bold
             ).tabular(),
             singleLine = true,
@@ -787,8 +795,13 @@ fun AddExpenseSheetContent(
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
-            label = { Text("Title", fontFamily = ShiftlySerif) },
-            placeholder = { Text("e.g., Tapsilog & Iced Coffee") },
+            label = { Text("Title", fontFamily = PlusJakartaSans) },
+            placeholder = {
+                Text(
+                    text = "e.g., Tapsilog & Iced Coffee",
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans)
+                )
+            },
             singleLine = true,
             shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -842,13 +855,13 @@ fun AddExpenseSheetContent(
                     Column {
                         Text(
                             text = "Category",
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                             color = colors.textSecondary
                         )
                         Text(
                             text = selectedCategory,
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = ShiftlySerif,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary
@@ -933,7 +946,7 @@ fun AddExpenseSheetContent(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = "Receipt (optional)",
-                style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
+                style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
                 color = colors.textSecondary
             )
 
@@ -1007,7 +1020,11 @@ fun AddExpenseSheetContent(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Gallery", fontFamily = ShiftlySerif, color = colors.textPrimary)
+                        Text(
+                            text = "Gallery",
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textPrimary
+                        )
                     }
 
                     OutlinedButton(
@@ -1038,7 +1055,11 @@ fun AddExpenseSheetContent(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Camera", fontFamily = ShiftlySerif, color = colors.textPrimary)
+                        Text(
+                            text = "Camera",
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textPrimary
+                        )
                     }
                 }
             }
@@ -1067,7 +1088,7 @@ fun AddExpenseSheetContent(
             Text(
                 text = "Add Expense",
                 style = MaterialTheme.typography.labelLarge.copy(
-                    fontFamily = ShiftlySerif,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.SemiBold
                 )
             )
@@ -1100,12 +1121,23 @@ fun AddExpenseSheetContent(
                         showTimePicker = false
                     }
                 ) {
-                    Text("OK", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "OK",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.azureAccent
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showTimePicker = false }) {
-                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
+                    )
                 }
             }
         ) {
@@ -1159,15 +1191,21 @@ fun AddExpenseSheetContent(
                 ) {
                     Text(
                         text = "Select",
-                        color = colors.azureAccent,
-                        fontFamily = ShiftlySerif,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.azureAccent
                     )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
+                    )
                 }
             }
         ) {
@@ -1228,7 +1266,7 @@ fun CategoryPromptSheet(
             ) {
                 Text(
                     text = "Select Category",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = ShiftlySerif),
+                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = PlusJakartaSans),
                     color = colors.textPrimary
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
@@ -1290,7 +1328,7 @@ fun CategoryPromptSheet(
                             Text(
                                 text = category,
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    fontFamily = ShiftlySans,
+                                    fontFamily = PlusJakartaSans,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = colors.textPrimary

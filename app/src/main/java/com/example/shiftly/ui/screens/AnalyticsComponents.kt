@@ -51,9 +51,8 @@ import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.screens.expense.categoryIcon
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySans
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 
@@ -136,7 +135,7 @@ fun AnalyticsRangeSegmentedControl(
                     Text(
                         text = range.shortLabel,
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = if (isSelected) colors.onAzurePrimary else colors.textSecondary
@@ -176,7 +175,7 @@ fun IncomeVsExpenseGlassChartCard(
                         Text(
                             text = "INCOME",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = ShiftlySerif,
+                                fontFamily = PlusJakartaSans,
                                 letterSpacing = 0.6.sp
                             ),
                             color = colors.textSecondary
@@ -184,7 +183,7 @@ fun IncomeVsExpenseGlassChartCard(
                         Text(
                             text = ShiftlyFormatters.formatCurrency(currency, state.periodIncome, showPlus = true),
                             style = MaterialTheme.typography.titleLarge.copy(
-                                fontFamily = ShiftlySans,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp
                             ).tabular(),
@@ -195,7 +194,7 @@ fun IncomeVsExpenseGlassChartCard(
                         Text(
                             text = "EXPENSES",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = ShiftlySerif,
+                                fontFamily = PlusJakartaSans,
                                 letterSpacing = 0.6.sp
                             ),
                             color = colors.textSecondary
@@ -203,7 +202,7 @@ fun IncomeVsExpenseGlassChartCard(
                         Text(
                             text = ShiftlyFormatters.formatCurrency(currency, state.periodExpenses, showMinus = true),
                             style = MaterialTheme.typography.titleLarge.copy(
-                                fontFamily = ShiftlySans,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp
                             ).tabular(),
@@ -224,7 +223,7 @@ fun IncomeVsExpenseGlassChartCard(
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currency, net, showPlus = net > 0.0),
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = if (net >= 0) colors.mintTextOnSurface else colors.coralTextOnSurface,
@@ -374,7 +373,7 @@ fun IncomeVsExpenseGlassChartCard(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Income",
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                                 color = colors.textSecondary
                             )
                         }
@@ -389,7 +388,7 @@ fun IncomeVsExpenseGlassChartCard(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Expenses",
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                                 color = colors.textSecondary
                             )
                         }
@@ -427,7 +426,7 @@ fun InsightCardContainer(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = ShiftlySerif,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary
@@ -444,7 +443,7 @@ fun InsightCardContainer(
                         Text(
                             text = trailingActionText,
                             style = MaterialTheme.typography.labelMedium.copy(
-                                fontFamily = ShiftlySerif,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.azureInk
@@ -515,7 +514,7 @@ fun TopSpendingCategoriesCard(
                             Text(
                                 text = "${item.percentage}%  •  ${ShiftlyFormatters.formatCurrency(currencySymbol, item.amount)}",
                                 style = MaterialTheme.typography.labelMedium.copy(
-                                    fontFamily = ShiftlySans,
+                                    fontFamily = PlusJakartaSans,
                                     fontWeight = FontWeight.Bold
                                 ).tabular(),
                                 color = colors.textPrimary
@@ -560,7 +559,7 @@ fun EarningsHoursBreakdownCard(
             Text(
                 text = ShiftlyFormatters.formatCurrency(currencySymbol, earnings),
                 style = MaterialTheme.typography.headlineSmall.copy(
-                    fontFamily = ShiftlySans,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.Bold
                 ).tabular(),
                 color = colors.mintInk
@@ -662,13 +661,13 @@ private fun HoursSplitMiniTile(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
+                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
                 color = colors.textSecondary
             )
             Text(
                 text = ShiftlyFormatters.formatHours(hours, compact = true),
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = ShiftlySans,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.Bold
                 ).tabular(),
                 color = accentColor
@@ -734,6 +733,7 @@ fun HoursOfWorkCostCard(
                                     Text(
                                         text = "${entry.category} = ${ShiftlyFormatters.formatHours(entry.dutyHours)} of duty",
                                         style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontFamily = PlusJakartaSans,
                                             fontWeight = FontWeight.SemiBold
                                         ).tabular(),
                                         color = colors.textPrimary,
@@ -804,7 +804,7 @@ fun OnBudgetStreakCard(
                 Text(
                     text = if (hasBudget) "$streakDays-day streak" else "No budget set",
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.textPrimary
@@ -818,6 +818,7 @@ fun OnBudgetStreakCard(
                 Text(
                     text = "$streakDays / ${streakTargetDays}d",
                     style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.mintInk,
@@ -888,7 +889,7 @@ fun UnsettledSplitsTrackerCard(
                             "All split bills settled"
                         },
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.textPrimary
@@ -922,7 +923,7 @@ fun UnsettledSplitsTrackerCard(
                     Text(
                         text = "Open",
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.azureInk

@@ -59,9 +59,8 @@ import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySans
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.utils.SplitBillMath
@@ -95,7 +94,7 @@ fun SplitBillSummaryCard(
                     Text(
                         text = "PENDING",
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.8.sp
                         ),
@@ -105,7 +104,7 @@ fun SplitBillSummaryCard(
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, totalPendingAmount),
                         style = MaterialTheme.typography.displaySmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold,
                             fontSize = 32.sp
                         ).tabular(),
@@ -126,6 +125,7 @@ fun SplitBillSummaryCard(
                         Text(
                             text = "Paid: ${ShiftlyFormatters.formatCurrency(currencySymbol, totalCollectedAmount)}",
                             style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.mintTextOnSurface,
@@ -233,7 +233,7 @@ fun SplitBillCalculatorCard(
             Text(
                 text = "NEW SPLIT",
                 style = MaterialTheme.typography.labelMedium.copy(
-                    fontFamily = ShiftlySerif,
+                    fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.8.sp
                 ),
@@ -253,9 +253,13 @@ fun SplitBillCalculatorCard(
                             amountInput = filtered
                         }
                     },
-                    label = { Text("Total", fontFamily = ShiftlySerif) },
+                    label = { Text("Total", fontFamily = PlusJakartaSans) },
                     placeholder = {
-                        Text("0", color = colors.textMuted)
+                        Text(
+                            text = "0",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textMuted
+                        )
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -267,9 +271,13 @@ fun SplitBillCalculatorCard(
                 OutlinedTextField(
                     value = titleInput,
                     onValueChange = { titleInput = it },
-                    label = { Text("Label", fontFamily = ShiftlySerif) },
+                    label = { Text("Label", fontFamily = PlusJakartaSans) },
                     placeholder = {
-                        Text("Dinner", color = colors.textMuted)
+                        Text(
+                            text = "Dinner",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textMuted
+                        )
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
@@ -288,7 +296,7 @@ fun SplitBillCalculatorCard(
                     Text(
                         text = "Persons",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
@@ -328,7 +336,7 @@ fun SplitBillCalculatorCard(
                         Text(
                             text = personCount.toString(),
                             style = MaterialTheme.typography.titleLarge.copy(
-                                fontFamily = ShiftlySans,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.mintTextOnSurface,
@@ -383,7 +391,7 @@ fun SplitBillCalculatorCard(
                                 label = {
                                     Text(
                                         text = if (isSelf) "You" else "Person ${index + 1}",
-                                        fontFamily = ShiftlySerif
+                                        fontFamily = PlusJakartaSans
                                     )
                                 },
                                 singleLine = true,
@@ -425,7 +433,7 @@ fun SplitBillCalculatorCard(
                                     Text(
                                         text = if (isPaid) "Paid" else "Unpaid",
                                         style = MaterialTheme.typography.labelMedium.copy(
-                                            fontFamily = ShiftlySerif,
+                                            fontFamily = PlusJakartaSans,
                                             fontWeight = FontWeight.SemiBold
                                         ),
                                         color = if (isPaid) colors.mintInk else colors.textSecondary
@@ -454,13 +462,13 @@ fun SplitBillCalculatorCard(
                 ) {
                     Text(
                         text = "Per Person",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
                         color = colors.textPrimary
                     )
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, perPersonShare),
                         style = MaterialTheme.typography.headlineSmall.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold,
                             fontSize = 26.sp
                         ).tabular(),
@@ -504,7 +512,7 @@ fun SplitBillCalculatorCard(
                     Text(
                         text = "Save",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         )
                     )
@@ -543,7 +551,7 @@ fun SplitBillCalculatorCard(
                     Text(
                         text = "Split & Log",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         )
                     )
@@ -589,7 +597,7 @@ fun SplitBillEmptyCard(
             }
             Text(
                 text = "No split bills yet",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
@@ -654,7 +662,7 @@ fun SplitBillLogItemCard(
                         Text(
                             text = bill.title,
                             style = MaterialTheme.typography.titleMedium.copy(
-                                fontFamily = ShiftlySerif,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary,
@@ -670,6 +678,7 @@ fun SplitBillLogItemCard(
                             Text(
                                 text = if (allPaid) "Paid" else "Pending ($paidCount/${trackedParticipants.size})",
                                 style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = PlusJakartaSans,
                                     fontWeight = FontWeight.SemiBold
                                 ).tabular(),
                                 color = if (allPaid) colors.mintInk else colors.azureInk,
@@ -747,6 +756,7 @@ fun SplitBillLogItemCard(
                                 Text(
                                     text = displayLabel,
                                     style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontFamily = PlusJakartaSans,
                                         fontWeight = FontWeight.SemiBold
                                     ),
                                     color = colors.textPrimary
@@ -788,7 +798,7 @@ fun SplitBillLogItemCard(
                                     Text(
                                         text = "Paid",
                                         style = MaterialTheme.typography.labelMedium.copy(
-                                            fontFamily = ShiftlySerif,
+                                            fontFamily = PlusJakartaSans,
                                             fontWeight = FontWeight.SemiBold
                                         ),
                                         color = colors.mintInk
@@ -810,7 +820,7 @@ fun SplitBillLogItemCard(
                                 Text(
                                     text = "Mark Paid",
                                     style = MaterialTheme.typography.labelMedium.copy(
-                                        fontFamily = ShiftlySerif,
+                                        fontFamily = PlusJakartaSans,
                                         fontWeight = FontWeight.SemiBold
                                     ),
                                     color = colors.azureInk
@@ -846,7 +856,7 @@ fun SplitBillLogItemCard(
                         Text(
                             text = "Logged to Expenses (${ShiftlyFormatters.formatCurrency(currencySymbol, bill.perPersonAmount)})",
                             style = MaterialTheme.typography.labelMedium.copy(
-                                fontFamily = ShiftlySerif,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.SemiBold
                             ).tabular(),
                             color = colors.mintInk
@@ -878,7 +888,7 @@ fun SplitBillLogItemCard(
                     Text(
                         text = "Log Share to Expenses (${ShiftlyFormatters.formatCurrency(currencySymbol, bill.perPersonAmount)})",
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = ShiftlySerif,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold
                         ).tabular(),
                         color = colors.onAzurePrimary
@@ -917,7 +927,7 @@ fun SplitBillLogItemCard(
             title = {
                 Text(
                     text = "Payment Status",
-                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
                     color = colors.textPrimary
                 )
             },
@@ -944,12 +954,22 @@ fun SplitBillLogItemCard(
                         pressedElevation = 0.dp
                     )
                 ) {
-                    Text("Mark $targetStatus", fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        text = "Mark $targetStatus",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { selectedParticipantForPrompt = null }) {
-                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
+                    )
                 }
             }
         )

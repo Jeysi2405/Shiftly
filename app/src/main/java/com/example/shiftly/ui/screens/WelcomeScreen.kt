@@ -57,9 +57,8 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySans
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.io.File
 
@@ -109,7 +108,7 @@ fun WelcomeScreen(
                     Text(
                         text = "₱",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = ShiftlySans,
+                            fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
                         ),
                         color = colors.onAzurePrimary
@@ -118,7 +117,7 @@ fun WelcomeScreen(
                 Text(
                     text = "Shiftly",
                     style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = ShiftlySerif,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary
@@ -131,7 +130,7 @@ fun WelcomeScreen(
                         append("Track every ")
                         withStyle(
                             SpanStyle(
-                                fontFamily = ShiftlySerif,
+                                fontFamily = PlusJakartaSans,
                                 fontStyle = FontStyle.Italic,
                                 fontWeight = FontWeight.Medium,
                                 color = colors.azureAccent
@@ -142,7 +141,7 @@ fun WelcomeScreen(
                         append("\npeso between classes.")
                     },
                     style = MaterialTheme.typography.displayMedium.copy(
-                        fontFamily = ShiftlySans,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.Bold,
                         fontSize = 36.sp,
                         lineHeight = 43.sp
@@ -286,7 +285,9 @@ fun WelcomeScreen(
                             ) {
                                 Text(
                                     text = if (photoPath != null) "Change photo" else "Choose photo",
-                                    fontFamily = ShiftlySerif,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontFamily = PlusJakartaSans
+                                    ),
                                     color = colors.azureAccent
                                 )
                             }
@@ -306,7 +307,9 @@ fun WelcomeScreen(
                                     Spacer(modifier = Modifier.size(4.dp))
                                     Text(
                                         text = "Remove",
-                                        fontFamily = ShiftlySerif,
+                                        style = MaterialTheme.typography.labelLarge.copy(
+                                            fontFamily = PlusJakartaSans
+                                        ),
                                         color = colors.coralTextOnSurface
                                     )
                                 }
@@ -321,8 +324,14 @@ fun WelcomeScreen(
                         nameInput = it
                         validationError = null
                     },
-                    label = { Text("Display Name", fontFamily = ShiftlySerif) },
-                    placeholder = { Text("What I gonna call you?", color = colors.textMuted) },
+                    label = { Text("Display Name", fontFamily = PlusJakartaSans) },
+                    placeholder = {
+                        Text(
+                            text = "What I gonna call you?",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textMuted
+                        )
+                    },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     colors = fieldColors,
@@ -335,9 +344,24 @@ fun WelcomeScreen(
                         rateInput = filterDecimal(it, rateInput)
                         validationError = null
                     },
-                    label = { Text("Hourly Rate (₱)", fontFamily = ShiftlySerif) },
-                    placeholder = { Text("What is your hourly rate?", color = colors.textMuted) },
-                    prefix = { Text("₱", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
+                    label = { Text("Hourly Rate (₱)", fontFamily = PlusJakartaSans) },
+                    placeholder = {
+                        Text(
+                            text = "What is your hourly rate?",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textMuted
+                        )
+                    },
+                    prefix = {
+                        Text(
+                            text = "₱",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = colors.textPrimary
+                        )
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     shape = RoundedCornerShape(16.dp),
@@ -351,9 +375,24 @@ fun WelcomeScreen(
                         budgetInput = filterDecimal(it, budgetInput)
                         validationError = null
                     },
-                    label = { Text("Monthly Budget (₱)", fontFamily = ShiftlySerif) },
-                    placeholder = { Text("What is your monthly budget?", color = colors.textMuted) },
-                    prefix = { Text("₱", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
+                    label = { Text("Monthly Budget (₱)", fontFamily = PlusJakartaSans) },
+                    placeholder = {
+                        Text(
+                            text = "What is your monthly budget?",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textMuted
+                        )
+                    },
+                    prefix = {
+                        Text(
+                            text = "₱",
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = colors.textPrimary
+                        )
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     shape = RoundedCornerShape(16.dp),

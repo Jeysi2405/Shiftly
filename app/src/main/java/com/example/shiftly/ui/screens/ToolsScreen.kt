@@ -59,9 +59,8 @@ import com.example.shiftly.ui.screens.profile.RecurringEntriesSheetContent
 import com.example.shiftly.ui.screens.profile.SettingsSheetContainer
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
-import com.example.shiftly.ui.theme.ShiftlySans
-import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -432,7 +431,7 @@ private fun ToolHubCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = ShiftlySerif,
+                        fontFamily = PlusJakartaSans,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary,
@@ -465,7 +464,7 @@ private fun ToolHubCard(
                         Text(
                             text = metric,
                             style = MaterialTheme.typography.titleLarge.copy(
-                                fontFamily = ShiftlySans,
+                                fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = metricColor
@@ -505,7 +504,7 @@ private fun ToolHubCard(
                                 Text(
                                     text = quickActionLabel,
                                     style = MaterialTheme.typography.labelMedium.copy(
-                                        fontFamily = ShiftlySerif,
+                                        fontFamily = PlusJakartaSans,
                                         fontWeight = FontWeight.SemiBold
                                     ),
                                     color = colors.azureAccent

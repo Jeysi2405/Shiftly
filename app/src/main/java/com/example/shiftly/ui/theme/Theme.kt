@@ -108,7 +108,7 @@ fun ShiftlyTheme(
     CompositionLocalProvider(LocalShiftlyColors provides shiftlyColors) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = ShiftlyTypography,
+            typography = AppTypography,
             content = content
         )
     }
