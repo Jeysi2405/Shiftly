@@ -16,31 +16,45 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,6 +95,313 @@ private fun formatPillDuration(totalMinutes: Long): String {
         h > 0L && m > 0L -> if (h == 1L) "${h} hour ${m} mins" else "${h} hours ${m} mins"
         h > 0L -> if (h == 1L) "${h} hour" else "${h} hours"
         else -> "${m} mins"
+    }
+}
+
+private fun filterWageDecimalInput(raw: String, current: String): String {
+    val filtered = raw.filter { it.isDigit() || it == '.' }
+    return if (filtered.count { it == '.' } <= 1) filtered else current
+}
+
+private fun formatWageEditableNumber(value: Double): String {
+    if (!value.isFinite()) return "0"
+    return if (value % 1.0 == 0.0) value.toInt().toString() else "%.2f".format(value)
+}
+
+@Composable
+fun DutiesWageRateCard(
+    defaultHourlyRate: Double,
+    minimumWagePerDay: Double,
+    currencySymbol: String,
+    onSaveRates: (hourlyRate: Double, minimumWagePerDay: Double) -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
+    var hasInitializedMode by remember { mutableStateOf(false) }
+    var isEditing by remember { mutableStateOf(defaultHourlyRate <= 0.0) }
+    var hourlyInput by remember {
+        mutableStateOf(if (defaultHourlyRate > 0.0) formatWageEditableNumber(defaultHourlyRate) else "")
+    }
+    var minWageInput by remember {
+        mutableStateOf(if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else "")
+    }
+
+    LaunchedEffect(defaultHourlyRate, minimumWagePerDay) {
+        if (!hasInitializedMode && defaultHourlyRate > 0.0) {
+            hasInitializedMode = true
+            isEditing = false
+        }
+        if (!isEditing) {
+            hourlyInput = if (defaultHourlyRate > 0.0) formatWageEditableNumber(defaultHourlyRate) else ""
+            minWageInput = if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else ""
+        }
+    }
+
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = colors.azureAccent,
+        unfocusedBorderColor = colors.border,
+        focusedLabelColor = colors.azureAccent,
+        unfocusedLabelColor = colors.textSecondary,
+        focusedTextColor = colors.textPrimary,
+        unfocusedTextColor = colors.textPrimary,
+        cursorColor = colors.azureAccent,
+        focusedContainerColor = colors.surface,
+        unfocusedContainerColor = colors.surface
+    )
+
+    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(colors.mintContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_banknote),
+                            contentDescription = null,
+                            tint = colors.mintTextOnSurface,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Text(
+                        text = "WAGE & RATE SETTINGS",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.8.sp
+                        ),
+                        color = colors.textSecondary
+                    )
+                }
+
+                if (!isEditing) {
+                    IconButton(
+                        onClick = {
+                            hourlyInput = if (defaultHourlyRate > 0.0) formatWageEditableNumber(defaultHourlyRate) else ""
+                            minWageInput = if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else ""
+                            isEditing = true
+                        },
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(colors.cardElevated)
+                            .border(1.dp, colors.border, CircleShape)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_pencil),
+                            contentDescription = "Edit wage rates",
+                            tint = colors.azureAccent,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                } else if (defaultHourlyRate > 0.0) {
+                    TextButton(
+                        onClick = {
+                            hourlyInput = formatWageEditableNumber(defaultHourlyRate)
+                            minWageInput = if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else ""
+                            isEditing = false
+                        },
+                        modifier = Modifier.heightIn(min = 44.dp)
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textSecondary
+                        )
+                    }
+                }
+            }
+
+            if (!isEditing) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    WageRateDisplayTile(
+                        label = "Hourly Rate",
+                        value = "${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr",
+                        valueColor = colors.mintTextOnSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    WageRateDisplayTile(
+                        label = "Min Wage / Day",
+                        value = if (minimumWagePerDay > 0.0) {
+                            "${ShiftlyFormatters.formatCurrency(currencySymbol, minimumWagePerDay)}/day"
+                        } else {
+                            "Not set"
+                        },
+                        valueColor = if (minimumWagePerDay > 0.0) colors.textPrimary else colors.textMuted,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = hourlyInput,
+                        onValueChange = { hourlyInput = filterWageDecimalInput(it, hourlyInput) },
+                        label = { Text("Hourly ($currencySymbol/hr)", fontFamily = PlusJakartaSans) },
+                        placeholder = {
+                            Text(
+                                text = "0",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                                color = colors.textMuted
+                            )
+                        },
+                        prefix = {
+                            Text(
+                                text = currencySymbol,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = colors.textPrimary
+                            )
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = fieldColors,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    OutlinedTextField(
+                        value = minWageInput,
+                        onValueChange = { minWageInput = filterWageDecimalInput(it, minWageInput) },
+                        label = { Text("Min Wage/Day", fontFamily = PlusJakartaSans) },
+                        placeholder = {
+                            Text(
+                                text = "0",
+                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                                color = colors.textMuted
+                            )
+                        },
+                        prefix = {
+                            Text(
+                                text = currencySymbol,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = colors.textPrimary
+                            )
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = fieldColors,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        val parsedMinWage = (minWageInput.toDoubleOrNull() ?: 0.0)
+                            .takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
+                        val rawHourly = hourlyInput.toDoubleOrNull()
+                        val resolvedHourly = if (rawHourly != null && rawHourly.isFinite() && rawHourly > 0.0) {
+                            rawHourly
+                        } else {
+                            0.0
+                        }
+                        if (!resolvedHourly.isFinite() || resolvedHourly <= 0.0) {
+                            onShowMessage("Enter an hourly rate above 0")
+                            return@Button
+                        }
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSaveRates(resolvedHourly, parsedMinWage)
+                        hourlyInput = formatWageEditableNumber(resolvedHourly)
+                        minWageInput = if (parsedMinWage > 0.0) formatWageEditableNumber(parsedMinWage) else ""
+                        isEditing = false
+                        onShowMessage("Wage settings saved")
+                    },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.azurePrimary,
+                        contentColor = colors.onAzurePrimary
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_check),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Save",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.onAzurePrimary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WageRateDisplayTile(
+    label: String,
+    value: String,
+    valueColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = colors.surface,
+        border = BorderStroke(1.dp, colors.cardBorder),
+        shadowElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = colors.textSecondary
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 19.sp
+                ).tabular(),
+                color = valueColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
     }
 }
 
@@ -195,12 +516,14 @@ fun DayTypePromptSheet(
                     style = MaterialTheme.typography.headlineSmall.copy(fontFamily = PlusJakartaSans),
                     color = colors.textPrimary
                 )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_x),
-                        contentDescription = "Close",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(22.dp)
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.heightIn(min = 44.dp)
+                ) {
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -294,7 +617,9 @@ fun TimeBreakdownCard(
     monthlyTotalHours: Double,
     timeBreakdown: TimeBreakdown,
     currencySymbol: String,
-    displayedMonth: YearMonth = YearMonth.now()
+    displayedMonth: YearMonth = YearMonth.now(),
+    defaultHourlyRate: Double = 0.0,
+    onOpenSettings: (() -> Unit)? = null
 ) {
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
@@ -310,7 +635,7 @@ fun TimeBreakdownCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = headerTitle,
                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
@@ -326,6 +651,51 @@ fun TimeBreakdownCard(
                         ).tabular(),
                         color = colors.textPrimary
                     )
+                }
+
+                if (defaultHourlyRate > 0.0 || onOpenSettings != null) {
+                    val hasRate = defaultHourlyRate > 0.0
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = if (hasRate) colors.card else colors.azureContainer,
+                        border = BorderStroke(
+                            1.dp,
+                            if (hasRate) colors.cardBorder else colors.azureAccent.copy(alpha = 0.45f)
+                        ),
+                        shadowElevation = 0.dp,
+                        modifier = if (onOpenSettings != null) {
+                            Modifier
+                                .clip(RoundedCornerShape(50))
+                                .clickable(onClick = onOpenSettings)
+                        } else {
+                            Modifier
+                        }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_banknote),
+                                contentDescription = null,
+                                tint = if (hasRate) colors.mintTextOnSurface else colors.azureInk,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = if (hasRate) {
+                                    "${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr"
+                                } else {
+                                    "Set rate"
+                                },
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.SemiBold
+                                ).tabular(),
+                                color = if (hasRate) colors.textPrimary else colors.azureInk
+                            )
+                        }
+                    }
                 }
             }
 
@@ -399,11 +769,9 @@ private fun TimeBreakdownTile(
 fun ShiftCalendarCard(
     displayedMonth: YearMonth,
     loggedEpochDays: Set<Long>,
-    selectedCalendarDate: LocalDate?,
     onPreviousMonth: () -> Unit,
     onNextMonth: () -> Unit,
     onSelectDate: (LocalDate) -> Unit,
-    onClearFilter: () -> Unit,
     todayOverride: LocalDate? = null
 ) {
     val colors = ShiftlyColors.current
@@ -437,30 +805,6 @@ fun ShiftCalendarCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    if (selectedCalendarDate != null) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = colors.card,
-                            border = BorderStroke(1.dp, colors.cardBorder),
-                            shadowElevation = 0.dp,
-                            modifier = Modifier
-                                .heightIn(min = 48.dp)
-                                .clip(RoundedCornerShape(50))
-                                .clickable(onClick = onClearFilter)
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Reset",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
-                                    color = colors.textPrimary
-                                )
-                            }
-                        }
-                    }
-
                     IconButton(
                         onClick = onPreviousMonth,
                         modifier = Modifier.size(40.dp)
@@ -525,13 +869,12 @@ fun ShiftCalendarCard(
                             if (dayNumber in 1..daysInMonth) {
                                 val cellDate = displayedMonth.atDay(dayNumber)
                                 val hasLoggedShift = loggedEpochDays.contains(cellDate.toEpochDay())
-                                val isSelected = selectedCalendarDate == cellDate
                                 val isToday = cellDate == today
                                 val cellDescription = buildString {
                                     append(cellDate.format(fullDateFormatter))
                                     if (isToday) append(", today")
-                                    if (hasLoggedShift) append(", has logged shift")
-                                    if (isSelected) append(", selected")
+                                    if (hasLoggedShift) append(", tap to edit logged shift")
+                                    else append(", tap to log shift")
                                 }
 
                                 val isFirstCutoff = dayNumber in 1..15
@@ -545,33 +888,24 @@ fun ShiftCalendarCard(
                                         .weight(1f)
                                         .heightIn(min = 48.dp)
                                         .clip(RoundedCornerShape(14.dp))
-                                        .background(
-                                            when {
-                                                isSelected -> colors.azurePrimary
-                                                hasLoggedShift -> cutoffBg
-                                                else -> colors.card
-                                            }
-                                        )
+                                        .background(if (hasLoggedShift) cutoffBg else colors.card)
                                         .then(
-                                            if (isToday && !isSelected) {
-                                                Modifier.border(
+                                            when {
+                                                isToday -> Modifier.border(
                                                     width = 1.6.dp,
                                                     color = colors.azureAccent,
                                                     shape = RoundedCornerShape(14.dp)
                                                 )
-                                            } else if (hasLoggedShift && !isSelected) {
-                                                Modifier.border(
+                                                hasLoggedShift -> Modifier.border(
                                                     width = 1.dp,
                                                     color = cutoffBorder,
                                                     shape = RoundedCornerShape(14.dp)
                                                 )
-                                            } else {
-                                                Modifier
+                                                else -> Modifier
                                             }
                                         )
                                         .clickable { onSelectDate(cellDate) }
                                         .semantics(mergeDescendants = true) {
-                                            selected = isSelected
                                             contentDescription = cellDescription
                                         },
                                     contentAlignment = Alignment.Center
@@ -581,17 +915,13 @@ fun ShiftCalendarCard(
                                             text = dayNumber.toString(),
                                             style = MaterialTheme.typography.labelLarge.copy(
                                                 fontFamily = PlusJakartaSans,
-                                                fontWeight = if (isSelected || hasLoggedShift || isToday) {
+                                                fontWeight = if (hasLoggedShift || isToday) {
                                                     FontWeight.Bold
                                                 } else {
                                                     FontWeight.Medium
                                                 }
                                             ).tabular(),
-                                            color = when {
-                                                isSelected -> colors.onAzurePrimary
-                                                hasLoggedShift -> cutoffText
-                                                else -> colors.textPrimary
-                                            }
+                                            color = if (hasLoggedShift) cutoffText else colors.textPrimary
                                         )
                                         if (hasLoggedShift) {
                                             Spacer(modifier = Modifier.height(2.dp))
@@ -599,9 +929,7 @@ fun ShiftCalendarCard(
                                                 modifier = Modifier
                                                     .size(5.dp)
                                                     .clip(CircleShape)
-                                                    .background(
-                                                        if (isSelected) colors.onAzurePrimary else cutoffDot
-                                                    )
+                                                    .background(cutoffDot)
                                             )
                                         }
                                     }
@@ -623,9 +951,7 @@ fun ShiftCalendarCard(
 
 @Composable
 fun ShiftHistoryEmptyCard(
-    isFiltered: Boolean,
-    onLogFirstShift: () -> Unit,
-    onClearFilter: () -> Unit
+    onLogFirstShift: () -> Unit
 ) {
     val colors = ShiftlyColors.current
     Surface(
@@ -657,25 +983,21 @@ fun ShiftHistoryEmptyCard(
                 )
             }
             Text(
-                text = if (isFiltered) "No shifts on this day" else "No shifts logged yet",
+                text = "No shifts logged this month",
                 style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
             Text(
-                text = if (isFiltered) {
-                    "Pick another day on the calendar or reset the filter."
-                } else {
-                    "Tap below to log your shift hours and auto-compute your pay."
-                },
+                text = "Tap Log Shift above or choose any calendar day to record your hours.",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.textSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))
             ShiftlyPrimaryPillButton(
-                text = if (isFiltered) "Show All Shifts" else "Log your first shift",
-                onClick = if (isFiltered) onClearFilter else onLogFirstShift
+                text = "Log Shift",
+                onClick = onLogFirstShift
             )
         }
     }
@@ -722,7 +1044,10 @@ fun ShiftHistoryItemCard(
         color = colors.card,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(onClick = onEditNote)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

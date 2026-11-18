@@ -17,7 +17,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SavingsGoalEntity::class,
         SavingsDepositEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class ShiftlyDatabase : RoomDatabase() {
@@ -97,6 +97,17 @@ abstract class ShiftlyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "DELETE FROM shifts WHERE id NOT IN (SELECT MAX(id) FROM shifts GROUP BY dateEpochDay)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_shifts_dateEpochDay ON shifts(dateEpochDay)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): ShiftlyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -104,7 +115,7 @@ abstract class ShiftlyDatabase : RoomDatabase() {
                     ShiftlyDatabase::class.java,
                     "shiftly_offline.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .build()
                 INSTANCE = instance
                 instance

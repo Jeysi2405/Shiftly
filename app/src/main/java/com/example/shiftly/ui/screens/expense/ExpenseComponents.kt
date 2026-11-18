@@ -1290,12 +1290,14 @@ fun CategoryPromptSheet(
                     style = MaterialTheme.typography.headlineSmall.copy(fontFamily = PlusJakartaSans),
                     color = colors.textPrimary
                 )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_x),
-                        contentDescription = "Close",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(20.dp)
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.heightIn(min = 44.dp)
+                ) {
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -1424,18 +1426,14 @@ fun ReceiptViewerDialog(
                         )
                     }
 
-                    IconButton(
+                    TextButton(
                         onClick = onDismiss,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(colors.card)
+                        modifier = Modifier.heightIn(min = 44.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_x),
-                            contentDescription = "Close",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(20.dp)
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textSecondary
                         )
                     }
                 }

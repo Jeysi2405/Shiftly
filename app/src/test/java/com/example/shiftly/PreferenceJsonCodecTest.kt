@@ -4,6 +4,7 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.PreferenceJsonCodec
 import com.example.shiftly.data.local.RecurringEntrySetting
+import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -65,6 +66,27 @@ class PreferenceJsonCodecTest {
         )
         val encoded = PreferenceJsonCodec.encodeRecurringEntries(input)
         val decoded = PreferenceJsonCodec.decodeRecurringEntries(encoded)
+        assertEquals(input, decoded)
+    }
+
+    @Test
+    fun shiftTimePresets_defaultEmptyAndRoundTripViaJson() {
+        assertTrue(ShiftlySettingsSnapshot.DEFAULT_SHIFT_TIME_PRESETS.isEmpty())
+        assertTrue(PreferenceJsonCodec.decodeShiftTimePresets(null).isEmpty())
+        assertTrue(PreferenceJsonCodec.decodeShiftTimePresets("[]").isEmpty())
+
+        val input = listOf(
+            ShiftTimePreset(
+                id = "p_custom",
+                label = "9 AM – 5 PM",
+                startHour24 = 9,
+                startMinute = 0,
+                endHour24 = 17,
+                endMinute = 0
+            )
+        )
+        val encoded = PreferenceJsonCodec.encodeShiftTimePresets(input)
+        val decoded = PreferenceJsonCodec.decodeShiftTimePresets(encoded)
         assertEquals(input, decoded)
     }
 

@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -28,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,10 +37,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,11 +52,13 @@ import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.InkBlack
+import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.DayType
@@ -75,26 +81,51 @@ fun DutiesScreen(
     val locale = LocalConfiguration.current.locales[0]
 
     var showLogShiftSheet by remember { mutableStateOf(false) }
-    var showManagePresetsSheet by remember { mutableStateOf(false) }
+    var showDutiesSettingsSheet by remember { mutableStateOf(false) }
     var editingShift by remember { mutableStateOf<ShiftEntity?>(null) }
+    var pendingConfirmEditShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var pendingDeleteShift by remember { mutableStateOf<ShiftEntity?>(null) }
 
     DutiesScreenContent(
         state = state,
         onBack = onBack,
-        onOpenLogShift = { showLogShiftSheet = true },
-        onOpenManagePresets = { showManagePresetsSheet = true },
+        onOpenLogShift = {
+            val today = LocalDate.now()
+            val todayShift = state.shiftsByEpochDay[today.toEpochDay()]
+            if (todayShift != null) {
+                editingShift = todayShift
+                onShowMessage("Editing existing shift for today")
+            } else {
+                viewModel.setDutyDate(today)
+                showLogShiftSheet = true
+            }
+        },
+        onOpenSettings = { showDutiesSettingsSheet = true },
         onPreviousMonth = { viewModel.changeCalendarMonth(-1) },
         onNextMonth = { viewModel.changeCalendarMonth(1) },
-        onSelectCalendarDate = { viewModel.toggleCalendarDateFilter(it) },
-        onClearCalendarFilter = { viewModel.clearCalendarFilter() },
+        onSelectCalendarDate = { clickedDate ->
+            val existingShift = state.shiftsByEpochDay[clickedDate.toEpochDay()]
+            if (existingShift != null) {
+                pendingConfirmEditShift = existingShift
+            } else {
+                viewModel.setDutyDate(clickedDate)
+                showLogShiftSheet = true
+            }
+        },
         onEditShift = { editingShift = it },
         onDeleteShift = { pendingDeleteShift = it }
     )
 
-    if (showManagePresetsSheet) {
-        ManageShiftPresetsSheet(
+    if (showDutiesSettingsSheet) {
+        DutiesSettingsSheet(
+            defaultHourlyRate = state.defaultHourlyRate,
+            minimumWagePerDay = state.minimumWagePerDay,
+            currencySymbol = state.currencySymbol,
             presets = state.shiftTimePresets,
+            onSaveWageRates = { hourlyRate, minWagePerDay ->
+                viewModel.updateWageRates(hourlyRate, minWagePerDay)
+            },
+            onShowMessage = onShowMessage,
             onSavePreset = { sH, sM, eH, eM ->
                 viewModel.saveShiftTimePreset(sH, sM, eH, eM)
                 onShowMessage("Preset saved")
@@ -103,7 +134,7 @@ fun DutiesScreen(
                 viewModel.deleteShiftTimePreset(presetId)
                 onShowMessage("Preset removed")
             },
-            onDismiss = { showManagePresetsSheet = false }
+            onDismiss = { showDutiesSettingsSheet = false }
         )
     }
 
@@ -115,6 +146,13 @@ fun DutiesScreen(
             presets = state.shiftTimePresets,
             title = "Log Shift",
             confirmButtonText = "Save Shift",
+            blockedEpochDays = state.loggedEpochDays,
+            onSwitchToEdit = { duplicateDate ->
+                state.shiftsByEpochDay[duplicateDate.toEpochDay()]?.let { existing ->
+                    showLogShiftSheet = false
+                    editingShift = existing
+                }
+            },
             onSavePreset = { sH, sM, eH, eM ->
                 viewModel.saveShiftTimePreset(sH, sM, eH, eM)
                 onShowMessage("Preset saved")
@@ -132,10 +170,90 @@ fun DutiesScreen(
                     endHour = eH,
                     endMinute = eM,
                     overtimeNote = note,
-                    dayType = dayType
+                    dayType = dayType,
+                    onResult = { saved ->
+                        if (saved) {
+                            showLogShiftSheet = false
+                            onShowMessage("Shift logged")
+                        } else {
+                            onShowMessage("A shift is already logged for this date")
+                        }
+                    }
                 )
-                showLogShiftSheet = false
-                onShowMessage("Shift logged")
+            }
+        )
+    }
+
+    pendingConfirmEditShift?.let { shiftToConfirm ->
+        val colors = ShiftlyColors.current
+        AlertDialog(
+            onDismissRequest = { pendingConfirmEditShift = null },
+            containerColor = colors.card,
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(colors.azureContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_square_pen),
+                        contentDescription = null,
+                        tint = colors.azureInk,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    text = "Edit Shift",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = colors.textPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to edit the shift for this day?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = colors.textSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        editingShift = shiftToConfirm
+                        pendingConfirmEditShift = null
+                    },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.azurePrimary,
+                        contentColor = colors.onAzurePrimary
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp
+                    )
+                ) {
+                    Text(
+                        text = "Edit Shift",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingConfirmEditShift = null }) {
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans
+                        ),
+                        color = colors.textSecondary
+                    )
+                }
             }
         )
     }
@@ -166,6 +284,7 @@ fun DutiesScreen(
             initialNote = targetShift.overtimeNote,
             initialDayType = initialDayType,
             showPresets = false,
+            blockedEpochDays = state.loggedEpochDays - targetShift.dateEpochDay,
             onDismiss = { editingShift = null },
             onSave = { date, sH, sM, eH, eM, note, dayType ->
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -177,10 +296,16 @@ fun DutiesScreen(
                     endHour = eH,
                     endMinute = eM,
                     dayType = dayType,
-                    overtimeNote = note
+                    overtimeNote = note,
+                    onResult = { updated ->
+                        if (updated) {
+                            editingShift = null
+                            onShowMessage("Shift updated")
+                        } else {
+                            onShowMessage("A shift is already logged for that date")
+                        }
+                    }
                 )
-                editingShift = null
-                onShowMessage("Shift updated")
             }
         )
     }
@@ -208,19 +333,16 @@ fun DutiesScreenContent(
     state: DutiesUiState,
     onBack: () -> Unit = {},
     onOpenLogShift: () -> Unit = {},
-    onOpenManagePresets: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onPreviousMonth: () -> Unit = {},
     onNextMonth: () -> Unit = {},
     onSelectCalendarDate: (LocalDate) -> Unit = {},
-    onClearCalendarFilter: () -> Unit = {},
     onEditShift: (ShiftEntity) -> Unit = {},
     onDeleteShift: (ShiftEntity) -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     todayOverride: LocalDate? = null
 ) {
     val colors = ShiftlyColors.current
-    val locale = LocalConfiguration.current.locales[0]
-    val filterDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
 
     LazyColumn(
         state = listState,
@@ -230,7 +352,7 @@ fun DutiesScreenContent(
         contentPadding = PaddingValues(top = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 0. Screen Header with Back & Actions
+        // 0. Screen Header with Back & Settings Action
         item {
             Row(
                 modifier = Modifier
@@ -261,42 +383,16 @@ fun DutiesScreenContent(
                     )
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                IconButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.size(40.dp)
                 ) {
-                    IconButton(
-                        onClick = onOpenManagePresets,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_settings),
-                            contentDescription = "Preset Settings",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    Button(
-                        onClick = onOpenLogShift,
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.azurePrimary,
-                            contentColor = colors.onAzurePrimary
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 0.dp,
-                            pressedElevation = 0.dp
-                        ),
-                        contentPadding = PaddingValues(0.dp),
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_plus),
-                            contentDescription = "Log Shift",
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_settings),
+                        contentDescription = "Duties Settings",
+                        tint = colors.textPrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
             }
         }
@@ -309,7 +405,9 @@ fun DutiesScreenContent(
                     monthlyTotalHours = state.monthlyTotalHours,
                     timeBreakdown = state.monthlyTimeBreakdown,
                     currencySymbol = state.currencySymbol,
-                    displayedMonth = state.displayedMonth
+                    displayedMonth = state.displayedMonth,
+                    defaultHourlyRate = state.defaultHourlyRate,
+                    onOpenSettings = onOpenSettings
                 )
             }
         }
@@ -320,25 +418,34 @@ fun DutiesScreenContent(
                 ShiftCalendarCard(
                     displayedMonth = state.displayedMonth,
                     loggedEpochDays = state.loggedEpochDays,
-                    selectedCalendarDate = state.selectedCalendarDate,
                     onPreviousMonth = onPreviousMonth,
                     onNextMonth = onNextMonth,
                     onSelectDate = onSelectCalendarDate,
-                    onClearFilter = onClearCalendarFilter,
                     todayOverride = todayOverride
                 )
             }
         }
 
-        // 3. Bottom Sheet Surface for Shift History
+        // 2b. Prominent Log Shift Action Button
         item {
-            val filterDate = state.selectedCalendarDate
-            val headerTitle = if (filterDate != null) {
-                "Shifts (${filterDate.format(filterDateFormatter)})"
-            } else {
-                "Shift History"
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ShiftlyPrimaryPillButton(
+                    text = "Log Shift",
+                    onClick = onOpenLogShift,
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_plus),
+                            contentDescription = null,
+                            tint = colors.onAzurePrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
             }
+        }
 
+        // 3. Bottom Sheet Surface for Monthly Shift History
+        item {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -357,16 +464,14 @@ fun DutiesScreenContent(
                     ShiftlySheetDragHandle()
 
                     ShiftlySectionHeader(
-                        title = headerTitle,
+                        title = "Shift History",
                         count = state.displayedShifts.size,
                         onLightSurface = true
                     )
 
                     if (state.displayedShifts.isEmpty()) {
                         ShiftHistoryEmptyCard(
-                            isFiltered = filterDate != null,
-                            onLogFirstShift = onOpenLogShift,
-                            onClearFilter = onClearCalendarFilter
+                            onLogFirstShift = onOpenLogShift
                         )
                     } else {
                         state.displayedShifts.forEachIndexed { idx, shift ->
@@ -416,7 +521,6 @@ private fun DutiesDefaultPreview() {
                     onPreviousMonth = {},
                     onNextMonth = {},
                     onSelectCalendarDate = {},
-                    onClearCalendarFilter = {},
                     onEditShift = {},
                     onDeleteShift = {},
                     todayOverride = today
@@ -453,7 +557,6 @@ private fun DutiesLogShiftSheetPreview() {
                     onPreviousMonth = {},
                     onNextMonth = {},
                     onSelectCalendarDate = {},
-                    onClearCalendarFilter = {},
                     onEditShift = {},
                     onDeleteShift = {},
                     todayOverride = today
@@ -546,7 +649,6 @@ private fun DutiesHistoryFilledPreview() {
         currencySymbol = "₱",
         selectedDutyDate = today,
         displayedMonth = YearMonth.from(today),
-        selectedCalendarDate = day1,
         monthlyTotalEarnings = 1821.59,
         monthlyTotalHours = 18.5,
         monthlyTimeBreakdown = TimeBreakdown(
@@ -555,6 +657,7 @@ private fun DutiesHistoryFilledPreview() {
             overtimeHours = 2.0
         ),
         loggedEpochDays = setOf(day1.toEpochDay(), day2.toEpochDay(), day3.toEpochDay()),
+        shiftsByEpochDay = sampleShifts.associateBy { it.dateEpochDay },
         displayedShifts = sampleShifts,
         totalAllShiftsCount = sampleShifts.size
     )
@@ -568,7 +671,6 @@ private fun DutiesHistoryFilledPreview() {
                     onPreviousMonth = {},
                     onNextMonth = {},
                     onSelectCalendarDate = {},
-                    onClearCalendarFilter = {},
                     onEditShift = {},
                     onDeleteShift = {},
                     listState = rememberLazyListState(initialFirstVisibleItemIndex = 2),

@@ -99,12 +99,7 @@ data class ShiftlySettingsSnapshot(
 
         val DEFAULT_RECURRING_ENTRIES: List<RecurringEntrySetting> = emptyList()
 
-        val DEFAULT_SHIFT_TIME_PRESETS = listOf(
-            ShiftTimePreset("p_12am_6am", "12 AM – 6 AM", 0, 0, 6, 0),
-            ShiftTimePreset("p_9am_1pm", "9 AM – 1 PM", 9, 0, 13, 0),
-            ShiftTimePreset("p_2pm_6pm", "2 PM – 6 PM", 14, 0, 18, 0),
-            ShiftTimePreset("p_6pm_11pm", "6 PM – 11 PM", 18, 0, 23, 0)
-        )
+        val DEFAULT_SHIFT_TIME_PRESETS: List<ShiftTimePreset> = emptyList()
     }
 }
 

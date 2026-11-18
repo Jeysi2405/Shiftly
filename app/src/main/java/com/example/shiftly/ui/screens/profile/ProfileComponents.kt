@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -52,11 +53,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -65,6 +66,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -179,285 +181,6 @@ fun ProfileSnapshotGlassCard(
                     valueColor = colors.coralTextOnSurface,
                     modifier = Modifier.weight(1f)
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun ProfileWageRateCard(
-    defaultHourlyRate: Double,
-    minimumWagePerDay: Double,
-    currencySymbol: String,
-    onSaveRates: (hourlyRate: Double, minimumWagePerDay: Double) -> Unit,
-    onShowMessage: (String) -> Unit
-) {
-    val colors = ShiftlyColors.current
-    val haptics = LocalHapticFeedback.current
-    var hasInitializedMode by remember { mutableStateOf(false) }
-    var isEditing by remember { mutableStateOf(defaultHourlyRate <= 0.0) }
-    var hourlyInput by remember {
-        mutableStateOf(if (defaultHourlyRate > 0.0) formatEditableNumber(defaultHourlyRate) else "")
-    }
-    var minWageInput by remember {
-        mutableStateOf(if (minimumWagePerDay > 0.0) formatEditableNumber(minimumWagePerDay) else "")
-    }
-
-    LaunchedEffect(defaultHourlyRate, minimumWagePerDay) {
-        if (!hasInitializedMode && (defaultHourlyRate > 0.0 || minimumWagePerDay > 0.0)) {
-            hasInitializedMode = true
-            isEditing = defaultHourlyRate <= 0.0
-        }
-        if (!isEditing) {
-            hourlyInput = if (defaultHourlyRate > 0.0) formatEditableNumber(defaultHourlyRate) else ""
-            minWageInput = if (minimumWagePerDay > 0.0) formatEditableNumber(minimumWagePerDay) else ""
-        }
-    }
-
-    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(colors.mintContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_banknote),
-                            contentDescription = null,
-                            tint = colors.mintTextOnSurface,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                    Text(
-                        text = "WAGE & RATE SETTINGS",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.8.sp
-                        ),
-                        color = colors.textSecondary
-                    )
-                }
-
-                if (!isEditing) {
-                    IconButton(
-                        onClick = {
-                            hourlyInput = if (defaultHourlyRate > 0.0) formatEditableNumber(defaultHourlyRate) else ""
-                            minWageInput = if (minimumWagePerDay > 0.0) formatEditableNumber(minimumWagePerDay) else ""
-                            isEditing = true
-                        },
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(colors.cardElevated)
-                            .border(1.dp, colors.border, CircleShape)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_pencil),
-                            contentDescription = "Edit wage rates",
-                            tint = colors.azureAccent,
-                            modifier = Modifier.size(19.dp)
-                        )
-                    }
-                } else if (defaultHourlyRate > 0.0) {
-                    TextButton(
-                        onClick = {
-                            hourlyInput = formatEditableNumber(defaultHourlyRate)
-                            minWageInput = if (minimumWagePerDay > 0.0) formatEditableNumber(minimumWagePerDay) else ""
-                            isEditing = false
-                        },
-                        modifier = Modifier.heightIn(min = 44.dp)
-                    ) {
-                        Text(
-                            text = "Cancel",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
-                            color = colors.textSecondary
-                        )
-                    }
-                }
-            }
-
-            if (!isEditing) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    GlassSnapshotTile(
-                        label = "Hourly Rate",
-                        value = "${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr",
-                        valueColor = colors.mintTextOnSurface,
-                        modifier = Modifier.weight(1f)
-                    )
-                    GlassSnapshotTile(
-                        label = "Min Wage / Day",
-                        value = if (minimumWagePerDay > 0.0) {
-                            "${ShiftlyFormatters.formatCurrency(currencySymbol, minimumWagePerDay)}/day"
-                        } else {
-                            "Not set"
-                        },
-                        valueColor = if (minimumWagePerDay > 0.0) colors.textPrimary else colors.textMuted,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedTextField(
-                        value = hourlyInput,
-                        onValueChange = { hourlyInput = filterSingleDecimalInput(it, hourlyInput) },
-                        label = { Text("Hourly ($currencySymbol/hr)", fontFamily = PlusJakartaSans) },
-                        placeholder = {
-                            Text(
-                                text = "0",
-                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                                color = colors.textMuted
-                            )
-                        },
-                        prefix = {
-                            Text(
-                                text = currencySymbol,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontFamily = PlusJakartaSans,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = colors.textPrimary
-                            )
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = shiftlySheetFieldColors(),
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    OutlinedTextField(
-                        value = minWageInput,
-                        onValueChange = { minWageInput = filterSingleDecimalInput(it, minWageInput) },
-                        label = { Text("Min Wage/Day", fontFamily = PlusJakartaSans) },
-                        placeholder = {
-                            Text(
-                                text = "0",
-                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                                color = colors.textMuted
-                            )
-                        },
-                        prefix = {
-                            Text(
-                                text = currencySymbol,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontFamily = PlusJakartaSans,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = colors.textPrimary
-                            )
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = shiftlySheetFieldColors(),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                val parsedMinWageForHelper = minWageInput.toDoubleOrNull()
-                if (parsedMinWageForHelper != null && parsedMinWageForHelper.isFinite() && parsedMinWageForHelper > 0.0) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val derivedHourly = parsedMinWageForHelper / 8.0
-                        Text(
-                            text = "8h equivalent: ${ShiftlyFormatters.formatCurrency(currencySymbol, derivedHourly)}/hr",
-                            style = MaterialTheme.typography.bodySmall.tabular(),
-                            color = colors.textSecondary
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = colors.azureContainer,
-                            border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.45f)),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .clickable {
-                                    hourlyInput = formatEditableNumber(derivedHourly)
-                                }
-                        ) {
-                            Text(
-                                text = "Use ÷ 8h",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = PlusJakartaSans,
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = colors.azureInk,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                            )
-                        }
-                    }
-                }
-
-                Button(
-                    onClick = {
-                        val parsedMinWage = (minWageInput.toDoubleOrNull() ?: 0.0)
-                            .takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
-                        val rawHourly = hourlyInput.toDoubleOrNull()
-                        val resolvedHourly = when {
-                            rawHourly != null && rawHourly.isFinite() && rawHourly > 0.0 -> rawHourly
-                            parsedMinWage > 0.0 -> parsedMinWage / 8.0
-                            else -> 0.0
-                        }
-                        if (!resolvedHourly.isFinite() || resolvedHourly <= 0.0) {
-                            onShowMessage("Enter an hourly rate or daily minimum wage above 0")
-                            return@Button
-                        }
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onSaveRates(resolvedHourly, parsedMinWage)
-                        hourlyInput = formatEditableNumber(resolvedHourly)
-                        minWageInput = if (parsedMinWage > 0.0) formatEditableNumber(parsedMinWage) else ""
-                        isEditing = false
-                        onShowMessage("Wage settings saved")
-                    },
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.azurePrimary,
-                        contentColor = colors.onAzurePrimary
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 50.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_check),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Save",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.onAzurePrimary
-                    )
-                }
             }
         }
     }
@@ -720,15 +443,14 @@ fun SettingsSheetContainer(
                     color = colors.textPrimary
                 )
                 if (showTopClose) {
-                    IconButton(
+                    TextButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.heightIn(min = 44.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_x),
-                            contentDescription = "Close",
-                            tint = colors.textSecondary,
-                            modifier = Modifier.size(20.dp)
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textSecondary
                         )
                     }
                 }
@@ -911,7 +633,7 @@ fun AccountEditSheetContent(
         modifier = Modifier.fillMaxWidth()
     )
     Text(
-        text = "Hourly rate: ${ShiftlyFormatters.formatCurrency(currencySymbol, hourlyRate)}/hr (edit on Wage & Rate card)",
+        text = "Hourly rate: ${ShiftlyFormatters.formatCurrency(currencySymbol, hourlyRate)}/hr (edit in Duties & Shifts settings)",
         style = MaterialTheme.typography.bodySmall.tabular(),
         color = colors.textSecondary
     )
@@ -1128,112 +850,33 @@ fun NotificationsSheetContent(
         shadowElevation = 0.dp
     ) {
         Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Allow Notifications",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = colors.textPrimary
-                    )
-                    Text(
-                        text = "Master toggle for all reminders",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary
-                    )
-                }
-                Switch(
-                    checked = masterEnabled,
-                    onCheckedChange = { masterEnabled = it },
-                    colors = shiftlySwitchColors()
-                )
-            }
+            NotificationToggleRow(
+                title = "Allow Notifications",
+                checked = masterEnabled,
+                enabled = true,
+                onCheckedChange = { masterEnabled = it }
+            )
             HorizontalDivider(color = colors.border)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Recurring Bills Due",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = colors.textPrimary
-                    )
-                    Text(
-                        text = "Remind less than 1 day before due date",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary
-                    )
-                }
-                Switch(
-                    checked = masterEnabled && billRem,
-                    enabled = masterEnabled,
-                    onCheckedChange = { billRem = it },
-                    colors = shiftlySwitchColors()
-                )
-            }
+            NotificationToggleRow(
+                title = "Recurring Bills Due",
+                checked = masterEnabled && billRem,
+                enabled = masterEnabled,
+                onCheckedChange = { billRem = it }
+            )
             HorizontalDivider(color = colors.border)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Log Shift Reminder",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = colors.textPrimary
-                    )
-                    Text(
-                        text = "Daily reminder if no shift logged",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary
-                    )
-                }
-                Switch(
-                    checked = masterEnabled && shiftRem,
-                    enabled = masterEnabled,
-                    onCheckedChange = { shiftRem = it },
-                    colors = shiftlySwitchColors()
-                )
-            }
+            NotificationToggleRow(
+                title = "Log Shift Reminder",
+                checked = masterEnabled && shiftRem,
+                enabled = masterEnabled,
+                onCheckedChange = { shiftRem = it }
+            )
             HorizontalDivider(color = colors.border)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Savings & Deposit",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = colors.textPrimary
-                    )
-                    Text(
-                        text = "Remind to log saving & add deposit",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary
-                    )
-                }
-                Switch(
-                    checked = masterEnabled && savingsRem,
-                    enabled = masterEnabled,
-                    onCheckedChange = { savingsRem = it },
-                    colors = shiftlySwitchColors()
-                )
-            }
+            NotificationToggleRow(
+                title = "Savings & Deposit",
+                checked = masterEnabled && savingsRem,
+                enabled = masterEnabled,
+                onCheckedChange = { savingsRem = it }
+            )
         }
     }
 
@@ -1241,6 +884,40 @@ fun NotificationsSheetContent(
         text = "Save Notifications",
         onClick = { onSave(masterEnabled, billRem, shiftRem, savingsRem) }
     )
+}
+
+@Composable
+private fun NotificationToggleRow(
+    title: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val colors = ShiftlyColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall.copy(
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.SemiBold
+            ),
+            color = colors.textPrimary,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            enabled = enabled,
+            onCheckedChange = onCheckedChange,
+            colors = shiftlySwitchColors()
+        )
+    }
 }
 
 @Composable
@@ -1280,6 +957,7 @@ fun BudgetsEditorSheetContent(
     currentMonthlyBudget: Double,
     currentCategoryBudgets: List<CategoryBudgetSetting>,
     managedCategories: List<ManagedCategorySetting> = emptyList(),
+    onManageCategories: (() -> Unit)? = null,
     onDismiss: () -> Unit = {},
     onSave: (Double, List<CategoryBudgetSetting>) -> Unit
 ) {
@@ -1287,7 +965,7 @@ fun BudgetsEditorSheetContent(
     var monthlyInput by remember {
         mutableStateOf(if (currentMonthlyBudget > 0.0) formatEditableNumber(currentMonthlyBudget) else "")
     }
-    val editedBudgets = remember(currentCategoryBudgets, managedCategories) {
+    val editedBudgets = remember(currentCategoryBudgets) {
         mutableStateListOf<Pair<String, String>>().apply {
             val seen = mutableSetOf<String>()
             currentCategoryBudgets.forEach { item ->
@@ -1312,77 +990,291 @@ fun BudgetsEditorSheetContent(
         }
     }
 
-    OutlinedTextField(
-        value = monthlyInput,
-        onValueChange = { monthlyInput = filterSingleDecimalInput(it, monthlyInput) },
-        label = { Text("Monthly Budget ($currencySymbol)", fontFamily = PlusJakartaSans) },
-        placeholder = {
-            Text(
-                text = "What is your monthly budget?",
-                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                color = colors.textMuted
-            )
-        },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        shape = RoundedCornerShape(16.dp),
-        colors = shiftlySheetFieldColors(),
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    Text("Per-Category Limits", style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
-    editedBudgets.forEachIndexed { idx, (cat, limitStr) ->
-        OutlinedTextField(
-            value = limitStr,
-            onValueChange = { updated ->
-                editedBudgets[idx] = cat to filterSingleDecimalInput(updated, limitStr)
-            },
-            label = { Text("$cat ($currencySymbol)", fontFamily = PlusJakartaSans) },
-            placeholder = {
-                Text(
-                    text = "Optional monthly cap",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                    color = colors.textMuted
-                )
-            },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            shape = RoundedCornerShape(14.dp),
-            colors = shiftlySheetFieldColors(),
-            modifier = Modifier.fillMaxWidth()
-        )
+    LaunchedEffect(managedCategories) {
+        val visibleNames = managedCategories
+            .filter {
+                it.isVisible &&
+                    it.name.isNotBlank() &&
+                    !it.name.equals("Split Bill", ignoreCase = true) &&
+                    !it.name.equals("All", ignoreCase = true)
+            }
+            .map { it.name.trim() }
+        val visibleKeys = visibleNames.map { it.lowercase() }.toSet()
+        val existingByKey = editedBudgets.associate { it.first.lowercase() to it.second }
+        val budgetKeys = currentCategoryBudgets.map { it.category.trim().lowercase() }.toSet()
+        val rebuilt = mutableListOf<Pair<String, String>>()
+        val seen = mutableSetOf<String>()
+        editedBudgets.forEach { (name, value) ->
+            val key = name.lowercase()
+            if ((key in visibleKeys || (key in budgetKeys && value.isNotBlank())) && seen.add(key)) {
+                rebuilt.add(name to value)
+            }
+        }
+        visibleNames.forEach { name ->
+            val key = name.lowercase()
+            if (seen.add(key)) {
+                rebuilt.add(name to (existingByKey[key] ?: ""))
+            }
+        }
+        if (rebuilt != editedBudgets.toList()) {
+            editedBudgets.clear()
+            editedBudgets.addAll(rebuilt)
+        }
     }
 
-    ShiftlyPrimaryPillButton(
-        text = "Save Budgets",
-        onClick = {
-            val parsedMonthly = monthlyInput.toDoubleOrNull()
-            val monthly = when {
-                monthlyInput.isBlank() -> 0.0
-                parsedMonthly != null && parsedMonthly.isFinite() && parsedMonthly >= 0.0 -> parsedMonthly
-                else -> currentMonthlyBudget
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = colors.card,
+            border = BorderStroke(1.dp, colors.cardBorder),
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Monthly Budget",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = colors.textPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                CompactBudgetAmountField(
+                    currencySymbol = currencySymbol,
+                    value = monthlyInput,
+                    onValueChange = { monthlyInput = filterSingleDecimalInput(it, monthlyInput) },
+                    placeholder = "Optional",
+                    modifier = Modifier.width(132.dp)
+                )
             }
-            val list = editedBudgets.mapNotNull { (cat, raw) ->
-                val limit = raw.toDoubleOrNull()
-                if (limit != null && limit.isFinite() && limit > 0.0) CategoryBudgetSetting(cat, limit) else null
-            }
-            onSave(monthly, list)
         }
-    )
 
-    OutlinedButton(
-        onClick = onDismiss,
-        shape = RoundedCornerShape(50),
-        border = BorderStroke(1.dp, colors.border),
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
+        if (editedBudgets.isNotEmpty()) {
+            Text(
+                text = "Per-Category Limits",
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = colors.textPrimary,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = colors.card,
+                border = BorderStroke(1.dp, colors.cardBorder),
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    editedBudgets.forEachIndexed { idx, (cat, limitStr) ->
+                        if (idx > 0) {
+                            HorizontalDivider(
+                                color = colors.border,
+                                modifier = Modifier.padding(start = 50.dp)
+                            )
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 46.dp)
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.coralContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(categoryIcon(cat)),
+                                    contentDescription = null,
+                                    tint = colors.coralInk,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                            Text(
+                                text = cat,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = colors.textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            CompactBudgetAmountField(
+                                currencySymbol = currencySymbol,
+                                value = limitStr,
+                                onValueChange = { updated ->
+                                    editedBudgets[idx] = cat to filterSingleDecimalInput(updated, limitStr)
+                                },
+                                placeholder = "No cap",
+                                modifier = Modifier.width(114.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (onManageCategories != null) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = colors.card,
+                border = BorderStroke(1.dp, colors.cardBorder),
+                shadowElevation = 0.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(onClick = onManageCategories)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(colors.azureContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_tags),
+                            contentDescription = null,
+                            tint = colors.azureInk,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                    Text(
+                        text = "Manage Categories",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.textPrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                        contentDescription = "Manage Categories",
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.size(2.dp))
+
+        ShiftlyPrimaryPillButton(
+            text = "Save Budgets",
+            onClick = {
+                val parsedMonthly = monthlyInput.toDoubleOrNull()
+                val monthly = when {
+                    monthlyInput.isBlank() -> 0.0
+                    parsedMonthly != null && parsedMonthly.isFinite() && parsedMonthly >= 0.0 -> parsedMonthly
+                    else -> currentMonthlyBudget
+                }
+                val list = editedBudgets.mapNotNull { (cat, raw) ->
+                    val limit = raw.toDoubleOrNull()
+                    if (limit != null && limit.isFinite() && limit > 0.0) CategoryBudgetSetting(cat, limit) else null
+                }
+                onSave(monthly, list)
+            }
+        )
+    }
+}
+
+@Composable
+private fun CompactBudgetAmountField(
+    currencySymbol: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    var isFocused by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier
+            .heightIn(min = 36.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(colors.surface)
+            .border(
+                width = 1.dp,
+                color = if (isFocused) colors.azureAccent else colors.border,
+                shape = RoundedCornerShape(10.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         Text(
-            text = "Close",
-            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+            text = currencySymbol,
+            style = MaterialTheme.typography.bodySmall.copy(
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.SemiBold
+            ),
             color = colors.textSecondary
         )
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.CenterEnd
+        ) {
+            if (value.isEmpty()) {
+                Text(
+                    text = placeholder,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = colors.textMuted,
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                cursorBrush = SolidColor(colors.azureAccent),
+                textStyle = MaterialTheme.typography.titleSmall.copy(
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.End
+                ).tabular(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { isFocused = it.isFocused }
+            )
+        }
     }
 }
 

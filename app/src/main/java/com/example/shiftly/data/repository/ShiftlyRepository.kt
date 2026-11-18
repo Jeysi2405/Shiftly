@@ -1,6 +1,7 @@
 package com.example.shiftly.data.repository
 
 import android.content.Context
+import android.database.sqlite.SQLiteConstraintException
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import androidx.room.withTransaction
@@ -178,14 +179,35 @@ class ShiftlyRepository(private val context: Context) {
         prefs.startActiveTimer(startMillis, dateEpochDay, lockedRate)
     suspend fun stopShiftTimer() = prefs.clearActiveTimer()
 
-    // Shifts
+    // Shifts (one shift per dateEpochDay enforced at repository + DB levels)
     val allShifts: Flow<List<ShiftEntity>> = shiftDao.getAllShifts()
     val totalShiftCount: Flow<Int> = shiftDao.getTotalShiftCount()
     val totalMinutesWorked: Flow<Int?> = shiftDao.getTotalMinutesWorked()
     val totalLifetimeEarnings: Flow<Double?> = shiftDao.getTotalLifetimeEarnings()
 
-    suspend fun insertShift(shift: ShiftEntity): Long = shiftDao.insertShift(shift)
-    suspend fun updateShift(shift: ShiftEntity) = shiftDao.updateShift(shift)
+    suspend fun getShiftByDateOnce(dateEpochDay: Long): ShiftEntity? =
+        shiftDao.getShiftByDateOnce(dateEpochDay)
+
+    suspend fun insertShift(shift: ShiftEntity): Long {
+        if (shiftDao.getShiftByDateOnce(shift.dateEpochDay) != null) return -1L
+        return try {
+            shiftDao.insertShift(shift)
+        } catch (_: SQLiteConstraintException) {
+            -1L
+        }
+    }
+
+    suspend fun updateShift(shift: ShiftEntity): Boolean {
+        val conflict = shiftDao.getShiftByDateOnce(shift.dateEpochDay)
+        if (conflict != null && conflict.id != shift.id) return false
+        return try {
+            shiftDao.updateShift(shift)
+            true
+        } catch (_: SQLiteConstraintException) {
+            false
+        }
+    }
+
     suspend fun deleteShift(shift: ShiftEntity) = shiftDao.deleteShift(shift)
 
     // Extra Incomes (Recurring / Bonus income)
@@ -573,17 +595,16 @@ class ShiftlyRepository(private val context: Context) {
                 savingsGoalDao.deleteAllSavingsGoals()
             }
 
-            val existingShifts = if (mode == RestoreMode.MERGE) {
+            val existingShiftDates = if (mode == RestoreMode.MERGE) {
                 shiftDao.getAllShiftsOnce().asSequence()
-                    .map { BackupCodec.shiftSignature(it) }
+                    .map { it.dateEpochDay }
                     .toMutableSet()
             } else {
                 mutableSetOf()
             }
 
             payload.shifts.forEach { shift ->
-                val sig = BackupCodec.shiftSignature(shift)
-                if (mode == RestoreMode.REPLACE || existingShifts.add(sig)) {
+                if (existingShiftDates.add(shift.dateEpochDay)) {
                     shiftDao.insertShift(shift.copy(id = 0L))
                     restoredShiftsCount++
                 }

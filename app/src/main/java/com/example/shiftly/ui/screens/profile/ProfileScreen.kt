@@ -84,7 +84,6 @@ private enum class ActiveSettingsSheet {
     NOTIFICATIONS,
     THEME,
     BUDGETS,
-    CATEGORIES,
     RECURRING,
     APP_LOCK,
     BACKUP_EXPORT
@@ -271,10 +270,6 @@ fun ProfileScreen(
     ProfileScreenContent(
         state = state,
         onAvatarClick = launchProfilePhotoPicker,
-        onSaveWageRates = { hourlyRate, minWagePerDay ->
-            viewModel.updateWageRates(hourlyRate, minWagePerDay)
-        },
-        onShowMessage = onShowMessage,
         onOpenSheet = { activeSheet = it },
         onOpenSavingsGoals = {
             if (state.savingsGoals.isEmpty()) {
@@ -453,7 +448,6 @@ fun ProfileScreen(
         ActiveSettingsSheet.BUDGETS -> {
             SettingsSheetContainer(
                 title = "Monthly & Category Budgets",
-                showTopClose = false,
                 onDismiss = { activeSheet = null }
             ) {
                 BudgetsEditorSheetContent(
@@ -466,22 +460,6 @@ fun ProfileScreen(
                         viewModel.updateBudgets(monthly, categoryList)
                         activeSheet = null
                         onShowMessage("Budgets saved")
-                    }
-                )
-            }
-        }
-
-        ActiveSettingsSheet.CATEGORIES -> {
-            SettingsSheetContainer(
-                title = "Manage Categories",
-                onDismiss = { activeSheet = null }
-            ) {
-                ManageCategoriesSheetContent(
-                    currentCategories = state.settings.managedCategories,
-                    onSave = { updated ->
-                        viewModel.updateManagedCategories(updated)
-                        activeSheet = null
-                        onShowMessage("Categories updated")
                     }
                 )
             }
@@ -584,8 +562,6 @@ fun ProfileScreen(
 private fun ProfileScreenContent(
     state: ProfileUiState,
     onAvatarClick: () -> Unit,
-    onSaveWageRates: (hourlyRate: Double, minimumWagePerDay: Double) -> Unit,
-    onShowMessage: (String) -> Unit,
     onOpenSheet: (ActiveSettingsSheet) -> Unit,
     onOpenSavingsGoals: () -> Unit,
     onToggleNotifications: (Boolean) -> Unit,
@@ -679,18 +655,6 @@ private fun ProfileScreenContent(
         }
 
         item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                ProfileWageRateCard(
-                    defaultHourlyRate = state.defaultHourlyRate,
-                    minimumWagePerDay = state.minimumWagePerDay,
-                    currencySymbol = currency,
-                    onSaveRates = onSaveWageRates,
-                    onShowMessage = onShowMessage
-                )
-            }
-        }
-
-        item {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -724,7 +688,6 @@ private fun ProfileScreenContent(
                         SettingsChevronRow(
                             iconRes = R.drawable.ic_lucide_circle_dollar_sign,
                             title = "Currency",
-                            trailingBadge = currency,
                             iconBg = colors.mintContainer,
                             iconTint = colors.mintInk,
                             onClick = { onOpenSheet(ActiveSettingsSheet.CURRENCY) }
@@ -752,14 +715,6 @@ private fun ProfileScreenContent(
                         )
                     }
 
-                    SettingsGroupCard(groupTitle = "CATEGORIES & PREFERENCES") {
-                        SettingsChevronRow(
-                            iconRes = R.drawable.ic_lucide_tags,
-                            title = "Manage Categories",
-                            onClick = { onOpenSheet(ActiveSettingsSheet.CATEGORIES) }
-                        )
-                    }
-
                     SettingsGroupCard(groupTitle = "SECURITY & DATA EXPORT") {
                         SettingsSwitchRow(
                             iconRes = R.drawable.ic_lucide_fingerprint,
@@ -774,7 +729,6 @@ private fun ProfileScreenContent(
                         SettingsChevronRow(
                             iconRes = R.drawable.ic_lucide_cloud_upload,
                             title = "Data Export & Restore",
-                            trailingBadge = "ZIP • PDF",
                             onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }
                         )
                     }
@@ -812,7 +766,6 @@ private fun shareExportFile(
 private fun previewProfileState(): ProfileUiState = ProfileUiState(
     userName = "James",
     defaultHourlyRate = 96.38,
-    minimumWagePerDay = 645.0,
     currencySymbol = "₱",
     monthlyBudget = 3000.0,
     savingsBuffer = 0.0,
@@ -866,7 +819,7 @@ private fun previewProfileState(): ProfileUiState = ProfileUiState(
     )
 )
 
-@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "3. Profile Snapshot & Wage")
+@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "3. Profile Snapshot & Settings")
 @Composable
 private fun ProfileSnapshotAndBackupPreview() {
     ShiftlyTheme {
@@ -875,8 +828,6 @@ private fun ProfileSnapshotAndBackupPreview() {
                 ProfileScreenContent(
                     state = previewProfileState(),
                     onAvatarClick = {},
-                    onSaveWageRates = { _, _ -> },
-                    onShowMessage = {},
                     onOpenSheet = {},
                     onOpenSavingsGoals = {},
                     onToggleNotifications = {},
@@ -902,13 +853,11 @@ private fun ProfileSettingsListPreview() {
                 ProfileScreenContent(
                     state = previewProfileState(),
                     onAvatarClick = {},
-                    onSaveWageRates = { _, _ -> },
-                    onShowMessage = {},
                     onOpenSheet = {},
                     onOpenSavingsGoals = {},
                     onToggleNotifications = {},
                     onToggleAppLock = {},
-                    listState = rememberLazyListState(initialFirstVisibleItemIndex = 3)
+                    listState = rememberLazyListState(initialFirstVisibleItemIndex = 2)
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,

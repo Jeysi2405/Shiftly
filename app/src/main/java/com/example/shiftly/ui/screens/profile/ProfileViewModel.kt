@@ -23,7 +23,6 @@ data class ProfileUiState(
     val userName: String = "",
     val profilePhotoPath: String? = null,
     val defaultHourlyRate: Double = 0.0,
-    val minimumWagePerDay: Double = 0.0,
     val currencySymbol: String = "₱",
     val monthlyBudget: Double = 0.0,
     val savingsBuffer: Double = 0.0,
@@ -43,7 +42,6 @@ class ProfileViewModel(
         val userName: String,
         val profilePhotoPath: String?,
         val defaultHourlyRate: Double,
-        val minimumWagePerDay: Double,
         val currencySymbol: String,
         val monthlyBudget: Double,
         val savingsBuffer: Double
@@ -59,10 +57,9 @@ class ProfileViewModel(
     private val identityPrefsFlow = combine(
         repository.userName,
         repository.profilePhotoPath,
-        repository.defaultHourlyRate,
-        repository.minimumWagePerDay
-    ) { userName, photoPath, rate, minWage ->
-        listOf(userName, photoPath, rate, minWage)
+        repository.defaultHourlyRate
+    ) { userName, photoPath, rate ->
+        Triple(userName, photoPath, rate)
     }
 
     private val financePrefsFlow = combine(
@@ -78,10 +75,9 @@ class ProfileViewModel(
         financePrefsFlow
     ) { identity, finance ->
         ProfileCorePrefs(
-            userName = identity[0] as String,
-            profilePhotoPath = identity[1] as String?,
-            defaultHourlyRate = identity[2] as Double,
-            minimumWagePerDay = identity[3] as Double,
+            userName = identity.first,
+            profilePhotoPath = identity.second,
+            defaultHourlyRate = identity.third,
             currencySymbol = finance.first,
             monthlyBudget = finance.second,
             savingsBuffer = finance.third
@@ -113,7 +109,6 @@ class ProfileViewModel(
             userName = core.userName,
             profilePhotoPath = core.profilePhotoPath,
             defaultHourlyRate = core.defaultHourlyRate,
-            minimumWagePerDay = core.minimumWagePerDay,
             currencySymbol = core.currencySymbol,
             monthlyBudget = core.monthlyBudget,
             savingsBuffer = core.savingsBuffer,
@@ -136,17 +131,6 @@ class ProfileViewModel(
 
     fun updateProfilePhotoPath(path: String?) {
         viewModelScope.launch { repository.updateProfilePhotoPath(path) }
-    }
-
-    fun updateWageRates(hourlyRate: Double, minimumWagePerDay: Double) {
-        viewModelScope.launch {
-            if (hourlyRate.isFinite() && hourlyRate > 0.0) {
-                repository.updateDefaultHourlyRate(hourlyRate)
-            }
-            if (minimumWagePerDay.isFinite() && minimumWagePerDay >= 0.0) {
-                repository.updateMinimumWagePerDay(minimumWagePerDay)
-            }
-        }
     }
 
     fun changeCurrency(symbol: String, conversionRate: Double?) {

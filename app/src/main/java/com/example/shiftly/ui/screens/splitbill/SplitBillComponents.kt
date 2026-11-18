@@ -14,25 +14,32 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -45,8 +52,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -152,13 +157,6 @@ fun SplitBillSummaryCard(
                     .height(8.dp)
                     .clip(RoundedCornerShape(50))
                     .background(colors.border)
-                    .semantics {
-                        contentDescription = if (totalParticipantsCount > 0) {
-                            "${(paidFraction * 100f).roundToInt()}% settled, $paidParticipantsCount of $totalParticipantsCount friend shares paid"
-                        } else {
-                            "No active split shares"
-                        }
-                    }
             ) {
                 if (paidFraction > 0f) {
                     Box(
@@ -174,9 +172,49 @@ fun SplitBillSummaryCard(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SplitBillCalculatorCard(
+fun NewSplitBillBottomSheet(
     currencySymbol: String,
+    initialAmount: String = "",
+    initialTitle: String = "",
+    initialPersonCount: Int = 2,
+    prefillTrigger: Int = 0,
+    onDismiss: () -> Unit,
+    onSaveSplitBill: (
+        title: String,
+        totalAmount: Double,
+        personCount: Int,
+        participantNames: List<String>,
+        participantPaidStates: List<Boolean>,
+        alsoLogAsExpense: Boolean
+    ) -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.surface,
+        tonalElevation = 0.dp,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+    ) {
+        NewSplitBillSheetContent(
+            currencySymbol = currencySymbol,
+            initialAmount = initialAmount,
+            initialTitle = initialTitle,
+            initialPersonCount = initialPersonCount,
+            externalPrefillTrigger = prefillTrigger,
+            onDismiss = onDismiss,
+            onSaveSplitBill = onSaveSplitBill
+        )
+    }
+}
+
+@Composable
+fun NewSplitBillSheetContent(
+    currencySymbol: String,
+    onDismiss: () -> Unit,
     onSaveSplitBill: (
         title: String,
         totalAmount: Double,
@@ -193,14 +231,26 @@ fun SplitBillCalculatorCard(
     val colors = ShiftlyColors.current
     var titleInput by remember(externalPrefillTrigger) { mutableStateOf(initialTitle) }
     var amountInput by remember(externalPrefillTrigger) { mutableStateOf(initialAmount) }
-    var personCount by remember(externalPrefillTrigger) { mutableIntStateOf(initialPersonCount) }
-
-    val customNames = remember {
-        mutableStateListOf("You", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6")
+    var personCount by remember(externalPrefillTrigger) {
+        mutableIntStateOf(initialPersonCount.coerceIn(2, 20))
     }
 
-    val customPaidStates = remember {
-        mutableStateListOf(true, false, false, false, false, false)
+    val customNames = remember(externalPrefillTrigger) {
+        mutableStateListOf<String>().apply {
+            val target = maxOf(6, initialPersonCount)
+            for (i in 0 until target) {
+                add(if (i == 0) "You" else "Person ${i + 1}")
+            }
+        }
+    }
+
+    val customPaidStates = remember(externalPrefillTrigger) {
+        mutableStateListOf<Boolean>().apply {
+            val target = maxOf(6, initialPersonCount)
+            for (i in 0 until target) {
+                add(i == 0)
+            }
+        }
     }
 
     fun ensureNameCapacity(count: Int) {
@@ -219,7 +269,7 @@ fun SplitBillCalculatorCard(
     val perPersonShare = SplitBillMath.distributeEqualShares(totalAmount, personCount).firstOrNull() ?: 0.0
     val isValid = totalAmount.isFinite() && (totalAmount > 0.0) && (personCount >= 2)
 
-    val glassFieldColors = OutlinedTextFieldDefaults.colors(
+    val sheetFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = colors.azureAccent,
         unfocusedBorderColor = colors.border,
         focusedLabelColor = colors.azureAccent,
@@ -231,334 +281,357 @@ fun SplitBillCalculatorCard(
         unfocusedContainerColor = colors.card
     )
 
-    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-                text = "NEW SPLIT",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.8.sp
-                ),
-                color = colors.textSecondary
+                text = "New Split",
+                style = MaterialTheme.typography.headlineSmall,
+                color = colors.textPrimary
             )
-
-            // Total + Label Fields
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.heightIn(min = 44.dp)
             ) {
-                OutlinedTextField(
-                    value = amountInput,
-                    onValueChange = { input ->
-                        val filtered = input.filter { it.isDigit() || it == '.' }
-                        if (filtered.count { it == '.' } <= 1) {
-                            amountInput = filtered
-                        }
-                    },
-                    label = { Text("Total", fontFamily = PlusJakartaSans) },
-                    placeholder = {
-                        Text(
-                            text = "0",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                            color = colors.textMuted
-                        )
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = glassFieldColors,
-                    modifier = Modifier.weight(1f)
-                )
-
-                OutlinedTextField(
-                    value = titleInput,
-                    onValueChange = { titleInput = it },
-                    label = { Text("Label", fontFamily = PlusJakartaSans) },
-                    placeholder = {
-                        Text(
-                            text = "Dinner",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                            color = colors.textMuted
-                        )
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = glassFieldColors,
-                    modifier = Modifier.weight(1.15f)
+                Text(
+                    text = "Cancel",
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                    color = colors.textSecondary
                 )
             }
+        }
 
-            // Persons Stepper (- / Count / +) with Dynamic Name & Paid Status Rows
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+        // Total + Label Fields
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            OutlinedTextField(
+                value = amountInput,
+                onValueChange = { input ->
+                    val filtered = input.filter { it.isDigit() || it == '.' }
+                    if (filtered.count { it == '.' } <= 1) {
+                        amountInput = filtered
+                    }
+                },
+                label = { Text("Total", fontFamily = PlusJakartaSans) },
+                placeholder = {
                     Text(
-                        text = "Persons",
-                        style = MaterialTheme.typography.titleSmall.copy(
+                        text = "0",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textMuted
+                    )
+                },
+                prefix = {
+                    Text(
+                        text = "$currencySymbol ",
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.Bold
                         ),
-                        color = colors.textPrimary
+                        color = colors.azureAccent
+                    )
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                shape = RoundedCornerShape(16.dp),
+                colors = sheetFieldColors,
+                modifier = Modifier.weight(1f)
+            )
+
+            OutlinedTextField(
+                value = titleInput,
+                onValueChange = { titleInput = it },
+                label = { Text("Label", fontFamily = PlusJakartaSans) },
+                placeholder = {
+                    Text(
+                        text = "Dinner",
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textMuted
+                    )
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                colors = sheetFieldColors,
+                modifier = Modifier.weight(1.15f)
+            )
+        }
+
+        // Persons Stepper (- / Count / +) with Dynamic Name & Paid Status Rows
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Persons",
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = colors.textPrimary
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (personCount > 2) colors.card
+                                else colors.surface
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = if (personCount > 2) colors.border
+                                else colors.border.copy(alpha = 0.60f),
+                                shape = CircleShape
+                            )
+                            .clickable(enabled = personCount > 2) {
+                                if (personCount > 2) personCount--
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_minus),
+                            contentDescription = "Decrease persons",
+                            tint = if (personCount > 2) colors.textPrimary else colors.textMuted,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
+
+                    Text(
+                        text = personCount.toString(),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.Bold
+                        ).tabular(),
+                        color = colors.mintTextOnSurface,
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (personCount < 20) colors.azurePrimary
+                                else colors.disabledContainer
+                            )
+                            .clickable(enabled = personCount < 20) {
+                                if (personCount < 20) {
+                                    personCount++
+                                    ensureNameCapacity(personCount)
+                                    ensurePaidCapacity(personCount)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (personCount > 2) colors.card
-                                    else colors.surface
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = if (personCount > 2) colors.border
-                                    else colors.border.copy(alpha = 0.60f),
-                                    shape = CircleShape
-                                )
-                                .clickable(enabled = personCount > 2) {
-                                    if (personCount > 2) personCount--
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_minus),
-                                contentDescription = "Decrease persons",
-                                tint = if (personCount > 2) colors.textPrimary else colors.textMuted,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        Text(
-                            text = personCount.toString(),
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontFamily = PlusJakartaSans,
-                                fontWeight = FontWeight.Bold
-                            ).tabular(),
-                            color = colors.mintTextOnSurface,
-                            modifier = Modifier.padding(horizontal = 4.dp)
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_plus),
+                            contentDescription = "Increase persons",
+                            tint = if (personCount < 20) colors.onAzurePrimary else colors.disabledContent,
+                            modifier = Modifier.size(17.dp)
                         )
-
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (personCount < 20) colors.azurePrimary
-                                    else colors.disabledContainer
-                                )
-                                .clickable(enabled = personCount < 20) {
-                                    if (personCount < 20) {
-                                        personCount++
-                                        ensureNameCapacity(personCount)
-                                        ensurePaidCapacity(personCount)
-                                    }
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_plus),
-                                contentDescription = "Increase persons",
-                                tint = if (personCount < 20) colors.onAzurePrimary else colors.disabledContent,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
                     }
                 }
+            }
 
-                // Dynamic Name Inputs + Paid/Unpaid Status Toggles for each person
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (index in 0 until personCount) {
-                        val isSelf = index == 0
-                        val nameValue = customNames.getOrElse(index) { if (isSelf) "You" else "Person ${index + 1}" }
-                        val isPaid = customPaidStates.getOrElse(index) { isSelf }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (index in 0 until personCount) {
+                    val isSelf = index == 0
+                    val nameValue = customNames.getOrElse(index) { if (isSelf) "You" else "Person ${index + 1}" }
+                    val isPaid = customPaidStates.getOrElse(index) { isSelf }
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            OutlinedTextField(
-                                value = nameValue,
-                                onValueChange = { updated ->
-                                    ensureNameCapacity(index + 1)
-                                    customNames[index] = updated
-                                },
-                                label = {
-                                    Text(
-                                        text = if (isSelf) "You" else "Person ${index + 1}",
-                                        fontFamily = PlusJakartaSans
-                                    )
-                                },
-                                singleLine = true,
-                                shape = RoundedCornerShape(14.dp),
-                                colors = glassFieldColors,
-                                modifier = Modifier.weight(1f)
-                            )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = nameValue,
+                            onValueChange = { updated ->
+                                ensureNameCapacity(index + 1)
+                                customNames[index] = updated
+                            },
+                            label = {
+                                Text(
+                                    text = if (isSelf) "You" else "Person ${index + 1}",
+                                    fontFamily = PlusJakartaSans
+                                )
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = sheetFieldColors,
+                            modifier = Modifier.weight(1f)
+                        )
 
-                            // Status prompt chip (Paid / Unpaid)
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = if (isPaid) colors.mintContainer else colors.surface,
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = if (isPaid) colors.mintBright else colors.border
-                                ),
-                                shadowElevation = 0.dp,
-                                modifier = Modifier
-                                    .heightIn(min = 48.dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .clickable {
-                                        ensurePaidCapacity(index + 1)
-                                        customPaidStates[index] = !isPaid
-                                    }
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(
-                                            if (isPaid) R.drawable.ic_lucide_check else R.drawable.ic_lucide_x
-                                        ),
-                                        contentDescription = null,
-                                        tint = if (isPaid) colors.mintInk else colors.textSecondary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = if (isPaid) "Paid" else "Unpaid",
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontFamily = PlusJakartaSans,
-                                            fontWeight = FontWeight.SemiBold
-                                        ),
-                                        color = if (isPaid) colors.mintInk else colors.textSecondary
-                                    )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (isPaid) colors.mintContainer else colors.card,
+                            border = BorderStroke(
+                                width = 1.dp,
+                                color = if (isPaid) colors.mintBright else colors.border
+                            ),
+                            shadowElevation = 0.dp,
+                            modifier = Modifier
+                                .heightIn(min = 44.dp)
+                                .clip(RoundedCornerShape(50))
+                                .clickable {
+                                    ensurePaidCapacity(index + 1)
+                                    customPaidStates[index] = !isPaid
                                 }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(
+                                        if (isPaid) R.drawable.ic_lucide_check else R.drawable.ic_lucide_x
+                                    ),
+                                    contentDescription = null,
+                                    tint = if (isPaid) colors.mintInk else colors.textSecondary,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Text(
+                                    text = if (isPaid) "Paid" else "Unpaid",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontFamily = PlusJakartaSans,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = if (isPaid) colors.mintInk else colors.textSecondary
+                                )
                             }
                         }
                     }
                 }
             }
+        }
 
-            // Large Bold "Per Person" Result Banner
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = colors.mintContainer,
-                border = BorderStroke(1.dp, colors.mintBright.copy(alpha = 0.40f)),
-                shadowElevation = 0.dp,
-                modifier = Modifier.fillMaxWidth()
+        // Bold "Per Person" Result Banner
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = colors.mintContainer,
+            border = BorderStroke(1.dp, colors.mintBright.copy(alpha = 0.40f)),
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Per Person",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
-                        color = colors.textPrimary
+                Text(
+                    text = "Per Person",
+                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                    color = colors.textPrimary
+                )
+                Text(
+                    text = ShiftlyFormatters.formatCurrency(currencySymbol, perPersonShare),
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 24.sp
+                    ).tabular(),
+                    color = colors.mintTextOnSurface
+                )
+            }
+        }
+
+        // Docked Action Buttons: "Save" vs "Split & Log"
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            OutlinedButton(
+                onClick = {
+                    onSaveSplitBill(
+                        titleInput,
+                        totalAmount,
+                        personCount,
+                        customNames.take(personCount),
+                        customPaidStates.take(personCount),
+                        false
                     )
-                    Text(
-                        text = ShiftlyFormatters.formatCurrency(currencySymbol, perPersonShare),
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 26.sp
-                        ).tabular(),
-                        color = colors.mintTextOnSurface
+                },
+                enabled = isValid,
+                shape = RoundedCornerShape(50),
+                border = BorderStroke(
+                    width = 1.4.dp,
+                    color = if (isValid) colors.azureAccent else colors.border
+                ),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = colors.textPrimary,
+                    disabledContentColor = colors.disabledContent
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 52.dp)
+            ) {
+                Text(
+                    text = "Save",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold
                     )
-                }
+                )
             }
 
-            // Distinct Action Buttons: "Save" vs "Split & Log"
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Button(
+                onClick = {
+                    onSaveSplitBill(
+                        titleInput,
+                        totalAmount,
+                        personCount,
+                        customNames.take(personCount),
+                        customPaidStates.take(personCount),
+                        true
+                    )
+                },
+                enabled = isValid,
+                shape = RoundedCornerShape(50),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.azurePrimary,
+                    contentColor = colors.onAzurePrimary,
+                    disabledContainerColor = colors.disabledContainer,
+                    disabledContentColor = colors.disabledContent
+                ),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 0.dp,
+                    disabledElevation = 0.dp
+                ),
+                modifier = Modifier
+                    .weight(1.3f)
+                    .heightIn(min = 52.dp)
             ) {
-                OutlinedButton(
-                    onClick = {
-                        onSaveSplitBill(
-                            titleInput,
-                            totalAmount,
-                            personCount,
-                            customNames.take(personCount),
-                            customPaidStates.take(personCount),
-                            false
-                        )
-                        titleInput = ""
-                        amountInput = ""
-                    },
-                    enabled = isValid,
-                    shape = RoundedCornerShape(50),
-                    border = BorderStroke(
-                        width = 1.4.dp,
-                        color = if (isValid) colors.azureAccent else colors.border
-                    ),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = colors.textPrimary,
-                        disabledContentColor = colors.disabledContent
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 52.dp)
-                ) {
-                    Text(
-                        text = "Save",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                Text(
+                    text = "Split & Log",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold
                     )
-                }
-
-                Button(
-                    onClick = {
-                        onSaveSplitBill(
-                            titleInput,
-                            totalAmount,
-                            personCount,
-                            customNames.take(personCount),
-                            customPaidStates.take(personCount),
-                            true
-                        )
-                        titleInput = ""
-                        amountInput = ""
-                    },
-                    enabled = isValid,
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.azurePrimary,
-                        contentColor = colors.onAzurePrimary,
-                        disabledContainerColor = colors.disabledContainer,
-                        disabledContentColor = colors.disabledContent
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp,
-                        disabledElevation = 0.dp
-                    ),
-                    modifier = Modifier
-                        .weight(1.3f)
-                        .heightIn(min = 52.dp)
-                ) {
-                    Text(
-                        text = "Split & Log",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    )
-                }
+                )
             }
         }
     }
@@ -786,9 +859,6 @@ fun SplitBillLogItemCard(
                                     .clickable(onClickLabel = "Change payment status for $displayLabel") {
                                         selectedParticipantForPrompt = participant
                                     }
-                                    .semantics(mergeDescendants = true) {
-                                        contentDescription = "$displayLabel, paid. Tap to change payment status"
-                                    }
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -817,11 +887,7 @@ fun SplitBillLogItemCard(
                                 shape = RoundedCornerShape(50),
                                 border = BorderStroke(1.dp, colors.azureInk),
                                 contentPadding = PaddingValues(horizontal = 14.dp),
-                                modifier = Modifier
-                                    .heightIn(min = 44.dp)
-                                    .semantics(mergeDescendants = true) {
-                                        contentDescription = "Mark $displayLabel as paid"
-                                    }
+                                modifier = Modifier.heightIn(min = 44.dp)
                             ) {
                                 Text(
                                     text = "Mark Paid",

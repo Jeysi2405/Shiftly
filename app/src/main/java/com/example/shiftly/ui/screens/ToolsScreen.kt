@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,9 +36,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.R
@@ -54,6 +57,7 @@ import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
+import com.example.shiftly.ui.screens.profile.ManageCategoriesSheetContent
 import com.example.shiftly.ui.screens.profile.ProfileViewModel
 import com.example.shiftly.ui.screens.profile.RecurringEntriesSheetContent
 import com.example.shiftly.ui.screens.profile.SettingsSheetContainer
@@ -90,6 +94,7 @@ fun ToolsScreen(
     val splitBills by repository.allSplitBills.collectAsStateWithLifecycle(initialValue = emptyList())
 
     var activeSheet by remember { mutableStateOf<ToolsSheet?>(null) }
+    var showManageCategoriesSheet by remember { mutableStateOf(false) }
     var showAddSavingsGoalSheet by remember { mutableStateOf(false) }
     var showSavingsGoalDetailSheet by remember { mutableStateOf(false) }
 
@@ -121,14 +126,17 @@ fun ToolsScreen(
         ToolsSheet.BUDGETS -> {
             SettingsSheetContainer(
                 title = "Monthly & Category Budgets",
-                showTopClose = false,
-                onDismiss = { activeSheet = null }
+                onDismiss = {
+                    showManageCategoriesSheet = false
+                    activeSheet = null
+                }
             ) {
                 BudgetsEditorSheetContent(
                     currencySymbol = profileState.currencySymbol,
                     currentMonthlyBudget = profileState.monthlyBudget,
                     currentCategoryBudgets = profileState.settings.categoryBudgets,
                     managedCategories = profileState.settings.managedCategories,
+                    onManageCategories = { showManageCategoriesSheet = true },
                     onDismiss = { activeSheet = null },
                     onSave = { monthly, categoryList ->
                         profileViewModel.updateBudgets(monthly, categoryList)
@@ -171,6 +179,22 @@ fun ToolsScreen(
         }
 
         null -> {}
+    }
+
+    if (showManageCategoriesSheet) {
+        SettingsSheetContainer(
+            title = "Manage Categories",
+            onDismiss = { showManageCategoriesSheet = false }
+        ) {
+            ManageCategoriesSheetContent(
+                currentCategories = profileState.settings.managedCategories,
+                onSave = { updated ->
+                    profileViewModel.updateManagedCategories(updated)
+                    showManageCategoriesSheet = false
+                    onShowMessage("Categories updated")
+                }
+            )
+        }
     }
 
     if (showSavingsGoalDetailSheet) {
@@ -448,35 +472,38 @@ private fun ToolHubCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = metric,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.Bold
-                        ).tabular(),
-                        color = metricColor
-                    )
-                    Text(
-                        text = metricSub,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.Medium
-                        ).tabular(),
-                        color = colors.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Text(
+                    text = metric,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontSize = 22.sp,
+                        lineHeight = 28.sp,
+                        fontWeight = FontWeight.SemiBold
+                    ).tabular(),
+                    color = metricColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 180.dp)
+                )
+
+                Text(
+                    text = metricSub,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Medium
+                    ).tabular(),
+                    color = colors.textSecondary,
+                    textAlign = TextAlign.End,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
 
                 if (quickActionLabel != null && onQuickAction != null) {
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.card,

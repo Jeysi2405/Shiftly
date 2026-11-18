@@ -33,11 +33,11 @@ data class DutiesUiState(
     val shiftTimePresets: List<ShiftTimePreset> = ShiftlySettingsSnapshot.DEFAULT_SHIFT_TIME_PRESETS,
     val selectedDutyDate: LocalDate = LocalDate.now(),
     val displayedMonth: YearMonth = YearMonth.now(),
-    val selectedCalendarDate: LocalDate? = null,
     val monthlyTotalEarnings: Double = 0.0,
     val monthlyTotalHours: Double = 0.0,
     val monthlyTimeBreakdown: TimeBreakdown = TimeBreakdown(),
     val loggedEpochDays: Set<Long> = emptySet(),
+    val shiftsByEpochDay: Map<Long, ShiftEntity> = emptyMap(),
     val displayedShifts: List<ShiftEntity> = emptyList(),
     val totalAllShiftsCount: Int = 0
 )
@@ -48,7 +48,6 @@ class DutiesViewModel(
 
     private val _selectedDutyDate = MutableStateFlow(LocalDate.now())
     private val _displayedMonth = MutableStateFlow(YearMonth.now())
-    private val _selectedCalendarDate = MutableStateFlow<LocalDate?>(null)
 
     val uiState: StateFlow<DutiesUiState> = combine(
         repository.defaultHourlyRate,
@@ -57,8 +56,7 @@ class DutiesViewModel(
         repository.allShifts,
         repository.settingsSnapshot,
         _selectedDutyDate,
-        _displayedMonth,
-        _selectedCalendarDate
+        _displayedMonth
     ) { values ->
         val defaultRate = values[0] as Double
         val minWage = values[1] as Double
@@ -68,9 +66,11 @@ class DutiesViewModel(
         val settings = values[4] as ShiftlySettingsSnapshot
         val dutyDate = values[5] as LocalDate
         val month = values[6] as YearMonth
-        val filterDate = values[7] as LocalDate?
 
-        val shiftsByDay = allShifts.groupBy { it.dateEpochDay }
+        val shiftsByEpochDay = allShifts.associateBy { it.dateEpochDay }
+        val monthShifts = allShifts.filter { shift ->
+            YearMonth.from(LocalDate.ofEpochDay(shift.dateEpochDay)) == month
+        }
 
         var monthTotalEarned = 0.0
         var monthTotalHours = 0.0
@@ -78,21 +78,18 @@ class DutiesViewModel(
         var monthNightMins = 0L
         var monthOtMins = 0L
 
-        allShifts.forEach { shift ->
-            val shiftDate = LocalDate.ofEpochDay(shift.dateEpochDay)
-            if (YearMonth.from(shiftDate) == month) {
-                val details = WageCalculator.calculateTotalEarned(
-                    startMillis = shift.timeInMillis,
-                    endMillis = shift.timeOutMillis,
-                    hourlyRate = shift.lockedHourlyRate,
-                    dayTypeStr = shift.dayType
-                )
-                monthTotalEarned += shift.totalEarned
-                monthTotalHours += shift.durationMinutes / 60.0
-                monthRegMins += details.regularMinutes
-                monthNightMins += details.nightDiffMinutes
-                monthOtMins += details.overtimeMinutes
-            }
+        monthShifts.forEach { shift ->
+            val details = WageCalculator.calculateTotalEarned(
+                startMillis = shift.timeInMillis,
+                endMillis = shift.timeOutMillis,
+                hourlyRate = shift.lockedHourlyRate,
+                dayTypeStr = shift.dayType
+            )
+            monthTotalEarned += shift.totalEarned
+            monthTotalHours += shift.durationMinutes / 60.0
+            monthRegMins += details.regularMinutes
+            monthNightMins += details.nightDiffMinutes
+            monthOtMins += details.overtimeMinutes
         }
 
         val monthlyTimeBreakdown = TimeBreakdown(
@@ -101,14 +98,6 @@ class DutiesViewModel(
             overtimeHours = monthOtMins / 60.0
         )
 
-        val loggedEpochDays = shiftsByDay.keys
-
-        val filteredShifts = if (filterDate != null) {
-            allShifts.filter { it.dateEpochDay == filterDate.toEpochDay() }
-        } else {
-            allShifts
-        }
-
         DutiesUiState(
             defaultHourlyRate = defaultRate,
             minimumWagePerDay = minWage,
@@ -116,12 +105,12 @@ class DutiesViewModel(
             shiftTimePresets = settings.shiftTimePresets,
             selectedDutyDate = dutyDate,
             displayedMonth = month,
-            selectedCalendarDate = filterDate,
             monthlyTotalEarnings = monthTotalEarned,
             monthlyTotalHours = monthTotalHours,
             monthlyTimeBreakdown = monthlyTimeBreakdown,
-            loggedEpochDays = loggedEpochDays,
-            displayedShifts = filteredShifts,
+            loggedEpochDays = shiftsByEpochDay.keys,
+            shiftsByEpochDay = shiftsByEpochDay,
+            displayedShifts = monthShifts,
             totalAllShiftsCount = allShifts.size
         )
     }.stateIn(
@@ -134,6 +123,17 @@ class DutiesViewModel(
         _selectedDutyDate.value = date
     }
 
+    fun updateWageRates(hourlyRate: Double, minimumWagePerDay: Double) {
+        viewModelScope.launch {
+            if (hourlyRate.isFinite() && hourlyRate > 0.0) {
+                repository.updateDefaultHourlyRate(hourlyRate)
+            }
+            if (minimumWagePerDay.isFinite() && minimumWagePerDay >= 0.0) {
+                repository.updateMinimumWagePerDay(minimumWagePerDay)
+            }
+        }
+    }
+
     fun logManualShift(
         date: LocalDate,
         startHour: Int,
@@ -141,9 +141,16 @@ class DutiesViewModel(
         endHour: Int,
         endMinute: Int,
         overtimeNote: String,
-        dayType: DayType
+        dayType: DayType,
+        onResult: (Boolean) -> Unit = {}
     ) {
         val current = uiState.value
+        val epochDay = date.toEpochDay()
+        if (current.shiftsByEpochDay.containsKey(epochDay)) {
+            onResult(false)
+            return
+        }
+
         val zone = ZoneId.systemDefault()
         val startDateTime = date.atTime(LocalTime.of(startHour, startMinute))
         var endDateTime = date.atTime(LocalTime.of(endHour, endMinute))
@@ -165,9 +172,9 @@ class DutiesViewModel(
         ).totalEarned
 
         viewModelScope.launch {
-            repository.insertShift(
+            val insertedId = repository.insertShift(
                 ShiftEntity(
-                    dateEpochDay = date.toEpochDay(),
+                    dateEpochDay = epochDay,
                     timeInMillis = startMillis,
                     timeOutMillis = endMillis,
                     durationMinutes = durationMinutes,
@@ -177,6 +184,7 @@ class DutiesViewModel(
                     dayType = dayType.name
                 )
             )
+            onResult(insertedId > 0L)
         }
     }
 
@@ -188,8 +196,16 @@ class DutiesViewModel(
         endHour: Int,
         endMinute: Int,
         dayType: DayType,
-        overtimeNote: String
+        overtimeNote: String,
+        onResult: (Boolean) -> Unit = {}
     ) {
+        val epochDay = date.toEpochDay()
+        val conflict = uiState.value.shiftsByEpochDay[epochDay]
+        if (conflict != null && conflict.id != shift.id) {
+            onResult(false)
+            return
+        }
+
         val zone = ZoneId.systemDefault()
 
         val startDateTime = date.atTime(LocalTime.of(startHour, startMinute))
@@ -210,9 +226,9 @@ class DutiesViewModel(
         ).totalEarned
 
         viewModelScope.launch {
-            repository.updateShift(
+            val updated = repository.updateShift(
                 shift.copy(
-                    dateEpochDay = date.toEpochDay(),
+                    dateEpochDay = epochDay,
                     timeInMillis = startMillis,
                     timeOutMillis = endMillis,
                     durationMinutes = durationMinutes,
@@ -221,6 +237,7 @@ class DutiesViewModel(
                     overtimeNote = overtimeNote.trim()
                 )
             )
+            onResult(updated)
         }
     }
 
@@ -261,7 +278,6 @@ class DutiesViewModel(
 
     fun deleteShiftTimePreset(presetId: String) {
         val currentPresets = uiState.value.shiftTimePresets
-        if (currentPresets.size <= 1) return
         val updated = currentPresets.filterNot { it.id == presetId }
         viewModelScope.launch {
             repository.updateShiftTimePresets(updated)
@@ -270,19 +286,6 @@ class DutiesViewModel(
 
     fun changeCalendarMonth(offsetMonths: Long) {
         _displayedMonth.value = _displayedMonth.value.plusMonths(offsetMonths)
-    }
-
-    fun toggleCalendarDateFilter(date: LocalDate) {
-        if (_selectedCalendarDate.value == date) {
-            _selectedCalendarDate.value = null
-        } else {
-            _selectedCalendarDate.value = date
-            _selectedDutyDate.value = date
-        }
-    }
-
-    fun clearCalendarFilter() {
-        _selectedCalendarDate.value = null
     }
 
     private fun formatCompact12h(hour24: Int, minute: Int): String {

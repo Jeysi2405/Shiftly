@@ -7,7 +7,10 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
 
-@Entity(tableName = "shifts")
+@Entity(
+    tableName = "shifts",
+    indices = [Index(value = ["dateEpochDay"], unique = true)]
+)
 data class ShiftEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val dateEpochDay: Long,

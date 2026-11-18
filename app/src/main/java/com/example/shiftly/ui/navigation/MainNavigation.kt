@@ -40,7 +40,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -58,6 +57,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -95,6 +95,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.shiftly.R
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
+import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
@@ -112,12 +113,18 @@ import com.example.shiftly.ui.screens.lock.AppLockGateScreen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.ProfileScreen
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
+import com.example.shiftly.ui.screens.splitbill.NewSplitBillBottomSheet
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
+import com.example.shiftly.ui.screens.splitbill.SplitBillViewModel
 import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
+import com.example.shiftly.utils.DayType
 import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.workers.ShiftlyDailyWorker
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.launch
 
 @Composable
@@ -247,10 +254,14 @@ private fun MainDashboardShell(
     val dutiesState by dutiesViewModel.uiState.collectAsStateWithLifecycle()
     val expenseViewModel: ExpenseViewModel = viewModel(factory = ExpenseViewModel.Factory(repository))
     val expenseState by expenseViewModel.uiState.collectAsStateWithLifecycle()
+    val splitBillViewModel: SplitBillViewModel = viewModel(factory = SplitBillViewModel.Factory(repository))
 
     var showQuickActionSheet by remember { mutableStateOf(false) }
     var showQuickLogShiftSheet by remember { mutableStateOf(false) }
+    var quickEditingShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var showQuickAddExpenseSheet by remember { mutableStateOf(false) }
+    var showQuickNewSplitSheet by remember { mutableStateOf(false) }
+    var quickSplitTrigger by remember { mutableIntStateOf(0) }
     var showQuickAddGoalSheet by remember { mutableStateOf(false) }
     var showQuickDepositSheet by remember { mutableStateOf(false) }
 
@@ -483,7 +494,8 @@ private fun MainDashboardShell(
             },
             onSplitBill = {
                 showQuickActionSheet = false
-                navigateToTab(Screen.SplitBill)
+                quickSplitTrigger++
+                showQuickNewSplitSheet = true
             },
             onAddSavingsGoal = {
                 showQuickActionSheet = false
@@ -504,6 +516,13 @@ private fun MainDashboardShell(
             presets = dutiesState.shiftTimePresets,
             title = "Log Shift",
             confirmButtonText = "Save Shift",
+            blockedEpochDays = dutiesState.loggedEpochDays,
+            onSwitchToEdit = { duplicateDate ->
+                dutiesState.shiftsByEpochDay[duplicateDate.toEpochDay()]?.let { existing ->
+                    showQuickLogShiftSheet = false
+                    quickEditingShift = existing
+                }
+            },
             onSavePreset = { sH, sM, eH, eM ->
                 dutiesViewModel.saveShiftTimePreset(sH, sM, eH, eM)
                 showMessage("Preset saved")
@@ -521,10 +540,68 @@ private fun MainDashboardShell(
                     endHour = eH,
                     endMinute = eM,
                     overtimeNote = note,
-                    dayType = dayType
+                    dayType = dayType,
+                    onResult = { saved ->
+                        if (saved) {
+                            showQuickLogShiftSheet = false
+                            showMessage("Shift logged")
+                        } else {
+                            showMessage("A shift is already logged for this date")
+                        }
+                    }
                 )
-                showQuickLogShiftSheet = false
-                showMessage("Shift logged")
+            }
+        )
+    }
+
+    quickEditingShift?.let { targetShift ->
+        val zone = remember { ZoneId.systemDefault() }
+        val startLocalTime = remember(targetShift.id, targetShift.timeInMillis) {
+            Instant.ofEpochMilli(targetShift.timeInMillis).atZone(zone).toLocalTime()
+        }
+        val endLocalTime = remember(targetShift.id, targetShift.timeOutMillis) {
+            Instant.ofEpochMilli(targetShift.timeOutMillis).atZone(zone).toLocalTime()
+        }
+        val initialDayType = remember(targetShift.id, targetShift.dayType) {
+            runCatching { DayType.valueOf(targetShift.dayType) }.getOrNull() ?: DayType.ORDINARY
+        }
+
+        ManualShiftBottomSheet(
+            selectedDate = LocalDate.ofEpochDay(targetShift.dateEpochDay),
+            hourlyRate = targetShift.lockedHourlyRate,
+            currencySymbol = dutiesState.currencySymbol,
+            presets = dutiesState.shiftTimePresets,
+            title = "Edit Shift",
+            confirmButtonText = "Update Shift",
+            initialStartHour24 = startLocalTime.hour,
+            initialStartMinute = startLocalTime.minute,
+            initialEndHour24 = endLocalTime.hour,
+            initialEndMinute = endLocalTime.minute,
+            initialNote = targetShift.overtimeNote,
+            initialDayType = initialDayType,
+            showPresets = false,
+            blockedEpochDays = dutiesState.loggedEpochDays - targetShift.dateEpochDay,
+            onDismiss = { quickEditingShift = null },
+            onSave = { date, sH, sM, eH, eM, note, dayType ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                dutiesViewModel.editShift(
+                    shift = targetShift,
+                    date = date,
+                    startHour = sH,
+                    startMinute = sM,
+                    endHour = eH,
+                    endMinute = eM,
+                    dayType = dayType,
+                    overtimeNote = note,
+                    onResult = { updated ->
+                        if (updated) {
+                            quickEditingShift = null
+                            showMessage("Shift updated")
+                        } else {
+                            showMessage("A shift is already logged for that date")
+                        }
+                    }
+                )
             }
         )
     }
@@ -538,6 +615,30 @@ private fun MainDashboardShell(
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 expenseViewModel.addExpense(title, amount, category, date, receiptPath)
                 showMessage("Expense saved")
+            }
+        )
+    }
+
+    if (showQuickNewSplitSheet) {
+        NewSplitBillBottomSheet(
+            currencySymbol = currencySymbol,
+            prefillTrigger = quickSplitTrigger,
+            onDismiss = { showQuickNewSplitSheet = false },
+            onSaveSplitBill = { title, totalAmount, personCount, names, paidStates, alsoLogAsExpense ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                splitBillViewModel.createSplitBill(
+                    rawTitle = title,
+                    totalAmount = totalAmount,
+                    personCount = personCount,
+                    participantNames = names,
+                    participantPaidStates = paidStates,
+                    alsoLogMyShareAsExpense = alsoLogAsExpense
+                )
+                showQuickNewSplitSheet = false
+                showMessage(
+                    if (alsoLogAsExpense) "Split bill saved & share logged to Expenses"
+                    else "Split bill saved as pending"
+                )
             }
         )
     }
@@ -609,12 +710,14 @@ private fun QuickAddActionSheet(
                     style = MaterialTheme.typography.headlineSmall,
                     color = colors.textPrimary
                 )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_x),
-                        contentDescription = "Close",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(20.dp)
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.heightIn(min = 44.dp)
+                ) {
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -760,12 +863,14 @@ private fun QuickDepositPromptSheet(
                     style = MaterialTheme.typography.headlineSmall,
                     color = colors.textPrimary
                 )
-                IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_x),
-                        contentDescription = "Close",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(20.dp)
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.heightIn(min = 44.dp)
+                ) {
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        color = colors.textSecondary
                     )
                 }
             }

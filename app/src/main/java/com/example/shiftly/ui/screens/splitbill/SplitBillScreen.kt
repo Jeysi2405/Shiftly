@@ -6,11 +6,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -30,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,11 +58,11 @@ import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
+import com.example.shiftly.ui.theme.InkBlack
 import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
-import kotlinx.coroutines.launch
 
 @Composable
 fun SplitBillScreen(
@@ -71,9 +74,9 @@ fun SplitBillScreen(
     val viewModel: SplitBillViewModel = viewModel(factory = SplitBillViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
-    val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
+    var showNewSplitSheet by remember { mutableStateOf(false) }
     var pendingDeleteBill by remember { mutableStateOf<SplitBillEntity?>(null) }
     var prefillTrigger by remember { mutableIntStateOf(0) }
     var prefillAmount by remember { mutableStateOf("") }
@@ -84,24 +87,12 @@ fun SplitBillScreen(
         state = state,
         onBack = onBack,
         listState = listState,
-        initialAmount = prefillAmount,
-        initialTitle = prefillTitle,
-        initialPersonCount = prefillPersonCount,
-        prefillTrigger = prefillTrigger,
-        onSaveSplitBill = { title, totalAmount, personCount, names, paidStates, alsoLogAsExpense ->
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-            viewModel.createSplitBill(
-                rawTitle = title,
-                totalAmount = totalAmount,
-                personCount = personCount,
-                participantNames = names,
-                participantPaidStates = paidStates,
-                alsoLogMyShareAsExpense = alsoLogAsExpense
-            )
-            onShowMessage(
-                if (alsoLogAsExpense) "Split bill saved & share logged to Expenses"
-                else "Split bill saved as pending"
-            )
+        onOpenNewSplit = {
+            prefillAmount = ""
+            prefillTitle = ""
+            prefillPersonCount = 2
+            prefillTrigger++
+            showNewSplitSheet = true
         },
         onToggleParticipantPaid = { participant ->
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -118,9 +109,36 @@ fun SplitBillScreen(
             prefillTitle = "Group Dinner"
             prefillPersonCount = 4
             prefillTrigger++
-            scope.launch { listState.animateScrollToItem(1) }
+            showNewSplitSheet = true
         }
     )
+
+    if (showNewSplitSheet) {
+        NewSplitBillBottomSheet(
+            currencySymbol = state.currencySymbol,
+            initialAmount = prefillAmount,
+            initialTitle = prefillTitle,
+            initialPersonCount = prefillPersonCount,
+            prefillTrigger = prefillTrigger,
+            onDismiss = { showNewSplitSheet = false },
+            onSaveSplitBill = { title, totalAmount, personCount, names, paidStates, alsoLogAsExpense ->
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                viewModel.createSplitBill(
+                    rawTitle = title,
+                    totalAmount = totalAmount,
+                    personCount = personCount,
+                    participantNames = names,
+                    participantPaidStates = paidStates,
+                    alsoLogMyShareAsExpense = alsoLogAsExpense
+                )
+                showNewSplitSheet = false
+                onShowMessage(
+                    if (alsoLogAsExpense) "Split bill saved & share logged to Expenses"
+                    else "Split bill saved as pending"
+                )
+            }
+        )
+    }
 
     pendingDeleteBill?.let { billToDelete ->
         if (billToDelete.isLoggedToExpense) {
@@ -242,24 +260,13 @@ fun SplitBillScreen(
 @Composable
 fun SplitBillScreenContent(
     state: SplitBillUiState,
-    onSaveSplitBill: (
-        title: String,
-        totalAmount: Double,
-        personCount: Int,
-        participantNames: List<String>,
-        participantPaidStates: List<Boolean>,
-        alsoLogAsExpense: Boolean
-    ) -> Unit,
+    onOpenNewSplit: () -> Unit,
     onToggleParticipantPaid: (SplitParticipantEntity) -> Unit,
     onLogAsExpense: (SplitBillEntity) -> Unit,
     onDeleteBill: (SplitBillEntity) -> Unit,
     onTrySampleSplit: () -> Unit,
     onBack: () -> Unit = {},
-    listState: LazyListState = rememberLazyListState(),
-    initialAmount: String = "",
-    initialTitle: String = "",
-    initialPersonCount: Int = 2,
-    prefillTrigger: Int = 0
+    listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
     LazyColumn(
@@ -270,13 +277,44 @@ fun SplitBillScreenContent(
         contentPadding = PaddingValues(top = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 0. Screen Header
+        // 0. Screen Header with "+ New Split" action
         item {
             ShiftlyScreenHeader(
                 title = "Split Bill",
                 subtitle = null,
                 onBackClick = onBack,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                modifier = Modifier.padding(horizontal = 20.dp),
+                trailing = {
+                    Button(
+                        onClick = onOpenNewSplit,
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.azurePrimary,
+                            contentColor = colors.onAzurePrimary
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp
+                        ),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                        modifier = Modifier.heightIn(min = 44.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_plus),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "New Split",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = colors.onAzurePrimary
+                        )
+                    }
+                }
             )
         }
 
@@ -293,24 +331,12 @@ fun SplitBillScreenContent(
             }
         }
 
-        // 2. Interactive Split Calculator Card
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                SplitBillCalculatorCard(
-                    currencySymbol = state.currencySymbol,
-                    onSaveSplitBill = onSaveSplitBill,
-                    initialAmount = initialAmount,
-                    initialTitle = initialTitle,
-                    initialPersonCount = initialPersonCount,
-                    externalPrefillTrigger = prefillTrigger
-                )
-            }
-        }
-
-        // 3. Bottom Sheet Surface for Split Bills List / Empty State
+        // 2. Bottom Sheet Surface for Split Bills List / Empty State
         item {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 580.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                 color = colors.surface,
                 border = BorderStroke(1.dp, colors.cardBorder),
@@ -353,7 +379,7 @@ fun SplitBillScreenContent(
 }
 
 // =============================================================================
-// High-Fidelity Previews (Empty, Empty List Sheet, Filled Calculator, List)
+// High-Fidelity Previews (Empty, New Split Sheet, List Filled)
 // =============================================================================
 
 @Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "1. Split Bill Empty")
@@ -366,7 +392,7 @@ private fun SplitBillEmptyPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 SplitBillScreenContent(
                     state = state,
-                    onSaveSplitBill = { _, _, _, _, _, _ -> },
+                    onOpenNewSplit = {},
                     onToggleParticipantPaid = {},
                     onLogAsExpense = {},
                     onDeleteBill = {},
@@ -383,9 +409,9 @@ private fun SplitBillEmptyPreview() {
     }
 }
 
-@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "2. Split Bill Filled (₱1,200 ÷ 4)")
+@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "2. New Split Bill Sheet")
 @Composable
-private fun SplitBillFilledPreview() {
+private fun NewSplitBillSheetPreview() {
     val state = SplitBillUiState(
         currencySymbol = "₱",
         totalPendingAmount = 600.0,
@@ -395,25 +421,45 @@ private fun SplitBillFilledPreview() {
     )
 
     ShiftlyTheme {
+        val colors = ShiftlyColors.current
         ShiftlyBlueGradientBackground {
             Box(modifier = Modifier.fillMaxSize()) {
                 SplitBillScreenContent(
                     state = state,
-                    onSaveSplitBill = { _, _, _, _, _, _ -> },
+                    onOpenNewSplit = {},
                     onToggleParticipantPaid = {},
                     onLogAsExpense = {},
                     onDeleteBill = {},
-                    onTrySampleSplit = {},
-                    initialAmount = "1200",
-                    initialTitle = "Group Dinner",
-                    initialPersonCount = 4
+                    onTrySampleSplit = {}
                 )
-                FloatingPillBottomBar(
-                    items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.Tools },
-                    onSelect = {},
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(InkBlack.copy(alpha = 0.65f))
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                        color = colors.surface,
+                        border = BorderStroke(1.dp, colors.cardBorder),
+                        shadowElevation = 0.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                    ) {
+                        Column {
+                            ShiftlySheetDragHandle()
+                            Spacer(modifier = Modifier.height(6.dp))
+                            NewSplitBillSheetContent(
+                                currencySymbol = "₱",
+                                onDismiss = {},
+                                onSaveSplitBill = { _, _, _, _, _, _ -> },
+                                initialAmount = "1200",
+                                initialTitle = "Group Dinner",
+                                initialPersonCount = 4
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -477,40 +523,12 @@ private fun SplitBillListPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 SplitBillScreenContent(
                     state = state,
-                    onSaveSplitBill = { _, _, _, _, _, _ -> },
+                    onOpenNewSplit = {},
                     onToggleParticipantPaid = {},
                     onLogAsExpense = {},
                     onDeleteBill = {},
                     onTrySampleSplit = {},
-                    listState = rememberLazyListState(initialFirstVisibleItemIndex = 3)
-                )
-                FloatingPillBottomBar(
-                    items = Screen.bottomNavItems,
-                    isSelected = { it == Screen.Tools },
-                    onSelect = {},
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-            }
-        }
-    }
-}
-
-@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "4. Split Bill Empty Sheet")
-@Composable
-private fun SplitBillEmptySheetPreview() {
-    val state = SplitBillUiState(currencySymbol = "₱")
-
-    ShiftlyTheme {
-        ShiftlyBlueGradientBackground {
-            Box(modifier = Modifier.fillMaxSize()) {
-                SplitBillScreenContent(
-                    state = state,
-                    onSaveSplitBill = { _, _, _, _, _, _ -> },
-                    onToggleParticipantPaid = {},
-                    onLogAsExpense = {},
-                    onDeleteBill = {},
-                    onTrySampleSplit = {},
-                    listState = rememberLazyListState(initialFirstVisibleItemIndex = 3)
+                    listState = rememberLazyListState(initialFirstVisibleItemIndex = 0)
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,

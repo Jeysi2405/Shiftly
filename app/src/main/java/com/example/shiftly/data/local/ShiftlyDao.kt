@@ -17,6 +17,9 @@ interface ShiftDao {
     @Query("SELECT * FROM shifts ORDER BY dateEpochDay DESC, timeInMillis DESC")
     suspend fun getAllShiftsOnce(): List<ShiftEntity>
 
+    @Query("SELECT * FROM shifts WHERE dateEpochDay = :dateEpochDay LIMIT 1")
+    suspend fun getShiftByDateOnce(dateEpochDay: Long): ShiftEntity?
+
     @Query("SELECT * FROM shifts WHERE dateEpochDay BETWEEN :startEpochDay AND :endEpochDay ORDER BY dateEpochDay ASC")
     fun getShiftsBetween(startEpochDay: Long, endEpochDay: Long): Flow<List<ShiftEntity>>
 
@@ -29,7 +32,7 @@ interface ShiftDao {
     @Query("SELECT SUM(totalEarned) FROM shifts")
     fun getTotalLifetimeEarnings(): Flow<Double?>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertShift(shift: ShiftEntity): Long
 
     @Update

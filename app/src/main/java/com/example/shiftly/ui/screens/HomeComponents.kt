@@ -111,33 +111,30 @@ fun HomeGreetingHeader(
                 .padding(end = 12.dp)
         )
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Box(contentAlignment = Alignment.Center) {
                 IconButton(
                     onClick = onNotificationClick,
                     modifier = Modifier
                         .size(48.dp)
-                        .clip(CircleShape)
-                        .background(colors.card)
-                        .border(1.dp, colors.cardBorder, CircleShape)
                         .semantics { contentDescription = notificationDescription }
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_bell),
                         contentDescription = null,
                         tint = colors.textPrimary,
-                        modifier = Modifier.size(21.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
                 if (pendingAlertsCount > 0) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 6.dp, end = 6.dp)
-                            .size(10.dp)
+                            .padding(top = 10.dp, end = 10.dp)
+                            .size(9.dp)
                             .clip(CircleShape)
                             .background(colors.coralBright)
-                            .border(1.dp, colors.card, CircleShape)
+                            .border(1.5.dp, colors.background, CircleShape)
                     )
                 }
             }
@@ -147,7 +144,6 @@ fun HomeGreetingHeader(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(colors.azureContainer)
-                    .border(1.dp, colors.azureAccent.copy(alpha = 0.45f), CircleShape)
             ) {
                 val photoFile = remember(profilePhotoPath) {
                     profilePhotoPath?.let { File(it) }?.takeIf { it.exists() && it.isFile }
@@ -214,7 +210,7 @@ fun HomeHeroPager(
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val currency = state.currencySymbol
-    val uniformHeroHeight = 198.dp
+    val uniformHeroHeight = 204.dp
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -489,7 +485,7 @@ private fun SavingsGoalsHeroCard(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -569,32 +565,38 @@ private fun SavingsGoalsHeroCard(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = ShiftlyFormatters.formatCurrency(currencySymbol, progress.savedAmount),
-                        style = MaterialTheme.typography.displayMedium.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 28.sp
-                        ).tabular(),
-                        color = colors.mintTextOnSurface
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LinearProgressIndicator(
-                        progress = { progress.progressFraction },
-                        color = colors.mintBright,
-                        trackColor = colors.border,
-                        strokeCap = StrokeCap.Round,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(5.dp)
-                    )
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = ShiftlyFormatters.formatCurrency(currencySymbol, progress.savedAmount),
+                            style = MaterialTheme.typography.displayMedium.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 26.sp
+                            ).tabular(),
+                            color = colors.mintTextOnSurface,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                        LinearProgressIndicator(
+                            progress = { progress.progressFraction },
+                            color = colors.mintBright,
+                            trackColor = colors.border,
+                            strokeCap = StrokeCap.Round,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(8.dp)
+                        )
+                    }
+                }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         GlassSubStatPill(
                             label = "Left to Save",
@@ -615,54 +617,28 @@ private fun SavingsGoalsHeroCard(
                         )
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = colors.card,
+                        border = BorderStroke(1.dp, colors.cardBorder),
+                        shadowElevation = 0.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(50))
+                            .clickable { onOpenGoalDetail(goal.id) }
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = colors.card,
-                            border = BorderStroke(1.dp, colors.cardBorder),
-                            shadowElevation = 0.dp,
+                        Text(
+                            text = "View Goals",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = colors.textPrimary,
+                            textAlign = TextAlign.Center,
                             modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(50))
-                                .clickable { onOpenGoalDetail(goal.id) }
-                        ) {
-                            Text(
-                                text = "View Goal",
-                                style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
-                                color = colors.textPrimary,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(vertical = 6.dp)
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = colors.azurePrimary,
-                            shadowElevation = 0.dp,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .clickable(onClick = onOpenAddGoal)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_plus),
-                                    contentDescription = null,
-                                    tint = colors.onAzurePrimary,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = "Add Goal",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
-                                    color = colors.onAzurePrimary
-                                )
-                            }
-                        }
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        )
                     }
                 }
             }
@@ -679,16 +655,16 @@ private fun HeroMetricPill(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.heightIn(min = 82.dp),
+        shape = RoundedCornerShape(18.dp),
         color = colors.card,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Icon(
                 painter = painterResource(
@@ -696,9 +672,9 @@ private fun HeroMetricPill(
                 ),
                 contentDescription = null,
                 tint = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface,
-                modifier = Modifier.size(17.dp)
+                modifier = Modifier.size(20.dp)
             )
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelSmall.copy(
@@ -709,11 +685,14 @@ private fun HeroMetricPill(
                 )
                 Text(
                     text = amount,
-                    style = MaterialTheme.typography.titleSmall.copy(
+                    style = MaterialTheme.typography.titleMedium.copy(
                         fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
                     ).tabular(),
-                    color = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface
+                    color = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -729,17 +708,18 @@ private fun GlassSubStatPill(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.heightIn(min = if (compact) 60.dp else 82.dp),
+        shape = RoundedCornerShape(if (compact) 16.dp else 18.dp),
         color = colors.card,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier.padding(
-                horizontal = 11.dp,
-                vertical = if (compact) 6.dp else 8.dp
-            )
+                horizontal = if (compact) 13.dp else 14.dp,
+                vertical = if (compact) 10.dp else 16.dp
+            ),
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = label,
@@ -749,11 +729,13 @@ private fun GlassSubStatPill(
                 ),
                 color = colors.textSecondary
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleSmall.copy(
+                style = MaterialTheme.typography.titleMedium.copy(
                     fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    fontSize = if (compact) 15.sp else 16.sp
                 ).tabular(),
                 color = colors.textPrimary,
                 maxLines = 1,
