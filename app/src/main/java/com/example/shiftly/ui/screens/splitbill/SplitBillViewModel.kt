@@ -55,6 +55,7 @@ class SplitBillViewModel(
         totalAmount: Double,
         personCount: Int,
         participantNames: List<String>,
+        participantPaidStates: List<Boolean> = emptyList(),
         alsoLogMyShareAsExpense: Boolean
     ) {
         if (totalAmount <= 0.0 || personCount < 2) return
@@ -77,11 +78,12 @@ class SplitBillViewModel(
             val fallbackName = if (index == 0) "You" else "Person ${index + 1}"
             val label = participantNames.getOrNull(index)?.trim().orEmpty().ifBlank { fallbackName }
             val isSelf = index == 0
+            val isPaid = participantPaidStates.getOrElse(index) { isSelf }
             SplitParticipantEntity(
                 billId = 0L,
                 personLabel = label,
                 amountOwed = shares.getOrElse(index) { perPerson },
-                hasPaid = isSelf,
+                hasPaid = isPaid,
                 isCurrentUser = isSelf
             )
         }

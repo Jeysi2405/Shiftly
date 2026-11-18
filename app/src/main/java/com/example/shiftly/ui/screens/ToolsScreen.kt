@@ -298,8 +298,8 @@ fun ToolsScreenContent(
                     iconBg = MintSoftContainer,
                     iconTint = MintInkOnWhite,
                     metricColor = MintBright,
-                    quickActionLabel = "Log Shift",
-                    onQuickAction = onQuickLogShift,
+                    quickActionLabel = null,
+                    onQuickAction = null,
                     onClick = onOpenDuties
                 )
             }
@@ -319,8 +319,8 @@ fun ToolsScreenContent(
                     iconBg = CoralSoftContainer,
                     iconTint = CoralInkOnWhite,
                     metricColor = CoralBright,
-                    quickActionLabel = "Add Expense",
-                    onQuickAction = onQuickAddExpense,
+                    quickActionLabel = null,
+                    onQuickAction = null,
                     onClick = onOpenExpense
                 )
             }

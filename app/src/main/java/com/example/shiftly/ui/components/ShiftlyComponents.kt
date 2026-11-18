@@ -22,11 +22,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -88,6 +90,7 @@ fun ShiftlyGlassCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 26.dp,
     contentPadding: PaddingValues = PaddingValues(20.dp),
+    showBorder: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val shape = RoundedCornerShape(cornerRadius)
@@ -102,10 +105,16 @@ fun ShiftlyGlassCard(
             )
             .clip(shape)
             .background(DarkSurface)
-            .border(
-                width = 1.dp,
-                color = DarkBorder,
-                shape = shape
+            .then(
+                if (showBorder) {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = DarkBorder,
+                        shape = shape
+                    )
+                } else {
+                    Modifier
+                }
             )
             .padding(contentPadding)
     ) {
@@ -191,7 +200,8 @@ fun ShiftlyCard(
 fun ShiftlyScreenHeader(
     title: String,
     modifier: Modifier = Modifier,
-    subtitle: String = "",
+    subtitle: String? = "",
+    onBackClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null
 ) {
     Row(
@@ -199,20 +209,42 @@ fun ShiftlyScreenHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                color = TextLightPrimary,
-                modifier = Modifier.semantics { heading() }
-            )
-            if (subtitle.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.weight(1f)
+        ) {
+            if (onBackClick != null) {
+                IconButton(
+                    onClick = onBackClick,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(DarkCard)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ChevronLeft,
+                        contentDescription = "Back",
+                        tint = TextLightPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextLightSecondary
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = TextLightPrimary,
+                    modifier = Modifier.semantics { heading() }
                 )
+                if (!subtitle.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = TextLightSecondary
+                    )
+                }
             }
         }
         if (trailing != null) {

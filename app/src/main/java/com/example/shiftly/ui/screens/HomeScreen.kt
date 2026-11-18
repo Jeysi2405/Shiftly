@@ -47,6 +47,7 @@ import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
 import com.example.shiftly.ui.theme.CoralBright
 import com.example.shiftly.ui.theme.CoralInkOnWhite
 import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCardElevated
 import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintBright
 import com.example.shiftly.ui.theme.MintInkOnWhite
@@ -222,7 +223,7 @@ fun HomeScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(DarkBorder)
+                                .background(DarkCardElevated)
                         )
                     }
 
@@ -257,7 +258,7 @@ fun HomeScreenContent(
                         LinearProgressIndicator(
                             progress = { budgetRatio },
                             color = if (nearLimit) CoralBright else MintBright,
-                            trackColor = DarkBorder,
+                            trackColor = DarkCardElevated,
                             strokeCap = StrokeCap.Round,
                             modifier = Modifier
                                 .fillMaxWidth()

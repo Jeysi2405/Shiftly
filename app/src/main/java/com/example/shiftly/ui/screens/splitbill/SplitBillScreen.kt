@@ -71,6 +71,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SplitBillScreen(
     repository: ShiftlyRepository,
+    onBack: () -> Unit = {},
     onShowMessage: (String) -> Unit = {},
 ) {
     val viewModel: SplitBillViewModel = viewModel(factory = SplitBillViewModel.Factory(repository))
@@ -87,18 +88,20 @@ fun SplitBillScreen(
 
     SplitBillScreenContent(
         state = state,
+        onBack = onBack,
         listState = listState,
         initialAmount = prefillAmount,
         initialTitle = prefillTitle,
         initialPersonCount = prefillPersonCount,
         prefillTrigger = prefillTrigger,
-        onSaveSplitBill = { title, totalAmount, personCount, names, alsoLogAsExpense ->
+        onSaveSplitBill = { title, totalAmount, personCount, names, paidStates, alsoLogAsExpense ->
             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
             viewModel.createSplitBill(
                 rawTitle = title,
                 totalAmount = totalAmount,
                 personCount = personCount,
                 participantNames = names,
+                participantPaidStates = paidStates,
                 alsoLogMyShareAsExpense = alsoLogAsExpense
             )
             onShowMessage(
@@ -228,12 +231,14 @@ fun SplitBillScreenContent(
         totalAmount: Double,
         personCount: Int,
         participantNames: List<String>,
+        participantPaidStates: List<Boolean>,
         alsoLogAsExpense: Boolean
     ) -> Unit,
     onToggleParticipantPaid: (SplitParticipantEntity) -> Unit,
     onLogAsExpense: (SplitBillEntity) -> Unit,
     onDeleteBill: (SplitBillEntity) -> Unit,
     onTrySampleSplit: () -> Unit,
+    onBack: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     initialAmount: String = "",
     initialTitle: String = "",
@@ -252,7 +257,8 @@ fun SplitBillScreenContent(
         item {
             ShiftlyScreenHeader(
                 title = "Split Bill",
-                subtitle = "Divide totals & log your share",
+                subtitle = null,
+                onBackClick = onBack,
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
         }
@@ -353,7 +359,7 @@ private fun SplitBillEmptyPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 SplitBillScreenContent(
                     state = state,
-                    onSaveSplitBill = { _, _, _, _, _ -> },
+                    onSaveSplitBill = { _, _, _, _, _, _ -> },
                     onToggleParticipantPaid = {},
                     onLogAsExpense = {},
                     onDeleteBill = {},
@@ -386,7 +392,7 @@ private fun SplitBillFilledPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 SplitBillScreenContent(
                     state = state,
-                    onSaveSplitBill = { _, _, _, _, _ -> },
+                    onSaveSplitBill = { _, _, _, _, _, _ -> },
                     onToggleParticipantPaid = {},
                     onLogAsExpense = {},
                     onDeleteBill = {},
@@ -464,7 +470,7 @@ private fun SplitBillListPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 SplitBillScreenContent(
                     state = state,
-                    onSaveSplitBill = { _, _, _, _, _ -> },
+                    onSaveSplitBill = { _, _, _, _, _, _ -> },
                     onToggleParticipantPaid = {},
                     onLogAsExpense = {},
                     onDeleteBill = {},
@@ -492,7 +498,7 @@ private fun SplitBillEmptySheetPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 SplitBillScreenContent(
                     state = state,
-                    onSaveSplitBill = { _, _, _, _, _ -> },
+                    onSaveSplitBill = { _, _, _, _, _, _ -> },
                     onToggleParticipantPaid = {},
                     onLogAsExpense = {},
                     onDeleteBill = {},

@@ -30,10 +30,12 @@ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Remove
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -45,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -206,6 +209,7 @@ fun SplitBillCalculatorCard(
         totalAmount: Double,
         personCount: Int,
         participantNames: List<String>,
+        participantPaidStates: List<Boolean>,
         alsoLogAsExpense: Boolean
     ) -> Unit,
     initialAmount: String = "",
@@ -216,10 +220,13 @@ fun SplitBillCalculatorCard(
     var titleInput by remember(externalPrefillTrigger) { mutableStateOf(initialTitle) }
     var amountInput by remember(externalPrefillTrigger) { mutableStateOf(initialAmount) }
     var personCount by remember(externalPrefillTrigger) { mutableIntStateOf(initialPersonCount) }
-    var editNamesExpanded by remember { mutableStateOf(false) }
 
     val customNames = remember {
         mutableStateListOf("You", "Person 2", "Person 3", "Person 4", "Person 5", "Person 6")
+    }
+
+    val customPaidStates = remember {
+        mutableStateListOf(true, false, false, false, false, false)
     }
 
     fun ensureNameCapacity(count: Int) {
@@ -228,10 +235,15 @@ fun SplitBillCalculatorCard(
         }
     }
 
+    fun ensurePaidCapacity(count: Int) {
+        while (customPaidStates.size < count) {
+            customPaidStates.add(false)
+        }
+    }
+
     val totalAmount = amountInput.toDoubleOrNull() ?: 0.0
     val perPersonShare = SplitBillMath.distributeEqualShares(totalAmount, personCount).firstOrNull() ?: 0.0
     val isValid = totalAmount.isFinite() && (totalAmount > 0.0) && (personCount >= 2)
-    val quickCounts = listOf(2, 3, 4, 5, 6)
 
     val glassFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = AzureAccent,
@@ -270,7 +282,7 @@ fun SplitBillCalculatorCard(
                             amountInput = filtered
                         }
                     },
-                    label = { Text("Total ($currencySymbol)", fontFamily = ShiftlySerif) },
+                    label = { Text("Total", fontFamily = ShiftlySerif) },
                     placeholder = {
                         Text("0", color = TextLightMuted)
                     },
@@ -295,7 +307,7 @@ fun SplitBillCalculatorCard(
                 )
             }
 
-            // Persons Stepper (- / Count / +) with 48dp circular targets
+            // Persons Stepper (- / Count / +) with Dynamic Name & Paid Status Rows
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -317,7 +329,7 @@ fun SplitBillCalculatorCard(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(44.dp)
                                 .clip(CircleShape)
                                 .background(
                                     if (personCount > 2) DarkCard
@@ -338,7 +350,7 @@ fun SplitBillCalculatorCard(
                                 imageVector = Icons.Outlined.Remove,
                                 contentDescription = "Decrease persons",
                                 tint = if (personCount > 2) TextLightPrimary else TextLightMuted,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
 
@@ -354,7 +366,7 @@ fun SplitBillCalculatorCard(
 
                         Box(
                             modifier = Modifier
-                                .size(48.dp)
+                                .size(44.dp)
                                 .clip(CircleShape)
                                 .background(
                                     if (personCount < 20) AzurePrimaryButton
@@ -364,6 +376,7 @@ fun SplitBillCalculatorCard(
                                     if (personCount < 20) {
                                         personCount++
                                         ensureNameCapacity(personCount)
+                                        ensurePaidCapacity(personCount)
                                     }
                                 },
                             contentAlignment = Alignment.Center
@@ -372,111 +385,80 @@ fun SplitBillCalculatorCard(
                                 imageVector = Icons.Outlined.Add,
                                 contentDescription = "Increase persons",
                                 tint = if (personCount < 20) PureWhite else DarkDisabledContent,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
                 }
 
-                // Quick-Pick Person Chips (2p to 6p) + 48dp Edit Names Icon Button
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        modifier = Modifier.selectableGroup(),
-                        horizontalArrangement = Arrangement.spacedBy(5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        quickCounts.forEach { count ->
-                            val isSelected = personCount == count
-                            Box(
-                                modifier = Modifier
-                                    .widthIn(min = 48.dp)
-                                    .heightIn(min = 48.dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(
-                                        if (isSelected) AzurePrimaryButton else DarkCard
-                                    )
-                                    .border(
-                                        width = 1.dp,
-                                        color = if (isSelected) AzureAccent else DarkBorder,
-                                        shape = RoundedCornerShape(50)
-                                    )
-                                    .clickable(role = Role.Tab) {
-                                        personCount = count
-                                        ensureNameCapacity(count)
-                                    }
-                                    .semantics(mergeDescendants = true) {
-                                        selected = isSelected
-                                        contentDescription = "$count people"
-                                    }
-                                    .padding(horizontal = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "${count}p",
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontFamily = ShiftlySans,
-                                        fontWeight = FontWeight.Bold
-                                    ).tabular(),
-                                    color = if (isSelected) PureWhite else TextLightPrimary
-                                )
-                            }
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (editNamesExpanded) MintSoftContainer else DarkCard
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (editNamesExpanded) MintBright else DarkBorder,
-                                shape = CircleShape
-                            )
-                            .clickable {
-                                ensureNameCapacity(personCount)
-                                editNamesExpanded = !editNamesExpanded
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Edit,
-                            contentDescription = if (editNamesExpanded) "Hide participant names" else "Edit participant names",
-                            tint = MintTextOnBlue,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-
-            if (editNamesExpanded) {
+                // Dynamic Name Inputs + Paid/Unpaid Status Toggles for each person
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (index in 0 until personCount) {
-                        OutlinedTextField(
-                            value = customNames.getOrElse(index) { "Person ${index + 1}" },
-                            onValueChange = { updated ->
-                                ensureNameCapacity(index + 1)
-                                customNames[index] = updated
-                            },
-                            label = {
-                                Text(
-                                    text = if (index == 0) "Your Name" else "Person ${index + 1}",
-                                    fontFamily = ShiftlySerif
-                                )
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
-                            colors = glassFieldColors,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        val isSelf = index == 0
+                        val nameValue = customNames.getOrElse(index) { if (isSelf) "You" else "Person ${index + 1}" }
+                        val isPaid = customPaidStates.getOrElse(index) { isSelf }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = nameValue,
+                                onValueChange = { updated ->
+                                    ensureNameCapacity(index + 1)
+                                    customNames[index] = updated
+                                },
+                                label = {
+                                    Text(
+                                        text = if (isSelf) "You" else "Person ${index + 1}",
+                                        fontFamily = ShiftlySerif
+                                    )
+                                },
+                                singleLine = true,
+                                shape = RoundedCornerShape(14.dp),
+                                colors = glassFieldColors,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            // Status prompt chip (Paid / Unpaid)
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = if (isPaid) MintSoftContainer else DarkSurface,
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = if (isPaid) MintBright else DarkBorder
+                                ),
+                                modifier = Modifier
+                                    .heightIn(min = 48.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .clickable {
+                                        ensurePaidCapacity(index + 1)
+                                        customPaidStates[index] = !isPaid
+                                    }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = if (isPaid) Icons.Outlined.Check else Icons.Outlined.Close,
+                                        contentDescription = null,
+                                        tint = if (isPaid) MintInkOnWhite else TextLightSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Text(
+                                        text = if (isPaid) "Paid" else "Unpaid",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontFamily = ShiftlySerif,
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = if (isPaid) MintInkOnWhite else TextLightSecondary
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -495,18 +477,11 @@ fun SplitBillCalculatorCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "Per Person",
-                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                            color = TextLightPrimary
-                        )
-                        Text(
-                            text = "Split evenly among $personCount",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextLightSecondary
-                        )
-                    }
+                    Text(
+                        text = "Per Person",
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
+                        color = TextLightPrimary
+                    )
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, perPersonShare),
                         style = MaterialTheme.typography.headlineSmall.copy(
@@ -519,7 +494,7 @@ fun SplitBillCalculatorCard(
                 }
             }
 
-            // Distinct Action Buttons: "Save" (pending) vs "Split & Log" (pending + log share)
+            // Distinct Action Buttons: "Save" vs "Split & Log"
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -531,6 +506,7 @@ fun SplitBillCalculatorCard(
                             totalAmount,
                             personCount,
                             customNames.take(personCount),
+                            customPaidStates.take(personCount),
                             false
                         )
                         titleInput = ""
@@ -566,6 +542,7 @@ fun SplitBillCalculatorCard(
                             totalAmount,
                             personCount,
                             customNames.take(personCount),
+                            customPaidStates.take(personCount),
                             true
                         )
                         titleInput = ""
@@ -634,12 +611,6 @@ fun SplitBillEmptyCard(
                 color = TextLightPrimary,
                 textAlign = TextAlign.Center
             )
-            Text(
-                text = "Enter a group total above to divide shares and log your portion.",
-                style = MaterialTheme.typography.bodySmall,
-                color = TextLightSecondary,
-                textAlign = TextAlign.Center
-            )
             Spacer(modifier = Modifier.height(4.dp))
             ShiftlyPrimaryPillButton(
                 text = "Try ${currencySymbol}1,200 ÷ 4 dinner",
@@ -669,6 +640,8 @@ fun SplitBillLogItemCard(
     val dateLabel = remember(bill.dateEpochDay, dateFormatter) {
         LocalDate.ofEpochDay(bill.dateEpochDay).format(dateFormatter)
     }
+
+    var selectedParticipantForPrompt by remember { mutableStateOf<SplitParticipantEntity?>(null) }
 
     Surface(
         shape = RoundedCornerShape(20.dp),
@@ -744,7 +717,7 @@ fun SplitBillLogItemCard(
 
             HorizontalDivider(thickness = 1.dp, color = DarkBorder)
 
-            // Participant Rows with 48dp Min Height Paid / Mark Paid Actions
+            // Participant Rows with Payment Prompt Action for all participants (including yourself)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 participants.forEach { participant ->
                     val displayLabel = if (
@@ -752,6 +725,8 @@ fun SplitBillLogItemCard(
                         !participant.personLabel.equals("You", ignoreCase = true)
                     ) {
                         "${participant.personLabel} (You)"
+                    } else if (participant.isCurrentUser) {
+                        "You"
                     } else {
                         participant.personLabel
                     }
@@ -773,13 +748,13 @@ fun SplitBillLogItemCard(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(CircleShape)
-                                    .background(if (participant.hasPaid || participant.isCurrentUser) MintSoftContainer else AzureSoftContainer),
+                                    .background(if (participant.hasPaid) MintSoftContainer else AzureSoftContainer),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Person,
                                     contentDescription = null,
-                                    tint = if (participant.hasPaid || participant.isCurrentUser) MintInkOnWhite else AzureInkOnWhite,
+                                    tint = if (participant.hasPaid) MintInkOnWhite else AzureInkOnWhite,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -795,54 +770,27 @@ fun SplitBillLogItemCard(
                                 Text(
                                     text = ShiftlyFormatters.formatCurrency(currencySymbol, participant.amountOwed),
                                     style = MaterialTheme.typography.labelSmall.tabular(),
-                                    color = if (participant.hasPaid || participant.isCurrentUser) MintInkOnWhite else TextLightSecondary
+                                    color = if (participant.hasPaid) MintInkOnWhite else TextLightSecondary
                                 )
                             }
                         }
 
-                        if (participant.isCurrentUser) {
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = MintSoftContainer,
-                                modifier = Modifier.heightIn(min = 36.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Check,
-                                        contentDescription = null,
-                                        tint = MintInkOnWhite,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                    Text(
-                                        text = "Your share",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = ShiftlySerif,
-                                            fontWeight = FontWeight.SemiBold
-                                        ),
-                                        color = MintInkOnWhite
-                                    )
-                                }
-                            }
-                        } else if (participant.hasPaid) {
+                        if (participant.hasPaid) {
                             Surface(
                                 shape = RoundedCornerShape(50),
                                 color = MintSoftContainer,
                                 modifier = Modifier
-                                    .heightIn(min = 48.dp)
+                                    .heightIn(min = 44.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .clickable(onClickLabel = "Mark $displayLabel as unpaid") {
-                                        onToggleParticipantPaid(participant)
+                                    .clickable(onClickLabel = "Change payment status for $displayLabel") {
+                                        selectedParticipantForPrompt = participant
                                     }
                                     .semantics(mergeDescendants = true) {
-                                        contentDescription = "$displayLabel, paid. Tap to mark unpaid"
+                                        contentDescription = "$displayLabel, paid. Tap to change payment status"
                                     }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp),
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
@@ -864,12 +812,12 @@ fun SplitBillLogItemCard(
                             }
                         } else {
                             OutlinedButton(
-                                onClick = { onToggleParticipantPaid(participant) },
+                                onClick = { selectedParticipantForPrompt = participant },
                                 shape = RoundedCornerShape(50),
                                 border = BorderStroke(1.dp, AzureInkOnWhite),
                                 contentPadding = PaddingValues(horizontal = 14.dp),
                                 modifier = Modifier
-                                    .heightIn(min = 48.dp)
+                                    .heightIn(min = 44.dp)
                                     .semantics(mergeDescendants = true) {
                                         contentDescription = "Mark $displayLabel as paid"
                                     }
@@ -948,5 +896,66 @@ fun SplitBillLogItemCard(
                 }
             }
         }
+    }
+
+    // Payment Status Confirmation Prompt Dialog
+    selectedParticipantForPrompt?.let { participant ->
+        val personName = if (participant.isCurrentUser && participant.personLabel.equals("You", ignoreCase = true)) "You" else participant.personLabel
+        val targetStatus = if (participant.hasPaid) "Unpaid" else "Paid"
+
+        AlertDialog(
+            onDismissRequest = { selectedParticipantForPrompt = null },
+            containerColor = DarkCard,
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(if (participant.hasPaid) DarkSurface else MintSoftContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (participant.hasPaid) Icons.Outlined.Close else Icons.Outlined.Check,
+                        contentDescription = null,
+                        tint = if (participant.hasPaid) TextLightSecondary else MintInkOnWhite,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    text = "Payment Status",
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
+                    color = TextLightPrimary
+                )
+            },
+            text = {
+                Text(
+                    text = "Confirm marking $personName as $targetStatus for this bill?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextLightSecondary
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onToggleParticipantPaid(participant)
+                        selectedParticipantForPrompt = null
+                    },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (participant.hasPaid) DarkSurface else AzurePrimaryButton,
+                        contentColor = PureWhite
+                    )
+                ) {
+                    Text("Mark $targetStatus", fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { selectedParticipantForPrompt = null }) {
+                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
+                }
+            }
+        )
     }
 }

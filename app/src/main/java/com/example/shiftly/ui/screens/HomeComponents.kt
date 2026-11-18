@@ -78,6 +78,7 @@ import com.example.shiftly.ui.theme.CoralInkOnWhite
 import com.example.shiftly.ui.theme.CoralSoftContainer
 import com.example.shiftly.ui.theme.CoralTextOnBlue
 import com.example.shiftly.ui.theme.DarkBorder
+import com.example.shiftly.ui.theme.DarkCardElevated
 import com.example.shiftly.ui.theme.DarkCard
 import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.MintBright
@@ -151,7 +152,6 @@ fun HomeGreetingHeader(
                         .size(48.dp)
                         .clip(CircleShape)
                         .background(DarkCard)
-                        .border(1.dp, DarkBorder, CircleShape)
                         .semantics { contentDescription = notificationDescription }
                 ) {
                     Icon(
@@ -168,7 +168,6 @@ fun HomeGreetingHeader(
                             .size(10.dp)
                             .clip(CircleShape)
                             .background(CoralBright)
-                            .border(1.5.dp, DarkCard, CircleShape)
                     )
                 }
             }
@@ -178,7 +177,6 @@ fun HomeGreetingHeader(
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(AzureDarkContainer)
-                    .border(1.dp, AzureAccent.copy(alpha = 0.45f), CircleShape)
             ) {
                 val photoFile = remember(profilePhotoPath) {
                     profilePhotoPath?.let { File(it) }?.takeIf { it.exists() && it.isFile }
@@ -259,7 +257,8 @@ fun HomeHeroPager(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(uniformHeroHeight),
-                        contentPadding = PaddingValues(16.dp)
+                        contentPadding = PaddingValues(16.dp),
+                        showBorder = false
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -310,7 +309,8 @@ fun HomeHeroPager(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(uniformHeroHeight),
-                        contentPadding = PaddingValues(16.dp)
+                        contentPadding = PaddingValues(16.dp),
+                        showBorder = false
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -695,8 +695,7 @@ private fun HeroMetricPill(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = DarkCard
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
@@ -738,8 +737,7 @@ private fun GlassSubStatPill(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = DarkCard
     ) {
         Column(
             modifier = Modifier.padding(
@@ -780,11 +778,9 @@ fun MonthlyTopCategoriesCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
-            // Far top-right corner View insights action (no background pill)
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -883,7 +879,7 @@ fun MonthlyTopCategoriesCard(
                                 LinearProgressIndicator(
                                     progress = { item.fraction.coerceIn(0.05f, 1f) },
                                     color = CoralBright,
-                                    trackColor = DarkBorder,
+                                    trackColor = DarkCardElevated,
                                     strokeCap = StrokeCap.Round,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -909,7 +905,6 @@ fun MonthlyHoursIndicatorCard(
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -970,8 +965,7 @@ private fun MonthlyHoursMetricTile(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = DarkSurface,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = DarkSurface
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
@@ -1007,7 +1001,6 @@ fun PendingSplitsBanner(
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = AzureSoftContainer,
-        border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.35f)),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)

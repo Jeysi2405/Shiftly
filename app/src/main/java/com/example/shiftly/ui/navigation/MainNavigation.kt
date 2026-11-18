@@ -78,6 +78,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -416,7 +417,11 @@ private fun MainDashboardShell(
                     ExpenseScreen(repository = repository, onShowMessage = showMessage)
                 }
                 composable(Screen.SplitBill.route) {
-                    SplitBillScreen(repository = repository, onShowMessage = showMessage)
+                    SplitBillScreen(
+                        repository = repository,
+                        onBack = { navController.popBackStack() },
+                        onShowMessage = showMessage
+                    )
                 }
                 composable(Screen.Profile.route) {
                     ProfileScreen(
@@ -825,7 +830,7 @@ fun FloatingPillBottomBar(
                 ),
             shape = pillShape,
             color = DarkSurface,
-            border = BorderStroke(1.dp, DarkBorder)
+            border = BorderStroke(0.5.dp, DarkBorder)
         ) {
             Row(
                 modifier = Modifier
