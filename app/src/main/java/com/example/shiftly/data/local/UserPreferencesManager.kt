@@ -81,7 +81,8 @@ data class ShiftlySettingsSnapshot(
     val appLockEnabled: Boolean = false,
     val appLockMethod: String = "PIN & Fingerprint",
     val hasAppLockPin: Boolean = false,
-    val appLockPinHash: String = ""
+    val appLockPinHash: String = "",
+    val themeMode: String = "SYSTEM"
 ) {
     companion object {
         val DEFAULT_CATEGORY_BUDGETS: List<CategoryBudgetSetting> = emptyList()
@@ -348,6 +349,7 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_APP_LOCK_METHOD = stringPreferencesKey("app_lock_method")
         private val KEY_APP_LOCK_PIN = stringPreferencesKey("app_lock_pin")
         private val KEY_APP_LOCK_PIN_HASH = stringPreferencesKey("app_lock_pin_hash")
+        private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         private val KEY_LAST_BILL_NOTIFIED_DAY = longPreferencesKey("last_bill_notified_day")
         private val KEY_LAST_PAYDAY_NOTIFIED_DAY = longPreferencesKey("last_payday_notified_day")
         private val KEY_LAST_SHIFT_NOTIFIED_DAY = longPreferencesKey("last_shift_notified_day")
@@ -413,8 +415,15 @@ class UserPreferencesManager(private val context: Context) {
             appLockEnabled = prefs[KEY_APP_LOCK_ENABLED] ?: false,
             appLockMethod = prefs[KEY_APP_LOCK_METHOD] ?: "PIN & Fingerprint",
             hasAppLockPin = pinHash.isNotBlank(),
-            appLockPinHash = pinHash
+            appLockPinHash = pinHash,
+            themeMode = prefs[KEY_THEME_MODE] ?: "SYSTEM"
         )
+    }
+
+    suspend fun updateThemeMode(mode: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_THEME_MODE] = mode
+        }
     }
 
     val activeTimerState: Flow<ActiveTimerState> = context.dataStore.data.map { prefs ->

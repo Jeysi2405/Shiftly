@@ -3,7 +3,6 @@ package com.example.shiftly.ui.screens
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -28,7 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -61,20 +58,10 @@ import coil.compose.AsyncImage
 import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
-import com.example.shiftly.ui.theme.AzureAccent
-import com.example.shiftly.ui.theme.AzurePrimaryButton
-import com.example.shiftly.ui.theme.CoralTextOnBlue
-import com.example.shiftly.ui.theme.DarkBackground
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.TextLightMuted
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
 import java.io.File
 
 private fun filterDecimal(raw: String, current: String): String {
@@ -92,12 +79,13 @@ fun WelcomeScreen(
         profilePhotoPath: String?
     ) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     var showSetupSheet by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(colors.background)
     ) {
         Column(
             modifier = Modifier
@@ -116,7 +104,7 @@ fun WelcomeScreen(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(AzurePrimaryButton),
+                        .background(colors.azurePrimary),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -125,7 +113,7 @@ fun WelcomeScreen(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
                         ),
-                        color = PureWhite
+                        color = colors.onAzurePrimary
                     )
                 }
                 Text(
@@ -134,7 +122,7 @@ fun WelcomeScreen(
                         fontFamily = ShiftlySerif,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = TextLightPrimary
+                    color = colors.textPrimary
                 )
             }
 
@@ -147,7 +135,7 @@ fun WelcomeScreen(
                                 fontFamily = ShiftlySerif,
                                 fontStyle = FontStyle.Italic,
                                 fontWeight = FontWeight.Medium,
-                                color = AzureAccent
+                                color = colors.azureAccent
                             )
                         ) {
                             append("earned")
@@ -160,13 +148,13 @@ fun WelcomeScreen(
                         fontSize = 36.sp,
                         lineHeight = 43.sp
                     ),
-                    color = TextLightPrimary
+                    color = colors.textPrimary
                 )
 
                 Text(
                     text = "Log duty shifts in seconds, watch your pay add up automatically, and keep campus expenses and split bills effortless.",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = TextLightSecondary
+                    color = colors.textSecondary
                 )
             }
 
@@ -206,20 +194,21 @@ fun WelcomeScreen(
         }
 
         val fieldColors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = AzureAccent,
-            unfocusedBorderColor = DarkBorder,
-            focusedLabelColor = AzureAccent,
-            unfocusedLabelColor = TextLightSecondary,
-            focusedTextColor = TextLightPrimary,
-            unfocusedTextColor = TextLightPrimary,
-            focusedContainerColor = DarkCard,
-            unfocusedContainerColor = DarkCard
+            focusedBorderColor = colors.azureAccent,
+            unfocusedBorderColor = colors.border,
+            focusedLabelColor = colors.azureAccent,
+            unfocusedLabelColor = colors.textSecondary,
+            focusedTextColor = colors.textPrimary,
+            unfocusedTextColor = colors.textPrimary,
+            focusedContainerColor = colors.card,
+            unfocusedContainerColor = colors.card
         )
 
         ModalBottomSheet(
             onDismissRequest = { showSetupSheet = false },
             sheetState = sheetState,
-            containerColor = DarkSurface,
+            containerColor = colors.surface,
+            tonalElevation = 0.dp,
             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
         ) {
             Column(
@@ -235,12 +224,12 @@ fun WelcomeScreen(
                 Text(
                     text = "Set up your tracker",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = TextLightPrimary
+                    color = colors.textPrimary
                 )
                 Text(
                     text = "You can adjust your name, hourly rate, and monthly budget anytime in Profile.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextLightSecondary
+                    color = colors.textSecondary
                 )
 
                 // Profile Photo Picker
@@ -253,8 +242,8 @@ fun WelcomeScreen(
                         modifier = Modifier
                             .size(68.dp)
                             .clip(CircleShape)
-                            .background(DarkCard)
-                            .border(1.5.dp, AzureAccent.copy(alpha = 0.6f), CircleShape)
+                            .background(colors.card)
+                            .border(1.5.dp, colors.azureAccent.copy(alpha = 0.6f), CircleShape)
                             .clickable {
                                 suppressNextRelock()
                                 photoPicker.launch(
@@ -275,7 +264,7 @@ fun WelcomeScreen(
                             Icon(
                                 imageVector = Icons.Outlined.AddAPhoto,
                                 contentDescription = "Add profile photo",
-                                tint = AzureAccent,
+                                tint = colors.azureAccent,
                                 modifier = Modifier.size(26.dp)
                             )
                         }
@@ -285,7 +274,7 @@ fun WelcomeScreen(
                         Text(
                             text = if (photoPath != null) "Profile photo added" else "Add profile photo (optional)",
                             style = MaterialTheme.typography.titleSmall,
-                            color = TextLightPrimary
+                            color = colors.textPrimary
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             TextButton(
@@ -299,7 +288,7 @@ fun WelcomeScreen(
                                 Text(
                                     text = if (photoPath != null) "Change photo" else "Choose photo",
                                     fontFamily = ShiftlySerif,
-                                    color = AzureAccent
+                                    color = colors.azureAccent
                                 )
                             }
                             if (photoPath != null) {
@@ -312,14 +301,14 @@ fun WelcomeScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.Close,
                                         contentDescription = null,
-                                        tint = CoralTextOnBlue,
+                                        tint = colors.coralTextOnSurface,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.size(4.dp))
                                     Text(
                                         text = "Remove",
                                         fontFamily = ShiftlySerif,
-                                        color = CoralTextOnBlue
+                                        color = colors.coralTextOnSurface
                                     )
                                 }
                             }
@@ -334,7 +323,7 @@ fun WelcomeScreen(
                         validationError = null
                     },
                     label = { Text("Display Name", fontFamily = ShiftlySerif) },
-                    placeholder = { Text("What I gonna call you?", color = TextLightMuted) },
+                    placeholder = { Text("What I gonna call you?", color = colors.textMuted) },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     colors = fieldColors,
@@ -348,8 +337,8 @@ fun WelcomeScreen(
                         validationError = null
                     },
                     label = { Text("Hourly Rate (₱)", fontFamily = ShiftlySerif) },
-                    placeholder = { Text("What is your hourly rate?", color = TextLightMuted) },
-                    prefix = { Text("₱", fontWeight = FontWeight.Bold, color = TextLightPrimary) },
+                    placeholder = { Text("What is your hourly rate?", color = colors.textMuted) },
+                    prefix = { Text("₱", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     shape = RoundedCornerShape(16.dp),
@@ -364,8 +353,8 @@ fun WelcomeScreen(
                         validationError = null
                     },
                     label = { Text("Monthly Budget (₱)", fontFamily = ShiftlySerif) },
-                    placeholder = { Text("What is your monthly budget?", color = TextLightMuted) },
-                    prefix = { Text("₱", fontWeight = FontWeight.Bold, color = TextLightPrimary) },
+                    placeholder = { Text("What is your monthly budget?", color = colors.textMuted) },
+                    prefix = { Text("₱", fontWeight = FontWeight.Bold, color = colors.textPrimary) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     shape = RoundedCornerShape(16.dp),
@@ -377,7 +366,7 @@ fun WelcomeScreen(
                     Text(
                         text = validationError.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
-                        color = CoralTextOnBlue
+                        color = colors.coralTextOnSurface
                     )
                 }
 

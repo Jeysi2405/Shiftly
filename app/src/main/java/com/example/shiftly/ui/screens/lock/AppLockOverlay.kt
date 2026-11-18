@@ -52,18 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
-import com.example.shiftly.ui.theme.AzureAccent
-import com.example.shiftly.ui.theme.AzureSoftContainer
-import com.example.shiftly.ui.theme.CoralTextOnBlue
-import com.example.shiftly.ui.theme.DarkBackground
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.MintBright
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
-import com.example.shiftly.ui.theme.TextLightMuted
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.utils.PinSecurity
 
 /**
@@ -148,6 +139,7 @@ fun AppLockGateScreen(
     onUnlocked: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = ShiftlyColors.current
     val context = LocalContext.current
     val activity = context as? FragmentActivity
     val biometricsSupported = remember(context) { canUseBiometrics(context) }
@@ -192,7 +184,7 @@ fun AppLockGateScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(colors.background)
             .statusBarsPadding()
             .navigationBarsPadding()
             .padding(horizontal = 24.dp, vertical = 28.dp),
@@ -207,14 +199,14 @@ fun AppLockGateScreen(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(AzureSoftContainer)
-                    .border(1.dp, AzureAccent.copy(alpha = 0.45f), CircleShape),
+                    .background(colors.azureContainer)
+                    .border(1.dp, colors.azureAccent.copy(alpha = 0.45f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = if (method == "Fingerprint Only") Icons.Outlined.Fingerprint else Icons.Outlined.Lock,
                     contentDescription = "Shiftly locked",
-                    tint = AzureAccent,
+                    tint = colors.azureAccent,
                     modifier = Modifier.size(30.dp)
                 )
             }
@@ -226,12 +218,12 @@ fun AppLockGateScreen(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold
                     ),
-                    color = TextLightPrimary
+                    color = colors.textPrimary
                 )
                 Text(
                     text = "Welcome back, $userName. Verify to continue.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextLightSecondary,
+                    color = colors.textSecondary,
                     textAlign = TextAlign.Center
                 )
             }
@@ -248,10 +240,10 @@ fun AppLockGateScreen(
                             modifier = Modifier
                                 .size(16.dp)
                                 .clip(CircleShape)
-                                .background(if (filled) MintBright else DarkCard)
+                                .background(if (filled) colors.mintBright else colors.card)
                                 .border(
                                     width = 1.5.dp,
-                                    color = if (filled) MintBright else DarkBorder,
+                                    color = if (filled) colors.mintBright else colors.border,
                                     shape = CircleShape
                                 )
                         )
@@ -263,7 +255,7 @@ fun AppLockGateScreen(
                 Text(
                     text = errorMessage.orEmpty(),
                     style = MaterialTheme.typography.bodySmall,
-                    color = CoralTextOnBlue,
+                    color = colors.coralTextOnSurface,
                     textAlign = TextAlign.Center
                 )
             }
@@ -289,7 +281,7 @@ fun AppLockGateScreen(
                                             KeypadIconKey(
                                                 icon = Icons.Outlined.Fingerprint,
                                                 description = "Unlock with fingerprint",
-                                                tint = AzureAccent,
+                                                tint = colors.azureAccent,
                                                 onClick = { triggerBiometric() }
                                             )
                                         } else {
@@ -301,7 +293,7 @@ fun AppLockGateScreen(
                                         KeypadIconKey(
                                             icon = Icons.AutoMirrored.Outlined.Backspace,
                                             description = "Delete digit",
-                                            tint = TextLightSecondary,
+                                            tint = colors.textSecondary,
                                             onClick = {
                                                 errorMessage = null
                                                 if (enteredPin.isNotEmpty()) {
@@ -326,8 +318,8 @@ fun AppLockGateScreen(
                 OutlinedButton(
                     onClick = { triggerBiometric() },
                     shape = RoundedCornerShape(50),
-                    border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.55f)),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+                    border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.55f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -335,7 +327,7 @@ fun AppLockGateScreen(
                     Icon(
                         imageVector = Icons.Outlined.Fingerprint,
                         contentDescription = null,
-                        tint = AzureAccent,
+                        tint = colors.azureAccent,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.size(8.dp))
@@ -349,7 +341,7 @@ fun AppLockGateScreen(
                     Text(
                         text = "No biometrics detected—verify using your device screen lock.",
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextLightMuted,
+                        color = colors.textMuted,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -363,6 +355,7 @@ private fun KeypadDigitKey(
     digit: String,
     onClick: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         modifier = Modifier
             .size(72.dp)
@@ -370,8 +363,9 @@ private fun KeypadDigitKey(
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = "Digit $digit" },
         shape = CircleShape,
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
@@ -381,7 +375,7 @@ private fun KeypadDigitKey(
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 24.sp
                 ),
-                color = TextLightPrimary
+                color = colors.textPrimary
             )
         }
     }
@@ -394,6 +388,7 @@ private fun KeypadIconKey(
     tint: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         modifier = Modifier
             .size(72.dp)
@@ -401,8 +396,9 @@ private fun KeypadIconKey(
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = description },
         shape = CircleShape,
-        color = DarkCard.copy(alpha = 0.6f),
-        border = BorderStroke(1.dp, DarkBorder)
+        color = colors.card.copy(alpha = 0.6f),
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(

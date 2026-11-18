@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,17 +45,9 @@ import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
-import com.example.shiftly.ui.theme.CoralBright
-import com.example.shiftly.ui.theme.CoralInkOnWhite
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCardElevated
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.MintBright
-import com.example.shiftly.ui.theme.MintInkOnWhite
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.CutoffShiftSummary
 import com.example.shiftly.utils.CutoffWindow
@@ -160,6 +153,7 @@ fun HomeScreenContent(
     todayOverride: LocalDate? = null,
     greetingHourOverride: Int? = null
 ) {
+    val colors = ShiftlyColors.current
     val currency = state.currencySymbol
 
     LazyColumn(
@@ -205,8 +199,9 @@ fun HomeScreenContent(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = DarkSurface,
-                shadowElevation = 12.dp
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.border),
+                shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -223,7 +218,7 @@ fun HomeScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(DarkCardElevated)
+                                .background(colors.cardElevated)
                         )
                     }
 
@@ -243,7 +238,7 @@ fun HomeScreenContent(
                             Text(
                                 text = "Monthly Budget",
                                 style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                                color = TextLightPrimary
+                                color = colors.textPrimary
                             )
                             Text(
                                 text = if (state.monthlyBudget > 0.0) {
@@ -252,13 +247,13 @@ fun HomeScreenContent(
                                     "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} spent • No cap set"
                                 },
                                 style = MaterialTheme.typography.labelMedium.tabular(),
-                                color = if (nearLimit && state.monthlyBudget > 0.0) CoralInkOnWhite else MintInkOnWhite
+                                color = if (nearLimit && state.monthlyBudget > 0.0) colors.coralInk else colors.mintInk
                             )
                         }
                         LinearProgressIndicator(
                             progress = { budgetRatio },
-                            color = if (nearLimit) CoralBright else MintBright,
-                            trackColor = DarkCardElevated,
+                            color = if (nearLimit) colors.coralBright else colors.mintBright,
+                            trackColor = colors.cardElevated,
                             strokeCap = StrokeCap.Round,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -301,7 +296,7 @@ fun HomeScreenContent(
                         Text(
                             text = "No activity logged yet. Start a shift in Duties or log an expense.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = TextLightSecondary,
+                            color = colors.textSecondary,
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     } else {
@@ -312,7 +307,7 @@ fun HomeScreenContent(
                                     currencySymbol = currency,
                                 ) { onTimelineItemClick(item) }
                                 if (idx < state.timelineItems.lastIndex) {
-                                    HorizontalDivider(color = DarkBorder)
+                                    HorizontalDivider(color = colors.border)
                                 }
                             }
                         }

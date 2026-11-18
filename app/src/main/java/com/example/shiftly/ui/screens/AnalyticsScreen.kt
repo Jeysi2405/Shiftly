@@ -1,12 +1,11 @@
 package com.example.shiftly.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -30,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,12 +39,8 @@ import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
-import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.ShiftlySerif
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.TextLightPrimary
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.LocalDate
 
@@ -127,6 +121,7 @@ fun AnalyticsScreenContent(
     onOpenGoalSettings: () -> Unit = {},
     listState: LazyListState = rememberLazyListState()
 ) {
+    val colors = ShiftlyColors.current
     LazyColumn(
         state = listState,
         modifier = Modifier
@@ -161,8 +156,9 @@ fun AnalyticsScreenContent(
                     .fillMaxWidth()
                     .heightIn(min = 520.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = DarkSurface,
-                shadowElevation = 12.dp
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.border),
+                shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -179,14 +175,14 @@ fun AnalyticsScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(DarkBorder)
+                                .background(colors.border)
                         )
                     }
 
                     Text(
                         text = "Insights",
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextLightPrimary,
+                        color = colors.textPrimary,
                         modifier = Modifier.semantics { heading() }
                     )
 

@@ -68,29 +68,9 @@ import coil.compose.AsyncImage
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
 import com.example.shiftly.ui.screens.expense.categoryIcon
-import com.example.shiftly.ui.theme.AzureAccent
-import com.example.shiftly.ui.theme.AzureDarkContainer
-import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.AzurePrimaryButton
-import com.example.shiftly.ui.theme.AzureSoftContainer
-import com.example.shiftly.ui.theme.CoralBright
-import com.example.shiftly.ui.theme.CoralInkOnWhite
-import com.example.shiftly.ui.theme.CoralSoftContainer
-import com.example.shiftly.ui.theme.CoralTextOnBlue
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCardElevated
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.MintBright
-import com.example.shiftly.ui.theme.MintInkOnWhite
-import com.example.shiftly.ui.theme.MintSoftContainer
-import com.example.shiftly.ui.theme.MintTextOnBlue
-import com.example.shiftly.ui.theme.NightDiffPurple
-import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.io.File
@@ -112,6 +92,7 @@ fun HomeGreetingHeader(
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
     val dayNameFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE", locale) }
@@ -134,12 +115,12 @@ fun HomeGreetingHeader(
             Text(
                 text = today.format(dayNameFormatter),
                 style = MaterialTheme.typography.labelLarge.copy(fontFamily = ShiftlySerif),
-                color = TextLightSecondary
+                color = colors.textSecondary
             )
             Text(
                 text = today.format(numericDateFormatter),
                 style = MaterialTheme.typography.headlineLarge.tabular(),
-                color = TextLightPrimary,
+                color = colors.textPrimary,
                 modifier = Modifier.semantics { heading() }
             )
         }
@@ -151,14 +132,14 @@ fun HomeGreetingHeader(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(DarkCard)
-                        .border(1.dp, DarkBorder, CircleShape)
+                        .background(colors.card)
+                        .border(1.dp, colors.border, CircleShape)
                         .semantics { contentDescription = notificationDescription }
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Notifications,
                         contentDescription = null,
-                        tint = TextLightPrimary
+                        tint = colors.textPrimary
                     )
                 }
                 if (pendingAlertsCount > 0) {
@@ -168,8 +149,8 @@ fun HomeGreetingHeader(
                             .padding(top = 6.dp, end = 6.dp)
                             .size(10.dp)
                             .clip(CircleShape)
-                            .background(CoralBright)
-                            .border(1.dp, DarkCard, CircleShape)
+                            .background(colors.coralBright)
+                            .border(1.dp, colors.card, CircleShape)
                     )
                 }
             }
@@ -178,8 +159,8 @@ fun HomeGreetingHeader(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(AzureDarkContainer)
-                    .border(1.dp, AzureAccent.copy(alpha = 0.45f), CircleShape)
+                    .background(colors.azureContainer)
+                    .border(1.dp, colors.azureAccent.copy(alpha = 0.45f), CircleShape)
             ) {
                 val photoFile = remember(profilePhotoPath) {
                     profilePhotoPath?.let { File(it) }?.takeIf { it.exists() && it.isFile }
@@ -197,7 +178,7 @@ fun HomeGreetingHeader(
                     Icon(
                         imageVector = Icons.Outlined.Person,
                         contentDescription = "Open Profile and Settings",
-                        tint = AzureAccent
+                        tint = colors.azureAccent
                     )
                 }
             }
@@ -210,6 +191,7 @@ fun DashboardGreetingBanner(
     userName: String,
     greetingHour: Int = LocalTime.now().hour
 ) {
+    val colors = ShiftlyColors.current
     val greeting = remember(greetingHour) { greetingForHour(greetingHour) }
     val display = userName.trim().ifEmpty { "Shiftly" }
 
@@ -217,7 +199,7 @@ fun DashboardGreetingBanner(
         Text(
             text = greeting,
             style = MaterialTheme.typography.labelLarge.copy(fontFamily = ShiftlySerif),
-            color = TextLightSecondary
+            color = colors.textSecondary
         )
         Text(
             text = display,
@@ -225,7 +207,7 @@ fun DashboardGreetingBanner(
                 fontFamily = ShiftlySans,
                 fontWeight = FontWeight.Bold
             ),
-            color = TextLightPrimary,
+            color = colors.textPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.semantics { heading() }
@@ -240,6 +222,7 @@ fun HomeHeroPager(
     onOpenAddGoal: () -> Unit,
     onSelectActiveGoal: (Long) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val currency = state.currencySymbol
@@ -270,7 +253,7 @@ fun HomeHeroPager(
                                 Text(
                                     text = "Total Balance",
                                     style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                                    color = TextLightSecondary
+                                    color = colors.textSecondary
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
@@ -280,7 +263,7 @@ fun HomeHeroPager(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
                                     ).tabular(),
-                                    color = TextLightPrimary
+                                    color = colors.textPrimary
                                 )
                             }
 
@@ -326,12 +309,12 @@ fun HomeHeroPager(
                                     Text(
                                         text = "Shift Earnings",
                                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                                        color = TextLightSecondary
+                                        color = colors.textSecondary
                                     )
                                     Text(
                                         text = cutoff.window.label,
                                         style = MaterialTheme.typography.labelSmall.tabular(),
-                                        color = MintTextOnBlue
+                                        color = colors.mintTextOnSurface
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
@@ -342,7 +325,7 @@ fun HomeHeroPager(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
                                     ).tabular(),
-                                    color = MintTextOnBlue
+                                    color = colors.mintTextOnSurface
                                 )
                             }
 
@@ -411,7 +394,7 @@ fun HomeHeroPager(
                         modifier = Modifier
                             .size(width = if (active) 20.dp else 7.dp, height = 7.dp)
                             .clip(CircleShape)
-                            .background(if (active) AzureAccent else DarkBorder)
+                            .background(if (active) colors.azureAccent else colors.border)
                     )
                 }
             }
@@ -428,6 +411,7 @@ private fun SavingsGoalsHeroCard(
     onSelectActiveGoal: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
     var goalIndex by remember(goals.size) { mutableIntStateOf(0) }
@@ -452,12 +436,12 @@ private fun SavingsGoalsHeroCard(
                         Text(
                             text = "Savings Goals",
                             style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                            color = TextLightSecondary
+                            color = colors.textSecondary
                         )
                         Icon(
                             imageVector = Icons.Outlined.Savings,
                             contentDescription = null,
-                            tint = MintTextOnBlue,
+                            tint = colors.mintTextOnSurface,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -468,19 +452,20 @@ private fun SavingsGoalsHeroCard(
                             fontWeight = FontWeight.Bold,
                             fontSize = 30.sp
                         ).tabular(),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "Set a target amount and date goal to track daily savings.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary,
+                        color = colors.textSecondary,
                         maxLines = 2
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = AzurePrimaryButton,
+                    color = colors.azurePrimary,
+                    shadowElevation = 0.dp,
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
                         .clickable(onClick = onOpenAddGoal)
@@ -493,13 +478,13 @@ private fun SavingsGoalsHeroCard(
                         Icon(
                             imageVector = Icons.Outlined.Add,
                             contentDescription = null,
-                            tint = PureWhite,
+                            tint = colors.onAzurePrimary,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = "Add Savings Goal",
                             style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                            color = PureWhite
+                            color = colors.onAzurePrimary
                         )
                     }
                 }
@@ -522,7 +507,7 @@ private fun SavingsGoalsHeroCard(
                         Text(
                             text = goal.title,
                             style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                            color = TextLightSecondary,
+                            color = colors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
@@ -536,8 +521,8 @@ private fun SavingsGoalsHeroCard(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(DarkCard)
-                                        .border(1.dp, DarkBorder, CircleShape)
+                                        .background(colors.card)
+                                        .border(1.dp, colors.border, CircleShape)
                                         .clickable {
                                             val prev = if (safeIdx > 0) safeIdx - 1 else goals.lastIndex
                                             goalIndex = prev
@@ -548,21 +533,21 @@ private fun SavingsGoalsHeroCard(
                                     Icon(
                                         imageVector = Icons.Outlined.ChevronLeft,
                                         contentDescription = "Previous goal",
-                                        tint = TextLightPrimary,
+                                        tint = colors.textPrimary,
                                         modifier = Modifier.size(15.dp)
                                     )
                                 }
                                 Text(
                                     text = "${safeIdx + 1}/${goals.size}",
                                     style = MaterialTheme.typography.labelSmall.tabular(),
-                                    color = TextLightSecondary
+                                    color = colors.textSecondary
                                 )
                                 Box(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(DarkCard)
-                                        .border(1.dp, DarkBorder, CircleShape)
+                                        .background(colors.card)
+                                        .border(1.dp, colors.border, CircleShape)
                                         .clickable {
                                             val next = if (safeIdx < goals.lastIndex) safeIdx + 1 else 0
                                             goalIndex = next
@@ -573,7 +558,7 @@ private fun SavingsGoalsHeroCard(
                                     Icon(
                                         imageVector = Icons.Outlined.ChevronRight,
                                         contentDescription = "Next goal",
-                                        tint = TextLightPrimary,
+                                        tint = colors.textPrimary,
                                         modifier = Modifier.size(15.dp)
                                     )
                                 }
@@ -581,7 +566,7 @@ private fun SavingsGoalsHeroCard(
                                 Text(
                                     text = "Goal • $targetDateLabel",
                                     style = MaterialTheme.typography.labelSmall.tabular(),
-                                    color = MintTextOnBlue
+                                    color = colors.mintTextOnSurface
                                 )
                             }
                         }
@@ -595,13 +580,13 @@ private fun SavingsGoalsHeroCard(
                             fontWeight = FontWeight.Bold,
                             fontSize = 28.sp
                         ).tabular(),
-                        color = MintTextOnBlue
+                        color = colors.mintTextOnSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     LinearProgressIndicator(
                         progress = { progress.progressFraction },
-                        color = MintBright,
-                        trackColor = DarkBorder,
+                        color = colors.mintBright,
+                        trackColor = colors.border,
                         strokeCap = StrokeCap.Round,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -639,8 +624,9 @@ private fun SavingsGoalsHeroCard(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = DarkCard,
-                            border = BorderStroke(1.dp, DarkBorder),
+                            color = colors.card,
+                            border = BorderStroke(1.dp, colors.border),
+                            shadowElevation = 0.dp,
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(50))
@@ -649,14 +635,15 @@ private fun SavingsGoalsHeroCard(
                             Text(
                                 text = "View Goal",
                                 style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                                color = TextLightPrimary,
+                                color = colors.textPrimary,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.padding(vertical = 6.dp)
                             )
                         }
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = AzurePrimaryButton,
+                            color = colors.azurePrimary,
+                            shadowElevation = 0.dp,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
                                 .clickable(onClick = onOpenAddGoal)
@@ -669,13 +656,13 @@ private fun SavingsGoalsHeroCard(
                                 Icon(
                                     imageVector = Icons.Outlined.Add,
                                     contentDescription = null,
-                                    tint = PureWhite,
+                                    tint = colors.onAzurePrimary,
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Text(
                                     text = "Add Goal",
                                     style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                                    color = PureWhite
+                                    color = colors.onAzurePrimary
                                 )
                             }
                         }
@@ -693,11 +680,13 @@ private fun HeroMetricPill(
     isIncome: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
@@ -707,14 +696,14 @@ private fun HeroMetricPill(
             Icon(
                 imageVector = if (isIncome) Icons.AutoMirrored.Outlined.TrendingUp else Icons.AutoMirrored.Outlined.TrendingDown,
                 contentDescription = null,
-                tint = if (isIncome) MintTextOnBlue else CoralTextOnBlue,
+                tint = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface,
                 modifier = Modifier.size(17.dp)
             )
             Column {
                 Text(
                     text = label,
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                    color = TextLightSecondary
+                    color = colors.textSecondary
                 )
                 Text(
                     text = amount,
@@ -722,7 +711,7 @@ private fun HeroMetricPill(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
-                    color = if (isIncome) MintTextOnBlue else CoralTextOnBlue
+                    color = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface
                 )
             }
         }
@@ -736,11 +725,13 @@ private fun GlassSubStatPill(
     modifier: Modifier = Modifier,
     compact: Boolean = false
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier.padding(
@@ -751,7 +742,7 @@ private fun GlassSubStatPill(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                color = TextLightSecondary
+                color = colors.textSecondary
             )
             Text(
                 text = value,
@@ -759,7 +750,7 @@ private fun GlassSubStatPill(
                     fontFamily = ShiftlySans,
                     fontWeight = FontWeight.Bold
                 ).tabular(),
-                color = TextLightPrimary,
+                color = colors.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -778,10 +769,12 @@ fun MonthlyTopCategoriesCard(
     currencySymbol: String,
     onViewInsights: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -799,13 +792,13 @@ fun MonthlyTopCategoriesCard(
                 Icon(
                     imageVector = Icons.Outlined.BarChart,
                     contentDescription = null,
-                    tint = AzureInkOnWhite,
+                    tint = colors.azureInk,
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
                     text = "View insights",
                     style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                    color = AzureInkOnWhite
+                    color = colors.azureInk
                 )
             }
 
@@ -819,7 +812,7 @@ fun MonthlyTopCategoriesCard(
                     Text(
                         text = "Top Spending • $monthName",
                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotalSpent),
@@ -827,7 +820,7 @@ fun MonthlyTopCategoriesCard(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                 }
 
@@ -835,7 +828,7 @@ fun MonthlyTopCategoriesCard(
                     Text(
                         text = "No expenses logged in $monthName yet.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -855,20 +848,20 @@ fun MonthlyTopCategoriesCard(
                                             modifier = Modifier
                                                 .size(28.dp)
                                                 .clip(CircleShape)
-                                                .background(CoralSoftContainer),
+                                                .background(colors.coralContainer),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Icon(
                                                 imageVector = categoryIcon(item.category),
                                                 contentDescription = null,
-                                                tint = CoralInkOnWhite,
+                                                tint = colors.coralInk,
                                                 modifier = Modifier.size(15.dp)
                                             )
                                         }
                                         Text(
                                             text = item.category,
                                             style = MaterialTheme.typography.titleSmall,
-                                            color = TextLightPrimary
+                                            color = colors.textPrimary
                                         )
                                     }
                                     Text(
@@ -877,13 +870,13 @@ fun MonthlyTopCategoriesCard(
                                             fontFamily = ShiftlySans,
                                             fontWeight = FontWeight.Bold
                                         ).tabular(),
-                                        color = TextLightPrimary
+                                        color = colors.textPrimary
                                     )
                                 }
                                 LinearProgressIndicator(
                                     progress = { item.fraction.coerceIn(0.05f, 1f) },
-                                    color = CoralBright,
-                                    trackColor = DarkCardElevated,
+                                    color = colors.coralBright,
+                                    trackColor = colors.cardElevated,
                                     strokeCap = StrokeCap.Round,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -899,17 +892,19 @@ fun MonthlyTopCategoriesCard(
 }
 
 /**
- * Full-month hours indicator card placed below Top Spending (Regular/Total = White, Night Diff = Purple, Overtime = Red).
+ * Full-month hours indicator card placed below Top Spending (Regular/Total = primary text, Night Diff = Purple, Overtime = Red).
  */
 @Composable
 fun MonthlyHoursIndicatorCard(
     monthName: String,
     summary: MonthlyHoursSummary
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -924,12 +919,12 @@ fun MonthlyHoursIndicatorCard(
                 Text(
                     text = "Shift Hours • $monthName",
                     style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                    color = TextLightSecondary
+                    color = colors.textSecondary
                 )
                 Text(
                     text = "Full month",
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                    color = TextLightSecondary
+                    color = colors.textSecondary
                 )
             }
 
@@ -940,19 +935,19 @@ fun MonthlyHoursIndicatorCard(
                 MonthlyHoursMetricTile(
                     label = "Total Hours",
                     hours = summary.totalHours,
-                    valueColor = PureWhite,
+                    valueColor = colors.textPrimary,
                     modifier = Modifier.weight(1f)
                 )
                 MonthlyHoursMetricTile(
                     label = "Night Diff",
                     hours = summary.nightDiffHours,
-                    valueColor = NightDiffPurple,
+                    valueColor = colors.nightDiffPurple,
                     modifier = Modifier.weight(1f)
                 )
                 MonthlyHoursMetricTile(
                     label = "Overtime",
                     hours = summary.overtimeHours,
-                    valueColor = CoralBright,
+                    valueColor = colors.coralBright,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -967,11 +962,13 @@ private fun MonthlyHoursMetricTile(
     valueColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        color = DarkSurface,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = colors.surface,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
@@ -989,7 +986,7 @@ private fun MonthlyHoursMetricTile(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                color = TextLightSecondary,
+                color = colors.textSecondary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1004,10 +1001,12 @@ fun PendingSplitsBanner(
     currencySymbol: String,
     onClick: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = AzureSoftContainer,
-        border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.35f)),
+        color = colors.azureContainer,
+        border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.35f)),
+        shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
@@ -1029,7 +1028,7 @@ fun PendingSplitsBanner(
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.CallSplit,
                     contentDescription = null,
-                    tint = AzureInkOnWhite
+                    tint = colors.azureInk
                 )
                 Column {
                     Text(
@@ -1038,19 +1037,19 @@ fun PendingSplitsBanner(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "$billCount split bill(s) awaiting payment",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
                 contentDescription = "Open Split Bill",
-                tint = AzureInkOnWhite
+                tint = colors.azureInk
             )
         }
     }
@@ -1062,6 +1061,7 @@ fun HomeTimelineRow(
     currencySymbol: String,
     onClick: () -> Unit = {}
 ) {
+    val colors = ShiftlyColors.current
     val isIncome = item is TimelineActivityItem.ShiftActivity || item is TimelineActivityItem.ExtraIncomeActivity
     val iconVector = when (item) {
         is TimelineActivityItem.ShiftActivity -> Icons.Outlined.Schedule
@@ -1083,13 +1083,13 @@ fun HomeTimelineRow(
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(if (isIncome) MintSoftContainer else CoralSoftContainer),
+                .background(if (isIncome) colors.mintContainer else colors.coralContainer),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = iconVector,
                 contentDescription = null,
-                tint = if (isIncome) MintInkOnWhite else CoralInkOnWhite,
+                tint = if (isIncome) colors.mintInk else colors.coralInk,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -1100,14 +1100,14 @@ fun HomeTimelineRow(
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.titleSmall,
-                        color = TextLightPrimary,
+                        color = colors.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "${item.timeRange} • ${item.durationLabel}",
                         style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
 
@@ -1115,14 +1115,14 @@ fun HomeTimelineRow(
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.titleSmall,
-                        color = TextLightPrimary,
+                        color = colors.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "Recurring • ${item.timeLabel}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
 
@@ -1130,14 +1130,14 @@ fun HomeTimelineRow(
                     Text(
                         text = item.title,
                         style = MaterialTheme.typography.titleSmall,
-                        color = TextLightPrimary,
+                        color = colors.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "${item.category} • ${item.timeLabel}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -1151,7 +1151,7 @@ fun HomeTimelineRow(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
-                    color = MintInkOnWhite
+                    color = colors.mintInk
                 )
             }
 
@@ -1162,7 +1162,7 @@ fun HomeTimelineRow(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
-                    color = MintInkOnWhite
+                    color = colors.mintInk
                 )
             }
 
@@ -1173,7 +1173,7 @@ fun HomeTimelineRow(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
-                    color = CoralInkOnWhite
+                    color = colors.coralInk
                 )
             }
         }

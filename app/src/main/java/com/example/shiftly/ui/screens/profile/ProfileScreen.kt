@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,16 +29,14 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.CurrencyExchange
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Repeat
-import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -78,20 +77,8 @@ import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
-import com.example.shiftly.ui.theme.AzureAccent
-import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.AzureSoftContainer
-import com.example.shiftly.ui.theme.CoralInkOnWhite
-import com.example.shiftly.ui.theme.CoralSoftContainer
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.MintInkOnWhite
-import com.example.shiftly.ui.theme.MintSoftContainer
-import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.workers.ShiftlyDailyWorker
 import java.io.File
@@ -101,6 +88,7 @@ private enum class ActiveSettingsSheet {
     ACCOUNT,
     CURRENCY,
     NOTIFICATIONS,
+    THEME,
     BUDGETS,
     CATEGORIES,
     RECURRING,
@@ -444,6 +432,30 @@ fun ProfileScreen(
             }
         }
 
+        ActiveSettingsSheet.THEME -> {
+            SettingsSheetContainer(
+                title = "App Theme",
+                onDismiss = { activeSheet = null }
+            ) {
+                ThemeSelectorSheetContent(
+                    currentThemeMode = state.settings.themeMode,
+                    onSave = { mode ->
+                        viewModel.updateThemeMode(mode)
+                        activeSheet = null
+                        onShowMessage(
+                            "Theme set to ${
+                                when (mode.uppercase()) {
+                                    "LIGHT" -> "Light Mode"
+                                    "DARK" -> "Dark Mode"
+                                    else -> "System Default"
+                                }
+                            }"
+                        )
+                    }
+                )
+            }
+        }
+
         ActiveSettingsSheet.BUDGETS -> {
             SettingsSheetContainer(
                 title = "Monthly & Category Budgets",
@@ -586,6 +598,7 @@ private fun ProfileScreenContent(
     onToggleAppLock: (Boolean) -> Unit,
     listState: LazyListState = rememberLazyListState()
 ) {
+    val colors = ShiftlyColors.current
     val currency = state.currencySymbol
     val hasPhoto = !state.profilePhotoPath.isNullOrBlank() && File(state.profilePhotoPath).exists()
 
@@ -614,8 +627,8 @@ private fun ProfileScreenContent(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .background(DarkCard)
-                            .border(1.5.dp, AzureAccent.copy(alpha = 0.7f), CircleShape),
+                            .background(colors.card)
+                            .border(1.5.dp, colors.azureAccent.copy(alpha = 0.7f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         if (hasPhoto && state.profilePhotoPath != null) {
@@ -629,7 +642,7 @@ private fun ProfileScreenContent(
                             Icon(
                                 imageVector = Icons.Outlined.Person,
                                 contentDescription = "Add profile photo",
-                                tint = TextLightSecondary,
+                                tint = colors.textSecondary,
                                 modifier = Modifier.size(26.dp)
                             )
                         }
@@ -639,14 +652,14 @@ private fun ProfileScreenContent(
                             .size(22.dp)
                             .align(Alignment.BottomEnd)
                             .clip(CircleShape)
-                            .background(AzureAccent)
-                            .border(1.5.dp, DarkSurface, CircleShape),
+                            .background(colors.azureAccent)
+                            .border(1.5.dp, colors.surface, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.AddAPhoto,
                             contentDescription = null,
-                            tint = PureWhite,
+                            tint = colors.onAzurePrimary,
                             modifier = Modifier.size(12.dp)
                         )
                     }
@@ -689,8 +702,9 @@ private fun ProfileScreenContent(
                     .fillMaxWidth()
                     .heightIn(min = 520.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = DarkSurface,
-                shadowElevation = 12.dp
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.border),
+                shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -707,14 +721,14 @@ private fun ProfileScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(DarkBorder)
+                                .background(colors.border)
                         )
                     }
 
                     Text(
                         text = "Settings",
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
 
                     SettingsGroupCard(groupTitle = "ACCOUNT & PREFERENCES") {
@@ -723,22 +737,35 @@ private fun ProfileScreenContent(
                             title = "Account",
                             onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
                         )
-                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
+                        HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
                             icon = Icons.Outlined.CurrencyExchange,
                             title = "Currency",
                             trailingBadge = currency,
-                            iconBg = MintSoftContainer,
-                            iconTint = MintInkOnWhite,
+                            iconBg = colors.mintContainer,
+                            iconTint = colors.mintInk,
                             onClick = { onOpenSheet(ActiveSettingsSheet.CURRENCY) }
                         )
-                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
+                        HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
                         SettingsSwitchRow(
                             icon = Icons.Outlined.Notifications,
                             title = "Notifications",
                             checked = state.settings.notificationsEnabled,
                             onCheckedChange = onToggleNotifications,
                             onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) }
+                        )
+                        HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
+                        SettingsChevronRow(
+                            icon = Icons.Outlined.Palette,
+                            title = "App Theme",
+                            subtitle = when (state.settings.themeMode.uppercase()) {
+                                "LIGHT" -> "Light Mode"
+                                "DARK" -> "Dark Mode"
+                                else -> "System Default"
+                            },
+                            iconBg = colors.coralContainer,
+                            iconTint = colors.coralInk,
+                            onClick = { onOpenSheet(ActiveSettingsSheet.THEME) }
                         )
                     }
 
@@ -757,10 +784,10 @@ private fun ProfileScreenContent(
                             checked = state.settings.appLockEnabled,
                             onCheckedChange = onToggleAppLock,
                             onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },
-                            iconBg = AzureSoftContainer,
-                            iconTint = AzureInkOnWhite
+                            iconBg = colors.azureContainer,
+                            iconTint = colors.azureInk
                         )
-                        HorizontalDivider(color = DarkBorder, modifier = Modifier.padding(start = 66.dp))
+                        HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
                         SettingsChevronRow(
                             icon = Icons.Outlined.Backup,
                             title = "Data Export & Restore",

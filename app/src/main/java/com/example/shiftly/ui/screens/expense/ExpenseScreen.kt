@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.expense
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,11 +48,8 @@ import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.theme.AzurePrimaryButton
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
@@ -124,6 +122,7 @@ fun ExpenseScreenContent(
     onDeleteExpense: (ExpenseEntity) -> Unit,
     onBack: () -> Unit = {}
 ) {
+    val colors = ShiftlyColors.current
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -142,8 +141,12 @@ fun ExpenseScreenContent(
                         onClick = onOpenAddSheet,
                         shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = AzurePrimaryButton,
-                            contentColor = PureWhite
+                            containerColor = colors.azurePrimary,
+                            contentColor = colors.onAzurePrimary
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp
                         ),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
                         modifier = Modifier.heightIn(min = 48.dp)
@@ -160,7 +163,7 @@ fun ExpenseScreenContent(
                                 fontFamily = ShiftlySerif,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = PureWhite
+                            color = colors.onAzurePrimary
                         )
                     }
                 }
@@ -194,8 +197,9 @@ fun ExpenseScreenContent(
                     .fillMaxWidth()
                     .heightIn(min = 620.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = DarkSurface,
-                shadowElevation = 12.dp
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.border),
+                shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -212,7 +216,7 @@ fun ExpenseScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(DarkBorder)
+                                .background(colors.border)
                         )
                     }
 
@@ -338,6 +342,7 @@ private fun AddExpenseSheetPreview() {
     )
 
     ShiftlyTheme {
+        val colors = ShiftlyColors.current
         ShiftlyBlueGradientBackground {
             Box(modifier = Modifier.fillMaxSize()) {
                 ExpenseScreenContent(
@@ -354,8 +359,9 @@ private fun AddExpenseSheetPreview() {
                 ) {
                     Surface(
                         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                        color = DarkSurface,
-                        shadowElevation = 16.dp,
+                        color = colors.surface,
+                        border = BorderStroke(1.dp, colors.border),
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
@@ -369,7 +375,7 @@ private fun AddExpenseSheetPreview() {
                                     modifier = Modifier
                                         .size(width = 36.dp, height = 4.dp)
                                         .clip(RoundedCornerShape(50))
-                                        .background(DarkBorder)
+                                        .background(colors.border)
                                 )
                             }
                             Spacer(modifier = Modifier.height(6.dp))

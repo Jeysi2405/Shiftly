@@ -65,8 +65,6 @@ import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
-import com.example.shiftly.ui.theme.DarkCardElevated
-import java.time.ZoneOffset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -99,30 +97,9 @@ import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
-import com.example.shiftly.ui.theme.AzureAccent
-import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.AzurePrimaryButton
-import com.example.shiftly.ui.theme.AzureSoftContainer
-import com.example.shiftly.ui.theme.CoralBright
-import com.example.shiftly.ui.theme.CoralInkOnWhite
-import com.example.shiftly.ui.theme.CoralSoftContainer
-import com.example.shiftly.ui.theme.DarkBackground
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkCardElevated
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.MintBright
-import com.example.shiftly.ui.theme.MintInkOnWhite
-import com.example.shiftly.ui.theme.MintSoftContainer
-import com.example.shiftly.ui.theme.MintTextOnBlue
-import com.example.shiftly.ui.theme.NightDiffPurple
-import com.example.shiftly.ui.theme.NightDiffPurpleContainer
-import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
-import com.example.shiftly.ui.theme.TextLightMuted
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.DayType
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -134,6 +111,7 @@ import java.time.LocalTime
 import java.time.Month
 import java.time.YearMonth
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import kotlin.math.abs
@@ -193,10 +171,12 @@ fun DayTypeSelectorRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 58.dp)
@@ -214,7 +194,7 @@ fun DayTypeSelectorRow(
                 Text(
                     text = "Day Type",
                     style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                    color = TextLightSecondary
+                    color = colors.textSecondary
                 )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -226,13 +206,14 @@ fun DayTypeSelectorRow(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     selectedDayType.holidayBadge?.let { badge ->
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = CoralSoftContainer,
-                            border = BorderStroke(1.dp, CoralBright.copy(alpha = 0.45f))
+                            color = colors.coralContainer,
+                            border = BorderStroke(1.dp, colors.coralBright.copy(alpha = 0.45f)),
+                            shadowElevation = 0.dp
                         ) {
                             Text(
                                 text = badge,
@@ -240,7 +221,7 @@ fun DayTypeSelectorRow(
                                     fontFamily = ShiftlySans,
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = CoralInkOnWhite,
+                                color = colors.coralInk,
                                 modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                             )
                         }
@@ -250,7 +231,7 @@ fun DayTypeSelectorRow(
             Icon(
                 imageVector = Icons.Outlined.ChevronRight,
                 contentDescription = "Choose day type",
-                tint = TextLightSecondary
+                tint = colors.textSecondary
             )
         }
     }
@@ -263,11 +244,13 @@ fun DayTypePromptSheet(
     onSelect: (DayType) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = DarkSurface,
+        containerColor = colors.surface,
+        tonalElevation = 0.dp,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -287,13 +270,13 @@ fun DayTypePromptSheet(
                 Text(
                     text = "Select Day Type",
                     style = MaterialTheme.typography.headlineSmall.copy(fontFamily = ShiftlySerif),
-                    color = TextLightPrimary
+                    color = colors.textPrimary
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "Close",
-                        tint = TextLightSecondary
+                        tint = colors.textSecondary
                     )
                 }
             }
@@ -302,11 +285,12 @@ fun DayTypePromptSheet(
                 val isSelected = dayType == selectedDayType
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = if (isSelected) AzureSoftContainer else DarkCard,
+                    color = if (isSelected) colors.azureContainer else colors.card,
                     border = BorderStroke(
                         width = if (isSelected) 1.5.dp else 1.dp,
-                        color = if (isSelected) AzureAccent else DarkBorder
+                        color = if (isSelected) colors.azureAccent else colors.border
                     ),
+                    shadowElevation = 0.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
@@ -336,13 +320,14 @@ fun DayTypePromptSheet(
                                     fontFamily = ShiftlySans,
                                     fontWeight = FontWeight.SemiBold
                                 ),
-                                color = if (isSelected) PureWhite else TextLightPrimary
+                                color = colors.textPrimary
                             )
                             dayType.holidayBadge?.let { badge ->
                                 Surface(
                                     shape = RoundedCornerShape(50),
-                                    color = CoralSoftContainer,
-                                    border = BorderStroke(1.dp, CoralBright.copy(alpha = 0.45f))
+                                    color = colors.coralContainer,
+                                    border = BorderStroke(1.dp, colors.coralBright.copy(alpha = 0.45f)),
+                                    shadowElevation = 0.dp
                                 ) {
                                     Text(
                                         text = badge,
@@ -350,7 +335,7 @@ fun DayTypePromptSheet(
                                             fontFamily = ShiftlySans,
                                             fontWeight = FontWeight.Bold
                                         ),
-                                        color = CoralInkOnWhite,
+                                        color = colors.coralInk,
                                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                     )
                                 }
@@ -361,13 +346,13 @@ fun DayTypePromptSheet(
                                 modifier = Modifier
                                     .size(26.dp)
                                     .clip(CircleShape)
-                                    .background(AzurePrimaryButton),
+                                    .background(colors.azurePrimary),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Check,
                                     contentDescription = "Selected",
-                                    tint = PureWhite,
+                                    tint = colors.onAzurePrimary,
                                     modifier = Modifier.size(16.dp)
                                 )
                             }
@@ -392,6 +377,7 @@ fun TimeBreakdownCard(
     currencySymbol: String,
     displayedMonth: YearMonth = YearMonth.now()
 ) {
+    val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val monthLabel = remember(displayedMonth, locale) {
         displayedMonth.month.getDisplayName(TextStyle.FULL, locale)
@@ -409,7 +395,7 @@ fun TimeBreakdownCard(
                     Text(
                         text = headerTitle,
                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -419,12 +405,12 @@ fun TimeBreakdownCard(
                             fontWeight = FontWeight.Bold,
                             fontSize = 32.sp
                         ).tabular(),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                 }
             }
 
-            // Regular = White, Night Diff = Purple, Overtime = Red
+            // Regular = Primary, Night Diff = Purple, Overtime = Red
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -432,19 +418,19 @@ fun TimeBreakdownCard(
                 TimeBreakdownTile(
                     label = "Regular",
                     hours = timeBreakdown.regularHours,
-                    valueColor = PureWhite,
+                    valueColor = colors.textPrimary,
                     modifier = Modifier.weight(1f)
                 )
                 TimeBreakdownTile(
                     label = "Night Diff",
                     hours = timeBreakdown.nightDiffHours,
-                    valueColor = NightDiffPurple,
+                    valueColor = colors.nightDiffPurple,
                     modifier = Modifier.weight(1f)
                 )
                 TimeBreakdownTile(
                     label = "Overtime",
                     hours = timeBreakdown.overtimeHours,
-                    valueColor = CoralBright,
+                    valueColor = colors.coralBright,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -459,11 +445,12 @@ private fun TimeBreakdownTile(
     valueColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val colors = ShiftlyColors.current
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(DarkCard)
-            .border(1.dp, DarkBorder, RoundedCornerShape(18.dp))
+            .background(colors.card)
+            .border(1.dp, colors.border, RoundedCornerShape(18.dp))
             .padding(horizontal = 10.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -482,7 +469,7 @@ private fun TimeBreakdownTile(
                 fontFamily = ShiftlySerif,
                 fontWeight = FontWeight.Medium
             ),
-            color = TextLightSecondary,
+            color = colors.textSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -500,6 +487,7 @@ fun ShiftCalendarCard(
     onClearFilter: () -> Unit,
     todayOverride: LocalDate? = null
 ) {
+    val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
     val monthTitle = remember(displayedMonth, locale) {
@@ -522,7 +510,7 @@ fun ShiftCalendarCard(
                         fontFamily = ShiftlySerif,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = TextLightPrimary,
+                    color = colors.textPrimary,
                     modifier = Modifier.padding(start = 4.dp)
                 )
 
@@ -533,8 +521,9 @@ fun ShiftCalendarCard(
                     if (selectedCalendarDate != null) {
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = DarkCard,
-                            border = BorderStroke(1.dp, DarkBorder),
+                            color = colors.card,
+                            border = BorderStroke(1.dp, colors.border),
+                            shadowElevation = 0.dp,
                             modifier = Modifier
                                 .heightIn(min = 48.dp)
                                 .clip(RoundedCornerShape(50))
@@ -547,7 +536,7 @@ fun ShiftCalendarCard(
                                 Text(
                                     text = "Reset",
                                     style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                                    color = TextLightPrimary
+                                    color = colors.textPrimary
                                 )
                             }
                         }
@@ -560,7 +549,7 @@ fun ShiftCalendarCard(
                         Icon(
                             imageVector = Icons.Outlined.ChevronLeft,
                             contentDescription = "Previous Month",
-                            tint = TextLightPrimary
+                            tint = colors.textPrimary
                         )
                     }
 
@@ -571,7 +560,7 @@ fun ShiftCalendarCard(
                         Icon(
                             imageVector = Icons.Outlined.ChevronRight,
                             contentDescription = "Next Month",
-                            tint = TextLightPrimary
+                            tint = colors.textPrimary
                         )
                     }
                 }
@@ -590,7 +579,7 @@ fun ShiftCalendarCard(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = TextLightSecondary,
+                        color = colors.textSecondary,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -625,10 +614,10 @@ fun ShiftCalendarCard(
                                 }
 
                                 val isFirstCutoff = dayNumber in 1..15
-                                val cutoffBg = if (isFirstCutoff) CoralSoftContainer else AzureSoftContainer
-                                val cutoffBorder = if (isFirstCutoff) CoralBright.copy(alpha = 0.55f) else AzureAccent.copy(alpha = 0.55f)
-                                val cutoffText = if (isFirstCutoff) CoralInkOnWhite else AzureInkOnWhite
-                                val cutoffDot = if (isFirstCutoff) CoralBright else AzureAccent
+                                val cutoffBg = if (isFirstCutoff) colors.coralContainer else colors.azureContainer
+                                val cutoffBorder = if (isFirstCutoff) colors.coralBright.copy(alpha = 0.55f) else colors.azureAccent.copy(alpha = 0.55f)
+                                val cutoffText = if (isFirstCutoff) colors.coralInk else colors.azureInk
+                                val cutoffDot = if (isFirstCutoff) colors.coralBright else colors.azureAccent
 
                                 Box(
                                     modifier = Modifier
@@ -637,16 +626,16 @@ fun ShiftCalendarCard(
                                         .clip(RoundedCornerShape(14.dp))
                                         .background(
                                             when {
-                                                isSelected -> AzurePrimaryButton
+                                                isSelected -> colors.azurePrimary
                                                 hasLoggedShift -> cutoffBg
-                                                else -> DarkCard
+                                                else -> colors.card
                                             }
                                         )
                                         .then(
                                             if (isToday && !isSelected) {
                                                 Modifier.border(
                                                     width = 1.6.dp,
-                                                    color = AzureAccent,
+                                                    color = colors.azureAccent,
                                                     shape = RoundedCornerShape(14.dp)
                                                 )
                                             } else if (hasLoggedShift && !isSelected) {
@@ -678,9 +667,9 @@ fun ShiftCalendarCard(
                                                 }
                                             ).tabular(),
                                             color = when {
-                                                isSelected -> PureWhite
+                                                isSelected -> colors.onAzurePrimary
                                                 hasLoggedShift -> cutoffText
-                                                else -> TextLightPrimary
+                                                else -> colors.textPrimary
                                             }
                                         )
                                         if (hasLoggedShift) {
@@ -690,7 +679,7 @@ fun ShiftCalendarCard(
                                                     .size(5.dp)
                                                     .clip(CircleShape)
                                                     .background(
-                                                        if (isSelected) PureWhite else cutoffDot
+                                                        if (isSelected) colors.onAzurePrimary else cutoffDot
                                                     )
                                             )
                                         }
@@ -717,10 +706,12 @@ fun ShiftHistoryEmptyCard(
     onLogFirstShift: () -> Unit,
     onClearFilter: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -734,20 +725,20 @@ fun ShiftHistoryEmptyCard(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(CircleShape)
-                    .background(MintSoftContainer),
+                    .background(colors.mintContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.WorkHistory,
                     contentDescription = null,
-                    tint = MintInkOnWhite,
+                    tint = colors.mintInk,
                     modifier = Modifier.size(26.dp)
                 )
             }
             Text(
                 text = if (isFiltered) "No shifts on this day" else "No shifts logged yet",
                 style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
-                color = TextLightPrimary,
+                color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
             Text(
@@ -757,7 +748,7 @@ fun ShiftHistoryEmptyCard(
                     "Tap below to log your shift hours and auto-compute your pay."
                 },
                 style = MaterialTheme.typography.bodySmall,
-                color = TextLightSecondary,
+                color = colors.textSecondary,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(4.dp))
@@ -776,6 +767,7 @@ fun ShiftHistoryItemCard(
     onEditNote: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val zone = remember { ZoneId.systemDefault() }
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE, MMM d", locale) }
@@ -808,9 +800,9 @@ fun ShiftHistoryItemCard(
 
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
-        shadowElevation = 2.dp,
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -831,13 +823,13 @@ fun ShiftHistoryItemCard(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(MintSoftContainer),
+                            .background(colors.mintContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Schedule,
                             contentDescription = null,
-                            tint = MintInkOnWhite,
+                            tint = colors.mintInk,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -849,12 +841,12 @@ fun ShiftHistoryItemCard(
                                 fontFamily = ShiftlySerif,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = TextLightPrimary
+                            color = colors.textPrimary
                         )
                         Text(
                             text = timeRangeText,
                             style = MaterialTheme.typography.bodySmall.tabular(),
-                            color = TextLightSecondary
+                            color = colors.textSecondary
                         )
                     }
                 }
@@ -866,17 +858,17 @@ fun ShiftHistoryItemCard(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
-                        color = MintInkOnWhite
+                        color = colors.mintInk
                     )
                     Text(
                         text = runCatching { DayType.valueOf(shift.dayType).label }.getOrNull() ?: shift.dayType,
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
             }
 
-            // Color-coded breakdown chips: Regular = White, Night Diff = Purple, Overtime = Red
+            // Color-coded breakdown chips: Regular = Primary, Night Diff = Purple, Overtime = Red
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -885,13 +877,14 @@ fun ShiftHistoryItemCard(
                 if (wageDetails.regularBaseMinutes > 0L) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = DarkSurface,
-                        border = BorderStroke(1.dp, DarkBorder)
+                        color = colors.surface,
+                        border = BorderStroke(1.dp, colors.border),
+                        shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "Reg ${formatPillDuration(wageDetails.regularBaseMinutes)}",
                             style = MaterialTheme.typography.labelSmall.tabular(),
-                            color = PureWhite,
+                            color = colors.textPrimary,
                             modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                         )
                     }
@@ -899,13 +892,14 @@ fun ShiftHistoryItemCard(
                 if (wageDetails.nightDiffMinutes > 0L) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = NightDiffPurpleContainer,
-                        border = BorderStroke(1.dp, NightDiffPurple.copy(alpha = 0.45f))
+                        color = colors.nightDiffPurpleContainer,
+                        border = BorderStroke(1.dp, colors.nightDiffPurple.copy(alpha = 0.45f)),
+                        shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "ND ${formatPillDuration(wageDetails.nightDiffMinutes)}",
                             style = MaterialTheme.typography.labelSmall.tabular(),
-                            color = NightDiffPurple,
+                            color = colors.nightDiffPurple,
                             modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                         )
                     }
@@ -913,13 +907,14 @@ fun ShiftHistoryItemCard(
                 if (wageDetails.overtimeMinutes > 0L) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = CoralSoftContainer,
-                        border = BorderStroke(1.dp, CoralBright.copy(alpha = 0.45f))
+                        color = colors.coralContainer,
+                        border = BorderStroke(1.dp, colors.coralBright.copy(alpha = 0.45f)),
+                        shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "OT ${formatPillDuration(wageDetails.overtimeMinutes)}",
                             style = MaterialTheme.typography.labelSmall.tabular(),
-                            color = CoralBright,
+                            color = colors.coralBright,
                             modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                         )
                     }
@@ -934,14 +929,15 @@ fun ShiftHistoryItemCard(
                 if (shift.overtimeNote.isNotBlank()) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = DarkSurface,
-                        border = BorderStroke(1.dp, DarkBorder),
+                        color = colors.surface,
+                        border = BorderStroke(1.dp, colors.border),
+                        shadowElevation = 0.dp,
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Text(
                             text = shift.overtimeNote,
                             style = MaterialTheme.typography.labelSmall,
-                            color = TextLightPrimary,
+                            color = colors.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -951,7 +947,7 @@ fun ShiftHistoryItemCard(
                     Text(
                         text = "${ShiftlyFormatters.formatCurrency(currencySymbol, shift.lockedHourlyRate)}/hr",
                         style = MaterialTheme.typography.labelSmall.tabular(),
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
 
@@ -960,7 +956,7 @@ fun ShiftHistoryItemCard(
                         Icon(
                             imageVector = Icons.Outlined.EditNote,
                             contentDescription = "Edit Shift",
-                            tint = AzureInkOnWhite,
+                            tint = colors.azureInk,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -968,7 +964,7 @@ fun ShiftHistoryItemCard(
                         Icon(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = "Delete Shift",
-                            tint = CoralInkOnWhite,
+                            tint = colors.coralInk,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -990,6 +986,7 @@ private fun WheelPickerColumn(
     modifier: Modifier = Modifier,
     width: Dp = 64.dp
 ) {
+    val colors = ShiftlyColors.current
     val itemHeight = 36.dp
     val visibleCount = 5
     val pickerHeight = itemHeight * visibleCount
@@ -1040,9 +1037,9 @@ private fun WheelPickerColumn(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        DarkBackground.copy(alpha = 0.85f),
-                        DarkCardElevated.copy(alpha = 0.45f),
-                        DarkBackground.copy(alpha = 0.85f)
+                        colors.background.copy(alpha = 0.85f),
+                        colors.cardElevated.copy(alpha = 0.45f),
+                        colors.background.copy(alpha = 0.85f)
                     )
                 )
             ),
@@ -1080,7 +1077,7 @@ private fun WheelPickerColumn(
                             fontWeight = if (dist == 0) FontWeight.Bold else FontWeight.Medium,
                             fontSize = if (dist == 0) 19.sp else 15.sp
                         ).tabular(),
-                        color = if (dist == 0) PureWhite else TextLightSecondary,
+                        color = if (dist == 0) colors.textPrimary else colors.textSecondary,
                         modifier = Modifier.alpha(alpha),
                         maxLines = 1
                     )
@@ -1096,10 +1093,11 @@ private fun TimeBoxChip(
     highlighted: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val colors = ShiftlyColors.current
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(if (highlighted) DarkCardElevated else DarkSurface)
+            .background(if (highlighted) colors.cardElevated else colors.surface)
             .padding(horizontal = 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -1109,7 +1107,7 @@ private fun TimeBoxChip(
                 fontFamily = ShiftlySans,
                 fontWeight = FontWeight.Bold
             ).tabular(),
-            color = TextLightPrimary
+            color = colors.textPrimary
         )
     }
 }
@@ -1121,6 +1119,7 @@ private fun TimeDisplayPill(
     expanded: Boolean,
     onClick: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val (hour12, isPm) = to12HourParts(hour24)
     val hourStr = hour12.toString().padStart(2, '0')
     val minStr = minute.toString().padStart(2, '0')
@@ -1131,7 +1130,7 @@ private fun TimeDisplayPill(
             .clip(RoundedCornerShape(14.dp))
             .border(
                 width = if (expanded) 1.5.dp else 1.dp,
-                color = if (expanded) AzureAccent else DarkBorder,
+                color = if (expanded) colors.azureAccent else colors.border,
                 shape = RoundedCornerShape(14.dp)
             )
             .clickable(onClick = onClick)
@@ -1143,7 +1142,7 @@ private fun TimeDisplayPill(
         Text(
             text = ":",
             style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-            color = TextLightSecondary
+            color = colors.textSecondary
         )
         TimeBoxChip(text = minStr, highlighted = expanded)
         TimeBoxChip(text = amPmStr, highlighted = expanded)
@@ -1156,6 +1155,7 @@ private fun InlineTime12hWheel(
     minute: Int,
     onTimeChanged: (newHour24: Int, newMinute: Int) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val (hour12, isPm) = to12HourParts(hour24)
     val hours12List = remember { (1..12).map { it.toString().padStart(2, '0') } }
     val minutesList = remember { (0..59).map { it.toString().padStart(2, '0') } }
@@ -1165,8 +1165,8 @@ private fun InlineTime12hWheel(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(DarkBackground)
-            .border(1.dp, DarkBorder, RoundedCornerShape(18.dp))
+            .background(colors.background)
+            .border(1.dp, colors.border, RoundedCornerShape(18.dp))
             .padding(vertical = 10.dp, horizontal = 12.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -1176,7 +1176,7 @@ private fun InlineTime12hWheel(
                 .fillMaxWidth(0.86f)
                 .height(40.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .border(1.5.dp, AzureAccent, RoundedCornerShape(12.dp))
+                .border(1.5.dp, colors.azureAccent, RoundedCornerShape(12.dp))
         )
 
         Row(
@@ -1200,7 +1200,7 @@ private fun InlineTime12hWheel(
                     fontFamily = ShiftlySans,
                     fontWeight = FontWeight.Bold
                 ),
-                color = PureWhite,
+                color = colors.textPrimary,
                 modifier = Modifier.padding(horizontal = 6.dp)
             )
 
@@ -1233,6 +1233,7 @@ private fun InlineDateWheel(
     date: LocalDate,
     onDateChanged: (LocalDate) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val monthsList = remember(locale) {
         Month.entries.map { it.getDisplayName(TextStyle.SHORT, locale) }
@@ -1255,8 +1256,8 @@ private fun InlineDateWheel(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(DarkBackground)
-            .border(1.dp, DarkBorder, RoundedCornerShape(18.dp))
+            .background(colors.background)
+            .border(1.dp, colors.border, RoundedCornerShape(18.dp))
             .padding(vertical = 10.dp, horizontal = 12.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -1265,7 +1266,7 @@ private fun InlineDateWheel(
                 .fillMaxWidth(0.92f)
                 .height(40.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .border(1.5.dp, AzureAccent, RoundedCornerShape(12.dp))
+                .border(1.5.dp, colors.azureAccent, RoundedCornerShape(12.dp))
         )
 
         Row(
@@ -1319,6 +1320,7 @@ private fun BasicDateAndTimeSelectorCard(
     onStartTimeChanged: (Int, Int) -> Unit,
     onEndTimeChanged: (Int, Int) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
     val dayOfWeekFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE", locale) }
@@ -1339,8 +1341,9 @@ private fun BasicDateAndTimeSelectorCard(
 
     Surface(
         shape = RoundedCornerShape(22.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -1364,19 +1367,20 @@ private fun BasicDateAndTimeSelectorCard(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = date.format(dayOfWeekFormatter),
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = DarkSurface,
-                    border = BorderStroke(1.dp, DarkBorder)
+                    color = colors.surface,
+                    border = BorderStroke(1.dp, colors.border),
+                    shadowElevation = 0.dp
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -1386,7 +1390,7 @@ private fun BasicDateAndTimeSelectorCard(
                         Icon(
                             imageVector = Icons.Outlined.CalendarToday,
                             contentDescription = null,
-                            tint = AzureAccent,
+                            tint = colors.azureAccent,
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
@@ -1395,13 +1399,13 @@ private fun BasicDateAndTimeSelectorCard(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
-                            color = TextLightPrimary
+                            color = colors.textPrimary
                         )
                     }
                 }
             }
 
-            HorizontalDivider(color = DarkBorder.copy(alpha = 0.65f))
+            HorizontalDivider(color = colors.border.copy(alpha = 0.65f))
 
             // 2. Start Time Row
             Row(
@@ -1418,19 +1422,20 @@ private fun BasicDateAndTimeSelectorCard(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "Shift begins",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = DarkSurface,
-                    border = BorderStroke(1.dp, DarkBorder)
+                    color = colors.surface,
+                    border = BorderStroke(1.dp, colors.border),
+                    shadowElevation = 0.dp
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -1440,7 +1445,7 @@ private fun BasicDateAndTimeSelectorCard(
                         Icon(
                             imageVector = Icons.Outlined.AccessTime,
                             contentDescription = null,
-                            tint = AzureAccent,
+                            tint = colors.azureAccent,
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
@@ -1449,13 +1454,13 @@ private fun BasicDateAndTimeSelectorCard(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
-                            color = TextLightPrimary
+                            color = colors.textPrimary
                         )
                     }
                 }
             }
 
-            HorizontalDivider(color = DarkBorder.copy(alpha = 0.65f))
+            HorizontalDivider(color = colors.border.copy(alpha = 0.65f))
 
             // 3. End Time Row
             Row(
@@ -1472,19 +1477,20 @@ private fun BasicDateAndTimeSelectorCard(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = if (endsNextDay) "Ends next day" else "Ends same day",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (endsNextDay) AzureAccent else TextLightSecondary
+                        color = if (endsNextDay) colors.azureAccent else colors.textSecondary
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = DarkSurface,
-                    border = BorderStroke(1.dp, DarkBorder)
+                    color = colors.surface,
+                    border = BorderStroke(1.dp, colors.border),
+                    shadowElevation = 0.dp
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -1494,7 +1500,7 @@ private fun BasicDateAndTimeSelectorCard(
                         Icon(
                             imageVector = Icons.Outlined.AccessTime,
                             contentDescription = null,
-                            tint = AzureAccent,
+                            tint = colors.azureAccent,
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
@@ -1503,7 +1509,7 @@ private fun BasicDateAndTimeSelectorCard(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
-                            color = TextLightPrimary
+                            color = colors.textPrimary
                         )
                     }
                 }
@@ -1518,6 +1524,8 @@ private fun BasicDateAndTimeSelectorCard(
 
         DatePickerDialog(
             onDismissRequest = { showDatePicker = false },
+            tonalElevation = 0.dp,
+            colors = DatePickerDefaults.colors(containerColor = colors.surface),
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -1531,33 +1539,33 @@ private fun BasicDateAndTimeSelectorCard(
                         showDatePicker = false
                     }
                 ) {
-                    Text("Select", color = AzureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text("Select", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDatePicker = false }) {
-                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
+                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
                 }
             }
         ) {
             DatePicker(
                 state = datePickerState,
                 colors = DatePickerDefaults.colors(
-                    containerColor = DarkSurface,
-                    titleContentColor = TextLightPrimary,
-                    headlineContentColor = TextLightPrimary,
-                    weekdayContentColor = TextLightSecondary,
-                    subheadContentColor = TextLightSecondary,
-                    yearContentColor = TextLightPrimary,
-                    currentYearContentColor = AzureAccent,
-                    selectedYearContentColor = PureWhite,
-                    selectedYearContainerColor = AzurePrimaryButton,
-                    dayContentColor = TextLightPrimary,
-                    disabledDayContentColor = TextLightMuted,
-                    selectedDayContentColor = PureWhite,
-                    selectedDayContainerColor = AzurePrimaryButton,
-                    todayContentColor = AzureAccent,
-                    todayDateBorderColor = AzureAccent
+                    containerColor = colors.surface,
+                    titleContentColor = colors.textPrimary,
+                    headlineContentColor = colors.textPrimary,
+                    weekdayContentColor = colors.textSecondary,
+                    subheadContentColor = colors.textSecondary,
+                    yearContentColor = colors.textPrimary,
+                    currentYearContentColor = colors.azureAccent,
+                    selectedYearContentColor = colors.onAzurePrimary,
+                    selectedYearContainerColor = colors.azurePrimary,
+                    dayContentColor = colors.textPrimary,
+                    disabledDayContentColor = colors.textMuted,
+                    selectedDayContentColor = colors.onAzurePrimary,
+                    selectedDayContainerColor = colors.azurePrimary,
+                    todayContentColor = colors.azureAccent,
+                    todayDateBorderColor = colors.azureAccent
                 )
             )
         }
@@ -1572,6 +1580,8 @@ private fun BasicDateAndTimeSelectorCard(
         )
         DatePickerDialog(
             onDismissRequest = { showStartTimePicker = false },
+            tonalElevation = 0.dp,
+            colors = DatePickerDefaults.colors(containerColor = colors.surface),
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -1579,12 +1589,12 @@ private fun BasicDateAndTimeSelectorCard(
                         showStartTimePicker = false
                     }
                 ) {
-                    Text("OK", color = AzureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text("OK", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showStartTimePicker = false }) {
-                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
+                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
                 }
             }
         ) {
@@ -1597,20 +1607,20 @@ private fun BasicDateAndTimeSelectorCard(
                 TimePicker(
                     state = timePickerState,
                     colors = TimePickerDefaults.colors(
-                        clockDialColor = DarkSurface,
-                        clockDialSelectedContentColor = PureWhite,
-                        clockDialUnselectedContentColor = TextLightSecondary,
-                        selectorColor = AzurePrimaryButton,
-                        containerColor = DarkSurface,
-                        periodSelectorBorderColor = DarkBorder,
-                        periodSelectorSelectedContainerColor = AzurePrimaryButton,
-                        periodSelectorUnselectedContainerColor = DarkSurface,
-                        periodSelectorSelectedContentColor = PureWhite,
-                        periodSelectorUnselectedContentColor = TextLightSecondary,
-                        timeSelectorSelectedContainerColor = DarkCardElevated,
-                        timeSelectorUnselectedContainerColor = DarkSurface,
-                        timeSelectorSelectedContentColor = PureWhite,
-                        timeSelectorUnselectedContentColor = TextLightSecondary
+                        clockDialColor = colors.card,
+                        clockDialSelectedContentColor = colors.onAzurePrimary,
+                        clockDialUnselectedContentColor = colors.textSecondary,
+                        selectorColor = colors.azurePrimary,
+                        containerColor = colors.surface,
+                        periodSelectorBorderColor = colors.border,
+                        periodSelectorSelectedContainerColor = colors.azurePrimary,
+                        periodSelectorUnselectedContainerColor = colors.surface,
+                        periodSelectorSelectedContentColor = colors.onAzurePrimary,
+                        periodSelectorUnselectedContentColor = colors.textSecondary,
+                        timeSelectorSelectedContainerColor = colors.cardElevated,
+                        timeSelectorUnselectedContainerColor = colors.surface,
+                        timeSelectorSelectedContentColor = colors.textPrimary,
+                        timeSelectorUnselectedContentColor = colors.textSecondary
                     )
                 )
             }
@@ -1626,6 +1636,8 @@ private fun BasicDateAndTimeSelectorCard(
         )
         DatePickerDialog(
             onDismissRequest = { showEndTimePicker = false },
+            tonalElevation = 0.dp,
+            colors = DatePickerDefaults.colors(containerColor = colors.surface),
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -1633,12 +1645,12 @@ private fun BasicDateAndTimeSelectorCard(
                         showEndTimePicker = false
                     }
                 ) {
-                    Text("OK", color = AzureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text("OK", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showEndTimePicker = false }) {
-                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
+                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
                 }
             }
         ) {
@@ -1651,20 +1663,20 @@ private fun BasicDateAndTimeSelectorCard(
                 TimePicker(
                     state = timePickerState,
                     colors = TimePickerDefaults.colors(
-                        clockDialColor = DarkSurface,
-                        clockDialSelectedContentColor = PureWhite,
-                        clockDialUnselectedContentColor = TextLightSecondary,
-                        selectorColor = AzurePrimaryButton,
-                        containerColor = DarkSurface,
-                        periodSelectorBorderColor = DarkBorder,
-                        periodSelectorSelectedContainerColor = AzurePrimaryButton,
-                        periodSelectorUnselectedContainerColor = DarkSurface,
-                        periodSelectorSelectedContentColor = PureWhite,
-                        periodSelectorUnselectedContentColor = TextLightSecondary,
-                        timeSelectorSelectedContainerColor = DarkCardElevated,
-                        timeSelectorUnselectedContainerColor = DarkSurface,
-                        timeSelectorSelectedContentColor = PureWhite,
-                        timeSelectorUnselectedContentColor = TextLightSecondary
+                        clockDialColor = colors.card,
+                        clockDialSelectedContentColor = colors.onAzurePrimary,
+                        clockDialUnselectedContentColor = colors.textSecondary,
+                        selectorColor = colors.azurePrimary,
+                        containerColor = colors.surface,
+                        periodSelectorBorderColor = colors.border,
+                        periodSelectorSelectedContainerColor = colors.azurePrimary,
+                        periodSelectorUnselectedContainerColor = colors.surface,
+                        periodSelectorSelectedContentColor = colors.onAzurePrimary,
+                        periodSelectorUnselectedContentColor = colors.textSecondary,
+                        timeSelectorSelectedContainerColor = colors.cardElevated,
+                        timeSelectorUnselectedContainerColor = colors.surface,
+                        timeSelectorSelectedContentColor = colors.textPrimary,
+                        timeSelectorUnselectedContentColor = colors.textSecondary
                     )
                 )
             }
@@ -1684,6 +1696,7 @@ private fun ShiftTimePresetsBox(
     onSaveCurrentAsPreset: () -> Unit,
     onDeletePreset: (String) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val alreadyExists = presets.any {
         it.startHour24 == currentStartHour24 &&
             it.startMinute == currentStartMinute &&
@@ -1693,8 +1706,9 @@ private fun ShiftTimePresetsBox(
 
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -1715,16 +1729,17 @@ private fun ShiftTimePresetsBox(
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 0.8.sp
                     ),
-                    color = TextLightSecondary
+                    color = colors.textSecondary
                 )
 
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = if (alreadyExists) DarkSurface else AzureSoftContainer,
+                    color = if (alreadyExists) colors.surface else colors.azureContainer,
                     border = BorderStroke(
                         1.dp,
-                        if (alreadyExists) DarkBorder else AzureAccent.copy(alpha = 0.55f)
+                        if (alreadyExists) colors.border else colors.azureAccent.copy(alpha = 0.55f)
                     ),
+                    shadowElevation = 0.dp,
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
                         .clickable(enabled = !alreadyExists, onClick = onSaveCurrentAsPreset)
@@ -1737,7 +1752,7 @@ private fun ShiftTimePresetsBox(
                         Icon(
                             imageVector = if (alreadyExists) Icons.Outlined.Check else Icons.Outlined.Add,
                             contentDescription = null,
-                            tint = if (alreadyExists) MintTextOnBlue else AzureAccent,
+                            tint = if (alreadyExists) colors.mintTextOnSurface else colors.azureAccent,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
@@ -1746,7 +1761,7 @@ private fun ShiftTimePresetsBox(
                                 fontFamily = ShiftlySerif,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = if (alreadyExists) MintTextOnBlue else AzureAccent
+                            color = if (alreadyExists) colors.mintTextOnSurface else colors.azureAccent
                         )
                     }
                 }
@@ -1765,11 +1780,12 @@ private fun ShiftTimePresetsBox(
 
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = if (isActive) AzureSoftContainer else DarkSurface,
+                        color = if (isActive) colors.azureContainer else colors.surface,
                         border = BorderStroke(
                             width = 1.dp,
-                            color = if (isActive) AzureAccent else DarkBorder
+                            color = if (isActive) colors.azureAccent else colors.border
                         ),
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
                             .clickable { onSelectPreset(preset) }
@@ -1791,7 +1807,7 @@ private fun ShiftTimePresetsBox(
                                     fontFamily = ShiftlySans,
                                     fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
                                 ).tabular(),
-                                color = if (isActive) PureWhite else TextLightSecondary
+                                color = if (isActive) colors.textPrimary else colors.textSecondary
                             )
                         }
                     }
@@ -1847,6 +1863,7 @@ private fun LogShiftReceiptPreviewCard(
     endHour24: Int = 18,
     endMinute: Int = 0
 ) {
+    val colors = ShiftlyColors.current
     val regularHours = wageDetails.regularBaseMinutes / 60.0
     val nightDiffTimeRange = remember(startHour24, startMinute, endHour24, endMinute) {
         formatNightDiffTimeRange(startHour24, startMinute, endHour24, endMinute)
@@ -1854,8 +1871,9 @@ private fun LogShiftReceiptPreviewCard(
 
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -1876,12 +1894,13 @@ private fun LogShiftReceiptPreviewCard(
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 0.8.sp
                     ),
-                    color = TextLightSecondary
+                    color = colors.textSecondary
                 )
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = DarkSurface,
-                    border = BorderStroke(1.dp, DarkBorder)
+                    color = colors.surface,
+                    border = BorderStroke(1.dp, colors.border),
+                    shadowElevation = 0.dp
                 ) {
                     Text(
                         text = formatDurationCompact(totalMinutes),
@@ -1889,13 +1908,13 @@ private fun LogShiftReceiptPreviewCard(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
-                        color = TextLightPrimary,
+                        color = colors.textPrimary,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                     )
                 }
             }
 
-            // Regular row (White)
+            // Regular row
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1904,7 +1923,7 @@ private fun LogShiftReceiptPreviewCard(
                 Text(
                     text = "Regular • ${ShiftlyFormatters.formatHours(regularHours)} × ${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.effectiveRegularHourlyRate)}/hr",
                     style = MaterialTheme.typography.bodySmall.tabular(),
-                    color = PureWhite,
+                    color = colors.textPrimary,
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -1914,7 +1933,7 @@ private fun LogShiftReceiptPreviewCard(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
-                    color = PureWhite
+                    color = colors.textPrimary
                 )
             }
 
@@ -1928,7 +1947,7 @@ private fun LogShiftReceiptPreviewCard(
                     Text(
                         text = "Night Diff ($nightDiffTimeRange) • ${formatDurationCompact(wageDetails.nightDiffMinutes)}",
                         style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = NightDiffPurple,
+                        color = colors.nightDiffPurple,
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -1938,7 +1957,7 @@ private fun LogShiftReceiptPreviewCard(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
-                        color = NightDiffPurple
+                        color = colors.nightDiffPurple
                     )
                 }
             }
@@ -1953,7 +1972,7 @@ private fun LogShiftReceiptPreviewCard(
                     Text(
                         text = "Overtime (>8h) • ${formatDurationCompact(wageDetails.overtimeMinutes)}",
                         style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = CoralBright,
+                        color = colors.coralBright,
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -1963,12 +1982,12 @@ private fun LogShiftReceiptPreviewCard(
                             fontFamily = ShiftlySans,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
-                        color = CoralBright
+                        color = colors.coralBright
                     )
                 }
             }
 
-            HorizontalDivider(color = DarkBorder)
+            HorizontalDivider(color = colors.border)
 
             // Large Receipt Total
             Row(
@@ -1982,7 +2001,7 @@ private fun LogShiftReceiptPreviewCard(
                         fontFamily = ShiftlySerif,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = TextLightPrimary
+                    color = colors.textPrimary
                 )
                 Text(
                     text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.totalEarned)}",
@@ -1991,7 +2010,7 @@ private fun LogShiftReceiptPreviewCard(
                         fontWeight = FontWeight.Bold,
                         fontSize = 28.sp
                     ).tabular(),
-                    color = MintBright
+                    color = colors.mintInk
                 )
             }
         }
@@ -2027,11 +2046,13 @@ fun ManualShiftBottomSheet(
         dayType: DayType
     ) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = DarkSurface,
+        containerColor = colors.surface,
+        tonalElevation = 0.dp,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
         ManualShiftSheetContent(
@@ -2084,6 +2105,7 @@ fun ManualShiftSheetContent(
         dayType: DayType
     ) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     var pickedDate by remember(selectedDate) { mutableStateOf(selectedDate) }
     var startHour24 by remember(initialStartHour24) { mutableIntStateOf(initialStartHour24.coerceIn(0, 23)) }
     var startMin by remember(initialStartMinute) { mutableIntStateOf(initialStartMinute.coerceIn(0, 59)) }
@@ -2094,15 +2116,15 @@ fun ManualShiftSheetContent(
     var showDayTypeSheet by remember { mutableStateOf(false) }
 
     val sheetFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = AzureAccent,
-        unfocusedBorderColor = DarkBorder,
-        focusedLabelColor = AzureAccent,
-        unfocusedLabelColor = TextLightSecondary,
-        focusedTextColor = TextLightPrimary,
-        unfocusedTextColor = TextLightPrimary,
-        cursorColor = AzureAccent,
-        focusedContainerColor = DarkCard,
-        unfocusedContainerColor = DarkCard
+        focusedBorderColor = colors.azureAccent,
+        unfocusedBorderColor = colors.border,
+        focusedLabelColor = colors.azureAccent,
+        unfocusedLabelColor = colors.textSecondary,
+        focusedTextColor = colors.textPrimary,
+        unfocusedTextColor = colors.textPrimary,
+        cursorColor = colors.azureAccent,
+        focusedContainerColor = colors.card,
+        unfocusedContainerColor = colors.card
     )
 
     val zone = remember { ZoneId.systemDefault() }
@@ -2139,13 +2161,13 @@ fun ManualShiftSheetContent(
             Text(
                 text = title,
                 style = MaterialTheme.typography.headlineSmall,
-                color = TextLightPrimary
+                color = colors.textPrimary
             )
             TextButton(
                 onClick = onDismiss,
                 modifier = Modifier.heightIn(min = 48.dp)
             ) {
-                Text("Cancel", fontFamily = ShiftlySerif, color = TextLightSecondary)
+                Text("Cancel", fontFamily = ShiftlySerif, color = colors.textSecondary)
             }
         }
 
@@ -2195,7 +2217,7 @@ fun ManualShiftSheetContent(
             value = manualNote,
             onValueChange = { manualNote = it },
             label = { Text("Shift Note (optional)", fontFamily = ShiftlySerif) },
-            placeholder = { Text("Add shift note (optional)", color = TextLightMuted) },
+            placeholder = { Text("Add shift note (optional)", color = colors.textMuted) },
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             colors = sheetFieldColors,
@@ -2245,6 +2267,7 @@ fun ManageShiftPresetsSheet(
     onDeletePreset: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     var startHour24 by remember { mutableIntStateOf(14) }
     var startMin by remember { mutableIntStateOf(0) }
     var endHour24 by remember { mutableIntStateOf(18) }
@@ -2254,7 +2277,8 @@ fun ManageShiftPresetsSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = DarkSurface,
+        containerColor = colors.surface,
+        tonalElevation = 0.dp,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -2275,13 +2299,13 @@ fun ManageShiftPresetsSheet(
                 Text(
                     text = "Shift Time Presets",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = TextLightPrimary
+                    color = colors.textPrimary
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "Close",
-                        tint = TextLightSecondary
+                        tint = colors.textSecondary
                     )
                 }
             }
@@ -2289,22 +2313,23 @@ fun ManageShiftPresetsSheet(
             Text(
                 text = "Saved Presets",
                 style = MaterialTheme.typography.titleMedium,
-                color = TextLightPrimary
+                color = colors.textPrimary
             )
 
             if (presets.isEmpty()) {
                 Text(
                     text = "No saved shift presets.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextLightSecondary
+                    color = colors.textSecondary
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     presets.forEach { preset ->
                         Surface(
                             shape = RoundedCornerShape(16.dp),
-                            color = DarkCard,
-                            border = BorderStroke(1.dp, DarkBorder),
+                            color = colors.card,
+                            border = BorderStroke(1.dp, colors.border),
+                            shadowElevation = 0.dp,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -2320,7 +2345,7 @@ fun ManageShiftPresetsSheet(
                                         fontFamily = ShiftlySans,
                                         fontWeight = FontWeight.Bold
                                     ).tabular(),
-                                    color = TextLightPrimary
+                                    color = colors.textPrimary
                                 )
                                 IconButton(
                                     onClick = { onDeletePreset(preset.id) },
@@ -2329,7 +2354,7 @@ fun ManageShiftPresetsSheet(
                                     Icon(
                                         imageVector = Icons.Outlined.Delete,
                                         contentDescription = "Delete preset",
-                                        tint = CoralBright
+                                        tint = colors.coralBright
                                     )
                                 }
                             }
@@ -2338,12 +2363,12 @@ fun ManageShiftPresetsSheet(
                 }
             }
 
-            HorizontalDivider(color = DarkBorder)
+            HorizontalDivider(color = colors.border)
 
             Text(
                 text = "Add New Preset",
                 style = MaterialTheme.typography.titleMedium,
-                color = TextLightPrimary
+                color = colors.textPrimary
             )
 
             BasicPresetTimeSelectorCard(
@@ -2381,6 +2406,7 @@ private fun BasicPresetTimeSelectorCard(
     onStartTimeChanged: (Int, Int) -> Unit,
     onEndTimeChanged: (Int, Int) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
 
@@ -2396,8 +2422,9 @@ private fun BasicPresetTimeSelectorCard(
 
     Surface(
         shape = RoundedCornerShape(20.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -2421,19 +2448,20 @@ private fun BasicPresetTimeSelectorCard(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "Shift begins",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = DarkSurface,
-                    border = BorderStroke(1.dp, DarkBorder)
+                    color = colors.surface,
+                    border = BorderStroke(1.dp, colors.border),
+                    shadowElevation = 0.dp
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -2443,7 +2471,7 @@ private fun BasicPresetTimeSelectorCard(
                         Icon(
                             imageVector = Icons.Outlined.AccessTime,
                             contentDescription = null,
-                            tint = AzureAccent,
+                            tint = colors.azureAccent,
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
@@ -2452,13 +2480,13 @@ private fun BasicPresetTimeSelectorCard(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
-                            color = TextLightPrimary
+                            color = colors.textPrimary
                         )
                     }
                 }
             }
 
-            HorizontalDivider(color = DarkBorder.copy(alpha = 0.65f))
+            HorizontalDivider(color = colors.border.copy(alpha = 0.65f))
 
             // End Time Row
             Row(
@@ -2475,19 +2503,20 @@ private fun BasicPresetTimeSelectorCard(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = if (endsNextDay) "Ends next day" else "Ends same day",
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (endsNextDay) AzureAccent else TextLightSecondary
+                        color = if (endsNextDay) colors.azureAccent else colors.textSecondary
                     )
                 }
 
                 Surface(
                     shape = RoundedCornerShape(14.dp),
-                    color = DarkSurface,
-                    border = BorderStroke(1.dp, DarkBorder)
+                    color = colors.surface,
+                    border = BorderStroke(1.dp, colors.border),
+                    shadowElevation = 0.dp
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -2497,7 +2526,7 @@ private fun BasicPresetTimeSelectorCard(
                         Icon(
                             imageVector = Icons.Outlined.AccessTime,
                             contentDescription = null,
-                            tint = AzureAccent,
+                            tint = colors.azureAccent,
                             modifier = Modifier.size(15.dp)
                         )
                         Text(
@@ -2506,7 +2535,7 @@ private fun BasicPresetTimeSelectorCard(
                                 fontFamily = ShiftlySans,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
-                            color = TextLightPrimary
+                            color = colors.textPrimary
                         )
                     }
                 }
@@ -2523,6 +2552,8 @@ private fun BasicPresetTimeSelectorCard(
         )
         DatePickerDialog(
             onDismissRequest = { showStartTimePicker = false },
+            tonalElevation = 0.dp,
+            colors = DatePickerDefaults.colors(containerColor = colors.surface),
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -2530,12 +2561,12 @@ private fun BasicPresetTimeSelectorCard(
                         showStartTimePicker = false
                     }
                 ) {
-                    Text("OK", color = AzureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text("OK", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showStartTimePicker = false }) {
-                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
+                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
                 }
             }
         ) {
@@ -2548,20 +2579,20 @@ private fun BasicPresetTimeSelectorCard(
                 TimePicker(
                     state = timePickerState,
                     colors = TimePickerDefaults.colors(
-                        clockDialColor = DarkSurface,
-                        clockDialSelectedContentColor = PureWhite,
-                        clockDialUnselectedContentColor = TextLightSecondary,
-                        selectorColor = AzurePrimaryButton,
-                        containerColor = DarkSurface,
-                        periodSelectorBorderColor = DarkBorder,
-                        periodSelectorSelectedContainerColor = AzurePrimaryButton,
-                        periodSelectorUnselectedContainerColor = DarkSurface,
-                        periodSelectorSelectedContentColor = PureWhite,
-                        periodSelectorUnselectedContentColor = TextLightSecondary,
-                        timeSelectorSelectedContainerColor = DarkCardElevated,
-                        timeSelectorUnselectedContainerColor = DarkSurface,
-                        timeSelectorSelectedContentColor = PureWhite,
-                        timeSelectorUnselectedContentColor = TextLightSecondary
+                        clockDialColor = colors.card,
+                        clockDialSelectedContentColor = colors.onAzurePrimary,
+                        clockDialUnselectedContentColor = colors.textSecondary,
+                        selectorColor = colors.azurePrimary,
+                        containerColor = colors.surface,
+                        periodSelectorBorderColor = colors.border,
+                        periodSelectorSelectedContainerColor = colors.azurePrimary,
+                        periodSelectorUnselectedContainerColor = colors.surface,
+                        periodSelectorSelectedContentColor = colors.onAzurePrimary,
+                        periodSelectorUnselectedContentColor = colors.textSecondary,
+                        timeSelectorSelectedContainerColor = colors.cardElevated,
+                        timeSelectorUnselectedContainerColor = colors.surface,
+                        timeSelectorSelectedContentColor = colors.textPrimary,
+                        timeSelectorUnselectedContentColor = colors.textSecondary
                     )
                 )
             }
@@ -2577,6 +2608,8 @@ private fun BasicPresetTimeSelectorCard(
         )
         DatePickerDialog(
             onDismissRequest = { showEndTimePicker = false },
+            tonalElevation = 0.dp,
+            colors = DatePickerDefaults.colors(containerColor = colors.surface),
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -2584,12 +2617,12 @@ private fun BasicPresetTimeSelectorCard(
                         showEndTimePicker = false
                     }
                 ) {
-                    Text("OK", color = AzureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
+                    Text("OK", color = colors.azureAccent, fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showEndTimePicker = false }) {
-                    Text("Cancel", color = TextLightSecondary, fontFamily = ShiftlySerif)
+                    Text("Cancel", color = colors.textSecondary, fontFamily = ShiftlySerif)
                 }
             }
         ) {
@@ -2602,20 +2635,20 @@ private fun BasicPresetTimeSelectorCard(
                 TimePicker(
                     state = timePickerState,
                     colors = TimePickerDefaults.colors(
-                        clockDialColor = DarkSurface,
-                        clockDialSelectedContentColor = PureWhite,
-                        clockDialUnselectedContentColor = TextLightSecondary,
-                        selectorColor = AzurePrimaryButton,
-                        containerColor = DarkSurface,
-                        periodSelectorBorderColor = DarkBorder,
-                        periodSelectorSelectedContainerColor = AzurePrimaryButton,
-                        periodSelectorUnselectedContainerColor = DarkSurface,
-                        periodSelectorSelectedContentColor = PureWhite,
-                        periodSelectorUnselectedContentColor = TextLightSecondary,
-                        timeSelectorSelectedContainerColor = DarkCardElevated,
-                        timeSelectorUnselectedContainerColor = DarkSurface,
-                        timeSelectorSelectedContentColor = PureWhite,
-                        timeSelectorUnselectedContentColor = TextLightSecondary
+                        clockDialColor = colors.card,
+                        clockDialSelectedContentColor = colors.onAzurePrimary,
+                        clockDialUnselectedContentColor = colors.textSecondary,
+                        selectorColor = colors.azurePrimary,
+                        containerColor = colors.surface,
+                        periodSelectorBorderColor = colors.border,
+                        periodSelectorSelectedContainerColor = colors.azurePrimary,
+                        periodSelectorUnselectedContainerColor = colors.surface,
+                        periodSelectorSelectedContentColor = colors.onAzurePrimary,
+                        periodSelectorUnselectedContentColor = colors.textSecondary,
+                        timeSelectorSelectedContainerColor = colors.cardElevated,
+                        timeSelectorUnselectedContainerColor = colors.surface,
+                        timeSelectorSelectedContentColor = colors.textPrimary,
+                        timeSelectorUnselectedContentColor = colors.textSecondary
                     )
                 )
             }

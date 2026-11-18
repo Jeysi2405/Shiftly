@@ -54,17 +54,9 @@ import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.theme.CoralBright
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.RoseAlert
-import com.example.shiftly.ui.theme.RoseContainer
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
 import java.time.LocalDate
 import kotlinx.coroutines.launch
 
@@ -74,6 +66,7 @@ fun SplitBillScreen(
     onBack: () -> Unit = {},
     onShowMessage: (String) -> Unit = {},
 ) {
+    val colors = ShiftlyColors.current
     val viewModel: SplitBillViewModel = viewModel(factory = SplitBillViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val haptics = LocalHapticFeedback.current
@@ -132,19 +125,19 @@ fun SplitBillScreen(
         if (billToDelete.isLoggedToExpense) {
             AlertDialog(
                 onDismissRequest = { pendingDeleteBill = null },
-                containerColor = DarkCard,
+                containerColor = colors.card,
                 icon = {
                     Box(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(RoseContainer),
+                            .background(colors.coralContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = null,
-                            tint = RoseAlert,
+                            tint = colors.coralInk,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -153,14 +146,14 @@ fun SplitBillScreen(
                     Text(
                         text = "Delete Split Bill?",
                         style = MaterialTheme.typography.titleMedium,
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                 },
                 text = {
                     Text(
                         text = "\"${billToDelete.title}\" also logged your share to Expenses. Delete both entries or keep the logged expense?",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 },
                 confirmButton = {
@@ -177,8 +170,12 @@ fun SplitBillScreen(
                             },
                             shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = CoralBright,
-                                contentColor = InkBlack
+                                containerColor = colors.coralBright,
+                                contentColor = colors.onAccentDark
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp
                             ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
@@ -192,8 +189,8 @@ fun SplitBillScreen(
                                 onShowMessage("Split bill deleted; expense kept")
                             },
                             shape = RoundedCornerShape(50),
-                            border = BorderStroke(1.dp, DarkBorder),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+                            border = BorderStroke(1.dp, colors.border),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Keep Expense", fontFamily = ShiftlySerif, fontWeight = FontWeight.SemiBold)
@@ -202,7 +199,7 @@ fun SplitBillScreen(
                             onClick = { pendingDeleteBill = null },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("Cancel", fontFamily = ShiftlySerif, color = TextLightSecondary)
+                            Text("Cancel", fontFamily = ShiftlySerif, color = colors.textSecondary)
                         }
                     }
                 }
@@ -245,6 +242,7 @@ fun SplitBillScreenContent(
     initialPersonCount: Int = 2,
     prefillTrigger: Int = 0
 ) {
+    val colors = ShiftlyColors.current
     LazyColumn(
         state = listState,
         modifier = Modifier
@@ -290,13 +288,14 @@ fun SplitBillScreenContent(
             }
         }
 
-        // 3. Dark Bottom Sheet Surface for Split Bills List / Empty State
+        // 3. Bottom Sheet Surface for Split Bills List / Empty State
         item {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = DarkSurface,
-                shadowElevation = 12.dp
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.border),
+                shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -313,7 +312,7 @@ fun SplitBillScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(DarkBorder)
+                                .background(colors.border)
                         )
                     }
 

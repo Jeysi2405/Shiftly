@@ -17,6 +17,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -25,12 +26,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import com.example.shiftly.utils.ShiftlyFormatters
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.automirrored.outlined.CallSplit
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Savings
@@ -53,20 +55,13 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.ui.text.input.KeyboardType
-import com.example.shiftly.data.local.SavingsGoalEntity
-import com.example.shiftly.data.local.SavingsGoalWithDeposits
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
-import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
-import com.example.shiftly.ui.theme.AzureAccent
-import com.example.shiftly.ui.theme.TextLightMuted
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -80,8 +75,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -92,6 +85,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -107,8 +101,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.shiftly.data.local.SavingsGoalEntity
+import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
 import com.example.shiftly.ui.screens.ToolsScreen
@@ -122,26 +119,12 @@ import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.lock.AppLockGateScreen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.ProfileScreen
+import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
-import com.example.shiftly.ui.theme.AzureAccent
-import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.AzurePrimaryButton
-import com.example.shiftly.ui.theme.AzureSoftContainer
-import com.example.shiftly.ui.theme.CoralInkOnWhite
-import com.example.shiftly.ui.theme.CoralSoftContainer
-import com.example.shiftly.ui.theme.DarkBackground
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.MintBright
-import com.example.shiftly.ui.theme.MintInkOnWhite
-import com.example.shiftly.ui.theme.MintSoftContainer
-import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
+import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.workers.ShiftlyDailyWorker
 import kotlinx.coroutines.launch
 
@@ -197,52 +180,55 @@ fun MainAppScreen() {
     CompositionLocalProvider(
         LocalSuppressNextRelock provides { suppressRelockOnce = true },
     ) {
-        if (!isReady) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(DarkBackground)
-            )
-        } else if (shouldShowLockGate) {
-            AppLockGateScreen(
-                method = loadedSettings.appLockMethod,
-                pinHash = loadedSettings.appLockPinHash,
-                userName = userName.ifBlank { "Shiftly" },
-                onUnlocked = { isSessionUnlocked = true }
-            )
-        } else {
-            AnimatedContent(
-                targetState = hasCompletedOnboarding,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "OnboardingToMainTransition",
-            ) { completed ->
-                when (completed) {
-                    null -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(DarkBackground)
-                        )
-                    }
+        ShiftlyTheme(themeMode = loadedSettings?.themeMode ?: "SYSTEM") {
+            val colors = ShiftlyColors.current
+            if (!isReady) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(colors.background)
+                )
+            } else if (shouldShowLockGate) {
+                AppLockGateScreen(
+                    method = loadedSettings.appLockMethod,
+                    pinHash = loadedSettings.appLockPinHash,
+                    userName = userName.ifBlank { "Shiftly" },
+                    onUnlocked = { isSessionUnlocked = true }
+                )
+            } else {
+                AnimatedContent(
+                    targetState = hasCompletedOnboarding,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "OnboardingToMainTransition",
+                ) { completed ->
+                    when (completed) {
+                        null -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(colors.background)
+                            )
+                        }
 
-                    false -> {
-                        WelcomeScreen(
-                            onGetStartedComplete = { name, rate, monthlyBudget, profilePhotoPath ->
-                                scope.launch {
-                                    repository.updateUserName(name)
-                                    repository.updateDefaultHourlyRate(rate)
-                                    repository.updateMonthlyBudget(monthlyBudget)
-                                    if (!profilePhotoPath.isNullOrBlank()) {
-                                        repository.updateProfilePhotoPath(profilePhotoPath)
+                        false -> {
+                            WelcomeScreen(
+                                onGetStartedComplete = { name, rate, monthlyBudget, profilePhotoPath ->
+                                    scope.launch {
+                                        repository.updateUserName(name)
+                                        repository.updateDefaultHourlyRate(rate)
+                                        repository.updateMonthlyBudget(monthlyBudget)
+                                        if (!profilePhotoPath.isNullOrBlank()) {
+                                            repository.updateProfilePhotoPath(profilePhotoPath)
+                                        }
+                                        repository.setOnboardingCompleted(completed = true)
                                     }
-                                    repository.setOnboardingCompleted(completed = true)
                                 }
-                            }
-                        )
-                    }
+                            )
+                        }
 
-                    true -> {
-                        MainDashboardShell(repository = repository)
+                        true -> {
+                            MainDashboardShell(repository = repository)
+                        }
                     }
                 }
             }
@@ -254,11 +240,16 @@ fun MainAppScreen() {
 private fun MainDashboardShell(
     repository: ShiftlyRepository
 ) {
+    val colors = ShiftlyColors.current
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+    val currentRoute = currentDestination?.route
+    val isSubScreen = currentRoute == Screen.Duties.route ||
+        currentRoute == Screen.Expense.route ||
+        currentRoute == Screen.SplitBill.route
 
     val dutiesViewModel: DutiesViewModel = viewModel(factory = DutiesViewModel.Factory(repository))
     val dutiesState by dutiesViewModel.uiState.collectAsStateWithLifecycle()
@@ -302,11 +293,11 @@ private fun MainDashboardShell(
     }
 
     fun onBottomBarSelect(screen: Screen) {
-        val currentRoute = currentDestination?.route
+        val route = currentDestination?.route
         if (screen == Screen.Tools && (
-                currentRoute == Screen.Duties.route ||
-                currentRoute == Screen.Expense.route ||
-                currentRoute == Screen.SplitBill.route
+                route == Screen.Duties.route ||
+                route == Screen.Expense.route ||
+                route == Screen.SplitBill.route
             )
         ) {
             val popped = navController.popBackStack(Screen.Tools.route, inclusive = false)
@@ -326,30 +317,73 @@ private fun MainDashboardShell(
             snackbarHost = {
                 SnackbarHost(
                     hostState = snackbarHostState,
-                    modifier = Modifier.padding(bottom = 92.dp)
+                    modifier = Modifier
+                        .then(if (isSubScreen) Modifier.navigationBarsPadding() else Modifier)
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
                 ) { data ->
                     Surface(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         shape = RoundedCornerShape(50),
-                        color = DarkCard,
-                        border = BorderStroke(1.dp, DarkBorder),
-                        shadowElevation = 8.dp
+                        color = colors.card,
+                        border = BorderStroke(1.dp, colors.border),
+                        shadowElevation = 0.dp,
+                        tonalElevation = 0.dp,
+                        modifier = Modifier.widthIn(max = 420.dp)
                     ) {
-                        Snackbar(
-                            snackbarData = data,
-                            containerColor = DarkCard,
-                            contentColor = TextLightPrimary,
-                            actionColor = AzureAccent
-                        )
+                        Row(
+                            modifier = Modifier.padding(
+                                start = 14.dp,
+                                end = if (data.visuals.actionLabel != null) 10.dp else 18.dp,
+                                top = 11.dp,
+                                bottom = 11.dp
+                            ),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.mintContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.CheckCircle,
+                                    contentDescription = null,
+                                    tint = colors.mintInk,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                            Text(
+                                text = data.visuals.message,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = ShiftlySerif,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = colors.textPrimary,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            data.visuals.actionLabel?.let { actionLabel ->
+                                TextButton(
+                                    onClick = { data.performAction() },
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = actionLabel,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontFamily = ShiftlySerif,
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = colors.azureAccent
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             },
             bottomBar = {
-                val currentRoute = currentDestination?.route
-                val isSubScreen = currentRoute == Screen.Duties.route ||
-                    currentRoute == Screen.Expense.route ||
-                    currentRoute == Screen.SplitBill.route
-
                 AnimatedVisibility(
                     visible = !isSubScreen,
                     enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -556,11 +590,13 @@ private fun QuickAddActionSheet(
     onAddSavingsGoal: () -> Unit,
     onAddDeposit: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = DarkSurface,
+        containerColor = colors.surface,
+        tonalElevation = 0.dp,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -579,13 +615,13 @@ private fun QuickAddActionSheet(
                 Text(
                     text = "Quick Add",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = TextLightPrimary
+                    color = colors.textPrimary
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "Close",
-                        tint = TextLightSecondary
+                        tint = colors.textSecondary
                     )
                 }
             }
@@ -593,36 +629,36 @@ private fun QuickAddActionSheet(
             QuickAddOptionRow(
                 title = "Log Shift",
                 icon = Icons.Outlined.Schedule,
-                iconBg = MintSoftContainer,
-                iconTint = MintInkOnWhite,
+                iconBg = colors.mintContainer,
+                iconTint = colors.mintInk,
                 onClick = onLogShift
             )
             QuickAddOptionRow(
                 title = "Add Expense",
                 icon = Icons.AutoMirrored.Outlined.ReceiptLong,
-                iconBg = CoralSoftContainer,
-                iconTint = CoralInkOnWhite,
+                iconBg = colors.coralContainer,
+                iconTint = colors.coralInk,
                 onClick = onAddExpense
             )
             QuickAddOptionRow(
                 title = "Split Bill",
                 icon = Icons.AutoMirrored.Outlined.CallSplit,
-                iconBg = AzureSoftContainer,
-                iconTint = AzureInkOnWhite,
+                iconBg = colors.azureContainer,
+                iconTint = colors.azureInk,
                 onClick = onSplitBill
             )
             QuickAddOptionRow(
                 title = "Add Savings Goal",
                 icon = Icons.Outlined.Savings,
-                iconBg = MintSoftContainer,
-                iconTint = MintInkOnWhite,
+                iconBg = colors.mintContainer,
+                iconTint = colors.mintInk,
                 onClick = onAddSavingsGoal
             )
             QuickAddOptionRow(
                 title = "Add Deposit",
                 icon = Icons.Outlined.AccountBalanceWallet,
-                iconBg = AzureSoftContainer,
-                iconTint = AzureInkOnWhite,
+                iconBg = colors.azureContainer,
+                iconTint = colors.azureInk,
                 onClick = onAddDeposit
             )
         }
@@ -637,10 +673,12 @@ private fun QuickAddOptionRow(
     iconTint: Color,
     onClick: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder),
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
@@ -673,13 +711,13 @@ private fun QuickAddOptionRow(
                     fontFamily = ShiftlySerif,
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = TextLightPrimary,
+                color = colors.textPrimary,
                 modifier = Modifier.weight(1f)
             )
             Icon(
                 imageVector = Icons.Outlined.ChevronRight,
                 contentDescription = null,
-                tint = TextLightSecondary
+                tint = colors.textSecondary
             )
         }
     }
@@ -693,6 +731,7 @@ private fun QuickDepositPromptSheet(
     onDismiss: () -> Unit,
     onSaveDeposit: (goal: SavingsGoalEntity, amount: Double, note: String) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     var amountText by remember { mutableStateOf("") }
     var noteText by remember { mutableStateOf("") }
     var selectedGoal by remember(savingsGoals) {
@@ -703,7 +742,8 @@ private fun QuickDepositPromptSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = DarkSurface,
+        containerColor = colors.surface,
+        tonalElevation = 0.dp,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -724,13 +764,13 @@ private fun QuickDepositPromptSheet(
                 Text(
                     text = "Add Deposit",
                     style = MaterialTheme.typography.headlineSmall,
-                    color = TextLightPrimary
+                    color = colors.textPrimary
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(44.dp)) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "Close",
-                        tint = TextLightSecondary
+                        tint = colors.textSecondary
                     )
                 }
             }
@@ -739,34 +779,36 @@ private fun QuickDepositPromptSheet(
                 Text(
                     text = "No active savings goal found.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextLightSecondary
+                    color = colors.textSecondary
                 )
             } else {
                 Text(
                     text = "Target Goal: ${selectedGoal?.title}",
                     style = MaterialTheme.typography.titleMedium.copy(fontFamily = ShiftlySerif),
-                    color = TextLightPrimary
+                    color = colors.textPrimary
+                )
+
+                val fieldColors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = colors.azureAccent,
+                    unfocusedBorderColor = colors.border,
+                    focusedLabelColor = colors.azureAccent,
+                    unfocusedLabelColor = colors.textSecondary,
+                    focusedTextColor = colors.textPrimary,
+                    unfocusedTextColor = colors.textPrimary,
+                    cursorColor = colors.azureAccent,
+                    focusedContainerColor = colors.card,
+                    unfocusedContainerColor = colors.card
                 )
 
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
                     label = { Text("Deposit Amount ($currencySymbol)", fontFamily = ShiftlySerif) },
-                    placeholder = { Text("0.00", color = TextLightMuted) },
+                    placeholder = { Text("0.00", color = colors.textMuted) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AzureAccent,
-                        unfocusedBorderColor = DarkBorder,
-                        focusedLabelColor = AzureAccent,
-                        unfocusedLabelColor = TextLightSecondary,
-                        focusedTextColor = TextLightPrimary,
-                        unfocusedTextColor = TextLightPrimary,
-                        cursorColor = AzureAccent,
-                        focusedContainerColor = DarkCard,
-                        unfocusedContainerColor = DarkCard
-                    ),
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -774,20 +816,10 @@ private fun QuickDepositPromptSheet(
                     value = noteText,
                     onValueChange = { noteText = it },
                     label = { Text("Deposit Note (optional)", fontFamily = ShiftlySerif) },
-                    placeholder = { Text("Add note", color = TextLightMuted) },
+                    placeholder = { Text("Add note", color = colors.textMuted) },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = AzureAccent,
-                        unfocusedBorderColor = DarkBorder,
-                        focusedLabelColor = AzureAccent,
-                        unfocusedLabelColor = TextLightSecondary,
-                        focusedTextColor = TextLightPrimary,
-                        unfocusedTextColor = TextLightPrimary,
-                        cursorColor = AzureAccent,
-                        focusedContainerColor = DarkCard,
-                        unfocusedContainerColor = DarkCard
-                    ),
+                    colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -807,7 +839,7 @@ private fun QuickDepositPromptSheet(
 }
 
 /**
- * Floating dark-charcoal pill bottom navigation bar:
+ * Floating pill bottom navigation bar:
  * Home | Analytics | Round (+) FAB | Tools | Profile, with labels.
  */
 @Composable
@@ -818,6 +850,7 @@ fun FloatingPillBottomBar(
     modifier: Modifier = Modifier,
     onFabClick: () -> Unit = {}
 ) {
+    val colors = ShiftlyColors.current
     val pillShape = RoundedCornerShape(50)
     val leftItems = items.take(2)
     val rightItems = items.drop(2)
@@ -832,16 +865,11 @@ fun FloatingPillBottomBar(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(68.dp)
-                .shadow(
-                    elevation = 10.dp,
-                    shape = pillShape,
-                    ambientColor = InkBlack.copy(alpha = 0.55f),
-                    spotColor = InkBlack.copy(alpha = 0.65f)
-                ),
+                .height(68.dp),
             shape = pillShape,
-            color = DarkSurface,
-            border = BorderStroke(0.5.dp, DarkBorder)
+            color = colors.surface,
+            border = BorderStroke(1.dp, colors.border),
+            shadowElevation = 0.dp
         ) {
             Row(
                 modifier = Modifier
@@ -869,9 +897,9 @@ fun FloatingPillBottomBar(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = AzurePrimaryButton,
-                        border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.65f)),
-                        shadowElevation = 6.dp,
+                        color = colors.azurePrimary,
+                        border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.65f)),
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .size(50.dp)
                             .clip(CircleShape)
@@ -884,7 +912,7 @@ fun FloatingPillBottomBar(
                             Icon(
                                 imageVector = Icons.Outlined.Add,
                                 contentDescription = null,
-                                tint = PureWhite,
+                                tint = colors.onAzurePrimary,
                                 modifier = Modifier.size(26.dp)
                             )
                         }
@@ -911,8 +939,9 @@ private fun BottomNavItemSlot(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = ShiftlyColors.current
     val contentTint by animateColorAsState(
-        targetValue = if (selected) PureWhite else TextLightSecondary,
+        targetValue = if (selected) colors.textPrimary else colors.textSecondary,
         label = "navContentTint"
     )
 
@@ -963,7 +992,7 @@ private fun FloatingPillBottomBarPreview() {
     ShiftlyTheme {
         Box(
             modifier = Modifier
-                .background(DarkBackground)
+                .background(ShiftlyColors.current.background)
                 .padding(vertical = 8.dp)
         ) {
             FloatingPillBottomBar(

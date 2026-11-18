@@ -4,7 +4,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -57,9 +56,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
-import com.example.shiftly.ui.screens.expense.categoryIcon
-import com.example.shiftly.ui.theme.ShiftlyTheme
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -94,28 +90,12 @@ import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
+import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
-import com.example.shiftly.ui.theme.AzureAccent
-import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.AzurePrimaryButton
-import com.example.shiftly.ui.theme.AzureSoftContainer
-import com.example.shiftly.ui.theme.CoralInkOnWhite
-import com.example.shiftly.ui.theme.CoralSoftContainer
-import com.example.shiftly.ui.theme.CoralTextOnBlue
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.MintBright
-import com.example.shiftly.ui.theme.MintInkOnWhite
-import com.example.shiftly.ui.theme.MintSoftContainer
-import com.example.shiftly.ui.theme.MintTextOnBlue
-import com.example.shiftly.ui.theme.PureWhite
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
-import com.example.shiftly.ui.theme.TextLightMuted
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.PinSecurity
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -132,26 +112,32 @@ private fun formatEditableNumber(value: Double): String {
 }
 
 @Composable
-private fun darkSwitchColors() = SwitchDefaults.colors(
-    checkedThumbColor = InkBlack,
-    checkedTrackColor = MintBright,
-    uncheckedThumbColor = TextLightSecondary,
-    uncheckedTrackColor = DarkSurface,
-    uncheckedBorderColor = DarkBorder
-)
+private fun shiftlySwitchColors(): androidx.compose.material3.SwitchColors {
+    val colors = ShiftlyColors.current
+    return SwitchDefaults.colors(
+        checkedThumbColor = colors.onAccentDark,
+        checkedTrackColor = colors.mintBright,
+        uncheckedThumbColor = colors.textSecondary,
+        uncheckedTrackColor = colors.surface,
+        uncheckedBorderColor = colors.border
+    )
+}
 
 @Composable
-private fun darkSheetFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = AzureAccent,
-    unfocusedBorderColor = DarkBorder,
-    focusedLabelColor = AzureAccent,
-    unfocusedLabelColor = TextLightSecondary,
-    focusedTextColor = TextLightPrimary,
-    unfocusedTextColor = TextLightPrimary,
-    cursorColor = AzureAccent,
-    focusedContainerColor = DarkCard,
-    unfocusedContainerColor = DarkCard
-)
+private fun shiftlySheetFieldColors(): androidx.compose.material3.TextFieldColors {
+    val colors = ShiftlyColors.current
+    return OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = colors.azureAccent,
+        unfocusedBorderColor = colors.border,
+        focusedLabelColor = colors.azureAccent,
+        unfocusedLabelColor = colors.textSecondary,
+        focusedTextColor = colors.textPrimary,
+        unfocusedTextColor = colors.textPrimary,
+        cursorColor = colors.azureAccent,
+        focusedContainerColor = colors.card,
+        unfocusedContainerColor = colors.card
+    )
+}
 
 @Composable
 fun ProfileSnapshotGlassCard(
@@ -161,6 +147,7 @@ fun ProfileSnapshotGlassCard(
     totalEarnings: Double,
     totalExpenses: Double
 ) {
+    val colors = ShiftlyColors.current
     ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
@@ -170,7 +157,7 @@ fun ProfileSnapshotGlassCard(
                     fontWeight = FontWeight.SemiBold,
                     letterSpacing = 0.8.sp
                 ),
-                color = TextLightSecondary
+                color = colors.textSecondary
             )
 
             Row(
@@ -180,13 +167,13 @@ fun ProfileSnapshotGlassCard(
                 GlassSnapshotTile(
                     label = "Shifts",
                     value = totalShifts.toString(),
-                    valueColor = TextLightPrimary,
+                    valueColor = colors.textPrimary,
                     modifier = Modifier.weight(1f)
                 )
                 GlassSnapshotTile(
                     label = "Hours",
                     value = ShiftlyFormatters.formatHours(totalHoursWorked, compact = true),
-                    valueColor = TextLightPrimary,
+                    valueColor = colors.textPrimary,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -198,13 +185,13 @@ fun ProfileSnapshotGlassCard(
                 GlassSnapshotTile(
                     label = "Earnings",
                     value = ShiftlyFormatters.formatCurrency(currencySymbol, totalEarnings),
-                    valueColor = MintTextOnBlue,
+                    valueColor = colors.mintTextOnSurface,
                     modifier = Modifier.weight(1f)
                 )
                 GlassSnapshotTile(
                     label = "Expenses",
                     value = ShiftlyFormatters.formatCurrency(currencySymbol, totalExpenses),
-                    valueColor = CoralTextOnBlue,
+                    valueColor = colors.coralTextOnSurface,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -220,6 +207,7 @@ fun ProfileWageRateCard(
     onSaveRates: (hourlyRate: Double, minimumWagePerDay: Double) -> Unit,
     onShowMessage: (String) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val haptics = LocalHapticFeedback.current
     var hasInitializedMode by remember { mutableStateOf(false) }
     var isEditing by remember { mutableStateOf(defaultHourlyRate <= 0.0) }
@@ -257,13 +245,13 @@ fun ProfileWageRateCard(
                         modifier = Modifier
                             .size(34.dp)
                             .clip(CircleShape)
-                            .background(MintSoftContainer),
+                            .background(colors.mintContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Payments,
                             contentDescription = null,
-                            tint = MintTextOnBlue,
+                            tint = colors.mintTextOnSurface,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -274,7 +262,7 @@ fun ProfileWageRateCard(
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.8.sp
                         ),
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
 
@@ -288,13 +276,13 @@ fun ProfileWageRateCard(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(DarkCard)
-                            .border(1.dp, DarkBorder, CircleShape)
+                            .background(colors.cardElevated)
+                            .border(1.dp, colors.border, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Edit,
                             contentDescription = "Edit wage rates",
-                            tint = AzureAccent,
+                            tint = colors.azureAccent,
                             modifier = Modifier.size(19.dp)
                         )
                     }
@@ -307,7 +295,7 @@ fun ProfileWageRateCard(
                         },
                         modifier = Modifier.heightIn(min = 44.dp)
                     ) {
-                        Text("Cancel", fontFamily = ShiftlySerif, color = TextLightSecondary)
+                        Text("Cancel", fontFamily = ShiftlySerif, color = colors.textSecondary)
                     }
                 }
             }
@@ -320,7 +308,7 @@ fun ProfileWageRateCard(
                     GlassSnapshotTile(
                         label = "Hourly Rate",
                         value = "${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr",
-                        valueColor = MintTextOnBlue,
+                        valueColor = colors.mintTextOnSurface,
                         modifier = Modifier.weight(1f)
                     )
                     GlassSnapshotTile(
@@ -330,7 +318,7 @@ fun ProfileWageRateCard(
                         } else {
                             "Not set"
                         },
-                        valueColor = if (minimumWagePerDay > 0.0) TextLightPrimary else TextLightMuted,
+                        valueColor = if (minimumWagePerDay > 0.0) colors.textPrimary else colors.textMuted,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -343,18 +331,18 @@ fun ProfileWageRateCard(
                         value = hourlyInput,
                         onValueChange = { hourlyInput = filterSingleDecimalInput(it, hourlyInput) },
                         label = { Text("Hourly ($currencySymbol/hr)", fontFamily = ShiftlySerif) },
-                        placeholder = { Text("0", color = TextLightMuted) },
+                        placeholder = { Text("0", color = colors.textMuted) },
                         prefix = {
                             Text(
                                 text = currencySymbol,
                                 fontWeight = FontWeight.Bold,
-                                color = TextLightPrimary
+                                color = colors.textPrimary
                             )
                         },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         shape = RoundedCornerShape(16.dp),
-                        colors = darkSheetFieldColors(),
+                        colors = shiftlySheetFieldColors(),
                         modifier = Modifier.weight(1f)
                     )
 
@@ -362,18 +350,18 @@ fun ProfileWageRateCard(
                         value = minWageInput,
                         onValueChange = { minWageInput = filterSingleDecimalInput(it, minWageInput) },
                         label = { Text("Min Wage/Day", fontFamily = ShiftlySerif) },
-                        placeholder = { Text("0", color = TextLightMuted) },
+                        placeholder = { Text("0", color = colors.textMuted) },
                         prefix = {
                             Text(
                                 text = currencySymbol,
                                 fontWeight = FontWeight.Bold,
-                                color = TextLightPrimary
+                                color = colors.textPrimary
                             )
                         },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         shape = RoundedCornerShape(16.dp),
-                        colors = darkSheetFieldColors(),
+                        colors = shiftlySheetFieldColors(),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -389,12 +377,12 @@ fun ProfileWageRateCard(
                         Text(
                             text = "8h equivalent: ${ShiftlyFormatters.formatCurrency(currencySymbol, derivedHourly)}/hr",
                             style = MaterialTheme.typography.bodySmall.tabular(),
-                            color = TextLightSecondary
+                            color = colors.textSecondary
                         )
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = AzureSoftContainer,
-                            border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.45f)),
+                            color = colors.azureContainer,
+                            border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.45f)),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
                                 .clickable {
@@ -407,7 +395,7 @@ fun ProfileWageRateCard(
                                     fontFamily = ShiftlySerif,
                                     fontWeight = FontWeight.SemiBold
                                 ),
-                                color = AzureInkOnWhite,
+                                color = colors.azureInk,
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                             )
                         }
@@ -437,8 +425,12 @@ fun ProfileWageRateCard(
                     },
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = AzurePrimaryButton,
-                        contentColor = PureWhite
+                        containerColor = colors.azurePrimary,
+                        contentColor = colors.onAzurePrimary
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -456,7 +448,7 @@ fun ProfileWageRateCard(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = PureWhite
+                        color = colors.onAzurePrimary
                     )
                 }
             }
@@ -471,11 +463,13 @@ private fun GlassSnapshotTile(
     valueColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val colors = ShiftlyColors.current
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -484,7 +478,7 @@ private fun GlassSnapshotTile(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                color = TextLightSecondary
+                color = colors.textSecondary
             )
             Text(
                 text = value,
@@ -506,6 +500,7 @@ fun SettingsGroupCard(
     groupTitle: String,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val colors = ShiftlyColors.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = groupTitle,
@@ -514,14 +509,14 @@ fun SettingsGroupCard(
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.6.sp
             ),
-            color = TextLightSecondary,
+            color = colors.textSecondary,
             modifier = Modifier.padding(horizontal = 4.dp)
         )
         Surface(
             shape = RoundedCornerShape(22.dp),
-            color = DarkCard,
-            border = BorderStroke(1.dp, DarkBorder),
-            shadowElevation = 2.dp,
+            color = colors.card,
+            border = BorderStroke(1.dp, colors.border),
+            shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(content = content)
@@ -535,10 +530,11 @@ fun SettingsChevronRow(
     title: String,
     onClick: () -> Unit,
     subtitle: String? = null,
-    iconBg: Color = AzureSoftContainer,
-    iconTint: Color = AzureInkOnWhite,
+    iconBg: Color = ShiftlyColors.current.azureContainer,
+    iconTint: Color = ShiftlyColors.current.azureInk,
     trailingBadge: String? = null
 ) {
+    val colors = ShiftlyColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -569,13 +565,13 @@ fun SettingsChevronRow(
                     fontFamily = ShiftlySerif,
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = TextLightPrimary
+                color = colors.textPrimary
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextLightSecondary,
+                    color = colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -584,8 +580,9 @@ fun SettingsChevronRow(
         if (trailingBadge != null) {
             Surface(
                 shape = RoundedCornerShape(50),
-                color = DarkSurface,
-                border = BorderStroke(1.dp, DarkBorder)
+                color = colors.cardElevated,
+                border = BorderStroke(1.dp, colors.border),
+                shadowElevation = 0.dp
             ) {
                 Text(
                     text = trailingBadge,
@@ -593,7 +590,7 @@ fun SettingsChevronRow(
                         fontFamily = ShiftlySans,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
-                    color = TextLightPrimary,
+                    color = colors.textPrimary,
                     modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                 )
             }
@@ -601,7 +598,7 @@ fun SettingsChevronRow(
         Icon(
             imageVector = Icons.Outlined.ChevronRight,
             contentDescription = null,
-            tint = TextLightSecondary,
+            tint = colors.textSecondary,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -615,9 +612,10 @@ fun SettingsSwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     subtitle: String? = null,
     onRowClick: (() -> Unit)? = null,
-    iconBg: Color = MintSoftContainer,
-    iconTint: Color = MintInkOnWhite
+    iconBg: Color = ShiftlyColors.current.mintContainer,
+    iconTint: Color = ShiftlyColors.current.mintInk
 ) {
+    val colors = ShiftlyColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -650,13 +648,13 @@ fun SettingsSwitchRow(
                     fontFamily = ShiftlySerif,
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = TextLightPrimary
+                color = colors.textPrimary
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = TextLightSecondary,
+                    color = colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -665,7 +663,7 @@ fun SettingsSwitchRow(
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
-            colors = darkSwitchColors()
+            colors = shiftlySwitchColors()
         )
     }
 }
@@ -682,11 +680,13 @@ fun SettingsSheetContainer(
     showTopClose: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = DarkSurface,
+        containerColor = colors.surface,
+        tonalElevation = 0.dp,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
         Column(
@@ -707,7 +707,7 @@ fun SettingsSheetContainer(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
-                    color = TextLightPrimary
+                    color = colors.textPrimary
                 )
                 if (showTopClose) {
                     IconButton(
@@ -717,12 +717,85 @@ fun SettingsSheetContainer(
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Close",
-                            tint = TextLightSecondary
+                            tint = colors.textSecondary
                         )
                     }
                 }
             }
             content()
+        }
+    }
+}
+
+@Composable
+fun ThemeSelectorSheetContent(
+    currentThemeMode: String,
+    onSave: (String) -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val modes = listOf(
+        "SYSTEM" to "System Default",
+        "DARK" to "Dark Mode",
+        "LIGHT" to "Light Mode"
+    )
+
+    Column(
+        modifier = Modifier.selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        modes.forEach { (modeKey, modeLabel) ->
+            val isSelected = currentThemeMode.equals(modeKey, ignoreCase = true)
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = if (isSelected) colors.azureContainer else colors.card,
+                border = BorderStroke(
+                    width = if (isSelected) 1.5.dp else 1.dp,
+                    color = if (isSelected) colors.azureAccent else colors.border
+                ),
+                shadowElevation = 0.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(role = Role.RadioButton) {
+                        onSave(modeKey)
+                    }
+                    .semantics(mergeDescendants = true) {
+                        this.selected = isSelected
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = modeLabel,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = ShiftlySans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = if (isSelected) colors.azureInk else colors.textPrimary
+                    )
+                    if (isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(colors.azurePrimary),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Check,
+                                contentDescription = "Selected",
+                                tint = colors.onAzurePrimary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -737,6 +810,7 @@ fun AccountEditSheetContent(
     onRemovePhoto: () -> Unit,
     onSave: (String) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     var nameInput by remember { mutableStateOf(currentName) }
     val hasPhoto = !profilePhotoPath.isNullOrBlank() && File(profilePhotoPath).exists()
 
@@ -749,8 +823,8 @@ fun AccountEditSheetContent(
             modifier = Modifier
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(DarkCard)
-                .border(1.5.dp, AzureAccent.copy(alpha = 0.7f), CircleShape)
+                .background(colors.card)
+                .border(1.5.dp, colors.azureAccent.copy(alpha = 0.7f), CircleShape)
                 .clickable(onClick = onChangePhoto),
             contentAlignment = Alignment.Center
         ) {
@@ -765,7 +839,7 @@ fun AccountEditSheetContent(
                 Icon(
                     imageVector = Icons.Outlined.Person,
                     contentDescription = "Profile photo",
-                    tint = TextLightSecondary,
+                    tint = colors.textSecondary,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -776,21 +850,21 @@ fun AccountEditSheetContent(
                 OutlinedButton(
                     onClick = onChangePhoto,
                     shape = RoundedCornerShape(50),
-                    border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.6f)),
+                    border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.6f)),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     modifier = Modifier.heightIn(min = 44.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.AddAPhoto,
                         contentDescription = null,
-                        tint = AzureAccent,
+                        tint = colors.azureAccent,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (hasPhoto) "Change Photo" else "Add Photo",
                         style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                        color = AzureAccent
+                        color = colors.azureAccent
                     )
                 }
                 if (hasPhoto) {
@@ -801,7 +875,7 @@ fun AccountEditSheetContent(
                         Text(
                             text = "Remove",
                             style = MaterialTheme.typography.labelMedium.copy(fontFamily = ShiftlySerif),
-                            color = CoralTextOnBlue
+                            color = colors.coralTextOnSurface
                         )
                     }
                 }
@@ -813,16 +887,16 @@ fun AccountEditSheetContent(
         value = nameInput,
         onValueChange = { nameInput = it },
         label = { Text("Display Name", fontFamily = ShiftlySerif) },
-        placeholder = { Text("What I gonna call you?", color = TextLightMuted) },
+        placeholder = { Text("What I gonna call you?", color = colors.textMuted) },
         singleLine = true,
         shape = RoundedCornerShape(16.dp),
-        colors = darkSheetFieldColors(),
+        colors = shiftlySheetFieldColors(),
         modifier = Modifier.fillMaxWidth()
     )
     Text(
         text = "Hourly rate: ${ShiftlyFormatters.formatCurrency(currencySymbol, hourlyRate)}/hr (edit on Wage & Rate card)",
         style = MaterialTheme.typography.bodySmall.tabular(),
-        color = TextLightSecondary
+        color = colors.textSecondary
     )
     ShiftlyPrimaryPillButton(
         text = "Save Profile",
@@ -836,6 +910,7 @@ fun CurrencyPickerSheetContent(
     currentCurrency: String,
     onApplyCurrency: (newSymbol: String, conversionRate: Double?) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val options = listOf(
         "₱" to "Philippine Peso (PHP)",
         "$" to "US Dollar (USD)",
@@ -856,8 +931,9 @@ fun CurrencyPickerSheetContent(
                 val isSelected = symbol == currentCurrency
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = if (isSelected) AzureSoftContainer else DarkCard,
-                    border = BorderStroke(1.dp, if (isSelected) AzureInkOnWhite else DarkBorder),
+                    color = if (isSelected) colors.azureContainer else colors.card,
+                    border = BorderStroke(1.dp, if (isSelected) colors.azureInk else colors.border),
+                    shadowElevation = 0.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 52.dp)
@@ -881,13 +957,13 @@ fun CurrencyPickerSheetContent(
                         Text(
                             text = "$symbol  $label",
                             style = MaterialTheme.typography.titleSmall,
-                            color = if (isSelected) AzureInkOnWhite else TextLightPrimary
+                            color = if (isSelected) colors.azureInk else colors.textPrimary
                         )
                         if (isSelected) {
                             Text(
                                 text = "Active",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = AzureInkOnWhite
+                                color = colors.azureInk
                             )
                         }
                     }
@@ -902,8 +978,9 @@ fun CurrencyPickerSheetContent(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = AzureSoftContainer,
-                border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.45f)),
+                color = colors.azureContainer,
+                border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.45f)),
+                shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -913,12 +990,12 @@ fun CurrencyPickerSheetContent(
                     Text(
                         text = "Switch $currentCurrency -> $targetSymbol ($targetLabel)",
                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = ShiftlySerif),
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "Choose whether to change only the symbol or convert all saved shifts, expenses, split bills, and budgets by an exchange rate.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -926,8 +1003,8 @@ fun CurrencyPickerSheetContent(
             OutlinedButton(
                 onClick = { onApplyCurrency(targetSymbol, null) },
                 shape = RoundedCornerShape(50),
-                border = BorderStroke(1.dp, DarkBorder),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+                border = BorderStroke(1.dp, colors.border),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
@@ -939,12 +1016,12 @@ fun CurrencyPickerSheetContent(
                 )
             }
 
-            HorizontalDivider(color = DarkBorder)
+            HorizontalDivider(color = colors.border)
 
             Text(
                 text = "Or Convert All Saved Amounts",
                 style = MaterialTheme.typography.titleSmall,
-                color = TextLightPrimary
+                color = colors.textPrimary
             )
             OutlinedTextField(
                 value = rateInput,
@@ -955,11 +1032,11 @@ fun CurrencyPickerSheetContent(
                         fontFamily = ShiftlySerif
                     )
                 },
-                placeholder = { Text("e.g. 0.018 or 56.0", color = TextLightMuted) },
+                placeholder = { Text("e.g. 0.018 or 56.0", color = colors.textMuted) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 shape = RoundedCornerShape(16.dp),
-                colors = darkSheetFieldColors(),
+                colors = shiftlySheetFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
             if (rateValid && parsedRate != null) {
@@ -967,7 +1044,7 @@ fun CurrencyPickerSheetContent(
                 Text(
                     text = "Preview: ${ShiftlyFormatters.formatCurrency(currentCurrency, 100.0)} -> ${ShiftlyFormatters.formatCurrency(targetSymbol, sample)}",
                     style = MaterialTheme.typography.bodySmall.tabular(),
-                    color = MintTextOnBlue
+                    color = colors.mintTextOnSurface
                 )
             }
 
@@ -987,7 +1064,7 @@ fun CurrencyPickerSheetContent(
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
             ) {
-                Text("Back to Currency List", fontFamily = ShiftlySerif, color = TextLightSecondary)
+                Text("Back to Currency List", fontFamily = ShiftlySerif, color = colors.textSecondary)
             }
         }
     }
@@ -1006,6 +1083,7 @@ fun NotificationsSheetContent(
         savingsReminderEnabled: Boolean
     ) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     var masterEnabled by remember { mutableStateOf(notificationsEnabled) }
     var billRem by remember { mutableStateOf(billReminderEnabled) }
     var shiftRem by remember { mutableStateOf(shiftReminderEnabled) }
@@ -1013,8 +1091,9 @@ fun NotificationsSheetContent(
 
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = DarkCard,
-        border = BorderStroke(1.dp, DarkBorder)
+        color = colors.card,
+        border = BorderStroke(1.dp, colors.border),
+        shadowElevation = 0.dp
     ) {
         Column {
             Row(
@@ -1028,21 +1107,21 @@ fun NotificationsSheetContent(
                     Text(
                         text = "Allow Notifications",
                         style = MaterialTheme.typography.titleSmall,
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "Master toggle for all reminders",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
                 Switch(
                     checked = masterEnabled,
                     onCheckedChange = { masterEnabled = it },
-                    colors = darkSwitchColors()
+                    colors = shiftlySwitchColors()
                 )
             }
-            HorizontalDivider(color = DarkBorder)
+            HorizontalDivider(color = colors.border)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1054,22 +1133,22 @@ fun NotificationsSheetContent(
                     Text(
                         text = "Recurring Bills Due",
                         style = MaterialTheme.typography.titleSmall,
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "Remind less than 1 day before due date",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
                 Switch(
                     checked = masterEnabled && billRem,
                     enabled = masterEnabled,
                     onCheckedChange = { billRem = it },
-                    colors = darkSwitchColors()
+                    colors = shiftlySwitchColors()
                 )
             }
-            HorizontalDivider(color = DarkBorder)
+            HorizontalDivider(color = colors.border)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1081,22 +1160,22 @@ fun NotificationsSheetContent(
                     Text(
                         text = "Log Shift Reminder",
                         style = MaterialTheme.typography.titleSmall,
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "Daily reminder if no shift logged",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
                 Switch(
                     checked = masterEnabled && shiftRem,
                     enabled = masterEnabled,
                     onCheckedChange = { shiftRem = it },
-                    colors = darkSwitchColors()
+                    colors = shiftlySwitchColors()
                 )
             }
-            HorizontalDivider(color = DarkBorder)
+            HorizontalDivider(color = colors.border)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1108,19 +1187,19 @@ fun NotificationsSheetContent(
                     Text(
                         text = "Savings & Deposit",
                         style = MaterialTheme.typography.titleSmall,
-                        color = TextLightPrimary
+                        color = colors.textPrimary
                     )
                     Text(
                         text = "Remind to log saving & add deposit",
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
                 Switch(
                     checked = masterEnabled && savingsRem,
                     enabled = masterEnabled,
                     onCheckedChange = { savingsRem = it },
-                    colors = darkSwitchColors()
+                    colors = shiftlySwitchColors()
                 )
             }
         }
@@ -1139,12 +1218,13 @@ private fun SelectableRulePill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = ShiftlyColors.current
     Box(
         modifier = modifier
             .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(50))
-            .background(if (selected) AzurePrimaryButton else DarkCard)
-            .border(1.dp, if (selected) AzureAccent else DarkBorder, RoundedCornerShape(50))
+            .background(if (selected) colors.azurePrimary else colors.card)
+            .border(1.dp, if (selected) colors.azureAccent else colors.border, RoundedCornerShape(50))
             .clickable(role = Role.Tab, onClick = onClick)
             .semantics(mergeDescendants = true) {
                 this.selected = selected
@@ -1157,7 +1237,7 @@ private fun SelectableRulePill(
                 fontFamily = ShiftlySans,
                 fontWeight = FontWeight.Bold
             ).tabular(),
-            color = if (selected) PureWhite else TextLightPrimary
+            color = if (selected) colors.onAzurePrimary else colors.textPrimary
         )
     }
 }
@@ -1171,6 +1251,7 @@ fun BudgetsEditorSheetContent(
     onDismiss: () -> Unit = {},
     onSave: (Double, List<CategoryBudgetSetting>) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     var monthlyInput by remember {
         mutableStateOf(if (currentMonthlyBudget > 0.0) formatEditableNumber(currentMonthlyBudget) else "")
     }
@@ -1203,15 +1284,15 @@ fun BudgetsEditorSheetContent(
         value = monthlyInput,
         onValueChange = { monthlyInput = filterSingleDecimalInput(it, monthlyInput) },
         label = { Text("Monthly Budget ($currencySymbol)", fontFamily = ShiftlySerif) },
-        placeholder = { Text("What is your monthly budget?", color = TextLightMuted) },
+        placeholder = { Text("What is your monthly budget?", color = colors.textMuted) },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
         shape = RoundedCornerShape(16.dp),
-        colors = darkSheetFieldColors(),
+        colors = shiftlySheetFieldColors(),
         modifier = Modifier.fillMaxWidth()
     )
 
-    Text("Per-Category Limits", style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
+    Text("Per-Category Limits", style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
     editedBudgets.forEachIndexed { idx, (cat, limitStr) ->
         OutlinedTextField(
             value = limitStr,
@@ -1219,11 +1300,11 @@ fun BudgetsEditorSheetContent(
                 editedBudgets[idx] = cat to filterSingleDecimalInput(updated, limitStr)
             },
             label = { Text("$cat ($currencySymbol)", fontFamily = ShiftlySerif) },
-            placeholder = { Text("Optional monthly cap", color = TextLightMuted) },
+            placeholder = { Text("Optional monthly cap", color = colors.textMuted) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             shape = RoundedCornerShape(14.dp),
-            colors = darkSheetFieldColors(),
+            colors = shiftlySheetFieldColors(),
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -1248,12 +1329,12 @@ fun BudgetsEditorSheetContent(
     OutlinedButton(
         onClick = onDismiss,
         shape = RoundedCornerShape(50),
-        border = BorderStroke(1.dp, DarkBorder),
+        border = BorderStroke(1.dp, colors.border),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
     ) {
-        Text("Close", fontFamily = ShiftlySerif, color = TextLightSecondary)
+        Text("Close", fontFamily = ShiftlySerif, color = colors.textSecondary)
     }
 }
 
@@ -1262,6 +1343,7 @@ fun ManageCategoriesSheetContent(
     currentCategories: List<ManagedCategorySetting>,
     onSave: (List<ManagedCategorySetting>) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val list = remember { mutableStateListOf<ManagedCategorySetting>().apply { addAll(currentCategories) } }
     var newCategoryName by remember { mutableStateOf("") }
 
@@ -1276,7 +1358,7 @@ fun ManageCategoriesSheetContent(
             label = { Text("Add Category", fontFamily = ShiftlySerif) },
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
-            colors = darkSheetFieldColors(),
+            colors = shiftlySheetFieldColors(),
             modifier = Modifier.weight(1f)
         )
         Button(
@@ -1288,7 +1370,7 @@ fun ManageCategoriesSheetContent(
                 }
             },
             shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(containerColor = AzurePrimaryButton, contentColor = PureWhite),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.azurePrimary, contentColor = colors.onAzurePrimary),
             modifier = Modifier.heightIn(min = 52.dp)
         ) {
             Icon(Icons.Outlined.Add, contentDescription = "Add", modifier = Modifier.size(18.dp))
@@ -1300,7 +1382,8 @@ fun ManageCategoriesSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
-                .background(DarkCard)
+                .background(colors.card)
+                .border(1.dp, colors.border, RoundedCornerShape(14.dp))
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -1311,19 +1394,19 @@ fun ManageCategoriesSheetContent(
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = DarkBorder,
-                    focusedBorderColor = AzureInkOnWhite,
-                    focusedTextColor = TextLightPrimary,
-                    unfocusedTextColor = TextLightPrimary,
-                    focusedContainerColor = DarkSurface,
-                    unfocusedContainerColor = DarkSurface
+                    unfocusedBorderColor = colors.border,
+                    focusedBorderColor = colors.azureInk,
+                    focusedTextColor = colors.textPrimary,
+                    unfocusedTextColor = colors.textPrimary,
+                    focusedContainerColor = colors.surface,
+                    unfocusedContainerColor = colors.surface
                 ),
                 modifier = Modifier.weight(1f)
             )
             Switch(
                 checked = item.isVisible,
                 onCheckedChange = { vis -> list[idx] = item.copy(isVisible = vis) },
-                colors = darkSwitchColors()
+                colors = shiftlySwitchColors()
             )
         }
     }
@@ -1341,6 +1424,7 @@ fun RecurringEntriesSheetContent(
     availableCategories: List<String> = listOf("Food", "Transport", "Bills", "Supplies", "Other"),
     onSave: (List<RecurringEntrySetting>) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val entries = remember { mutableStateListOf<RecurringEntrySetting>().apply { addAll(currentEntries) } }
     val selectableCategories = remember(availableCategories) {
         availableCategories
@@ -1358,7 +1442,7 @@ fun RecurringEntriesSheetContent(
             Text(
                 text = "No recurring entries",
                 style = MaterialTheme.typography.bodySmall,
-                color = TextLightMuted
+                color = colors.textMuted
             )
         }
         entries.forEachIndexed { idx, entry ->
@@ -1366,13 +1450,14 @@ fun RecurringEntriesSheetContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(DarkCard)
+                    .background(colors.card)
+                    .border(1.dp, colors.border, RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(entry.title, style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
+                    Text(entry.title, style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
                     val subtitle = if (entry.isIncome) {
                         "${entry.frequency} • ${ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount, showPlus = true)}"
                     } else {
@@ -1381,14 +1466,14 @@ fun RecurringEntriesSheetContent(
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = if (entry.isIncome) MintInkOnWhite else CoralInkOnWhite
+                        color = if (entry.isIncome) colors.mintInk else colors.coralInk
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Switch(
                         checked = entry.isEnabled,
                         onCheckedChange = { entries[idx] = entry.copy(isEnabled = it) },
-                        colors = darkSwitchColors()
+                        colors = shiftlySwitchColors()
                     )
                     IconButton(
                         onClick = { entries.removeAt(idx) },
@@ -1397,7 +1482,7 @@ fun RecurringEntriesSheetContent(
                         Icon(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = "Remove ${entry.title}",
-                            tint = CoralInkOnWhite
+                            tint = colors.coralInk
                         )
                     }
                 }
@@ -1405,8 +1490,8 @@ fun RecurringEntriesSheetContent(
         }
     }
 
-    HorizontalDivider(color = DarkBorder)
-    Text("Add Entry", style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
+    HorizontalDivider(color = colors.border)
+    Text("Add Entry", style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = newTitle,
@@ -1414,7 +1499,7 @@ fun RecurringEntriesSheetContent(
             label = { Text("Label", fontFamily = ShiftlySerif) },
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
-            colors = darkSheetFieldColors(),
+            colors = shiftlySheetFieldColors(),
             modifier = Modifier.weight(1.2f)
         )
         OutlinedTextField(
@@ -1424,7 +1509,7 @@ fun RecurringEntriesSheetContent(
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             shape = RoundedCornerShape(14.dp),
-            colors = darkSheetFieldColors(),
+            colors = shiftlySheetFieldColors(),
             modifier = Modifier.weight(0.8f)
         )
     }
@@ -1452,8 +1537,9 @@ fun RecurringEntriesSheetContent(
     if (!isIncome) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = DarkCard,
-            border = BorderStroke(1.dp, DarkBorder),
+            color = colors.card,
+            border = BorderStroke(1.dp, colors.border),
+            shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 52.dp)
@@ -1475,13 +1561,13 @@ fun RecurringEntriesSheetContent(
                         modifier = Modifier
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(CoralSoftContainer),
+                            .background(colors.coralContainer),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = categoryIcon(newCategory),
                             contentDescription = null,
-                            tint = CoralInkOnWhite,
+                            tint = colors.coralInk,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -1489,7 +1575,7 @@ fun RecurringEntriesSheetContent(
                         Text(
                             text = "Expense Category",
                             style = MaterialTheme.typography.labelSmall.copy(fontFamily = ShiftlySerif),
-                            color = TextLightSecondary
+                            color = colors.textSecondary
                         )
                         Text(
                             text = newCategory,
@@ -1497,14 +1583,14 @@ fun RecurringEntriesSheetContent(
                                 fontFamily = ShiftlySerif,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = TextLightPrimary
+                            color = colors.textPrimary
                         )
                     }
                 }
                 Icon(
                     imageVector = Icons.Outlined.ChevronRight,
                     contentDescription = "Select Category",
-                    tint = TextLightSecondary
+                    tint = colors.textSecondary
                 )
             }
         }
@@ -1539,12 +1625,12 @@ fun RecurringEntriesSheetContent(
             }
         },
         shape = RoundedCornerShape(50),
-        border = BorderStroke(1.dp, DarkBorder),
+        border = BorderStroke(1.dp, colors.border),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
     ) {
-        Text("Add to List", fontFamily = ShiftlySerif, color = AzureInkOnWhite)
+        Text("Add to List", fontFamily = ShiftlySerif, color = colors.azureInk)
     }
 
     ShiftlyPrimaryPillButton(
@@ -1560,6 +1646,7 @@ fun AppLockSheetContent(
     hasSavedPin: Boolean,
     onSave: (Boolean, String, String?) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val context = LocalContext.current
     val biometricsAvailable = remember(context) { canUseBiometrics(context) }
 
@@ -1572,17 +1659,18 @@ fun AppLockSheetContent(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(DarkCard)
+            .background(colors.card)
+            .border(1.dp, colors.border, RoundedCornerShape(16.dp))
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("Enable App Lock", style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
+            Text("Enable App Lock", style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
             Text(
                 "Lock balances on launch and when backgrounded",
                 style = MaterialTheme.typography.bodySmall,
-                color = TextLightSecondary
+                color = colors.textSecondary
             )
         }
         Switch(
@@ -1591,7 +1679,7 @@ fun AppLockSheetContent(
                 enabled = it
                 errorMessage = null
             },
-            colors = darkSwitchColors()
+            colors = shiftlySwitchColors()
         )
     }
 
@@ -1618,7 +1706,7 @@ fun AppLockSheetContent(
         Text(
             text = "No fingerprint/biometric enrolled on this device. Device lock or 4-Digit PIN will be used.",
             style = MaterialTheme.typography.bodySmall,
-            color = CoralTextOnBlue
+            color = colors.coralTextOnSurface
         )
     }
 
@@ -1635,12 +1723,12 @@ fun AppLockSheetContent(
                     fontFamily = ShiftlySerif
                 )
             },
-            placeholder = { Text(if (hasSavedPin) "••••" else "Enter 4 digits", color = TextLightMuted) },
+            placeholder = { Text(if (hasSavedPin) "••••" else "Enter 4 digits", color = colors.textMuted) },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
             shape = RoundedCornerShape(16.dp),
-            colors = darkSheetFieldColors(),
+            colors = shiftlySheetFieldColors(),
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -1649,7 +1737,7 @@ fun AppLockSheetContent(
         Text(
             text = errorMessage.orEmpty(),
             style = MaterialTheme.typography.bodySmall,
-            color = CoralTextOnBlue
+            color = colors.coralTextOnSurface
         )
     }
 
@@ -1688,19 +1776,20 @@ fun BackupAndExportSheetContent(
     onPickBackupFile: (RestoreMode) -> Unit,
     onRestoreJson: (String, RestoreMode) -> Unit
 ) {
+    val colors = ShiftlyColors.current
     var restoreJsonInput by remember { mutableStateOf("") }
     var restoreMode by remember { mutableStateOf(RestoreMode.MERGE) }
 
     OutlinedButton(
         onClick = onExportZip,
         shape = RoundedCornerShape(50),
-        border = BorderStroke(1.dp, AzureAccent.copy(alpha = 0.5f)),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+        border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.5f)),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
     ) {
-        Icon(Icons.Outlined.FolderZip, contentDescription = null, tint = AzureAccent, modifier = Modifier.size(18.dp))
+        Icon(Icons.Outlined.FolderZip, contentDescription = null, tint = colors.azureAccent, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text("Export Full Backup (.zip + Receipts)", fontFamily = ShiftlySerif)
     }
@@ -1709,8 +1798,8 @@ fun BackupAndExportSheetContent(
         OutlinedButton(
             onClick = onExportJson,
             shape = RoundedCornerShape(50),
-            border = BorderStroke(1.dp, DarkBorder),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+            border = BorderStroke(1.dp, colors.border),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 48.dp)
@@ -1722,8 +1811,8 @@ fun BackupAndExportSheetContent(
         OutlinedButton(
             onClick = onExportCsv,
             shape = RoundedCornerShape(50),
-            border = BorderStroke(1.dp, DarkBorder),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+            border = BorderStroke(1.dp, colors.border),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 48.dp)
@@ -1735,8 +1824,8 @@ fun BackupAndExportSheetContent(
         OutlinedButton(
             onClick = onExportPdf,
             shape = RoundedCornerShape(50),
-            border = BorderStroke(1.dp, DarkBorder),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+            border = BorderStroke(1.dp, colors.border),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 48.dp)
@@ -1747,8 +1836,8 @@ fun BackupAndExportSheetContent(
         }
     }
 
-    HorizontalDivider(color = DarkBorder)
-    Text("Restore Mode", style = MaterialTheme.typography.titleSmall, color = TextLightPrimary)
+    HorizontalDivider(color = colors.border)
+    Text("Restore Mode", style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1772,20 +1861,20 @@ fun BackupAndExportSheetContent(
         Text(
             text = "Replace All erases your current shifts, expenses, split bills, and receipts before restoring.",
             style = MaterialTheme.typography.bodySmall,
-            color = CoralTextOnBlue
+            color = colors.coralTextOnSurface
         )
     }
 
     OutlinedButton(
         onClick = { onPickBackupFile(restoreMode) },
         shape = RoundedCornerShape(50),
-        border = BorderStroke(1.dp, DarkBorder),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextLightPrimary),
+        border = BorderStroke(1.dp, colors.border),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
     ) {
-        Icon(Icons.Outlined.Restore, contentDescription = null, tint = MintTextOnBlue, modifier = Modifier.size(18.dp))
+        Icon(Icons.Outlined.Restore, contentDescription = null, tint = colors.mintTextOnSurface, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.width(8.dp))
         Text("Choose Backup File (.zip or .json)", fontFamily = ShiftlySerif)
     }
@@ -1797,7 +1886,7 @@ fun BackupAndExportSheetContent(
         minLines = 3,
         maxLines = 5,
         shape = RoundedCornerShape(16.dp),
-        colors = darkSheetFieldColors(),
+        colors = shiftlySheetFieldColors(),
         modifier = Modifier.fillMaxWidth()
     )
 

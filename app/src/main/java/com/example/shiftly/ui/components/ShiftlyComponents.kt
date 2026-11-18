@@ -37,53 +37,35 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.AzurePrimaryButton
-import com.example.shiftly.ui.theme.BorderSubtle
-import com.example.shiftly.ui.theme.CoralBright
-import com.example.shiftly.ui.theme.DarkBackground
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkDisabledContainer
-import com.example.shiftly.ui.theme.DarkDisabledContent
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.PureWhite
-import com.example.shiftly.ui.theme.RoseAlert
-import com.example.shiftly.ui.theme.RoseContainer
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySerif
-import com.example.shiftly.ui.theme.SlateSurface
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
-import com.example.shiftly.ui.theme.TextPrimary
-import com.example.shiftly.ui.theme.TextSecondary
 
 /**
- * Full-bleed deep dark charcoal backdrop (#121212) preserving screen layout wrappers.
+ * Full-bleed screen backdrop reacting to the active Shiftly theme.
  */
 @Composable
 fun ShiftlyBlueGradientBackground(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val colors = ShiftlyColors.current
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(colors.background)
     ) {
         content()
     }
 }
 
 /**
- * Elevated dark container (#1E1E1E) with crisp subtle border (#333333) and gentle shadow.
+ * Elevated container with crisp subtle border and zero box shadow.
  */
 @Composable
 fun ShiftlyGlassCard(
@@ -93,23 +75,18 @@ fun ShiftlyGlassCard(
     showBorder: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val colors = ShiftlyColors.current
     val shape = RoundedCornerShape(cornerRadius)
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .shadow(
-                elevation = 10.dp,
-                shape = shape,
-                ambientColor = InkBlack.copy(alpha = 0.55f),
-                spotColor = InkBlack.copy(alpha = 0.65f)
-            )
             .clip(shape)
-            .background(DarkSurface)
+            .background(colors.surface)
             .then(
                 if (showBorder) {
                     Modifier.border(
                         width = 1.dp,
-                        color = DarkBorder,
+                        color = colors.border,
                         shape = shape
                     )
                 } else {
@@ -123,7 +100,7 @@ fun ShiftlyGlassCard(
 }
 
 /**
- * Full-width pill primary action button with refined editorial serif label adapted for Dark Mode.
+ * Full-width pill primary action button with refined editorial serif label.
  */
 @Composable
 fun ShiftlyPrimaryPillButton(
@@ -133,19 +110,20 @@ fun ShiftlyPrimaryPillButton(
     enabled: Boolean = true,
     leadingIcon: (@Composable () -> Unit)? = null
 ) {
+    val colors = ShiftlyColors.current
     Button(
         onClick = onClick,
         enabled = enabled,
         shape = RoundedCornerShape(50),
         colors = ButtonDefaults.buttonColors(
-            containerColor = AzurePrimaryButton,
-            contentColor = PureWhite,
-            disabledContainerColor = DarkDisabledContainer,
-            disabledContentColor = DarkDisabledContent
+            containerColor = colors.azurePrimary,
+            contentColor = colors.onAzurePrimary,
+            disabledContainerColor = colors.disabledContainer,
+            disabledContentColor = colors.disabledContent
         ),
         elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 4.dp,
-            pressedElevation = 1.dp
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp
         ),
         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
         modifier = modifier
@@ -162,19 +140,19 @@ fun ShiftlyPrimaryPillButton(
                 fontFamily = ShiftlySerif,
                 fontWeight = FontWeight.SemiBold
             ),
-            color = if (enabled) PureWhite else DarkDisabledContent
+            color = if (enabled) colors.onAzurePrimary else colors.disabledContent
         )
     }
 }
 
 /**
- * Standardized Shiftly card container with 22dp corners, crisp border, and gentle elevation.
+ * Standardized Shiftly card container with 22dp corners, crisp border, and zero box shadow.
  */
 @Composable
 fun ShiftlyCard(
     modifier: Modifier = Modifier,
-    containerColor: Color = SlateSurface,
-    borderColor: Color = BorderSubtle,
+    containerColor: Color = ShiftlyColors.current.card,
+    borderColor: Color = ShiftlyColors.current.border,
     cornerRadius: Dp = 22.dp,
     contentPadding: Dp = 16.dp,
     content: @Composable ColumnScope.() -> Unit
@@ -184,7 +162,7 @@ fun ShiftlyCard(
         shape = RoundedCornerShape(cornerRadius),
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
-        shadowElevation = 4.dp
+        shadowElevation = 0.dp
     ) {
         Column(
             modifier = Modifier.padding(contentPadding),
@@ -194,7 +172,7 @@ fun ShiftlyCard(
 }
 
 /**
- * Screen-level header rendered over the dark charcoal backdrop.
+ * Screen-level header rendered over the active Shiftly backdrop.
  */
 @Composable
 fun ShiftlyScreenHeader(
@@ -204,6 +182,7 @@ fun ShiftlyScreenHeader(
     onBackClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null
 ) {
+    val colors = ShiftlyColors.current
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -221,7 +200,7 @@ fun ShiftlyScreenHeader(
                     Icon(
                         imageVector = Icons.Outlined.ChevronLeft,
                         contentDescription = "Back",
-                        tint = TextLightPrimary
+                        tint = colors.textPrimary
                     )
                 }
                 Spacer(modifier = Modifier.width(6.dp))
@@ -231,7 +210,7 @@ fun ShiftlyScreenHeader(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
-                    color = TextLightPrimary,
+                    color = colors.textPrimary,
                     modifier = Modifier.semantics { heading() }
                 )
                 if (!subtitle.isNullOrBlank()) {
@@ -239,7 +218,7 @@ fun ShiftlyScreenHeader(
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodySmall,
-                        color = TextLightSecondary
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -263,9 +242,10 @@ fun ShiftlySectionHeader(
     onTrailingClick: (() -> Unit)? = null,
     onLightSurface: Boolean = false
 ) {
-    val titleColor = TextPrimary
-    val countBg = if (onLightSurface) DarkCard else DarkSurface
-    val countTextColor = TextSecondary
+    val colors = ShiftlyColors.current
+    val titleColor = colors.textPrimary
+    val countBg = if (onLightSurface) colors.card else colors.surface
+    val countTextColor = colors.textSecondary
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -287,7 +267,8 @@ fun ShiftlySectionHeader(
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = countBg,
-                    border = BorderStroke(1.dp, DarkBorder)
+                    border = BorderStroke(1.dp, colors.border),
+                    shadowElevation = 0.dp
                 ) {
                     Text(
                         text = count.toString(),
@@ -314,14 +295,14 @@ fun ShiftlySectionHeader(
                             fontFamily = ShiftlySerif,
                             fontWeight = FontWeight.SemiBold
                         ),
-                        color = AzureInkOnWhite
+                        color = colors.azureInk
                     )
                 }
             } else {
                 Text(
                     text = trailingText,
                     style = MaterialTheme.typography.labelMedium,
-                    color = TextSecondary
+                    color = colors.textSecondary
                 )
             }
         }
@@ -338,21 +319,22 @@ fun ShiftlyConfirmDeleteDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkCard,
+        containerColor = colors.card,
         icon = {
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(RoseContainer),
+                    .background(colors.coralContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
                     contentDescription = null,
-                    tint = RoseAlert,
+                    tint = colors.coralInk,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -361,14 +343,14 @@ fun ShiftlyConfirmDeleteDialog(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                color = TextPrimary
+                color = colors.textPrimary
             )
         },
         text = {
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodyMedium,
-                color = TextSecondary
+                color = colors.textSecondary
             )
         },
         confirmButton = {
@@ -376,8 +358,12 @@ fun ShiftlyConfirmDeleteDialog(
                 onClick = onConfirm,
                 shape = RoundedCornerShape(50),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = CoralBright,
-                    contentColor = InkBlack
+                    containerColor = colors.coralBright,
+                    contentColor = colors.onAccentDark
+                ),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 0.dp
                 )
             ) {
                 Text("Delete", fontWeight = FontWeight.SemiBold)
@@ -385,7 +371,7 @@ fun ShiftlyConfirmDeleteDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = TextSecondary)
+                Text("Cancel", color = colors.textSecondary)
             }
         }
     )

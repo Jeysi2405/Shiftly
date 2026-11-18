@@ -216,6 +216,10 @@ class ProfileViewModel(
         viewModelScope.launch { repository.updateManagedCategories(items) }
     }
 
+    fun updateThemeMode(mode: String) {
+        viewModelScope.launch { repository.updateThemeMode(mode) }
+    }
+
     fun updateRecurringEntries(items: List<RecurringEntrySetting>, onProcessed: (Int) -> Unit = {}) {
         viewModelScope.launch {
             repository.updateRecurringEntries(items)

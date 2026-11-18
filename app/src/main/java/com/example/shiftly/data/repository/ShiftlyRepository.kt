@@ -172,6 +172,8 @@ class ShiftlyRepository(private val context: Context) {
         prefs.setAppLock(enabled = enabled, method = method, pinHash = resolvedHash)
     }
 
+    suspend fun updateThemeMode(mode: String) = prefs.updateThemeMode(mode)
+
     suspend fun startShiftTimer(startMillis: Long, dateEpochDay: Long, lockedRate: Double) =
         prefs.startActiveTimer(startMillis, dateEpochDay, lockedRate)
     suspend fun stopShiftTimer() = prefs.clearActiveTimer()

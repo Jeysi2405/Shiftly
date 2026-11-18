@@ -1,10 +1,10 @@
 package com.example.shiftly.ui.theme
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-
-// =============================================================================
-// Shiftly Dark Mode Design Tokens
-// =============================================================================
 
 // Core Dark Surfaces & Borders
 val DarkBackground = Color(0xFF121212)       // Main screen background
@@ -63,3 +63,136 @@ val TextSecondary = TextLightSecondary
 val BorderSubtle = DarkBorder
 val RoseAlert = CoralInkOnWhite
 val RoseContainer = CoralSoftContainer
+
+// =============================================================================
+// Shiftly Light Mode Tokens
+// =============================================================================
+val LightBackground = Color(0xFFF8F9FA)
+val LightSurface = Color(0xFFFFFFFF)
+val LightCard = Color(0xFFFFFFFF)
+val LightCardElevated = Color(0xFFF1F3F5)
+val LightBorder = Color(0xFFE2E8F0)
+val LightDisabledContainer = Color(0xFFE5E7EB)
+val LightDisabledContent = Color(0xFF6B7280)
+
+val TextDarkPrimary = Color(0xFF111827)
+val TextDarkSecondary = Color(0xFF4B5563)
+val TextDarkMuted = Color(0xFF6B7280)
+
+val AzureAccentLight = Color(0xFF1D63C4)
+val MintBrightLight = Color(0xFF059669)
+val MintInkLight = Color(0xFF047857)
+val NightDiffPurpleLight = Color(0xFF7E22CE)
+val CoralBrightLight = Color(0xFFDC2626)
+val CoralInkLight = Color(0xFFB91C1C)
+
+val MintSoftContainerLight = Color(0xFFE6F4EA)
+val CoralSoftContainerLight = Color(0xFFFCE8E6)
+val AzureSoftContainerLight = Color(0xFFE8F0FE)
+val NightDiffPurpleContainerLight = Color(0xFFF3E8FF)
+
+// =============================================================================
+// Theme-Reactive Palette
+// =============================================================================
+@Immutable
+data class ShiftlyColors(
+    val isDark: Boolean,
+    val background: Color,
+    val surface: Color,
+    val card: Color,
+    val cardElevated: Color,
+    val border: Color,
+    val disabledContainer: Color,
+    val disabledContent: Color,
+    val textPrimary: Color,
+    val textSecondary: Color,
+    val textMuted: Color,
+    val azurePrimary: Color,
+    val azureAccent: Color,
+    val azureInk: Color,
+    val azureContainer: Color,
+    val mintBright: Color,
+    val mintInk: Color,
+    val mintTextOnSurface: Color,
+    val mintContainer: Color,
+    val nightDiffPurple: Color,
+    val nightDiffPurpleContainer: Color,
+    val coralBright: Color,
+    val coralInk: Color,
+    val coralTextOnSurface: Color,
+    val coralContainer: Color,
+    val navIndicator: Color,
+    val onAzurePrimary: Color = PureWhite,
+    val onAccentDark: Color
+) {
+    companion object {
+        val current: ShiftlyColors
+            @Composable
+            @ReadOnlyComposable
+            get() = LocalShiftlyColors.current
+    }
+}
+
+val DarkShiftlyColors = ShiftlyColors(
+    isDark = true,
+    background = DarkBackground,
+    surface = DarkSurface,
+    card = DarkCard,
+    cardElevated = DarkCardElevated,
+    border = DarkBorder,
+    disabledContainer = DarkDisabledContainer,
+    disabledContent = DarkDisabledContent,
+    textPrimary = TextLightPrimary,
+    textSecondary = TextLightSecondary,
+    textMuted = TextLightMuted,
+    azurePrimary = AzurePrimaryButton,
+    azureAccent = AzureAccent,
+    azureInk = AzureInkOnWhite,
+    azureContainer = AzureDarkContainer,
+    mintBright = MintBright,
+    mintInk = MintInkOnWhite,
+    mintTextOnSurface = MintTextOnBlue,
+    mintContainer = MintSoftContainer,
+    nightDiffPurple = NightDiffPurple,
+    nightDiffPurpleContainer = NightDiffPurpleContainer,
+    coralBright = CoralBright,
+    coralInk = CoralInkOnWhite,
+    coralTextOnSurface = CoralTextOnBlue,
+    coralContainer = CoralSoftContainer,
+    navIndicator = MintBright,
+    onAzurePrimary = PureWhite,
+    onAccentDark = InkBlack
+)
+
+val LightShiftlyColors = ShiftlyColors(
+    isDark = false,
+    background = LightBackground,
+    surface = LightSurface,
+    card = LightCard,
+    cardElevated = LightCardElevated,
+    border = LightBorder,
+    disabledContainer = LightDisabledContainer,
+    disabledContent = LightDisabledContent,
+    textPrimary = TextDarkPrimary,
+    textSecondary = TextDarkSecondary,
+    textMuted = TextDarkMuted,
+    azurePrimary = AzurePrimaryButton,
+    azureAccent = AzureAccentLight,
+    azureInk = AzureAccentLight,
+    azureContainer = AzureSoftContainerLight,
+    mintBright = MintBrightLight,
+    mintInk = MintInkLight,
+    mintTextOnSurface = MintInkLight,
+    mintContainer = MintSoftContainerLight,
+    nightDiffPurple = NightDiffPurpleLight,
+    nightDiffPurpleContainer = NightDiffPurpleContainerLight,
+    coralBright = CoralBrightLight,
+    coralInk = CoralInkLight,
+    coralTextOnSurface = CoralInkLight,
+    coralContainer = CoralSoftContainerLight,
+    navIndicator = AzurePrimaryButton,
+    onAzurePrimary = PureWhite,
+    onAccentDark = PureWhite
+)
+
+val LocalShiftlyColors = staticCompositionLocalOf { DarkShiftlyColors }

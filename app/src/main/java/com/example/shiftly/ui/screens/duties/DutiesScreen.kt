@@ -1,7 +1,7 @@
 package com.example.shiftly.ui.screens.duties
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -25,7 +24,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -45,7 +43,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,17 +51,11 @@ import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
-import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.theme.AzurePrimaryButton
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkSurface
 import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.PureWhite
-import com.example.shiftly.ui.theme.ShiftlySerif
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.DayType
 import java.time.Instant
@@ -229,6 +220,7 @@ fun DutiesScreenContent(
     listState: LazyListState = rememberLazyListState(),
     todayOverride: LocalDate? = null
 ) {
+    val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val filterDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
 
@@ -260,13 +252,13 @@ fun DutiesScreenContent(
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                             contentDescription = "Back",
-                            tint = PureWhite
+                            tint = colors.textPrimary
                         )
                     }
                     Text(
                         text = "Duties",
                         style = MaterialTheme.typography.headlineSmall,
-                        color = PureWhite
+                        color = colors.textPrimary
                     )
                 }
 
@@ -281,7 +273,7 @@ fun DutiesScreenContent(
                         Icon(
                             imageVector = Icons.Outlined.Settings,
                             contentDescription = "Preset Settings",
-                            tint = PureWhite
+                            tint = colors.textPrimary
                         )
                     }
 
@@ -289,8 +281,12 @@ fun DutiesScreenContent(
                         onClick = onOpenLogShift,
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = AzurePrimaryButton,
-                            contentColor = PureWhite
+                            containerColor = colors.azurePrimary,
+                            contentColor = colors.onAzurePrimary
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp
                         ),
                         contentPadding = PaddingValues(0.dp),
                         modifier = Modifier.size(44.dp)
@@ -334,7 +330,7 @@ fun DutiesScreenContent(
             }
         }
 
-        // 3. Dark Bottom Sheet Surface for Shift History
+        // 3. Bottom Sheet Surface for Shift History
         item {
             val filterDate = state.selectedCalendarDate
             val headerTitle = if (filterDate != null) {
@@ -348,8 +344,9 @@ fun DutiesScreenContent(
                     .fillMaxWidth()
                     .heightIn(min = 460.dp),
                 shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = DarkSurface,
-                shadowElevation = 12.dp
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.border),
+                shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier
@@ -366,7 +363,7 @@ fun DutiesScreenContent(
                             modifier = Modifier
                                 .size(width = 40.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(DarkBorder)
+                                .background(colors.border)
                         )
                     }
 
@@ -392,7 +389,7 @@ fun DutiesScreenContent(
                             )
                             if (idx < state.displayedShifts.lastIndex) {
                                 HorizontalDivider(
-                                    color = DarkBorder.copy(alpha = 0.6f),
+                                    color = colors.border.copy(alpha = 0.6f),
                                     modifier = Modifier.padding(horizontal = 4.dp)
                                 )
                             }
@@ -458,6 +455,7 @@ private fun DutiesLogShiftSheetPreview() {
     )
 
     ShiftlyTheme {
+        val colors = ShiftlyColors.current
         ShiftlyBlueGradientBackground {
             Box(modifier = Modifier.fillMaxSize()) {
                 DutiesScreenContent(
@@ -478,8 +476,9 @@ private fun DutiesLogShiftSheetPreview() {
                 ) {
                     Surface(
                         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                        color = DarkSurface,
-                        shadowElevation = 16.dp,
+                        color = colors.surface,
+                        border = BorderStroke(1.dp, colors.border),
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .align(Alignment.BottomCenter)
@@ -493,7 +492,7 @@ private fun DutiesLogShiftSheetPreview() {
                                     modifier = Modifier
                                         .size(width = 36.dp, height = 4.dp)
                                         .clip(RoundedCornerShape(50))
-                                        .background(DarkBorder)
+                                        .background(colors.border)
                                 )
                             }
                             Spacer(modifier = Modifier.height(6.dp))

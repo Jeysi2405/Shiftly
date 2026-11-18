@@ -66,23 +66,10 @@ import com.example.shiftly.ui.screens.profile.RecurringEntriesSheetContent
 import com.example.shiftly.ui.screens.profile.SettingsSheetContainer
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
-import com.example.shiftly.ui.theme.AzureAccent
-import com.example.shiftly.ui.theme.AzureInkOnWhite
-import com.example.shiftly.ui.theme.AzureSoftContainer
-import com.example.shiftly.ui.theme.CoralBright
-import com.example.shiftly.ui.theme.CoralInkOnWhite
-import com.example.shiftly.ui.theme.CoralSoftContainer
-import com.example.shiftly.ui.theme.DarkBorder
-import com.example.shiftly.ui.theme.DarkCard
-import com.example.shiftly.ui.theme.DarkSurface
-import com.example.shiftly.ui.theme.MintBright
-import com.example.shiftly.ui.theme.MintInkOnWhite
-import com.example.shiftly.ui.theme.MintSoftContainer
+import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlySans
 import com.example.shiftly.ui.theme.ShiftlySerif
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.TextLightPrimary
-import com.example.shiftly.ui.theme.TextLightSecondary
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.LocalDate
@@ -253,6 +240,7 @@ fun ToolsScreenContent(
     onOpenSavingsGoals: () -> Unit = {},
     onOpenRecurringBills: () -> Unit = {}
 ) {
+    val colors = ShiftlyColors.current
     val currentMonth = YearMonth.now()
     val monthStartEpoch = currentMonth.atDay(1).toEpochDay()
     val monthEndEpoch = currentMonth.atEndOfMonth().toEpochDay()
@@ -297,9 +285,9 @@ fun ToolsScreenContent(
                     metric = ShiftlyFormatters.formatCurrency(currencySymbol, monthShiftEarnings),
                     metricSub = "${ShiftlyFormatters.formatHours(monthShiftHours, compact = true)} this month • ${monthShifts.size} shift(s)",
                     icon = Icons.Outlined.Schedule,
-                    iconBg = MintSoftContainer,
-                    iconTint = MintInkOnWhite,
-                    metricColor = MintBright,
+                    iconBg = colors.mintContainer,
+                    iconTint = colors.mintInk,
+                    metricColor = colors.mintInk,
                     quickActionLabel = null,
                     onQuickAction = null,
                     onClick = onOpenDuties
@@ -318,9 +306,9 @@ fun ToolsScreenContent(
                         "${monthExpenses.size} expense(s) this month"
                     },
                     icon = Icons.AutoMirrored.Outlined.ReceiptLong,
-                    iconBg = CoralSoftContainer,
-                    iconTint = CoralInkOnWhite,
-                    metricColor = CoralBright,
+                    iconBg = colors.coralContainer,
+                    iconTint = colors.coralInk,
+                    metricColor = colors.coralInk,
                     quickActionLabel = null,
                     onQuickAction = null,
                     onClick = onOpenExpense
@@ -339,9 +327,9 @@ fun ToolsScreenContent(
                         "${splitBills.size} bill(s) • all settled"
                     },
                     icon = Icons.AutoMirrored.Outlined.CallSplit,
-                    iconBg = AzureSoftContainer,
-                    iconTint = AzureInkOnWhite,
-                    metricColor = AzureAccent,
+                    iconBg = colors.azureContainer,
+                    iconTint = colors.azureInk,
+                    metricColor = colors.azureInk,
                     quickActionLabel = null,
                     onQuickAction = null,
                     onClick = onOpenSplitBill
@@ -356,9 +344,9 @@ fun ToolsScreenContent(
                     metric = if (monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, monthlyBudget) else "Set Budget",
                     metricSub = "Monthly spend limit & category targets",
                     icon = Icons.Outlined.AccountBalanceWallet,
-                    iconBg = CoralSoftContainer,
-                    iconTint = CoralInkOnWhite,
-                    metricColor = CoralBright,
+                    iconBg = colors.coralContainer,
+                    iconTint = colors.coralInk,
+                    metricColor = colors.coralInk,
                     quickActionLabel = null,
                     onQuickAction = null,
                     onClick = onOpenBudgets
@@ -377,9 +365,9 @@ fun ToolsScreenContent(
                         "Track savings progress"
                     },
                     icon = Icons.Outlined.Savings,
-                    iconBg = MintSoftContainer,
-                    iconTint = MintInkOnWhite,
-                    metricColor = MintBright,
+                    iconBg = colors.mintContainer,
+                    iconTint = colors.mintInk,
+                    metricColor = colors.mintInk,
                     quickActionLabel = null,
                     onQuickAction = null,
                     onClick = onOpenSavingsGoals
@@ -394,9 +382,9 @@ fun ToolsScreenContent(
                     metric = "$enabledRecurringCount active",
                     metricSub = "${recurringEntries.size} total recurring bill(s)",
                     icon = Icons.Outlined.Repeat,
-                    iconBg = AzureSoftContainer,
-                    iconTint = AzureInkOnWhite,
-                    metricColor = AzureAccent,
+                    iconBg = colors.azureContainer,
+                    iconTint = colors.azureInk,
+                    metricColor = colors.azureInk,
                     quickActionLabel = null,
                     onQuickAction = null,
                     onClick = onOpenRecurringBills
@@ -419,6 +407,7 @@ private fun ToolHubCard(
     onQuickAction: (() -> Unit)?,
     onClick: () -> Unit
 ) {
+    val colors = ShiftlyColors.current
     ShiftlyGlassCard(
         cornerRadius = 24.dp,
         contentPadding = PaddingValues(18.dp),
@@ -453,22 +442,23 @@ private fun ToolHubCard(
                         fontFamily = ShiftlySerif,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = TextLightPrimary,
+                    color = colors.textPrimary,
                     modifier = Modifier.weight(1f)
                 )
 
                 Icon(
                     imageVector = Icons.Outlined.ChevronRight,
                     contentDescription = "Open $title",
-                    tint = TextLightSecondary,
+                    tint = colors.textSecondary,
                     modifier = Modifier.size(22.dp)
                 )
             }
 
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = DarkCard,
-                border = BorderStroke(1.dp, DarkBorder),
+                color = colors.card,
+                border = BorderStroke(1.dp, colors.border),
+                shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -490,7 +480,7 @@ private fun ToolHubCard(
                         Text(
                             text = metricSub,
                             style = MaterialTheme.typography.labelSmall.tabular(),
-                            color = TextLightSecondary,
+                            color = colors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -500,8 +490,9 @@ private fun ToolHubCard(
                         Spacer(modifier = Modifier.width(8.dp))
                         Surface(
                             shape = RoundedCornerShape(50),
-                            color = DarkSurface,
-                            border = BorderStroke(1.dp, DarkBorder),
+                            color = colors.surface,
+                            border = BorderStroke(1.dp, colors.border),
+                            shadowElevation = 0.dp,
                             modifier = Modifier
                                 .heightIn(min = 40.dp)
                                 .clip(RoundedCornerShape(50))
@@ -515,7 +506,7 @@ private fun ToolHubCard(
                                 Icon(
                                     imageVector = Icons.Outlined.Add,
                                     contentDescription = null,
-                                    tint = AzureAccent,
+                                    tint = colors.azureAccent,
                                     modifier = Modifier.size(15.dp)
                                 )
                                 Text(
@@ -524,7 +515,7 @@ private fun ToolHubCard(
                                         fontFamily = ShiftlySerif,
                                         fontWeight = FontWeight.SemiBold
                                     ),
-                                    color = AzureAccent
+                                    color = colors.azureAccent
                                 )
                             }
                         }
