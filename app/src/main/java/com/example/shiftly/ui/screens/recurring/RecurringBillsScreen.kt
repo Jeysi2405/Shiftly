@@ -170,8 +170,24 @@ fun RecurringBillsScreenContent(
                 title = "Recurring Bills",
                 subtitle = null,
                 onBackClick = onBack,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+        }
+
+        item {
+            Column(
                 modifier = Modifier.padding(horizontal = 20.dp),
-                trailing = {
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                RecurringBillsSummaryCard(
+                    activeCount = state.activeCount,
+                    totalCount = state.bills.size,
+                    monthlyEstimate = state.enabledMonthlyEstimate,
+                    dueSoonCount = state.dueSoonCount,
+                    currencySymbol = state.currencySymbol
+                )
+
+                if (state.bills.isNotEmpty()) {
                     Button(
                         onClick = onOpenAddSheet,
                         shape = RoundedCornerShape(50),
@@ -179,21 +195,19 @@ fun RecurringBillsScreenContent(
                             containerColor = colors.azurePrimary,
                             contentColor = colors.onAzurePrimary
                         ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 0.dp,
-                            pressedElevation = 0.dp
-                        ),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-                        modifier = Modifier.heightIn(min = 48.dp)
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 46.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_plus),
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Add",
+                            text = "Add Recurring Bill",
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontFamily = PlusJakartaSans,
                                 fontWeight = FontWeight.SemiBold
@@ -202,18 +216,6 @@ fun RecurringBillsScreenContent(
                         )
                     }
                 }
-            )
-        }
-
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                RecurringBillsSummaryCard(
-                    activeCount = state.activeCount,
-                    totalCount = state.bills.size,
-                    monthlyEstimate = state.enabledMonthlyEstimate,
-                    dueSoonCount = state.dueSoonCount,
-                    currencySymbol = state.currencySymbol
-                )
             }
         }
 

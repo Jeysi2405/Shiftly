@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.components
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -109,6 +110,7 @@ fun ShiftlyGlassCard(
             .fillMaxWidth()
             .clip(shape)
             .background(colors.surface)
+            .animateContentSize()
             .then(
                 if (showBorder) {
                     Modifier.border(

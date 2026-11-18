@@ -287,44 +287,13 @@ fun SplitBillScreenContent(
         contentPadding = PaddingValues(top = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // 0. Screen Header with "+ New Split" action
+        // 0. Screen Header
         item {
             ShiftlyScreenHeader(
                 title = "Split Bill",
                 subtitle = null,
                 onBackClick = onBack,
-                modifier = Modifier.padding(horizontal = 20.dp),
-                trailing = {
-                    Button(
-                        onClick = onOpenNewSplit,
-                        shape = RoundedCornerShape(50),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.azurePrimary,
-                            contentColor = colors.onAzurePrimary
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 0.dp,
-                            pressedElevation = 0.dp
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                        modifier = Modifier.heightIn(min = 44.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_plus),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "New Split",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontFamily = PlusJakartaSans,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = colors.onAzurePrimary
-                        )
-                    }
-                }
+                modifier = Modifier.padding(horizontal = 20.dp)
             )
         }
 
@@ -339,9 +308,12 @@ fun SplitBillScreenContent(
             )
         }
 
-        // 1. Summary Card (Pending + Paid Mint Badge + Progress Bar)
+        // 1. Summary Card (Pending + Paid Mint Badge + Progress Bar) + New Split Button
         item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Column(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 SplitBillSummaryCard(
                     currencySymbol = state.currencySymbol,
                     totalPendingAmount = state.totalPendingAmount,
@@ -349,6 +321,34 @@ fun SplitBillScreenContent(
                     paidParticipantsCount = state.paidParticipantsCount,
                     totalParticipantsCount = state.totalParticipantsCount
                 )
+
+                Button(
+                    onClick = onOpenNewSplit,
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.azurePrimary,
+                        contentColor = colors.onAzurePrimary
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 46.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_plus),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "New Split",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.onAzurePrimary
+                    )
+                }
             }
         }
 

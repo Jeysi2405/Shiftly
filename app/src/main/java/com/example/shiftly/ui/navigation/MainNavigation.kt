@@ -6,8 +6,14 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -57,6 +63,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -443,10 +450,10 @@ private fun MainDashboardShell(
                 modifier = Modifier
                     .fillMaxSize()
                     .consumeWindowInsets(innerPadding),
-                enterTransition = { EnterTransition.None },
-                exitTransition = { ExitTransition.None },
-                popEnterTransition = { EnterTransition.None },
-                popExitTransition = { ExitTransition.None }
+                enterTransition = { fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f, animationSpec = tween(220)) },
+                exitTransition = { fadeOut(animationSpec = tween(180)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f, animationSpec = tween(220)) },
+                popExitTransition = { fadeOut(animationSpec = tween(180)) }
             ) {
                 composable(Screen.Home.route) {
                     HomeScreen(
@@ -776,52 +783,69 @@ private fun QuickAddActionSheet(
                 }
             }
 
-            QuickAddOptionRow(
-                title = "Log Shift",
-                iconRes = R.drawable.ic_lucide_clock,
-                iconBg = colors.mintContainer,
-                iconTint = colors.mintInk,
-                onClick = onLogShift
-            )
-            QuickAddOptionRow(
-                title = "Add Expense",
-                iconRes = R.drawable.ic_lucide_receipt_text,
-                iconBg = colors.coralContainer,
-                iconTint = colors.coralInk,
-                onClick = onAddExpense
-            )
-            QuickAddOptionRow(
-                title = "Split Bill",
-                iconRes = R.drawable.ic_lucide_split,
-                iconBg = colors.azureContainer,
-                iconTint = colors.azureInk,
-                onClick = onSplitBill
-            )
-            QuickAddOptionRow(
-                title = "Add Savings Goal",
-                iconRes = R.drawable.ic_lucide_piggy_bank,
-                iconBg = colors.mintContainer,
-                iconTint = colors.mintInk,
-                onClick = onAddSavingsGoal
-            )
-            QuickAddOptionRow(
-                title = "Add Deposit",
-                iconRes = R.drawable.ic_lucide_wallet,
-                iconBg = colors.azureContainer,
-                iconTint = colors.azureInk,
-                onClick = onAddDeposit
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                QuickAddOptionBox(
+                    title = "Shift",
+                    iconRes = R.drawable.ic_lucide_clock,
+                    iconBg = colors.mintContainer,
+                    iconTint = colors.mintInk,
+                    onClick = onLogShift,
+                    modifier = Modifier.weight(1f)
+                )
+                QuickAddOptionBox(
+                    title = "Expense",
+                    iconRes = R.drawable.ic_lucide_receipt_text,
+                    iconBg = colors.coralContainer,
+                    iconTint = colors.coralInk,
+                    onClick = onAddExpense,
+                    modifier = Modifier.weight(1f)
+                )
+                QuickAddOptionBox(
+                    title = "Split",
+                    iconRes = R.drawable.ic_lucide_split,
+                    iconBg = colors.azureContainer,
+                    iconTint = colors.azureInk,
+                    onClick = onSplitBill,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                QuickAddOptionBox(
+                    title = "Savings",
+                    iconRes = R.drawable.ic_lucide_piggy_bank,
+                    iconBg = colors.mintContainer,
+                    iconTint = colors.mintInk,
+                    onClick = onAddSavingsGoal,
+                    modifier = Modifier.weight(1f)
+                )
+                QuickAddOptionBox(
+                    title = "Deposit",
+                    iconRes = R.drawable.ic_lucide_wallet,
+                    iconBg = colors.azureContainer,
+                    iconTint = colors.azureInk,
+                    onClick = onAddDeposit,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun QuickAddOptionRow(
+private fun QuickAddOptionBox(
     title: String,
     @DrawableRes iconRes: Int,
     iconBg: Color,
     iconTint: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
     Surface(
@@ -829,21 +853,20 @@ private fun QuickAddOptionRow(
         color = colors.card,
         border = BorderStroke(1.dp, colors.border),
         shadowElevation = 0.dp,
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(vertical = 16.dp, horizontal = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(44.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
                     .background(iconBg),
                 contentAlignment = Alignment.Center
@@ -857,18 +880,13 @@ private fun QuickAddOptionRow(
             }
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleMedium.copy(
+                style = MaterialTheme.typography.labelMedium.copy(
                     fontFamily = PlusJakartaSans,
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = colors.textPrimary,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                contentDescription = null,
-                tint = colors.textSecondary,
-                modifier = Modifier.size(20.dp)
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -1110,6 +1128,14 @@ private fun BottomNavItemSlot(
         targetValue = if (selected) colors.textPrimary else colors.textSecondary,
         label = "navContentTint"
     )
+    val iconScale by animateFloatAsState(
+        targetValue = if (selected) 1.12f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "navIconScale"
+    )
 
     Box(
         modifier = modifier
@@ -1136,7 +1162,12 @@ private fun BottomNavItemSlot(
                 ),
                 contentDescription = null,
                 tint = contentTint,
-                modifier = Modifier.size(21.dp)
+                modifier = Modifier
+                    .size(21.dp)
+                    .graphicsLayer {
+                        scaleX = iconScale
+                        scaleY = iconScale
+                    }
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(

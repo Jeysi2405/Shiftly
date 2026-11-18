@@ -440,7 +440,8 @@ fun SettingsSheetContainer(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
-                    color = colors.textPrimary
+                    color = colors.textPrimary,
+                    modifier = Modifier.weight(1f)
                 )
                 if (showTopClose) {
                     TextButton(
@@ -1767,16 +1768,17 @@ fun BackupAndExportSheetContent(
             shape = RoundedCornerShape(50),
             border = BorderStroke(1.dp, colors.border),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 48.dp)
+                .heightIn(min = 44.dp)
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_lucide_cloud_upload),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "JSON",
                 style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
@@ -1787,16 +1789,17 @@ fun BackupAndExportSheetContent(
             shape = RoundedCornerShape(50),
             border = BorderStroke(1.dp, colors.border),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 48.dp)
+                .heightIn(min = 44.dp)
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_lucide_file_spreadsheet),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "CSV",
                 style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
@@ -1807,16 +1810,17 @@ fun BackupAndExportSheetContent(
             shape = RoundedCornerShape(50),
             border = BorderStroke(1.dp, colors.border),
             colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 48.dp)
+                .heightIn(min = 44.dp)
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_lucide_file_text),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "PDF",
                 style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)

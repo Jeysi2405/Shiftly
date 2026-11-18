@@ -397,13 +397,13 @@ fun RecurringBillsEmptyCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier.padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(colors.azureContainer),
                 contentAlignment = Alignment.Center
@@ -412,7 +412,7 @@ fun RecurringBillsEmptyCard(
                     painter = painterResource(R.drawable.ic_lucide_repeat),
                     contentDescription = null,
                     tint = colors.azureInk,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
             Text(
@@ -424,7 +424,7 @@ fun RecurringBillsEmptyCard(
                 color = colors.textPrimary
             )
             Text(
-                text = "Schedule bills with an exact due date & time so Shiftly logs them automatically when due.",
+                text = "Schedule bills with due dates for automatic logging.",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.textSecondary
             )
