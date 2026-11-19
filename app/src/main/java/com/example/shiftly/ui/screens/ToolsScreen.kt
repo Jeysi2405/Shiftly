@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.R
@@ -50,12 +51,13 @@ import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
+import com.example.shiftly.ui.components.ShiftlyToolSheetContainer
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
 import com.example.shiftly.ui.screens.profile.ManageCategoriesSheetContent
-import com.example.shiftly.ui.screens.profile.SettingsSheetContainer
 import com.example.shiftly.ui.screens.profile.ShiftlySheetActionState
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
@@ -65,6 +67,14 @@ import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.LocalDate
+
+private enum class ActiveToolTutorial {
+    BUDGETS,
+    CATEGORIES,
+    PAYCHECK,
+    IOU,
+    CALENDAR
+}
 
 @Composable
 fun ToolsScreen(
@@ -88,6 +98,7 @@ fun ToolsScreen(
     var showPaycheckEstimatorSheet by remember { mutableStateOf(false) }
     var showIouSheet by remember { mutableStateOf(false) }
     var showActivityCalendarSheet by remember { mutableStateOf(false) }
+    var activeTutorial by remember { mutableStateOf<ActiveToolTutorial?>(null) }
 
     val onOpenBudgets = remember { { showBudgetsSheet = true } }
     val onOpenSavingsGoals = remember(state.savingsGoals.isEmpty()) {
@@ -119,15 +130,13 @@ fun ToolsScreen(
 
     if (showBudgetsSheet) {
         val budgetsActionState = remember { ShiftlySheetActionState() }
-        SettingsSheetContainer(
-            title = "Budgets",
+        ShiftlyToolSheetContainer(
+            title = "Monthly & Category Budgets",
             onDismiss = {
                 showManageCategoriesSheet = false
                 showBudgetsSheet = false
             },
-            actionLabel = "Save",
-            actionEnabled = budgetsActionState.enabled,
-            onAction = { budgetsActionState.onSave?.invoke() }
+            onHelpClick = { activeTutorial = ActiveToolTutorial.BUDGETS }
         ) {
             BudgetsEditorSheetContent(
                 currencySymbol = state.currencySymbol,
@@ -148,15 +157,14 @@ fun ToolsScreen(
 
     if (showManageCategoriesSheet) {
         val categoriesActionState = remember { ShiftlySheetActionState() }
-        SettingsSheetContainer(
+        ShiftlyToolSheetContainer(
             title = "Manage Categories",
             onDismiss = { showManageCategoriesSheet = false },
-            actionLabel = "Save",
-            actionEnabled = categoriesActionState.enabled,
-            onAction = { categoriesActionState.onSave?.invoke() }
+            onHelpClick = { activeTutorial = ActiveToolTutorial.CATEGORIES }
         ) {
             ManageCategoriesSheetContent(
                 currentCategories = state.settings.managedCategories,
+                onDismiss = { showManageCategoriesSheet = false },
                 onSave = { updated ->
                     viewModel.updateManagedCategories(updated)
                     showManageCategoriesSheet = false
@@ -210,11 +218,10 @@ fun ToolsScreen(
     }
 
     if (showPaycheckEstimatorSheet) {
-        SettingsSheetContainer(
+        ShiftlyToolSheetContainer(
             title = "Paycheck Estimator",
             onDismiss = { showPaycheckEstimatorSheet = false },
-            actionLabel = "Done",
-            onAction = { showPaycheckEstimatorSheet = false }
+            onHelpClick = { activeTutorial = ActiveToolTutorial.PAYCHECK }
         ) {
             PaycheckEstimatorSheetContent(
                 currencySymbol = state.currencySymbol,
@@ -222,41 +229,112 @@ fun ToolsScreen(
                 deductions = state.paycheckDeductions,
                 onSaveDeductions = { updated ->
                     viewModel.updatePaycheckDeductions(updated)
-                }
+                },
+                onDismiss = { showPaycheckEstimatorSheet = false }
             )
         }
     }
 
     if (showIouSheet) {
-        SettingsSheetContainer(
+        ShiftlyToolSheetContainer(
             title = "IOU & Loans",
             onDismiss = { showIouSheet = false },
-            actionLabel = "Done",
-            onAction = { showIouSheet = false }
+            onHelpClick = { activeTutorial = ActiveToolTutorial.IOU }
         ) {
             IouTrackerSheetContent(
                 currencySymbol = state.currencySymbol,
                 entries = state.iouEntries,
                 onSaveEntries = { updated ->
                     viewModel.updateIouEntries(updated)
-                }
+                    onShowMessage("IOU entries saved")
+                },
+                onDismiss = { showIouSheet = false }
             )
         }
     }
 
     if (showActivityCalendarSheet) {
-        SettingsSheetContainer(
+        ShiftlyToolSheetContainer(
             title = "Activity Calendar",
             onDismiss = { showActivityCalendarSheet = false },
-            actionLabel = "Done",
-            onAction = { showActivityCalendarSheet = false }
+            onHelpClick = { activeTutorial = ActiveToolTutorial.CALENDAR }
         ) {
             ActivityCalendarSheetContent(
                 currencySymbol = state.currencySymbol,
                 shifts = state.shifts,
-                expenses = state.expenses
+                expenses = state.expenses,
+                onDismiss = { showActivityCalendarSheet = false }
             )
         }
+    }
+
+    when (activeTutorial) {
+        ActiveToolTutorial.BUDGETS -> {
+            ShiftlyScreenTutorialSheet(
+                title = "Budgets Guide",
+                subtitle = "Set comfortable limits for your month and top categories.",
+                steps = listOf(
+                    "Set your monthly limit" to "Enter an overall monthly spending cap to unlock daily safe-to-spend guidance.",
+                    "Assign category caps" to "Add optional limits for Food, Transport, or Bills to see individual progress bars.",
+                    "Customize your categories" to "Enable, add, or organize the categories shown whenever you log an expense."
+                ),
+                onDismiss = { activeTutorial = null }
+            )
+        }
+
+        ActiveToolTutorial.CATEGORIES -> {
+            ShiftlyScreenTutorialSheet(
+                title = "Manage Categories Guide",
+                subtitle = "Keep your expense categories organized around your routine.",
+                steps = listOf(
+                    "Toggle built-in categories" to "Hide categories you rarely use so logging expenses stays fast and uncluttered.",
+                    "Add custom categories" to "Create your own spending categories that fit your school, work, or daily lifestyle.",
+                    "Save your changes" to "Tap Save at the bottom to update your category list across the app."
+                ),
+                onDismiss = { activeTutorial = null }
+            )
+        }
+
+        ActiveToolTutorial.PAYCHECK -> {
+            ShiftlyScreenTutorialSheet(
+                title = "Paycheck Estimator Guide",
+                subtitle = "Preview your estimated net take-home pay after deductions.",
+                steps = listOf(
+                    "Review your gross shift pay" to "Shiftly automatically pulls your current month's shift earnings as your starting gross pay.",
+                    "Adjust deduction presets" to "Customize SSS, PhilHealth, Pag-IBIG, or tax amounts to match your actual payslip setup.",
+                    "Check your net take-home" to "See your estimated take-home amount so you can plan budgets and savings realistically."
+                ),
+                onDismiss = { activeTutorial = null }
+            )
+        }
+
+        ActiveToolTutorial.IOU -> {
+            ShiftlyScreenTutorialSheet(
+                title = "IOU & Loans Guide",
+                subtitle = "Remember who owes you and who you need to pay back.",
+                steps = listOf(
+                    "Add a borrow or lend entry" to "Enter the person's name, amount, and whether they owe you or you owe them.",
+                    "Mark balances as settled" to "Mark an entry settled once paid back so your net IOU summary updates right away.",
+                    "Keep records private" to "All IOU entries stay safely offline on your device for stress-free personal tracking."
+                ),
+                onDismiss = { activeTutorial = null }
+            )
+        }
+
+        ActiveToolTutorial.CALENDAR -> {
+            ShiftlyScreenTutorialSheet(
+                title = "Activity Calendar Guide",
+                subtitle = "See your shifts and expenses together on one monthly view.",
+                steps = listOf(
+                    "Browse months & colored dots" to "Green dots mark days with logged shifts, while red dots highlight days with recorded expenses.",
+                    "Tap any date" to "Select a day on the calendar to inspect its exact shifts, hours worked, and expense items below.",
+                    "Spot busy weeks fast" to "Compare work days and spending days side by side to plan upcoming weeks."
+                ),
+                onDismiss = { activeTutorial = null }
+            )
+        }
+
+        null -> Unit
     }
 }
 
@@ -341,7 +419,7 @@ fun ToolsScreenContent(
                             metricColor = colors.mintInk,
                             onClick = onOpenDuties
                         )
-                        ShiftlyHairlineDivider(startInset = 50.dp)
+                        ShiftlyHairlineDivider(startInset = 48.dp)
                         ToolGroupedRow(
                             title = "Expenses & Receipts",
                             metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthSpent),
@@ -350,7 +428,7 @@ fun ToolsScreenContent(
                             metricColor = colors.coralInk,
                             onClick = onOpenExpense
                         )
-                        ShiftlyHairlineDivider(startInset = 50.dp)
+                        ShiftlyHairlineDivider(startInset = 48.dp)
                         ToolGroupedRow(
                             title = "Split Bill",
                             metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.pendingSplitsAmount),
@@ -359,7 +437,7 @@ fun ToolsScreenContent(
                             metricColor = colors.azureInk,
                             onClick = onOpenSplitBill
                         )
-                        ShiftlyHairlineDivider(startInset = 50.dp)
+                        ShiftlyHairlineDivider(startInset = 48.dp)
                         ToolGroupedRow(
                             title = "IOU & Loans",
                             metric = state.iouSummaryText,
@@ -388,14 +466,14 @@ fun ToolsScreenContent(
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         ToolGroupedRow(
-                            title = "Budgets",
+                            title = "Monthly & Category Budgets",
                             metric = if (state.monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget) else "Set Budget",
                             iconRes = R.drawable.ic_lucide_wallet,
                             iconTint = ToolOrange,
                             metricColor = colors.textPrimary,
                             onClick = onOpenBudgets
                         )
-                        ShiftlyHairlineDivider(startInset = 50.dp)
+                        ShiftlyHairlineDivider(startInset = 48.dp)
                         ToolGroupedRow(
                             title = "Savings Goals",
                             metric = state.activeGoalTitle ?: "Add Goal",
@@ -404,7 +482,7 @@ fun ToolsScreenContent(
                             metricColor = colors.mintInk,
                             onClick = onOpenSavingsGoals
                         )
-                        ShiftlyHairlineDivider(startInset = 50.dp)
+                        ShiftlyHairlineDivider(startInset = 48.dp)
                         ToolGroupedRow(
                             title = "Recurring Bills",
                             metric = "${state.enabledRecurringCount} active",
@@ -413,7 +491,7 @@ fun ToolsScreenContent(
                             metricColor = colors.textPrimary,
                             onClick = onOpenRecurringBills
                         )
-                        ShiftlyHairlineDivider(startInset = 50.dp)
+                        ShiftlyHairlineDivider(startInset = 48.dp)
                         ToolGroupedRow(
                             title = "Allowance",
                             metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.totalAllowanceAmount),
@@ -422,7 +500,7 @@ fun ToolsScreenContent(
                             metricColor = colors.azureInk,
                             onClick = onOpenAllowance
                         )
-                        ShiftlyHairlineDivider(startInset = 50.dp)
+                        ShiftlyHairlineDivider(startInset = 48.dp)
                         ToolGroupedRow(
                             title = "Paycheck Estimator",
                             metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.netPayTakeHome),
@@ -550,7 +628,7 @@ private fun ToolGroupedRow(
             .heightIn(min = 52.dp)
             .shiftlyPressClickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -564,23 +642,26 @@ private fun ToolGroupedRow(
             text = title,
             style = MaterialTheme.typography.titleSmall.copy(
                 fontFamily = InterFontFamily,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                letterSpacing = (-0.25).sp
             ),
             color = colors.textPrimary,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+            softWrap = false,
             modifier = Modifier.weight(1f)
         )
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = metric,
                 style = MaterialTheme.typography.titleSmall.copy(
                     fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.5.sp
                 ).tabular(),
                 color = metricColor,
                 maxLines = 1,

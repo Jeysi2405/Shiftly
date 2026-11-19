@@ -3,27 +3,34 @@ package com.example.shiftly.data.local
 import android.content.Context
 import androidx.compose.runtime.Immutable
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import java.io.IOException
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
 import java.util.UUID
 import kotlin.math.roundToLong
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "shiftly_prefs")
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "shiftly_prefs",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() }
+)
 
 enum class InAppNotificationType {
     BILL_DUE,
@@ -669,6 +676,7 @@ class UserPreferencesManager(private val context: Context) {
 
         // Onboarding & Home Overview preferences
         private val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
+        private val KEY_HAS_SEEN_APP_TUTORIAL = booleanPreferencesKey("has_seen_app_tutorial")
         private val KEY_USER_NAME = stringPreferencesKey("user_name")
         private val KEY_PROFILE_PHOTO_PATH = stringPreferencesKey("profile_photo_path")
         private val KEY_MONTHLY_BUDGET = doublePreferencesKey("monthly_budget")
@@ -725,66 +733,78 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_IOU_ENTRIES = stringPreferencesKey("iou_entries_serialized")
     }
 
+    private val safeData: Flow<Preferences> = context.dataStore.data.catch { exception ->
+        if (exception is IOException) {
+            emit(emptyPreferences())
+        } else {
+            throw exception
+        }
+    }
+
     private fun round2(value: Double): Double =
         if (value.isFinite()) (value * 100.0).roundToLong() / 100.0 else 0.0
 
-    val defaultHourlyRate: Flow<Double> = context.dataStore.data.map { prefs ->
+    val defaultHourlyRate: Flow<Double> = safeData.map { prefs ->
         prefs[KEY_DEFAULT_HOURLY_RATE] ?: 0.0
     }.distinctUntilChanged()
 
-    val minimumWagePerDay: Flow<Double> = context.dataStore.data.map { prefs ->
+    val minimumWagePerDay: Flow<Double> = safeData.map { prefs ->
         prefs[KEY_MINIMUM_WAGE_PER_DAY] ?: 0.0
     }.distinctUntilChanged()
 
-    val currencySymbol: Flow<String> = context.dataStore.data.map { prefs ->
+    val currencySymbol: Flow<String> = safeData.map { prefs ->
         prefs[KEY_CURRENCY_SYMBOL] ?: "₱"
     }.distinctUntilChanged()
 
-    val hasCompletedOnboarding: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val hasCompletedOnboarding: Flow<Boolean> = safeData.map { prefs ->
         prefs[KEY_ONBOARDING_COMPLETED] ?: false
     }.distinctUntilChanged()
 
-    val userName: Flow<String> = context.dataStore.data.map { prefs ->
+    val hasSeenAppTutorial: Flow<Boolean> = safeData.map { prefs ->
+        prefs[KEY_HAS_SEEN_APP_TUTORIAL] ?: false
+    }.distinctUntilChanged()
+
+    val userName: Flow<String> = safeData.map { prefs ->
         prefs[KEY_USER_NAME] ?: ""
     }.distinctUntilChanged()
 
-    val jobTitle: Flow<String> = context.dataStore.data.map { prefs ->
+    val jobTitle: Flow<String> = safeData.map { prefs ->
         prefs[KEY_JOB_TITLE] ?: ""
     }.distinctUntilChanged()
 
-    val workplace: Flow<String> = context.dataStore.data.map { prefs ->
+    val workplace: Flow<String> = safeData.map { prefs ->
         prefs[KEY_WORKPLACE] ?: ""
     }.distinctUntilChanged()
 
-    val workType: Flow<String> = context.dataStore.data.map { prefs ->
+    val workType: Flow<String> = safeData.map { prefs ->
         prefs[KEY_WORK_TYPE] ?: "Full-Time"
     }.distinctUntilChanged()
 
-    val targetWeeklyHours: Flow<Double> = context.dataStore.data.map { prefs ->
+    val targetWeeklyHours: Flow<Double> = safeData.map { prefs ->
         prefs[KEY_TARGET_WEEKLY_HOURS] ?: 40.0
     }.distinctUntilChanged()
 
-    val profilePhotoPath: Flow<String?> = context.dataStore.data.map { prefs ->
+    val profilePhotoPath: Flow<String?> = safeData.map { prefs ->
         prefs[KEY_PROFILE_PHOTO_PATH]?.takeIf { it.isNotBlank() }
     }.distinctUntilChanged()
 
-    val monthlyBudget: Flow<Double> = context.dataStore.data.map { prefs ->
+    val monthlyBudget: Flow<Double> = safeData.map { prefs ->
         prefs[KEY_MONTHLY_BUDGET] ?: 0.0
     }.distinctUntilChanged()
 
-    val savingsBuffer: Flow<Double> = context.dataStore.data.map { prefs ->
+    val savingsBuffer: Flow<Double> = safeData.map { prefs ->
         prefs[KEY_SAVINGS_BUFFER] ?: 0.0
     }.distinctUntilChanged()
 
-    val notificationInbox: Flow<List<InAppNotificationItem>> = context.dataStore.data.map { prefs ->
+    val notificationInbox: Flow<List<InAppNotificationItem>> = safeData.map { prefs ->
         PreferenceJsonCodec.decodeInAppNotifications(prefs[KEY_NOTIFICATION_INBOX])
     }.distinctUntilChanged()
 
-    val balancePrivacyHidden: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val balancePrivacyHidden: Flow<Boolean> = safeData.map { prefs ->
         prefs[KEY_BALANCE_PRIVACY_HIDDEN] ?: false
     }.distinctUntilChanged()
 
-    val paycheckDeductions: Flow<PaycheckDeductionsSetting> = context.dataStore.data.map { prefs ->
+    val paycheckDeductions: Flow<PaycheckDeductionsSetting> = safeData.map { prefs ->
         PaycheckDeductionsSetting(
             sssEnabled = prefs[KEY_DEDUCTION_SSS_ENABLED] ?: false,
             sssAmount = prefs[KEY_DEDUCTION_SSS_AMOUNT] ?: 0.0,
@@ -814,7 +834,7 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    val iouEntries: Flow<List<IouEntrySetting>> = context.dataStore.data.map { prefs ->
+    val iouEntries: Flow<List<IouEntrySetting>> = safeData.map { prefs ->
         PreferenceJsonCodec.decodeIouEntries(prefs[KEY_IOU_ENTRIES])
     }.distinctUntilChanged()
 
@@ -825,7 +845,7 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = context.dataStore.data.map { prefs ->
+    val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = safeData.map { prefs ->
         val pinHash = prefs[KEY_APP_LOCK_PIN_HASH].orEmpty().ifBlank {
             prefs[KEY_APP_LOCK_PIN].orEmpty()
         }
@@ -974,7 +994,7 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    val activeTimerState: Flow<ActiveTimerState> = context.dataStore.data.map { prefs ->
+    val activeTimerState: Flow<ActiveTimerState> = safeData.map { prefs ->
         val start = prefs[KEY_ACTIVE_TIMER_START] ?: 0L
         if (start > 0L) {
             ActiveTimerState(
@@ -989,7 +1009,7 @@ class UserPreferencesManager(private val context: Context) {
     }.distinctUntilChanged()
 
     suspend fun getNotificationLastDays(): NotificationLastDays {
-        val prefs = context.dataStore.data.first()
+        val prefs = safeData.first()
         val legacyPayday = prefs[KEY_LAST_PAYDAY_NOTIFIED_DAY] ?: 0L
         val savedSavings = prefs[KEY_LAST_SAVINGS_NOTIFIED_DAY] ?: 0L
         return NotificationLastDays(
@@ -1085,6 +1105,12 @@ class UserPreferencesManager(private val context: Context) {
     suspend fun setOnboardingCompleted(completed: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[KEY_ONBOARDING_COMPLETED] = completed
+        }
+    }
+
+    suspend fun setHasSeenAppTutorial(seen: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_HAS_SEEN_APP_TUTORIAL] = seen
         }
     }
 
@@ -1243,7 +1269,9 @@ class UserPreferencesManager(private val context: Context) {
         monthlyBudget: Double?,
         savingsBuffer: Double?,
         settings: ShiftlySettingsSnapshot?,
-        profilePhotoPath: String? = null
+        profilePhotoPath: String? = null,
+        paycheckDeductions: PaycheckDeductionsSetting? = null,
+        iouEntries: List<IouEntrySetting>? = null
     ) {
         context.dataStore.edit { prefs ->
             if (!userName.isNullOrBlank()) prefs[KEY_USER_NAME] = userName.trim()
@@ -1281,10 +1309,34 @@ class UserPreferencesManager(private val context: Context) {
                 prefs[KEY_OT_MULTIPLIER] = 1.25
                 prefs[KEY_SAVINGS_GOAL_TITLE] = settings.savingsGoalTitle
                 prefs[KEY_SAVINGS_GOAL_TARGET] = settings.savingsGoalTarget.coerceAtLeast(0.0)
+                prefs[KEY_JOB_TITLE] = settings.jobTitle.trim()
+                prefs[KEY_WORKPLACE] = settings.workplace.trim()
+                prefs[KEY_WORK_TYPE] = settings.workType.trim().ifEmpty { "Full-Time" }
+                prefs[KEY_TARGET_WEEKLY_HOURS] =
+                    if (settings.targetWeeklyHours.isFinite() && settings.targetWeeklyHours >= 0.0) {
+                        settings.targetWeeklyHours
+                    } else {
+                        40.0
+                    }
                 prefs[KEY_CATEGORY_BUDGETS] = PreferenceJsonCodec.encodeCategoryBudgets(settings.categoryBudgets)
                 prefs[KEY_MANAGED_CATEGORIES] = PreferenceJsonCodec.encodeManagedCategories(settings.managedCategories)
                 prefs[KEY_RECURRING_ENTRIES] = PreferenceJsonCodec.encodeRecurringEntries(settings.recurringEntries)
                 prefs[KEY_SHIFT_TIME_PRESETS] = PreferenceJsonCodec.encodeShiftTimePresets(settings.shiftTimePresets)
+            }
+            if (paycheckDeductions != null) {
+                prefs[KEY_DEDUCTION_SSS_ENABLED] = paycheckDeductions.sssEnabled
+                prefs[KEY_DEDUCTION_SSS_AMOUNT] = paycheckDeductions.sssAmount
+                prefs[KEY_DEDUCTION_PHILHEALTH_ENABLED] = paycheckDeductions.philhealthEnabled
+                prefs[KEY_DEDUCTION_PHILHEALTH_AMOUNT] = paycheckDeductions.philhealthAmount
+                prefs[KEY_DEDUCTION_PAGIBIG_ENABLED] = paycheckDeductions.pagibigEnabled
+                prefs[KEY_DEDUCTION_PAGIBIG_AMOUNT] = paycheckDeductions.pagibigAmount
+                prefs[KEY_DEDUCTION_TAX_ENABLED] = paycheckDeductions.taxEnabled
+                prefs[KEY_DEDUCTION_TAX_PERCENT] = paycheckDeductions.taxPercent
+                prefs[KEY_DEDUCTION_CUSTOM_ENABLED] = paycheckDeductions.customEnabled
+                prefs[KEY_DEDUCTION_CUSTOM_AMOUNT] = paycheckDeductions.customAmount
+            }
+            if (iouEntries != null) {
+                prefs[KEY_IOU_ENTRIES] = PreferenceJsonCodec.encodeIouEntries(iouEntries)
             }
         }
     }

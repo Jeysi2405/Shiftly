@@ -22,8 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,8 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TimePicker
@@ -57,9 +53,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -74,8 +67,8 @@ import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyIosSwitch
+import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
-import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
@@ -136,9 +129,9 @@ fun RecurringBillsSummaryCard(
                 ShiftlyIosIconTile(
                     iconRes = R.drawable.ic_lucide_repeat,
                     backgroundColor = colors.azurePrimary,
-                    size = 40.dp,
+                    size = 28.dp,
                     cornerRadius = 10.dp,
-                    iconSize = 20.dp
+                    iconSize = 24.dp
                 )
             }
 
@@ -253,11 +246,10 @@ fun RecurringBillItemCard(
             ) {
                 ShiftlyIosIconTile(
                     iconRes = categoryIcon(bill.category),
-                    backgroundColor = if (bill.isEnabled) colors.coralBright else colors.disabledContainer,
-                    size = 38.dp,
+                    backgroundColor = if (bill.isEnabled) colors.coralBright else colors.disabledContent,
+                    size = 28.dp,
                     cornerRadius = 9.dp,
-                    iconSize = 18.dp,
-                    iconTint = if (bill.isEnabled) PureWhite else colors.disabledContent
+                    iconSize = 22.dp
                 )
 
                 Column(
@@ -683,9 +675,9 @@ fun AddEditRecurringBillBottomSheet(
                             ShiftlyIosIconTile(
                                 iconRes = categoryIcon(selectedCategory),
                                 backgroundColor = colors.coralBright,
-                                size = 26.dp,
+                                size = 24.dp,
                                 cornerRadius = 6.dp,
-                                iconSize = 13.dp
+                                iconSize = 20.dp
                             )
                             Text(
                                 text = selectedCategory,
@@ -879,74 +871,26 @@ fun AddEditRecurringBillBottomSheet(
                 }
             }
 
-            // Bottom Side-by-Side Action Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = onDismiss,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2C2C2E),
-                        contentColor = colors.textPrimary
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 15.sp
+            ShiftlySheetBottomButtons(
+                onCancel = onDismiss,
+                onAction = {
+                    if (isValid) {
+                        onSave(
+                            title.trim(),
+                            parsedAmount,
+                            selectedCategory,
+                            selectedFrequency,
+                            dueDate,
+                            dueHour,
+                            dueMinute,
+                            isEnabled
                         )
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        if (isValid) {
-                            onSave(
-                                title.trim(),
-                                parsedAmount,
-                                selectedCategory,
-                                selectedFrequency,
-                                dueDate,
-                                dueHour,
-                                dueMinute,
-                                isEnabled
-                            )
-                        }
-                    },
-                    enabled = isValid,
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0A84FF),
-                        contentColor = PureWhite,
-                        disabledContainerColor = colors.disabledContainer,
-                        disabledContentColor = colors.disabledContent
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                ) {
-                    Text(
-                        text = "Save",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        )
-                    )
-                }
-            }
+                    }
+                },
+                cancelLabel = "Cancel",
+                actionLabel = "Save",
+                actionEnabled = isValid
+            )
         }
     }
 

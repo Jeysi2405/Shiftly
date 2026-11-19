@@ -29,8 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -44,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
@@ -59,15 +56,14 @@ import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.ui.components.ShiftlyConfirmDialog
-import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyIosSwitch
 import com.example.shiftly.ui.components.ShiftlyProgressBar
+import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
-import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
@@ -286,7 +282,6 @@ fun NewSplitBillSheetContent(
     val isValid = remember(totalAmount, personCount) {
         totalAmount.isFinite() && (totalAmount > 0.0) && (personCount >= 2)
     }
-
 
     Column(
         modifier = Modifier
@@ -649,72 +644,24 @@ fun NewSplitBillSheetContent(
             }
         }
 
-        // Bottom Side-by-Side Action Row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Button(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2C2C2E),
-                    contentColor = colors.textPrimary
-                ),
-                elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-            ) {
-                Text(
-                    text = "Cancel",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 15.sp
+        ShiftlySheetBottomButtons(
+            onCancel = onDismiss,
+            onAction = {
+                if (isValid) {
+                    onSaveSplitBill(
+                        titleInput,
+                        totalAmount,
+                        personCount,
+                        customNames.take(personCount),
+                        customPaidStates.take(personCount),
+                        alsoLogAsExpense
                     )
-                )
-            }
-
-            Button(
-                onClick = {
-                    if (isValid) {
-                        onSaveSplitBill(
-                            titleInput,
-                            totalAmount,
-                            personCount,
-                            customNames.take(personCount),
-                            customPaidStates.take(personCount),
-                            alsoLogAsExpense
-                        )
-                    }
-                },
-                enabled = isValid,
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF0A84FF),
-                    contentColor = PureWhite,
-                    disabledContainerColor = colors.disabledContainer,
-                    disabledContentColor = colors.disabledContent
-                ),
-                elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-            ) {
-                Text(
-                    text = "Add",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    )
-                )
-            }
-        }
+                }
+            },
+            cancelLabel = "Cancel",
+            actionLabel = "Save",
+            actionEnabled = isValid
+        )
     }
 }
 
@@ -885,9 +832,9 @@ fun SplitBillLogItemCard(
                             ShiftlyIosIconTile(
                                 iconRes = R.drawable.ic_lucide_user,
                                 backgroundColor = if (participant.hasPaid) colors.mintBright else colors.azurePrimary,
-                                size = 34.dp,
+                                size = 28.dp,
                                 cornerRadius = 8.dp,
-                                iconSize = 16.dp
+                                iconSize = 22.dp
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
@@ -973,7 +920,7 @@ fun SplitBillLogItemCard(
                     }
 
                     if (idx < participants.lastIndex) {
-                        ShiftlyHairlineDivider(startInset = 56.dp)
+                        ShiftlyHairlineDivider(startInset = 50.dp)
                     }
                 }
             }
@@ -1058,8 +1005,8 @@ fun SplitBillLogItemCard(
             title = "Payment Status",
             message = "Confirm marking $personName as $targetStatus for this bill?",
             iconRes = if (participant.hasPaid) R.drawable.ic_lucide_x else R.drawable.ic_lucide_check,
-            iconBgColor = if (participant.hasPaid) colors.cardElevated else colors.mintBright,
-            iconTint = if (participant.hasPaid) colors.textPrimary else colors.onAzurePrimary,
+            iconBgColor = if (participant.hasPaid) colors.textSecondary else colors.mintBright,
+            iconTint = if (participant.hasPaid) colors.textSecondary else colors.mintBright,
             noLabel = "No",
             yesLabel = "Yes",
             isDestructive = false,

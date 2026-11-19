@@ -44,10 +44,12 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
-import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyHelpIconButton
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
@@ -74,6 +76,7 @@ fun RecurringBillsScreen(
     val haptics = LocalHapticFeedback.current
 
     var showEditorSheet by remember { mutableStateOf(false) }
+    var showTutorialSheet by remember { mutableStateOf(false) }
     var editingBill by remember { mutableStateOf<RecurringBillEntity?>(null) }
     var pendingDeleteBill by remember { mutableStateOf<RecurringBillEntity?>(null) }
 
@@ -92,6 +95,7 @@ fun RecurringBillsScreen(
     RecurringBillsScreenContent(
         state = state,
         onBack = onBack,
+        onOpenHelp = { showTutorialSheet = true },
         onOpenAddSheet = {
             editingBill = null
             showEditorSheet = true
@@ -110,6 +114,19 @@ fun RecurringBillsScreen(
         },
         onDeleteBill = { pendingDeleteBill = it }
     )
+
+    if (showTutorialSheet) {
+        ShiftlyScreenTutorialSheet(
+            title = "Recurring Bills Guide",
+            subtitle = "Stay ahead of repeating bills without manual entry.",
+            steps = listOf(
+                "Schedule repeating bills" to "Tap Add Recurring Bill to set the amount, category, frequency, and next due date and time.",
+                "Automatic expense logging" to "Active bills automatically post to your Expenses when due so your spending totals stay up to date.",
+                "Pause or edit anytime" to "Toggle any bill off temporarily without deleting it, or tap a row to adjust its amount and schedule."
+            ),
+            onDismiss = { showTutorialSheet = false }
+        )
+    }
 
     if (showEditorSheet) {
         AddEditRecurringBillBottomSheet(
@@ -149,9 +166,9 @@ fun RecurringBillsScreen(
     }
 
     pendingDeleteBill?.let { billToDelete ->
-        ShiftlyConfirmDeleteDialog(
+        ShiftlyDeleteConfirmDialog(
             title = "Delete Recurring Bill?",
-            message = "Stop future automatic logging for \"${billToDelete.title}\"?",
+            message = "This recurring bill schedule for \"${billToDelete.title}\" will be permanently removed.",
             onDismiss = { pendingDeleteBill = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -167,6 +184,7 @@ fun RecurringBillsScreen(
 fun RecurringBillsScreenContent(
     state: RecurringBillsUiState,
     onBack: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
     onOpenAddSheet: () -> Unit = {},
     onEditBill: (RecurringBillEntity) -> Unit = {},
     onToggleEnabled: (RecurringBillEntity, Boolean) -> Unit = { _, _ -> },
@@ -193,6 +211,9 @@ fun RecurringBillsScreenContent(
                 title = "Recurring Bills",
                 subtitle = null,
                 onBackClick = onBack,
+                trailing = {
+                    ShiftlyHelpIconButton(onClick = onOpenHelp)
+                },
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)
             )
         }
@@ -298,7 +319,7 @@ fun RecurringBillsScreenContent(
                             shape = RectangleShape
                         )
                         if (idx < state.bills.lastIndex) {
-                            ShiftlyHairlineDivider(startInset = 64.dp)
+                            ShiftlyHairlineDivider(startInset = 54.dp)
                         }
                     }
                 }

@@ -39,8 +39,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TimePicker
@@ -67,6 +65,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -81,7 +80,6 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -100,6 +98,7 @@ import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
+import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.shiftlyPressClickable
@@ -107,7 +106,6 @@ import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.theme.InterFontFamily
-import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -116,8 +114,11 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlin.math.roundToLong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -491,6 +492,7 @@ fun ExpenseItemCard(
     currencySymbol: String,
     onViewReceipt: (ExpenseEntity) -> Unit,
     onDelete: () -> Unit,
+    onClick: () -> Unit = {},
     dateFormatter: DateTimeFormatter? = null,
     containerColor: Color = ShiftlyColors.current.cardElevated,
     shape: Shape = ExpenseItemShape
@@ -521,6 +523,7 @@ fun ExpenseItemCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .shiftlyPressClickable(onClickLabel = "Edit ${expense.title}", onClick = onClick)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -532,10 +535,9 @@ fun ExpenseItemCard(
                     isSplitItem -> colors.azurePrimary
                     else -> colors.coralBright
                 },
-                size = 38.dp,
+                size = 28.dp,
                 cornerRadius = 9.dp,
-                iconSize = 19.dp,
-                iconTint = PureWhite,
+                iconSize = 22.dp,
                 contentDescription = expense.category
             )
 
@@ -637,22 +639,57 @@ fun ExpenseItemCard(
 fun AddExpenseBottomSheet(
     currencySymbol: String,
     availableCategories: List<String> = ExpenseViewModel.EXPENSE_CATEGORIES,
+    editingExpense: ExpenseEntity? = null,
     onDismiss: () -> Unit,
     onSaveExpense: (title: String, amount: Double, category: String, date: LocalDate, receiptPath: String?) -> Unit
 ) {
     val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
-    var savedReceiptPath by remember { mutableStateOf<String?>(null) }
+    val originalReceiptPath = editingExpense?.receiptImagePath
+    var savedReceiptPath by remember(editingExpense?.id) {
+        mutableStateOf(originalReceiptPath)
+    }
+
+    val effectiveCategories = remember(availableCategories, editingExpense) {
+        val base = availableCategories.ifEmpty { ExpenseViewModel.EXPENSE_CATEGORIES }
+        val existingCat = editingExpense?.category?.trim().orEmpty()
+        if (existingCat.isNotBlank() && base.none { it.equals(existingCat, ignoreCase = true) }) {
+            base + existingCat
+        } else {
+            base
+        }
+    }
+
+    val initialAmount = remember(editingExpense?.id) {
+        editingExpense?.let {
+            val rounded = (it.amount * 100.0).roundToLong()
+            if (rounded % 100L == 0L) (rounded / 100L).toString()
+            else "%.2f".format(Locale.US, it.amount)
+        }.orEmpty()
+    }
+    val initialDate = remember(editingExpense?.id) {
+        editingExpense?.let { LocalDate.ofEpochDay(it.dateEpochDay) } ?: LocalDate.now()
+    }
+    val initialTime = remember(editingExpense?.id) {
+        editingExpense?.createdAtMillis
+            ?.takeIf { it > 0L }
+            ?.let { Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalTime() }
+            ?: LocalTime.now()
+    }
+
+    val dismissWithoutSaving: () -> Unit = {
+        val draftPath = savedReceiptPath
+        if (!draftPath.isNullOrBlank() && draftPath != originalReceiptPath) {
+            scope.launch(Dispatchers.IO) {
+                ReceiptStorageHelper.deleteReceiptFile(draftPath)
+            }
+        }
+        onDismiss()
+    }
 
     ModalBottomSheet(
-        onDismissRequest = {
-            val orphanPath = savedReceiptPath
-            scope.launch(Dispatchers.IO) {
-                ReceiptStorageHelper.deleteReceiptFile(orphanPath)
-            }
-            onDismiss()
-        },
+        onDismissRequest = dismissWithoutSaving,
         sheetState = sheetState,
         containerColor = colors.surface,
         scrimColor = shiftlySheetScrimColor(),
@@ -664,18 +701,20 @@ fun AddExpenseBottomSheet(
             currencySymbol = currencySymbol,
             savedReceiptPath = savedReceiptPath,
             onReceiptChanged = { savedReceiptPath = it },
-            onDismiss = {
-                val orphanPath = savedReceiptPath
-                scope.launch(Dispatchers.IO) {
-                    ReceiptStorageHelper.deleteReceiptFile(orphanPath)
-                }
-                onDismiss()
-            },
+            onDismiss = dismissWithoutSaving,
             onSaveExpense = { title, amount, category, date, path ->
                 onSaveExpense(title, amount, category, date, path)
                 onDismiss()
             },
-            availableCategories = availableCategories
+            availableCategories = effectiveCategories,
+            initialAmount = initialAmount,
+            initialTitle = editingExpense?.title.orEmpty(),
+            initialCategory = editingExpense?.category ?: "Food",
+            initialDate = initialDate,
+            initialTime = initialTime,
+            isEditing = editingExpense != null,
+            editKey = editingExpense?.id,
+            originalReceiptPath = originalReceiptPath
         )
     }
 }
@@ -692,7 +731,11 @@ fun AddExpenseSheetContent(
     initialAmount: String = "",
     initialTitle: String = "",
     initialCategory: String = "Food",
-    initialDate: LocalDate = LocalDate.now()
+    initialDate: LocalDate = LocalDate.now(),
+    initialTime: LocalTime = LocalTime.now(),
+    isEditing: Boolean = false,
+    editKey: Any? = null,
+    originalReceiptPath: String? = null
 ) {
     val colors = ShiftlyColors.current
     val context = LocalContext.current
@@ -704,17 +747,17 @@ fun AddExpenseSheetContent(
         availableCategories.ifEmpty { ExpenseViewModel.EXPENSE_CATEGORIES }
     }
 
-    var title by remember { mutableStateOf(initialTitle) }
-    var amountText by remember { mutableStateOf(initialAmount) }
-    var selectedCategory by remember(categoryOptions) {
+    var title by remember(editKey) { mutableStateOf(initialTitle) }
+    var amountText by remember(editKey) { mutableStateOf(initialAmount) }
+    var selectedCategory by remember(editKey, categoryOptions) {
         mutableStateOf(
             categoryOptions.firstOrNull { it.equals(initialCategory, ignoreCase = true) }
                 ?: categoryOptions.firstOrNull()
                 ?: "Other"
         )
     }
-    var selectedDate by remember { mutableStateOf(initialDate) }
-    var selectedTime by remember { mutableStateOf(LocalTime.now()) }
+    var selectedDate by remember(editKey) { mutableStateOf(initialDate) }
+    var selectedTime by remember(editKey) { mutableStateOf(initialTime) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showCategoryPrompt by remember { mutableStateOf(false) }
@@ -723,8 +766,10 @@ fun AddExpenseSheetContent(
     val coroutineScope = rememberCoroutineScope()
 
     val amountFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(Unit) {
-        amountFocusRequester.requestFocus()
+    LaunchedEffect(editKey, isEditing) {
+        if (!isEditing) {
+            amountFocusRequester.requestFocus()
+        }
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(
@@ -734,7 +779,9 @@ fun AddExpenseSheetContent(
             val previousPath = savedReceiptPath
             coroutineScope.launch {
                 val savedPath = withContext(Dispatchers.IO) {
-                    ReceiptStorageHelper.deleteReceiptFile(previousPath)
+                    if (!previousPath.isNullOrBlank() && previousPath != originalReceiptPath) {
+                        ReceiptStorageHelper.deleteReceiptFile(previousPath)
+                    }
                     ReceiptStorageHelper.saveUriToLocalReceipts(context, uri)
                 }
                 onReceiptChanged(savedPath)
@@ -755,7 +802,9 @@ fun AddExpenseSheetContent(
                     val savedPath = withContext(Dispatchers.IO) {
                         if (file.exists() && file.length() > 0L) {
                             ReceiptStorageHelper.applyTimestampWatermark(file)
-                            ReceiptStorageHelper.deleteReceiptFile(previousPath)
+                            if (!previousPath.isNullOrBlank() && previousPath != originalReceiptPath) {
+                                ReceiptStorageHelper.deleteReceiptFile(previousPath)
+                            }
                             file.absolutePath
                         } else {
                             file.delete()
@@ -802,17 +851,7 @@ fun AddExpenseSheetContent(
             .padding(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        ShiftlySheetHeader(
-            title = "Add Expense",
-            onCancel = onDismiss,
-            actionLabel = "Add",
-            actionEnabled = canSubmit,
-            onAction = {
-                if (canSubmit) {
-                    onSaveExpense(title, parsedAmount, selectedCategory, selectedDate, savedReceiptPath)
-                }
-            }
-        )
+        ShiftlySheetHeader(title = if (isEditing) "Edit Expense" else "Add Expense")
 
         // Card 1: Amount & Title
         Surface(
@@ -978,9 +1017,9 @@ fun AddExpenseSheetContent(
                         ShiftlyIosIconTile(
                             iconRes = categoryIcon(selectedCategory),
                             backgroundColor = colors.coralBright,
-                            size = 26.dp,
+                            size = 24.dp,
                             cornerRadius = 6.dp,
-                            iconSize = 13.dp
+                            iconSize = 20.dp
                         )
                         Text(
                             text = selectedCategory,
@@ -1126,8 +1165,10 @@ fun AddExpenseSheetContent(
                             onClick = {
                                 val oldPath = savedReceiptPath
                                 onReceiptChanged(null)
-                                coroutineScope.launch(Dispatchers.IO) {
-                                    ReceiptStorageHelper.deleteReceiptFile(oldPath)
+                                if (!oldPath.isNullOrBlank() && oldPath != originalReceiptPath) {
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        ReceiptStorageHelper.deleteReceiptFile(oldPath)
+                                    }
                                 }
                             },
                             interactionSource = removeReceiptInteraction,
@@ -1343,12 +1384,7 @@ fun CategoryPromptSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            ShiftlySheetHeader(
-                title = "Select Category",
-                onCancel = onDismiss,
-                actionLabel = "Done",
-                onAction = onDismiss
-            )
+            ShiftlySheetHeader(title = "Select Category")
 
             Column(
                 modifier = Modifier
@@ -1379,11 +1415,10 @@ fun CategoryPromptSheet(
                         ) {
                             ShiftlyIosIconTile(
                                 iconRes = categoryIcon(category),
-                                backgroundColor = if (isSelected) colors.coralBright else colors.surface,
-                                size = 32.dp,
+                                backgroundColor = if (isSelected) colors.coralBright else colors.textSecondary,
+                                size = 28.dp,
                                 cornerRadius = 8.dp,
-                                iconSize = 17.dp,
-                                iconTint = PureWhite
+                                iconSize = 22.dp
                             )
                             Text(
                                 text = category,
@@ -1395,27 +1430,24 @@ fun CategoryPromptSheet(
                             )
                         }
                         if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.coralBright),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_check),
-                                    contentDescription = "Selected",
-                                    tint = PureWhite,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_check),
+                                contentDescription = "Selected",
+                                tint = colors.coralBright,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                     if (idx < categoryOptions.lastIndex) {
-                        ShiftlyHairlineDivider(startInset = 60.dp)
+                        ShiftlyHairlineDivider(startInset = 56.dp)
                     }
                 }
             }
+
+            ShiftlySheetCloseButton(
+                label = "Close",
+                onClick = onDismiss
+            )
         }
     }
 }

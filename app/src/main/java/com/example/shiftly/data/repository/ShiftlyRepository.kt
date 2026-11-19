@@ -86,6 +86,7 @@ class ShiftlyRepository(context: Context) {
     val currencySymbol: Flow<String> = prefs.currencySymbol
     val activeTimerState: Flow<ActiveTimerState> = prefs.activeTimerState
     val hasCompletedOnboarding: Flow<Boolean> = prefs.hasCompletedOnboarding
+    val hasSeenAppTutorial: Flow<Boolean> = prefs.hasSeenAppTutorial
     val userName: Flow<String> = prefs.userName
     val jobTitle: Flow<String> = prefs.jobTitle
     val workplace: Flow<String> = prefs.workplace
@@ -242,6 +243,10 @@ class ShiftlyRepository(context: Context) {
 
     suspend fun setOnboardingCompleted(completed: Boolean) = withContext(Dispatchers.IO) {
         prefs.setOnboardingCompleted(completed)
+    }
+
+    suspend fun setHasSeenAppTutorial(seen: Boolean) = withContext(Dispatchers.IO) {
+        prefs.setHasSeenAppTutorial(seen)
     }
 
     suspend fun updateUserName(name: String) = withContext(Dispatchers.IO) {
@@ -617,6 +622,15 @@ class ShiftlyRepository(context: Context) {
         expenseDao.insertExpense(expense)
     }
 
+    suspend fun updateExpense(expense: ExpenseEntity) = withContext(Dispatchers.IO) {
+        val existing = expenseDao.getExpenseByIdOnce(expense.id)
+        expenseDao.updateExpense(expense)
+        val oldReceiptPath = existing?.receiptImagePath
+        if (!oldReceiptPath.isNullOrBlank() && oldReceiptPath != expense.receiptImagePath) {
+            ReceiptStorageHelper.deleteReceiptFile(oldReceiptPath)
+        }
+    }
+
     suspend fun deleteExpense(expense: ExpenseEntity) = withContext(Dispatchers.IO) {
         db.withTransaction {
             expenseDao.deleteExpense(expense)
@@ -968,6 +982,8 @@ class ShiftlyRepository(context: Context) {
         val recurringBills = recurringBillDao.getAllBillsOnce()
         val allowanceEntries = allowanceDao.getAllEntriesOnce()
         val settings = settingsSnapshot.first()
+        val deductions = paycheckDeductions.first()
+        val ious = iouEntries.first()
         val currency = currencySymbol.first()
         val rate = defaultHourlyRate.first()
         val minWage = minimumWagePerDay.first()
@@ -1017,6 +1033,8 @@ class ShiftlyRepository(context: Context) {
             monthlyBudget = budget,
             savingsBuffer = buffer,
             settings = settings,
+            paycheckDeductions = deductions,
+            iouEntries = ious,
             shifts = shifts,
             expenses = backupExpenses,
             extraIncomes = extraIncomes,
@@ -1274,6 +1292,16 @@ class ShiftlyRepository(context: Context) {
         }
         val restoredReceiptsCount = receiptsToWrite.size
 
+        val resolvedIous: List<IouEntrySetting>? = when {
+            mode == RestoreMode.REPLACE -> payload.iouEntries
+            payload.iouEntries.isEmpty() -> null
+            else -> {
+                val existingIous = iouEntries.first()
+                val seenIds = existingIous.map { it.id }.toMutableSet()
+                existingIous + payload.iouEntries.filter { seenIds.add(it.id) }
+            }
+        }
+
         prefs.applyRestoredSettings(
             userName = payload.userName,
             currencySymbol = payload.currencySymbol,
@@ -1281,7 +1309,9 @@ class ShiftlyRepository(context: Context) {
             minimumWagePerDay = payload.minimumWagePerDay,
             monthlyBudget = payload.monthlyBudget,
             savingsBuffer = payload.savingsBuffer,
-            settings = payload.settings
+            settings = payload.settings,
+            paycheckDeductions = payload.paycheckDeductions,
+            iouEntries = resolvedIous
         )
 
         processDueCutoffAllowances()
@@ -1310,6 +1340,32 @@ class ShiftlyRepository(context: Context) {
             expenses = expenses,
             currencySymbol = currency,
             allowanceEntries = allowanceEntries
+        )
+        csvFile.writeText(csvContent)
+        csvFile
+    }
+
+    suspend fun generateShiftsCsvExportFile(): File = withContext(Dispatchers.IO) {
+        val shifts = allShifts.first()
+        val currency = currencySymbol.first()
+        val exportDir = File(appContext.cacheDir, "exports").apply { mkdirs() }
+        val csvFile = File(exportDir, "shiftly_shifts.csv")
+        val csvContent = BackupCodec.buildShiftsCsvExport(
+            shifts = shifts,
+            currencySymbol = currency
+        )
+        csvFile.writeText(csvContent)
+        csvFile
+    }
+
+    suspend fun generateExpensesCsvExportFile(): File = withContext(Dispatchers.IO) {
+        val expenses = allExpenses.first()
+        val currency = currencySymbol.first()
+        val exportDir = File(appContext.cacheDir, "exports").apply { mkdirs() }
+        val csvFile = File(exportDir, "shiftly_expenses.csv")
+        val csvContent = BackupCodec.buildExpensesCsvExport(
+            expenses = expenses,
+            currencySymbol = currency
         )
         csvFile.writeText(csvContent)
         csvFile

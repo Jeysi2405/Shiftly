@@ -300,6 +300,18 @@ class ProfileViewModel(
         }
     }
 
+    fun exportShiftsCsv(onResult: (Result<File>) -> Unit) {
+        viewModelScope.launch {
+            onResult(runCatching { repository.generateShiftsCsvExportFile() })
+        }
+    }
+
+    fun exportExpensesCsv(onResult: (Result<File>) -> Unit) {
+        viewModelScope.launch {
+            onResult(runCatching { repository.generateExpensesCsvExportFile() })
+        }
+    }
+
     fun exportPdf(onResult: (Result<File>) -> Unit) {
         viewModelScope.launch {
             onResult(runCatching { repository.generatePdfSummaryFile() })

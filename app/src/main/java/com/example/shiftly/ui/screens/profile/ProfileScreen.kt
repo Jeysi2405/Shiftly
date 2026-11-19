@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -39,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -65,6 +67,7 @@ import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
+import com.example.shiftly.ui.components.ShiftlyFeatureGuideSheet
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
@@ -75,7 +78,6 @@ import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
-import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -86,6 +88,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
 
+private const val DEVELOPER_FEEDBACK_EMAIL = "jameschristian.huelar24@gmail.com"
 private val BACKUP_PICKER_MIME_TYPES = arrayOf("application/zip", "application/json", "text/plain", "*/*")
 private val ProfileSettingsSheetTopShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
 
@@ -96,13 +99,19 @@ private enum class ActiveSettingsSheet {
     THEME,
     BUDGETS,
     APP_LOCK,
-    BACKUP_EXPORT
+    BACKUP_EXPORT,
+    FEATURE_GUIDE,
+    FEEDBACK,
+    LEGAL_TERMS,
+    LEGAL_PRIVACY,
+    LEGAL_DISCLAIMER
 }
 
 @Composable
 fun ProfileScreen(
     repository: ShiftlyRepository,
-    onShowMessage: (String) -> Unit = {}
+    onShowMessage: (String) -> Unit = {},
+    onReplayTutorial: () -> Unit = {}
 ) {
     val viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -199,29 +208,6 @@ fun ProfileScreen(
         }
     }
 
-    val triggerZipShare: () -> Unit = {
-        viewModel.exportBackupZip { result ->
-            result.fold(
-                onSuccess = { zipFile ->
-                    suppressNextRelock()
-                    val launched = shareExportFile(
-                        context = context,
-                        file = zipFile,
-                        mimeType = "application/zip",
-                        chooserTitle = "Export Full Shiftly Backup (.zip)"
-                    )
-                    onShowMessage(
-                        if (launched) "Full backup archive ready to share"
-                        else "No app available to share this file"
-                    )
-                },
-                onFailure = { err ->
-                    onShowMessage("Export failed: ${err.message ?: "storage error"}")
-                }
-            )
-        }
-    }
-
     val triggerJsonShare: () -> Unit = {
         viewModel.exportBackup { result ->
             result.fold(
@@ -246,8 +232,8 @@ fun ProfileScreen(
         }
     }
 
-    val triggerCsvShare: () -> Unit = {
-        viewModel.exportCsv { result ->
+    val triggerShiftsCsvShare: () -> Unit = {
+        viewModel.exportShiftsCsv { result ->
             result.fold(
                 onSuccess = { csvFile ->
                     suppressNextRelock()
@@ -255,10 +241,10 @@ fun ProfileScreen(
                         context = context,
                         file = csvFile,
                         mimeType = "text/csv",
-                        chooserTitle = "Export Shiftly CSV"
+                        chooserTitle = "Export Shifts (CSV)"
                     )
                     onShowMessage(
-                        if (launched) "CSV report ready to share"
+                        if (launched) "Shifts CSV ready to share"
                         else "No app available to share this file"
                     )
                 },
@@ -269,19 +255,19 @@ fun ProfileScreen(
         }
     }
 
-    val triggerPdfShare: () -> Unit = {
-        viewModel.exportPdf { result ->
+    val triggerExpensesCsvShare: () -> Unit = {
+        viewModel.exportExpensesCsv { result ->
             result.fold(
-                onSuccess = { pdfFile ->
+                onSuccess = { csvFile ->
                     suppressNextRelock()
                     val launched = shareExportFile(
                         context = context,
-                        file = pdfFile,
-                        mimeType = "application/pdf",
-                        chooserTitle = "Export Shiftly PDF Statement"
+                        file = csvFile,
+                        mimeType = "text/csv",
+                        chooserTitle = "Export Expenses (CSV)"
                     )
                     onShowMessage(
-                        if (launched) "PDF statement ready to share"
+                        if (launched) "Expenses CSV ready to share"
                         else "No app available to share this file"
                     )
                 },
@@ -334,7 +320,8 @@ fun ProfileScreen(
                 )
                 onShowMessage(if (enabled) "App lock active ($method)" else "App lock turned off")
             }
-        }
+        },
+        onReplayTutorial = onReplayTutorial
     )
 
     if (showSavingsGoalDetailSheet) {
@@ -415,6 +402,7 @@ fun ProfileScreen(
                         activeSheet = null
                         onShowMessage("Profile updated")
                     },
+                    onDismiss = { activeSheet = null },
                     actionState = sheetActionState
                 )
             }
@@ -434,7 +422,8 @@ fun ProfileScreen(
                             if (conversionRate != null) "Converted amounts to $symbol"
                             else "Currency changed to $symbol"
                         )
-                    }
+                    },
+                    onDismiss = { activeSheet = null }
                 )
             }
         }
@@ -465,6 +454,7 @@ fun ProfileScreen(
                             onShowMessage("Notification preferences saved")
                         }
                     },
+                    onDismiss = { activeSheet = null },
                     actionState = sheetActionState
                 )
             }
@@ -485,11 +475,12 @@ fun ProfileScreen(
                                 when (mode.uppercase()) {
                                     "LIGHT" -> "Light Mode"
                                     "DARK" -> "Dark Mode"
-                                    else -> "System Default"
+                                    else -> "System"
                                 }
                             }"
                         )
-                    }
+                    },
+                    onDismiss = { activeSheet = null }
                 )
             }
         }
@@ -536,6 +527,7 @@ fun ProfileScreen(
                         activeSheet = null
                         onShowMessage(if (enabled) "App lock saved ($method)" else "App lock disabled")
                     },
+                    onDismiss = { activeSheet = null },
                     actionState = sheetActionState
                 )
             }
@@ -543,42 +535,80 @@ fun ProfileScreen(
 
         ActiveSettingsSheet.BACKUP_EXPORT -> {
             SettingsSheetContainer(
-                title = "Data & Backup",
+                title = "Backup & Export",
                 onDismiss = { activeSheet = null }
             ) {
                 BackupAndExportSheetContent(
-                    onExportZip = {
-                        activeSheet = null
-                        triggerZipShare()
-                    },
                     onExportJson = {
                         activeSheet = null
                         triggerJsonShare()
                     },
-                    onExportCsv = {
-                        activeSheet = null
-                        triggerCsvShare()
-                    },
-                    onExportPdf = {
-                        activeSheet = null
-                        triggerPdfShare()
-                    },
-                    onPickBackupFile = { mode ->
-                        pendingFileRestoreMode = mode
+                    onRestoreBackup = {
+                        pendingFileRestoreMode = RestoreMode.MERGE
                         suppressNextRelock()
                         backupFilePicker.launch(BACKUP_PICKER_MIME_TYPES)
                     },
-                    onRestoreJson = { rawJson, mode ->
-                        viewModel.restoreBackup(rawJson, mode) { result ->
-                            activeSheet = null
-                            result.fold(
-                                onSuccess = { msg -> onShowMessage(msg) },
-                                onFailure = { err -> onShowMessage("Restore failed: ${err.message ?: "invalid JSON"}") }
-                            )
-                        }
-                    }
+                    onExportShiftsCsv = {
+                        activeSheet = null
+                        triggerShiftsCsvShare()
+                    },
+                    onExportExpensesCsv = {
+                        activeSheet = null
+                        triggerExpensesCsvShare()
+                    },
+                    onDismiss = { activeSheet = null }
                 )
             }
+        }
+
+        ActiveSettingsSheet.FEATURE_GUIDE -> {
+            ShiftlyFeatureGuideSheet(
+                primaryButtonText = "Close",
+                onDismiss = { activeSheet = null }
+            )
+        }
+
+        ActiveSettingsSheet.FEEDBACK -> {
+            FeedbackBottomSheet(
+                defaultName = state.userName,
+                onDismiss = { activeSheet = null },
+                onSendFeedback = { feedbackType, subject, senderName, details, includeDeviceInfo ->
+                    suppressNextRelock()
+                    val launched = launchFeedbackEmail(
+                        context = context,
+                        feedbackType = feedbackType,
+                        subject = subject,
+                        senderName = senderName,
+                        details = details,
+                        includeDeviceInfo = includeDeviceInfo
+                    )
+                    activeSheet = null
+                    if (!launched) {
+                        onShowMessage("No email app installed on this device")
+                    }
+                }
+            )
+        }
+
+        ActiveSettingsSheet.LEGAL_TERMS -> {
+            LegalInfoBottomSheet(
+                topic = LegalTopic.TERMS,
+                onDismiss = { activeSheet = null }
+            )
+        }
+
+        ActiveSettingsSheet.LEGAL_PRIVACY -> {
+            LegalInfoBottomSheet(
+                topic = LegalTopic.PRIVACY,
+                onDismiss = { activeSheet = null }
+            )
+        }
+
+        ActiveSettingsSheet.LEGAL_DISCLAIMER -> {
+            LegalInfoBottomSheet(
+                topic = LegalTopic.DISCLAIMER,
+                onDismiss = { activeSheet = null }
+            )
         }
 
         null -> Unit
@@ -593,12 +623,19 @@ private fun ProfileScreenContent(
     onOpenSavingsGoals: () -> Unit,
     onToggleNotifications: (Boolean) -> Unit,
     onToggleAppLock: (Boolean) -> Unit,
+    onReplayTutorial: () -> Unit = {},
     listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
     val context = LocalContext.current
     val avatarSizePx = with(LocalDensity.current) { 52.dp.roundToPx() }
     val currency = state.currencySymbol
+    val appVersion = remember(context) {
+        runCatching {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        }.getOrNull()?.takeIf { it.isNotBlank() } ?: "3.0.0"
+    }
 
     val isTitleCollapsed by remember {
         derivedStateOf {
@@ -719,39 +756,35 @@ private fun ProfileScreenContent(
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_user,
                                 title = "Account",
-                                iconBg = colors.azurePrimary,
-                                iconTint = PureWhite,
+                                iconTint = colors.azurePrimary,
                                 onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
                             )
-                            ShiftlyHairlineDivider(startInset = 62.dp)
+                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_circle_dollar_sign,
                                 title = "Currency",
-                                iconBg = colors.mintBright,
-                                iconTint = PureWhite,
+                                iconTint = colors.mintBright,
                                 onClick = { onOpenSheet(ActiveSettingsSheet.CURRENCY) }
                             )
-                            ShiftlyHairlineDivider(startInset = 62.dp)
+                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsSwitchRow(
                                 iconRes = R.drawable.ic_lucide_bell,
                                 title = "Notifications",
                                 checked = state.settings.notificationsEnabled,
                                 onCheckedChange = onToggleNotifications,
                                 onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) },
-                                iconBg = colors.iosOrange,
-                                iconTint = PureWhite
+                                iconTint = colors.iosOrange
                             )
-                            ShiftlyHairlineDivider(startInset = 62.dp)
+                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_palette,
                                 title = "App Theme",
-                                subtitle = when (state.settings.themeMode.uppercase()) {
+                                trailingText = when (state.settings.themeMode.uppercase()) {
                                     "LIGHT" -> "Light Mode"
                                     "DARK" -> "Dark Mode"
-                                    else -> "System Default"
+                                    else -> "System"
                                 },
-                                iconBg = colors.coralBright,
-                                iconTint = PureWhite,
+                                iconTint = colors.coralBright,
                                 onClick = { onOpenSheet(ActiveSettingsSheet.THEME) }
                             )
                         }
@@ -763,16 +796,65 @@ private fun ProfileScreenContent(
                                 checked = state.settings.appLockEnabled,
                                 onCheckedChange = onToggleAppLock,
                                 onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },
-                                iconBg = colors.nightDiffPurple,
-                                iconTint = PureWhite
+                                iconTint = colors.nightDiffPurple
                             )
-                            ShiftlyHairlineDivider(startInset = 62.dp)
+                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_cloud_upload,
                                 title = "Data Export & Restore",
-                                iconBg = colors.azurePrimary,
-                                iconTint = PureWhite,
+                                iconTint = colors.azurePrimary,
                                 onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }
+                            )
+                        }
+
+                        SettingsGroupCard(groupTitle = "SUPPORT & FEEDBACK") {
+                            SettingsChevronRow(
+                                iconRes = R.drawable.ic_lucide_sparkles,
+                                title = "What's Inside Shiftly",
+                                iconTint = Color(0xFF0A84FF),
+                                onClick = { onOpenSheet(ActiveSettingsSheet.FEATURE_GUIDE) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 48.dp)
+                            SettingsChevronRow(
+                                iconRes = R.drawable.ic_lucide_rotate_ccw,
+                                title = "Replay App Tutorial",
+                                iconTint = Color(0xFF0A84FF),
+                                onClick = onReplayTutorial
+                            )
+                            ShiftlyHairlineDivider(startInset = 48.dp)
+                            SettingsChevronRow(
+                                iconRes = R.drawable.ic_lucide_message_square,
+                                title = "Suggestions & Bug Report",
+                                iconTint = Color(0xFFBF5AF2),
+                                onClick = { onOpenSheet(ActiveSettingsSheet.FEEDBACK) }
+                            )
+                        }
+
+                        SettingsGroupCard(groupTitle = "ABOUT & LEGAL") {
+                            SettingsChevronRow(
+                                iconRes = R.drawable.ic_lucide_file_text,
+                                title = "Terms & Conditions",
+                                iconTint = Color(0xFF8E8E93),
+                                onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_TERMS) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 48.dp)
+                            SettingsChevronRow(
+                                iconRes = R.drawable.ic_lucide_lock,
+                                title = "Privacy Policy",
+                                iconTint = Color(0xFF30D158),
+                                onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_PRIVACY) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 48.dp)
+                            SettingsChevronRow(
+                                iconRes = R.drawable.ic_lucide_info,
+                                title = "Payroll & Tax Disclaimer",
+                                iconTint = Color(0xFF0A84FF),
+                                onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_DISCLAIMER) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 16.dp)
+                            SettingsStaticRow(
+                                title = "Version",
+                                value = appVersion
                             )
                         }
                     }
@@ -786,6 +868,56 @@ private fun ProfileScreenContent(
             modifier = Modifier.align(Alignment.TopCenter)
         )
     }
+}
+
+private fun launchFeedbackEmail(
+    context: Context,
+    feedbackType: String,
+    subject: String,
+    senderName: String,
+    details: String,
+    includeDeviceInfo: Boolean
+): Boolean {
+    val cleanSubject = subject.trim().ifBlank { feedbackType }
+    val emailSubject = "[Shiftly $feedbackType] $cleanSubject"
+    val emailBody = buildString {
+        append(details.trim())
+        if (senderName.isNotBlank()) {
+            append("\n\nFrom: ")
+            append(senderName.trim())
+        }
+        if (includeDeviceInfo) {
+            val appVersion = runCatching {
+                @Suppress("DEPRECATION")
+                context.packageManager.getPackageInfo(context.packageName, 0).versionName
+            }.getOrNull()?.takeIf { it.isNotBlank() } ?: "3.0.0"
+            val deviceModel = listOf(Build.MANUFACTURER, Build.MODEL)
+                .filter { it.isNotBlank() }
+                .joinToString(" ")
+            append("\n\n---\n")
+            append("App Version: $appVersion\n")
+            append("Android OS: Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\n")
+            append("Device: $deviceModel")
+        }
+    }
+
+    val mailtoIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$DEVELOPER_FEEDBACK_EMAIL")).apply {
+        putExtra(Intent.EXTRA_EMAIL, arrayOf(DEVELOPER_FEEDBACK_EMAIL))
+        putExtra(Intent.EXTRA_SUBJECT, emailSubject)
+        putExtra(Intent.EXTRA_TEXT, emailBody)
+    }
+
+    return runCatching {
+        context.startActivity(mailtoIntent)
+    }.recoverCatching {
+        val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "message/rfc822"
+            putExtra(Intent.EXTRA_EMAIL, arrayOf(DEVELOPER_FEEDBACK_EMAIL))
+            putExtra(Intent.EXTRA_SUBJECT, emailSubject)
+            putExtra(Intent.EXTRA_TEXT, emailBody)
+        }
+        context.startActivity(Intent.createChooser(fallbackIntent, "Send Feedback"))
+    }.isSuccess
 }
 
 private fun shareExportFile(

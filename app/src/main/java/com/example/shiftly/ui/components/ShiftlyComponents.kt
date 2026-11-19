@@ -9,8 +9,11 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.InteractionSource
@@ -28,28 +31,38 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -253,9 +266,41 @@ fun ShiftlySheetDragHandle(modifier: Modifier = Modifier) {
 }
 
 /**
- * Standardized sheet title header:
- * Centered bold title only.
+ * Subtle transparent `?` quick tutorial icon button for headers and tool sheets.
  */
+@Composable
+fun ShiftlyHelpIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentDescription: String = "Quick guide",
+    tint: Color = Color(0xFF8E8E93)
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val haptics = LocalHapticFeedback.current
+    IconButton(
+        onClick = {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onClick()
+        },
+        interactionSource = interactionSource,
+        modifier = modifier
+            .size(40.dp)
+            .shiftlyPressEffect(interactionSource)
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_lucide_circle_help),
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
+/**
+ * Standardized sheet title header:
+ * Centered bold title with optional trailing `?` quick guide icon (no top corner Cancel/Save buttons).
+ */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ShiftlySheetHeader(
     title: String,
@@ -264,7 +309,8 @@ fun ShiftlySheetHeader(
     cancelLabel: String = "Cancel",
     actionLabel: String? = "Done",
     actionEnabled: Boolean = true,
-    onAction: (() -> Unit)? = null
+    onAction: (() -> Unit)? = null,
+    onHelpClick: (() -> Unit)? = null
 ) {
     val colors = ShiftlyColors.current
     Box(
@@ -285,8 +331,57 @@ fun ShiftlySheetHeader(
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.semantics { heading() }
+            modifier = Modifier
+                .then(if (onHelpClick != null) Modifier.padding(horizontal = 44.dp) else Modifier)
+                .semantics { heading() }
         )
+        if (onHelpClick != null) {
+            ShiftlyHelpIconButton(
+                onClick = onHelpClick,
+                modifier = Modifier.align(Alignment.CenterEnd)
+            )
+        }
+    }
+}
+
+/**
+ * Standardized modal bottom sheet shell for tool sheets supporting an optional `?` tutorial guide button.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShiftlyToolSheetContainer(
+    title: String,
+    onDismiss: () -> Unit,
+    onHelpClick: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
+        tonalElevation = 0.dp,
+        dragHandle = { ShiftlySheetDragHandle() },
+        shape = SheetTopShape
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            ShiftlySheetHeader(
+                title = title,
+                onHelpClick = onHelpClick
+            )
+            content()
+        }
     }
 }
 
@@ -307,7 +402,7 @@ fun ShiftlySheetBottomButtons(
 
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
@@ -316,7 +411,7 @@ fun ShiftlySheetBottomButtons(
             shadowElevation = 0.dp,
             modifier = Modifier
                 .weight(1f)
-                .height(48.dp)
+                .height(50.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .shiftlyPressClickable(onClick = onCancel)
         ) {
@@ -325,7 +420,8 @@ fun ShiftlySheetBottomButtons(
                     text = cancelLabel,
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 15.sp
                     ),
                     color = colors.textPrimary
                 )
@@ -338,7 +434,7 @@ fun ShiftlySheetBottomButtons(
             shadowElevation = 0.dp,
             modifier = Modifier
                 .weight(1f)
-                .height(48.dp)
+                .height(50.dp)
                 .clip(RoundedCornerShape(14.dp))
                 .shiftlyPressClickable(enabled = actionEnabled, onClick = onAction)
         ) {
@@ -347,7 +443,8 @@ fun ShiftlySheetBottomButtons(
                     text = actionLabel,
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
                     ),
                     color = if (actionEnabled) PureWhite else colors.disabledContent
                 )
@@ -357,8 +454,42 @@ fun ShiftlySheetBottomButtons(
 }
 
 /**
+ * Standardized full-width secondary close/done button for read-only or utility sheets.
+ */
+@Composable
+fun ShiftlySheetCloseButton(
+    label: String = "Close",
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = colors.cardElevated,
+        shadowElevation = 0.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .shiftlyPressClickable(onClick = onClick)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                ),
+                color = colors.textPrimary
+            )
+        }
+    }
+}
+
+/**
  * Standardized iOS-style modal dialog wrapper with dimmed scrim, 20dp radius, grabber,
- * and "Cancel" | Bold Title | Blue Action header.
+ * centered bold title, and bottom action row.
  */
 @Composable
 fun ShiftlyDialogShell(
@@ -430,14 +561,25 @@ fun ShiftlyDialogShell(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     ShiftlySheetDragHandle()
-                    ShiftlySheetHeader(
-                        title = title,
-                        onCancel = onDismiss,
-                        actionLabel = actionLabel,
-                        actionEnabled = actionEnabled,
-                        onAction = onAction
-                    )
+                    ShiftlySheetHeader(title = title)
                     content()
+                    if (onAction != null && actionLabel != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        if (onAction === onDismiss) {
+                            ShiftlySheetCloseButton(
+                                label = actionLabel,
+                                onClick = onDismiss
+                            )
+                        } else {
+                            ShiftlySheetBottomButtons(
+                                onCancel = onDismiss,
+                                onAction = onAction,
+                                cancelLabel = "Cancel",
+                                actionLabel = actionLabel,
+                                actionEnabled = actionEnabled
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -495,6 +637,71 @@ fun ShiftlyIosSwitch(
                 .clip(CircleShape)
                 .background(PureWhite.copy(alpha = if (enabled) 1f else 0.85f))
         )
+    }
+}
+
+/**
+ * iOS-style segmented pill control for switching between compact options.
+ */
+@Composable
+fun ShiftlyIosSegmentedControl(
+    options: List<String>,
+    selectedOption: String,
+    onOptionSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color = ShiftlyColors.current.cardElevated
+) {
+    val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(containerColor)
+            .selectableGroup()
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        options.forEach { option ->
+            val isSelected = selectedOption == option
+            val segmentBg by animateColorAsState(
+                targetValue = if (isSelected) colors.azurePrimary else Color.Transparent,
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+                label = "iosSegmentBg"
+            )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(36.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(segmentBg)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        role = Role.Tab
+                    ) {
+                        if (!isSelected) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onOptionSelected(option)
+                        }
+                    }
+                    .semantics { selected = isSelected },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = option,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                        fontSize = 14.sp
+                    ),
+                    color = if (isSelected) PureWhite else colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }
 
@@ -561,25 +768,22 @@ fun ShiftlyCard(
 }
 
 /**
- * Solid-color rounded-square iOS Settings style icon tile holding a pure white glyph.
+ * Transparent iOS-style icon layout box holding an accent-tinted glyph.
  */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ShiftlyIosIconTile(
     @DrawableRes iconRes: Int,
     backgroundColor: Color,
     modifier: Modifier = Modifier,
-    size: Dp = 36.dp,
+    size: Dp = 28.dp,
     cornerRadius: Dp = 9.dp,
-    iconSize: Dp = 18.dp,
-    iconTint: Color = PureWhite,
+    iconSize: Dp = 22.dp,
+    iconTint: Color = backgroundColor,
     contentDescription: String? = null
 ) {
-    val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
     Box(
-        modifier = modifier
-            .size(size)
-            .clip(shape)
-            .background(backgroundColor),
+        modifier = modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -766,9 +970,9 @@ fun ShiftlyEmptyState(
             ShiftlyIosIconTile(
                 iconRes = iconRes,
                 backgroundColor = iconBackgroundColor,
-                size = 48.dp,
+                size = 36.dp,
                 cornerRadius = 12.dp,
-                iconSize = 24.dp
+                iconSize = 32.dp
             )
             Text(
                 text = title,
@@ -1068,7 +1272,7 @@ fun ShiftlyConfirmDialog(
     message: String,
     iconRes: Int = R.drawable.ic_lucide_trash_2,
     iconBgColor: Color = ShiftlyColors.current.coralBright,
-    iconTint: Color = PureWhite,
+    iconTint: Color = iconBgColor,
     noLabel: String = "No",
     yesLabel: String = "Yes",
     isDestructive: Boolean = true,
@@ -1149,9 +1353,9 @@ fun ShiftlyConfirmDialog(
                     ShiftlyIosIconTile(
                         iconRes = iconRes,
                         backgroundColor = iconBgColor,
-                        size = 44.dp,
+                        size = 36.dp,
                         cornerRadius = 11.dp,
-                        iconSize = 22.dp,
+                        iconSize = 28.dp,
                         iconTint = iconTint
                     )
                     Text(
@@ -1164,37 +1368,200 @@ fun ShiftlyConfirmDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        ShiftlySecondaryTextButton(
-                            text = noLabel,
-                            onClick = onDismiss,
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = colors.cardElevated,
+                            shadowElevation = 0.dp,
                             modifier = Modifier
                                 .weight(1f)
-                                .heightIn(min = 46.dp)
-                        )
-                        Button(
-                            onClick = {
-                                onConfirm()
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isDestructive) Color(0xFFFF453A) else colors.azurePrimary,
-                                contentColor = PureWhite
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = 46.dp)
+                                .height(50.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .shiftlyPressClickable(onClick = onDismiss)
                         ) {
-                            Text(
-                                text = yesLabel,
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.SemiBold
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = noLabel,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = colors.textPrimary
                                 )
-                            )
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isDestructive) Color(0xFFFF453A) else colors.azurePrimary,
+                            shadowElevation = 0.dp,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(50.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .shiftlyPressClickable(onClick = onConfirm)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = yesLabel,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = PureWhite
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Clean iOS-style delete confirmation dialog preventing accidental record deletions.
+ */
+@Composable
+fun ShiftlyDeleteConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String = "Delete",
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val slideOffsetY = remember { Animatable(140f) }
+    val cardAlpha = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        launch {
+            slideOffsetY.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+            )
+        }
+        launch {
+            cardAlpha.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)
+            )
+        }
+    }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(shiftlySheetScrimColor())
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                )
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                shape = DialogCardShape,
+                color = colors.surface,
+                border = BorderStroke(0.5.dp, colors.separator),
+                shadowElevation = 0.dp,
+                modifier = Modifier
+                    .widthIn(max = 360.dp)
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationY = slideOffsetY.value
+                        alpha = cardAlpha.value
+                    }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {}
+                    )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        ),
+                        color = colors.textPrimary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        ),
+                        color = colors.textSecondary,
+                        textAlign = TextAlign.Center
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = colors.cardElevated,
+                            shadowElevation = 0.dp,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .shiftlyPressClickable(onClick = onDismiss)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "Cancel",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = colors.textPrimary
+                                )
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFFF453A),
+                            shadowElevation = 0.dp,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .shiftlyPressClickable(onClick = onConfirm)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = confirmLabel,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = PureWhite
+                                )
+                            }
                         }
                     }
                 }
@@ -1213,15 +1580,697 @@ fun ShiftlyConfirmDeleteDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    ShiftlyConfirmDialog(
+    ShiftlyDeleteConfirmDialog(
         title = title,
         message = message,
-        iconRes = R.drawable.ic_lucide_trash_2,
-        iconBgColor = ShiftlyColors.current.coralBright,
-        noLabel = "No",
-        yesLabel = "Yes",
-        isDestructive = true,
-        onDismiss = onDismiss,
-        onConfirm = onConfirm
+        confirmLabel = "Delete",
+        onConfirm = onConfirm,
+        onDismiss = onDismiss
     )
+}
+
+private data class FeatureGuideItem(
+    val title: String,
+    val description: String
+)
+
+private data class FeatureGuideCategory(
+    val title: String,
+    @DrawableRes val iconRes: Int,
+    val accentColor: Color,
+    val features: List<FeatureGuideItem>
+)
+
+private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
+    FeatureGuideCategory(
+        title = "Shifts & Work Pay",
+        iconRes = R.drawable.ic_lucide_clock,
+        accentColor = Color(0xFF30D158),
+        features = listOf(
+            FeatureGuideItem(
+                title = "Easy Shift Logging",
+                description = "Record your work hours in seconds using quick time presets."
+            ),
+            FeatureGuideItem(
+                title = "Automatic Pay Computation",
+                description = "Let the app calculate your regular pay, night differential, overtime, and holiday rates for you."
+            ),
+            FeatureGuideItem(
+                title = "Upcoming Shift Reminders",
+                description = "Save your future schedules and get gentle reminders before your shift starts."
+            ),
+            FeatureGuideItem(
+                title = "Monthly Work Goals",
+                description = "Set a personal target for your hours or earnings and watch your progress grow."
+            )
+        )
+    ),
+    FeatureGuideCategory(
+        title = "Daily Spending & Budgets",
+        iconRes = R.drawable.ic_lucide_wallet,
+        accentColor = Color(0xFFFF453A),
+        features = listOf(
+            FeatureGuideItem(
+                title = "Simple Expense Tracking",
+                description = "Log where your money goes by category and save photos of your receipts."
+            ),
+            FeatureGuideItem(
+                title = "Flexible Monthly Budgets",
+                description = "Set a comfortable spending limit for the month or for specific categories."
+            ),
+            FeatureGuideItem(
+                title = "Daily Safe-to-Spend Guide",
+                description = "Know how much you can comfortably spend today while staying on track."
+            )
+        )
+    ),
+    FeatureGuideCategory(
+        title = "Allowance & Take-Home Pay",
+        iconRes = R.drawable.ic_lucide_banknote,
+        accentColor = Color(0xFF0A84FF),
+        features = listOf(
+            FeatureGuideItem(
+                title = "Allowance & Extra Income",
+                description = "Keep track of allowances, stipends, scholarships, and side income in one place."
+            ),
+            FeatureGuideItem(
+                title = "Take-Home Pay Estimator",
+                description = "See a clear estimate of your net pay after SSS, PhilHealth, Pag-IBIG, and tax deductions."
+            )
+        )
+    ),
+    FeatureGuideCategory(
+        title = "Shared Bills & Savings",
+        iconRes = R.drawable.ic_lucide_split,
+        accentColor = Color(0xFFFF9F0A),
+        features = listOf(
+            FeatureGuideItem(
+                title = "Fair Bill Splitting",
+                description = "Split meals or shared bills with friends and easily see who has paid."
+            ),
+            FeatureGuideItem(
+                title = "Borrow & Lend Tracker (IOUs)",
+                description = "Remember who owes you and who you need to pay back, stress-free."
+            ),
+            FeatureGuideItem(
+                title = "Recurring Bills",
+                description = "Keep track of daily, weekly, or monthly bills so you never miss a due date."
+            ),
+            FeatureGuideItem(
+                title = "Personal Savings Goals",
+                description = "Set aside money little by little for the things that matter to you."
+            )
+        )
+    ),
+    FeatureGuideCategory(
+        title = "Clear Insights & Calendar",
+        iconRes = R.drawable.ic_lucide_chart_column,
+        accentColor = Color(0xFFBF5AF2),
+        features = listOf(
+            FeatureGuideItem(
+                title = "Calm Home Overview",
+                description = "See your current balance, total earnings, and spending at a glance, with a privacy toggle to hide amounts anytime."
+            ),
+            FeatureGuideItem(
+                title = "Visual Spending & Earning Trends",
+                description = "Understand your habits through clean, easy-to-read charts."
+            ),
+            FeatureGuideItem(
+                title = "All-in-One Activity Calendar",
+                description = "View your work days, scheduled shifts, expenses, and allowance days on a single calendar."
+            )
+        )
+    ),
+    FeatureGuideCategory(
+        title = "Privacy & Peace of Mind",
+        iconRes = R.drawable.ic_lucide_lock,
+        accentColor = Color(0xFF64D2FF),
+        features = listOf(
+            FeatureGuideItem(
+                title = "Private & Works Offline",
+                description = "Your data stays safely on your phone—no sign-up or internet needed."
+            ),
+            FeatureGuideItem(
+                title = "PIN & Biometric App Lock",
+                description = "Keep your personal finances for your eyes only."
+            ),
+            FeatureGuideItem(
+                title = "Easy Backup & Spreadsheet Export",
+                description = "Save a backup of your records or export them to CSV anytime."
+            )
+        )
+    )
+)
+
+/**
+ * 6-category expandable feature guide sheet shown post-setup and from Profile Settings.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShiftlyFeatureGuideSheet(
+    onDismiss: () -> Unit,
+    primaryButtonText: String = "Start Exploring"
+) {
+    val colors = ShiftlyColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var expandedIndices by remember { mutableStateOf(setOf(0)) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
+        tonalElevation = 0.dp,
+        dragHandle = { ShiftlySheetDragHandle() },
+        shape = SheetTopShape
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 20.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp, bottom = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "What You Can Do Here",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = colors.textPrimary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                    Text(
+                        text = "Tap any topic to explore, or jump right in.",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        ),
+                        color = Color(0xFF8E8E93),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                SHIFTLY_FEATURE_GUIDE_CATEGORIES.forEachIndexed { index, category ->
+                    val isExpanded = index in expandedIndices
+                    FeatureGuideCategoryCard(
+                        category = category,
+                        isExpanded = isExpanded,
+                        onToggle = {
+                            expandedIndices = if (isExpanded) {
+                                expandedIndices - index
+                            } else {
+                                expandedIndices + index
+                            }
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Surface(
+                shape = PrimaryButtonShape,
+                color = Color(0xFF0A84FF),
+                shadowElevation = 0.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .clip(PrimaryButtonShape)
+                    .shiftlyPressClickable(onClick = onDismiss)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = primaryButtonText,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = PureWhite
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeatureGuideCategoryCard(
+    category: FeatureGuideCategory,
+    isExpanded: Boolean,
+    onToggle: () -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 90f else 0f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+        label = "featureGuideChevron"
+    )
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = colors.cardElevated,
+        border = BorderStroke(0.5.dp, colors.separator),
+        shadowElevation = 0.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggle)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    painter = painterResource(category.iconRes),
+                    contentDescription = null,
+                    tint = category.accentColor,
+                    modifier = Modifier.size(22.dp)
+                )
+                Text(
+                    text = category.title,
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    ),
+                    color = colors.textPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                    contentDescription = if (isExpanded) "Collapse ${category.title}" else "Expand ${category.title}",
+                    tint = colors.textSecondary,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .graphicsLayer { rotationZ = chevronRotation }
+                )
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    ShiftlyHairlineDivider(startInset = 16.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        category.features.forEach { feature ->
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = feature.title,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp
+                                    ),
+                                    color = colors.textPrimary
+                                )
+                                Text(
+                                    text = feature.description,
+                                    style = MaterialTheme.typography.bodySmall.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontSize = 12.sp,
+                                        lineHeight = 17.sp
+                                    ),
+                                    color = Color(0xFF8E8E93)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Reusable quick tutorial bottom sheet opened from `?` buttons on tool screens & utility sheets.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ShiftlyScreenTutorialSheet(
+    title: String,
+    subtitle: String,
+    steps: List<Pair<String, String>>,
+    onDismiss: () -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
+        tonalElevation = 0.dp,
+        dragHandle = { ShiftlySheetDragHandle() },
+        shape = SheetTopShape
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 20.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ),
+                        color = colors.textPrimary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.semantics { heading() }
+                    )
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontSize = 13.sp,
+                            lineHeight = 18.sp
+                        ),
+                        color = Color(0xFF8E8E93),
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = colors.cardElevated,
+                    border = BorderStroke(0.5.dp, colors.separator),
+                    shadowElevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        steps.forEachIndexed { index, (stepTitle, stepDescription) ->
+                            if (index > 0) {
+                                ShiftlyHairlineDivider(startInset = 52.dp)
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF0A84FF).copy(alpha = 0.14f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${index + 1}",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        ),
+                                        color = Color(0xFF0A84FF)
+                                    )
+                                }
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                                ) {
+                                    Text(
+                                        text = stepTitle,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 14.sp
+                                        ),
+                                        color = colors.textPrimary
+                                    )
+                                    Text(
+                                        text = stepDescription,
+                                        style = MaterialTheme.typography.bodySmall.copy(
+                                            fontFamily = InterFontFamily,
+                                            fontSize = 13.sp,
+                                            lineHeight = 18.sp
+                                        ),
+                                        color = Color(0xFF8E8E93)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Surface(
+                shape = PrimaryButtonShape,
+                color = Color(0xFF0A84FF),
+                shadowElevation = 0.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp)
+                    .clip(PrimaryButtonShape)
+                    .shiftlyPressClickable(onClick = onDismiss)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = "Got It",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = PureWhite
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 5-step guided Coachmark / Tour overlay rendered above the main navigation shell.
+ */
+@Composable
+fun ShiftlyMainTabTourOverlay(
+    stepIndex: Int,
+    totalSteps: Int = 5,
+    title: String,
+    description: String,
+    onBack: () -> Unit,
+    onNextOrFinish: () -> Unit,
+    onSkip: () -> Unit,
+    highlightedBottomBar: @Composable () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    val cardColor = if (colors.isDark) Color(0xFF1C1C1E) else colors.surface
+    val isLastStep = stepIndex >= totalSteps - 1
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.65f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    shape = DialogCardShape,
+                    color = cardColor,
+                    border = BorderStroke(0.5.dp, colors.separator),
+                    shadowElevation = 0.dp,
+                    modifier = Modifier
+                        .widthIn(max = 392.dp)
+                        .fillMaxWidth()
+                        .animateContentSize(
+                            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                        )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 18.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = PillShape,
+                                color = Color(0xFF0A84FF).copy(alpha = 0.14f),
+                                shadowElevation = 0.dp
+                            ) {
+                                Text(
+                                    text = "${stepIndex + 1} of $totalSteps",
+                                    style = MaterialTheme.typography.labelMedium.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 12.sp
+                                    ),
+                                    color = Color(0xFF0A84FF),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+
+                            Text(
+                                text = "Skip",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Medium,
+                                    fontSize = 14.sp
+                                ),
+                                color = Color(0xFF8E8E93),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .shiftlyPressClickable(onClick = onSkip)
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                ),
+                                color = colors.textPrimary,
+                                modifier = Modifier.semantics { heading() }
+                            )
+                            Text(
+                                text = description,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp
+                                ),
+                                color = colors.textSecondary
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (stepIndex > 0) {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = colors.cardElevated,
+                                    shadowElevation = 0.dp,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(48.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .shiftlyPressClickable(onClick = onBack)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "Back",
+                                            style = MaterialTheme.typography.labelLarge.copy(
+                                                fontFamily = InterFontFamily,
+                                                fontWeight = FontWeight.Medium,
+                                                fontSize = 15.sp
+                                            ),
+                                            color = colors.textPrimary
+                                        )
+                                    }
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF0A84FF),
+                                shadowElevation = 0.dp,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .shiftlyPressClickable(onClick = onNextOrFinish)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = if (isLastStep) "Finish" else "Next",
+                                        style = MaterialTheme.typography.labelLarge.copy(
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 15.sp
+                                        ),
+                                        color = PureWhite
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            highlightedBottomBar()
+        }
+    }
 }

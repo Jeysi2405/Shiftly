@@ -17,10 +17,13 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -31,24 +34,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -70,7 +65,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -82,8 +76,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -102,22 +94,18 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.shiftly.R
-import com.example.shiftly.data.local.SavingsGoalEntity
-import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
-import androidx.compose.ui.graphics.SolidColor
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
-import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
-import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
+import com.example.shiftly.ui.components.ShiftlyMainTabTourOverlay
+import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
-import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
 import com.example.shiftly.ui.screens.ToolsScreen
@@ -132,19 +120,16 @@ import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.lock.AppLockGateScreen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.ProfileScreen
-import com.example.shiftly.ui.screens.recurring.AddEditRecurringBillBottomSheet
 import com.example.shiftly.ui.screens.recurring.RecurringBillsScreen
-import com.example.shiftly.ui.screens.recurring.RecurringBillsViewModel
-import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.splitbill.NewSplitBillBottomSheet
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
 import com.example.shiftly.ui.screens.splitbill.SplitBillViewModel
 import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.DayType
 import com.example.shiftly.utils.RecurringEngine
-import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.workers.ShiftlyDailyWorker
 import java.time.Instant
 import java.time.LocalDate
@@ -156,7 +141,48 @@ import kotlinx.coroutines.withContext
 
 private val NavBarPillShape = RoundedCornerShape(50)
 private val SheetTopRoundedShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-private val DepositFieldShape = RoundedCornerShape(14.dp)
+
+private data class MainTourStep(
+    val title: String,
+    val description: String,
+    val targetScreen: Screen,
+    val navSlotIndex: Int
+)
+
+private val MAIN_TAB_TOUR_STEPS by lazy {
+    listOf(
+        MainTourStep(
+            title = "Your Calm Home Overview",
+            description = "See your net balance, total earnings, and spending at a glance. Tap the eye icon anytime to hide amounts in public.",
+            targetScreen = Screen.Home,
+            navSlotIndex = 0
+        ),
+        MainTourStep(
+            title = "Quick Add in Seconds",
+            description = "Tap the + button from anywhere to quickly log a work shift, record an expense, or split a bill.",
+            targetScreen = Screen.Home,
+            navSlotIndex = 2
+        ),
+        MainTourStep(
+            title = "Spending & Earning Trends",
+            description = "View visual charts of your income vs. expenses, category breakdowns, and your daily safe-to-spend guide.",
+            targetScreen = Screen.Analytics,
+            navSlotIndex = 1
+        ),
+        MainTourStep(
+            title = "All Your Trackers in One Place",
+            description = "Open Duties & Shifts, Expenses, Split Bill, IOUs, Budgets, Savings Goals, Recurring Bills, Allowance, Paycheck Estimator, and Calendar.",
+            targetScreen = Screen.Tools,
+            navSlotIndex = 3
+        ),
+        MainTourStep(
+            title = "Profile, Security & Backups",
+            description = "Update your hourly rate, lock the app with PIN or biometrics, switch currency or theme, and back up your data offline.",
+            targetScreen = Screen.Profile,
+            navSlotIndex = 4
+        )
+    )
+}
 
 private val TabRouteOrder by lazy {
     listOf(Screen.Home.route, Screen.Analytics.route, Screen.Tools.route, Screen.Profile.route)
@@ -301,7 +327,7 @@ fun MainAppScreen() {
 
                         false -> {
                             WelcomeScreen(
-                                onGetStartedComplete = { name, rate, monthlyBudget, profilePhotoPath ->
+                                onSaveSetupProfile = { name, rate, monthlyBudget, profilePhotoPath ->
                                     scope.launch {
                                         repository.updateUserName(name)
                                         repository.updateDefaultHourlyRate(rate)
@@ -309,6 +335,10 @@ fun MainAppScreen() {
                                         if (!profilePhotoPath.isNullOrBlank()) {
                                             repository.updateProfilePhotoPath(profilePhotoPath)
                                         }
+                                    }
+                                },
+                                onGetStartedComplete = { _, _, _, _ ->
+                                    scope.launch {
                                         repository.setOnboardingCompleted(completed = true)
                                     }
                                 }
@@ -341,15 +371,16 @@ private fun MainDashboardShell(
         currentRoute == Screen.RecurringBills.route ||
         currentRoute == Screen.Allowance.route
 
+    val hasSeenAppTutorial by repository.hasSeenAppTutorial
+        .collectAsStateWithLifecycle(initialValue = null)
+    var tourStep by rememberSaveable { mutableIntStateOf(0) }
+
     var showQuickActionSheet by remember { mutableStateOf(false) }
     var showQuickLogShiftSheet by remember { mutableStateOf(false) }
     var quickEditingShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var showQuickAddExpenseSheet by remember { mutableStateOf(false) }
     var showQuickNewSplitSheet by remember { mutableStateOf(false) }
     var quickSplitTrigger by remember { mutableIntStateOf(0) }
-    var showQuickAddGoalSheet by remember { mutableStateOf(false) }
-    var showQuickDepositSheet by remember { mutableStateOf(false) }
-    var showQuickAddRecurringBillSheet by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -401,6 +432,29 @@ private fun MainDashboardShell(
                 launchSingleTop = true
                 restoreState = true
             }
+        }
+    }
+
+    LaunchedEffect(hasSeenAppTutorial, tourStep, isSubScreen) {
+        if (hasSeenAppTutorial == false && !isSubScreen) {
+            val safeIndex = tourStep.coerceIn(0, MAIN_TAB_TOUR_STEPS.lastIndex)
+            if (safeIndex != tourStep) {
+                tourStep = safeIndex
+            }
+            val target = MAIN_TAB_TOUR_STEPS[safeIndex].targetScreen
+            if (currentRoute != target.route) {
+                navigateToTab(target)
+            }
+        }
+    }
+
+    val completeTour: () -> Unit = remember(scope, repository, navigateToTab) {
+        {
+            scope.launch {
+                repository.setHasSeenAppTutorial(true)
+            }
+            tourStep = 0
+            navigateToTab(Screen.Home)
         }
     }
 
@@ -456,178 +510,217 @@ private fun MainDashboardShell(
     val onQuickAddExpense = remember { { showQuickAddExpenseSheet = true } }
 
     ShiftlyBlueGradientBackground {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            snackbarHost = {
-                SnackbarHost(
-                    hostState = snackbarHostState,
-                    modifier = Modifier
-                        .then(if (isSubScreen) Modifier.navigationBarsPadding() else Modifier)
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                ) { data ->
-                    Surface(
-                        shape = NavBarPillShape,
-                        color = colors.cardElevated,
-                        shadowElevation = 0.dp,
-                        tonalElevation = 0.dp,
-                        modifier = Modifier.widthIn(max = 420.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(
-                                start = 14.dp,
-                                end = if (data.visuals.actionLabel != null) 10.dp else 18.dp,
-                                top = 11.dp,
-                                bottom = 11.dp
-                            ),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                containerColor = Color.Transparent,
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                snackbarHost = {
+                    SnackbarHost(
+                        hostState = snackbarHostState,
+                        modifier = Modifier
+                            .then(if (isSubScreen) Modifier.navigationBarsPadding() else Modifier)
+                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                    ) { data ->
+                        Surface(
+                            shape = NavBarPillShape,
+                            color = colors.cardElevated,
+                            shadowElevation = 0.dp,
+                            tonalElevation = 0.dp,
+                            modifier = Modifier.widthIn(max = 420.dp)
                         ) {
-                            ShiftlyIosIconTile(
-                                iconRes = R.drawable.ic_lucide_circle_check,
-                                backgroundColor = colors.mintBright,
-                                size = 24.dp,
-                                cornerRadius = 7.dp,
-                                iconSize = 14.dp
-                            )
-                            Text(
-                                text = data.visuals.message,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Medium
+                            Row(
+                                modifier = Modifier.padding(
+                                    start = 14.dp,
+                                    end = if (data.visuals.actionLabel != null) 10.dp else 18.dp,
+                                    top = 11.dp,
+                                    bottom = 11.dp
                                 ),
-                                color = colors.textPrimary,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f, fill = false)
-                            )
-                            data.visuals.actionLabel?.let { actionLabel ->
-                                val actionInteraction = remember { MutableInteractionSource() }
-                                TextButton(
-                                    onClick = { data.performAction() },
-                                    interactionSource = actionInteraction,
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                    modifier = Modifier.shiftlyPressEffect(actionInteraction)
-                                ) {
-                                    Text(
-                                        text = actionLabel,
-                                        style = MaterialTheme.typography.labelMedium.copy(
-                                            fontFamily = InterFontFamily,
-                                            fontWeight = FontWeight.SemiBold
-                                        ),
-                                        color = colors.azureAccent
-                                    )
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                ShiftlyIosIconTile(
+                                    iconRes = R.drawable.ic_lucide_circle_check,
+                                    backgroundColor = colors.mintBright,
+                                    size = 24.dp,
+                                    cornerRadius = 7.dp,
+                                    iconSize = 20.dp
+                                )
+                                Text(
+                                    text = data.visuals.message,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.Medium
+                                    ),
+                                    color = colors.textPrimary,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                data.visuals.actionLabel?.let { actionLabel ->
+                                    val actionInteraction = remember { MutableInteractionSource() }
+                                    TextButton(
+                                        onClick = { data.performAction() },
+                                        interactionSource = actionInteraction,
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        modifier = Modifier.shiftlyPressEffect(actionInteraction)
+                                    ) {
+                                        Text(
+                                            text = actionLabel,
+                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                fontFamily = InterFontFamily,
+                                                fontWeight = FontWeight.SemiBold
+                                            ),
+                                            color = colors.azureAccent
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
+                },
+                bottomBar = {
+                    AnimatedVisibility(
+                        visible = !isSubScreen,
+                        enter = slideInVertically(shiftlyNavSpring<IntOffset>()) { it } +
+                            fadeIn(shiftlyNavSpring<Float>()),
+                        exit = slideOutVertically(shiftlyNavSpring<IntOffset>()) { it } +
+                            fadeOut(shiftlyNavSpring<Float>())
+                    ) {
+                        FloatingPillBottomBar(
+                            items = Screen.bottomNavItems,
+                            isSelected = isNavItemSelected,
+                            onSelect = onBottomBarSelect,
+                            isFabActive = showQuickActionSheet,
+                            onFabClick = onFabClick
+                        )
+                    }
                 }
-            },
-            bottomBar = {
-                AnimatedVisibility(
-                    visible = !isSubScreen,
-                    enter = slideInVertically(shiftlyNavSpring<IntOffset>()) { it } +
-                        fadeIn(shiftlyNavSpring<Float>()),
-                    exit = slideOutVertically(shiftlyNavSpring<IntOffset>()) { it } +
-                        fadeOut(shiftlyNavSpring<Float>())
+            ) { innerPadding ->
+                NavHost(
+                    navController = navController,
+                    startDestination = Screen.Home.route,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .consumeWindowInsets(innerPadding),
+                    enterTransition = { shiftlyEnter() },
+                    exitTransition = { shiftlyExit() },
+                    popEnterTransition = { shiftlyPopEnter() },
+                    popExitTransition = { shiftlyPopExit() }
                 ) {
-                    FloatingPillBottomBar(
-                        items = Screen.bottomNavItems,
-                        isSelected = isNavItemSelected,
-                        onSelect = onBottomBarSelect,
-                        isFabActive = showQuickActionSheet,
-                        onFabClick = onFabClick
-                    )
+                    composable(Screen.Home.route) {
+                        HomeScreen(
+                            repository = repository,
+                            onNavigateToDuties = onNavigateToDuties,
+                            onNavigateToExpense = onNavigateToExpense,
+                            onNavigateToSplitBill = onNavigateToSplitBill,
+                            onNavigateToRecurringBills = onOpenRecurringBills,
+                            onNavigateToAllowance = onOpenAllowance,
+                            onNavigateToProfile = onNavigateToProfile,
+                            onNavigateToAnalytics = onNavigateToAnalytics,
+                            onShowMessage = showMessage
+                        )
+                    }
+                    composable(Screen.Analytics.route) {
+                        AnalyticsScreen(
+                            repository = repository,
+                            onBack = onPopBack,
+                            onNavigateToSplitBill = onNavigateToSplitBill,
+                            onShowMessage = showMessage
+                        )
+                    }
+                    composable(Screen.Tools.route) {
+                        ToolsScreen(
+                            repository = repository,
+                            onOpenDuties = onOpenDuties,
+                            onOpenExpense = onOpenExpense,
+                            onOpenSplitBill = onOpenSplitBill,
+                            onOpenRecurringBills = onOpenRecurringBills,
+                            onOpenAllowance = onOpenAllowance,
+                            onQuickLogShift = onQuickLogShift,
+                            onQuickAddExpense = onQuickAddExpense,
+                            onShowMessage = showMessage
+                        )
+                    }
+                    composable(Screen.Duties.route) {
+                        DutiesScreen(
+                            repository = repository,
+                            onBack = onPopBack,
+                            onShowMessage = showMessage
+                        )
+                    }
+                    composable(Screen.Expense.route) {
+                        ExpenseScreen(
+                            repository = repository,
+                            onBack = onPopBack,
+                            onShowMessage = showMessage
+                        )
+                    }
+                    composable(Screen.SplitBill.route) {
+                        SplitBillScreen(
+                            repository = repository,
+                            onBack = onPopBack,
+                            onShowMessage = showMessage
+                        )
+                    }
+                    composable(Screen.RecurringBills.route) {
+                        RecurringBillsScreen(
+                            repository = repository,
+                            onBack = onPopBack,
+                            onShowMessage = showMessage
+                        )
+                    }
+                    composable(Screen.Allowance.route) {
+                        AllowanceScreen(
+                            repository = repository,
+                            onBack = onPopBack,
+                            onShowMessage = showMessage
+                        )
+                    }
+                    composable(Screen.Profile.route) {
+                        ProfileScreen(
+                            repository = repository,
+                            onShowMessage = showMessage,
+                            onReplayTutorial = {
+                                tourStep = 0
+                                navigateToTab(Screen.Home)
+                                scope.launch {
+                                    repository.setHasSeenAppTutorial(false)
+                                }
+                            }
+                        )
+                    }
                 }
             }
-        ) { innerPadding ->
-            NavHost(
-                navController = navController,
-                startDestination = Screen.Home.route,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .consumeWindowInsets(innerPadding),
-                enterTransition = { shiftlyEnter() },
-                exitTransition = { shiftlyExit() },
-                popEnterTransition = { shiftlyPopEnter() },
-                popExitTransition = { shiftlyPopExit() }
-            ) {
-                composable(Screen.Home.route) {
-                    HomeScreen(
-                        repository = repository,
-                        onNavigateToDuties = onNavigateToDuties,
-                        onNavigateToExpense = onNavigateToExpense,
-                        onNavigateToSplitBill = onNavigateToSplitBill,
-                        onNavigateToRecurringBills = onOpenRecurringBills,
-                        onNavigateToAllowance = onOpenAllowance,
-                        onNavigateToProfile = onNavigateToProfile,
-                        onNavigateToAnalytics = onNavigateToAnalytics,
-                        onShowMessage = showMessage
-                    )
-                }
-                composable(Screen.Analytics.route) {
-                    AnalyticsScreen(
-                        repository = repository,
-                        onBack = onPopBack,
-                        onNavigateToSplitBill = onNavigateToSplitBill,
-                        onShowMessage = showMessage
-                    )
-                }
-                composable(Screen.Tools.route) {
-                    ToolsScreen(
-                        repository = repository,
-                        onOpenDuties = onOpenDuties,
-                        onOpenExpense = onOpenExpense,
-                        onOpenSplitBill = onOpenSplitBill,
-                        onOpenRecurringBills = onOpenRecurringBills,
-                        onOpenAllowance = onOpenAllowance,
-                        onQuickLogShift = onQuickLogShift,
-                        onQuickAddExpense = onQuickAddExpense,
-                        onShowMessage = showMessage
-                    )
-                }
-                composable(Screen.Duties.route) {
-                    DutiesScreen(
-                        repository = repository,
-                        onBack = onPopBack,
-                        onShowMessage = showMessage
-                    )
-                }
-                composable(Screen.Expense.route) {
-                    ExpenseScreen(
-                        repository = repository,
-                        onBack = onPopBack,
-                        onShowMessage = showMessage
-                    )
-                }
-                composable(Screen.SplitBill.route) {
-                    SplitBillScreen(
-                        repository = repository,
-                        onBack = onPopBack,
-                        onShowMessage = showMessage
-                    )
-                }
-                composable(Screen.RecurringBills.route) {
-                    RecurringBillsScreen(
-                        repository = repository,
-                        onBack = onPopBack,
-                        onShowMessage = showMessage
-                    )
-                }
-                composable(Screen.Allowance.route) {
-                    AllowanceScreen(
-                        repository = repository,
-                        onBack = onPopBack,
-                        onShowMessage = showMessage
-                    )
-                }
-                composable(Screen.Profile.route) {
-                    ProfileScreen(
-                        repository = repository,
-                        onShowMessage = showMessage
-                    )
-                }
+
+            if (hasSeenAppTutorial == false && !isSubScreen) {
+                val safeIndex = tourStep.coerceIn(0, MAIN_TAB_TOUR_STEPS.lastIndex)
+                val currentStep = MAIN_TAB_TOUR_STEPS[safeIndex]
+                ShiftlyMainTabTourOverlay(
+                    stepIndex = safeIndex,
+                    totalSteps = MAIN_TAB_TOUR_STEPS.size,
+                    title = currentStep.title,
+                    description = currentStep.description,
+                    onBack = {
+                        if (safeIndex > 0) {
+                            tourStep = safeIndex - 1
+                        }
+                    },
+                    onNextOrFinish = {
+                        if (safeIndex < MAIN_TAB_TOUR_STEPS.lastIndex) {
+                            tourStep = safeIndex + 1
+                        } else {
+                            completeTour()
+                        }
+                    },
+                    onSkip = completeTour,
+                    highlightedBottomBar = {
+                        TourHighlightedBottomBar(
+                            items = Screen.bottomNavItems,
+                            highlightedSlotIndex = currentStep.navSlotIndex
+                        )
+                    }
+                )
             }
         }
     }
@@ -647,18 +740,6 @@ private fun MainDashboardShell(
                 showQuickActionSheet = false
                 quickSplitTrigger++
                 showQuickNewSplitSheet = true
-            },
-            onAddSavingsGoal = {
-                showQuickActionSheet = false
-                showQuickAddGoalSheet = true
-            },
-            onAddDeposit = {
-                showQuickActionSheet = false
-                showQuickDepositSheet = true
-            },
-            onAddRecurringBill = {
-                showQuickActionSheet = false
-                showQuickAddRecurringBillSheet = true
             }
         )
     }
@@ -694,29 +775,148 @@ private fun MainDashboardShell(
             onShowMessage = showMessage
         )
     }
+}
 
-    if (showQuickAddGoalSheet) {
-        QuickAddGoalSheetHost(
-            repository = repository,
-            onDismiss = { showQuickAddGoalSheet = false },
-            onShowMessage = showMessage
-        )
+@Composable
+private fun TourHighlightedBottomBar(
+    items: List<Screen>,
+    highlightedSlotIndex: Int,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    val leftItems = remember(items) { items.take(2) }
+    val rightItems = remember(items) { items.drop(2) }
+    val highlightFill = if (colors.isDark) Color(0xFF1C1C1E) else PureWhite
+
+    Column(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .height(66.dp)
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            leftItems.forEachIndexed { idx, screen ->
+                val isHighlighted = idx == highlightedSlotIndex
+                TourBottomBarSlot(
+                    highlighted = isHighlighted,
+                    highlightFill = highlightFill,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (isHighlighted) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(screen.selectedIconRes),
+                                contentDescription = screen.label,
+                                tint = colors.azureAccent,
+                                modifier = Modifier.size(25.dp)
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = screen.label,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.azureAccent,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+
+            val isPlusHighlighted = highlightedSlotIndex == 2
+            TourBottomBarSlot(
+                highlighted = isPlusHighlighted,
+                highlightFill = highlightFill,
+                modifier = Modifier.weight(1f)
+            ) {
+                if (isPlusHighlighted) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_plus),
+                        contentDescription = "Quick add action",
+                        tint = Color(0xFF0A84FF),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            rightItems.forEachIndexed { idx, screen ->
+                val slotIndex = idx + 3
+                val isHighlighted = slotIndex == highlightedSlotIndex
+                TourBottomBarSlot(
+                    highlighted = isHighlighted,
+                    highlightFill = highlightFill,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (isHighlighted) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(screen.selectedIconRes),
+                                contentDescription = screen.label,
+                                tint = colors.azureAccent,
+                                modifier = Modifier.size(25.dp)
+                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = screen.label,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.azureAccent,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
+}
 
-    if (showQuickDepositSheet) {
-        QuickDepositSheetHost(
-            repository = repository,
-            onDismiss = { showQuickDepositSheet = false },
-            onShowMessage = showMessage
-        )
-    }
-
-    if (showQuickAddRecurringBillSheet) {
-        QuickAddRecurringBillSheetHost(
-            repository = repository,
-            onDismiss = { showQuickAddRecurringBillSheet = false },
-            onShowMessage = showMessage
-        )
+@Composable
+private fun TourBottomBarSlot(
+    highlighted: Boolean,
+    highlightFill: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit
+) {
+    if (highlighted) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = highlightFill,
+            border = BorderStroke(1.dp, Color(0xFF0A84FF).copy(alpha = 0.75f)),
+            shadowElevation = 0.dp,
+            modifier = modifier
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .height(56.dp)
+        ) {
+            Box(
+                contentAlignment = Alignment.Center,
+                content = content
+            )
+        }
+    } else {
+        Box(
+            modifier = modifier.heightIn(min = 58.dp),
+            contentAlignment = Alignment.Center
+        ) {}
     }
 }
 
@@ -886,102 +1086,13 @@ private fun QuickSplitSheetHost(
     )
 }
 
-@Composable
-private fun QuickAddGoalSheetHost(
-    repository: ShiftlyRepository,
-    onDismiss: () -> Unit,
-    onShowMessage: (String) -> Unit
-) {
-    val scope = rememberCoroutineScope()
-    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
-
-    AddSavingsGoalSheet(
-        currencySymbol = currencySymbol,
-        onDismiss = onDismiss,
-        onCreateGoal = { title, targetAmount, targetDateEpochDay ->
-            scope.launch {
-                repository.createSavingsGoal(title, targetAmount, targetDateEpochDay)
-                onDismiss()
-                onShowMessage("Savings goal \"$title\" added")
-            }
-        }
-    )
-}
-
-@Composable
-private fun QuickDepositSheetHost(
-    repository: ShiftlyRepository,
-    onDismiss: () -> Unit,
-    onShowMessage: (String) -> Unit
-) {
-    val scope = rememberCoroutineScope()
-    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
-    val savingsGoals by repository.allSavingsGoals.collectAsStateWithLifecycle(initialValue = emptyList())
-
-    QuickDepositPromptSheet(
-        currencySymbol = currencySymbol,
-        savingsGoals = savingsGoals,
-        onDismiss = onDismiss,
-        onSaveDeposit = { goal, amount, note ->
-            scope.launch {
-                repository.addSavingsDeposit(goal = goal, amount = amount, note = note)
-                onDismiss()
-                onShowMessage("Saved ${ShiftlyFormatters.formatCurrency(currencySymbol, amount)} deposit for ${goal.title}")
-            }
-        }
-    )
-}
-
-@Composable
-private fun QuickAddRecurringBillSheetHost(
-    repository: ShiftlyRepository,
-    onDismiss: () -> Unit,
-    onShowMessage: (String) -> Unit
-) {
-    val haptics = LocalHapticFeedback.current
-    val recurringViewModel: RecurringBillsViewModel = viewModel(factory = RecurringBillsViewModel.Factory(repository))
-    val recurringState by recurringViewModel.uiState.collectAsStateWithLifecycle()
-
-    AddEditRecurringBillBottomSheet(
-        currencySymbol = recurringState.currencySymbol,
-        availableCategories = recurringState.availableCategories,
-        editingBill = null,
-        onDismiss = onDismiss,
-        onSave = { title, amount, category, frequency, dueDate, dueHour, dueMinute, autoLog ->
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-            recurringViewModel.saveBill(
-                existing = null,
-                title = title,
-                amount = amount,
-                category = category,
-                frequency = frequency,
-                dueDate = dueDate,
-                dueHour = dueHour,
-                dueMinute = dueMinute,
-                isEnabled = autoLog,
-                onResult = { posted ->
-                    onDismiss()
-                    if (posted > 0) {
-                        onShowMessage("Recurring bill \"$title\" saved & logged to Expenses")
-                    } else {
-                        onShowMessage("Recurring bill \"$title\" saved")
-                    }
-                }
-            )
-        }
-    )
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QuickAddActionSheet(
     onDismiss: () -> Unit,
     onLogShift: () -> Unit,
     onAddExpense: () -> Unit,
-    onSplitBill: () -> Unit,
-    onAddSavingsGoal: () -> Unit,
-    onAddDeposit: () -> Unit,
-    onAddRecurringBill: () -> Unit
+    onSplitBill: () -> Unit
 ) {
     val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1002,358 +1113,96 @@ private fun QuickAddActionSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 44.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(
-                    text = "Quick Add",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp
-                    ),
-                    color = colors.textPrimary,
-                    maxLines = 1,
-                    modifier = Modifier.align(Alignment.CenterStart)
-                )
+            ShiftlySheetHeader(title = "Quick Add")
 
-                val cancelInteraction = remember { MutableInteractionSource() }
-                TextButton(
-                    onClick = onDismiss,
-                    interactionSource = cancelInteraction,
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .heightIn(min = 44.dp)
-                        .shiftlyPressEffect(cancelInteraction)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Normal
-                        ),
-                        color = colors.azureAccent,
-                        maxLines = 1
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = if (colors.isDark) Color(0xFF2C2C2E) else colors.cardElevated,
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    QuickAddGroupedRow(
+                        title = "Log Duty Shift",
+                        iconRes = R.drawable.ic_lucide_clock,
+                        iconTint = Color(0xFF30D158),
+                        onClick = onLogShift
+                    )
+                    ShiftlyHairlineDivider(startInset = 50.dp)
+                    QuickAddGroupedRow(
+                        title = "Add Expense",
+                        iconRes = R.drawable.ic_lucide_receipt_text,
+                        iconTint = Color(0xFFFF453A),
+                        onClick = onAddExpense
+                    )
+                    ShiftlyHairlineDivider(startInset = 50.dp)
+                    QuickAddGroupedRow(
+                        title = "Split a Bill",
+                        iconRes = R.drawable.ic_lucide_split,
+                        iconTint = Color(0xFF0A84FF),
+                        onClick = onSplitBill
                     )
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickAddOptionBox(
-                    title = "Shift",
-                    iconRes = R.drawable.ic_lucide_clock,
-                    iconBg = colors.mintBright,
-                    onClick = onLogShift,
-                    modifier = Modifier.weight(1f)
-                )
-                QuickAddOptionBox(
-                    title = "Expense",
-                    iconRes = R.drawable.ic_lucide_receipt_text,
-                    iconBg = colors.coralBright,
-                    onClick = onAddExpense,
-                    modifier = Modifier.weight(1f)
-                )
-                QuickAddOptionBox(
-                    title = "Split",
-                    iconRes = R.drawable.ic_lucide_split,
-                    iconBg = colors.azurePrimary,
-                    onClick = onSplitBill,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickAddOptionBox(
-                    title = "Savings",
-                    iconRes = R.drawable.ic_lucide_piggy_bank,
-                    iconBg = colors.iosOrange,
-                    onClick = onAddSavingsGoal,
-                    modifier = Modifier.weight(1f)
-                )
-                QuickAddOptionBox(
-                    title = "Deposit",
-                    iconRes = R.drawable.ic_lucide_wallet,
-                    iconBg = colors.nightDiffPurple,
-                    onClick = onAddDeposit,
-                    modifier = Modifier.weight(1f)
-                )
-                QuickAddOptionBox(
-                    title = "Recurring",
-                    iconRes = R.drawable.ic_lucide_repeat,
-                    iconBg = colors.iosOrange,
-                    onClick = onAddRecurringBill,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            ShiftlySheetCloseButton(
+                label = "Cancel",
+                onClick = onDismiss
+            )
         }
     }
 }
 
 @Composable
-private fun QuickAddOptionBox(
+private fun QuickAddGroupedRow(
     title: String,
     @DrawableRes iconRes: Int,
-    iconBg: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    iconTint: Color,
+    onClick: () -> Unit
 ) {
     val colors = ShiftlyColors.current
     val haptics = LocalHapticFeedback.current
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .shiftlyPressClickable {
-                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                onClick()
-            }
-            .padding(vertical = 8.dp, horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        ShiftlyIosIconTile(
-            iconRes = iconRes,
-            backgroundColor = iconBg,
-            size = 56.dp,
-            cornerRadius = 14.dp,
-            iconSize = 26.dp
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.Medium
-            ),
-            color = colors.textPrimary,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun QuickDepositPromptSheet(
-    currencySymbol: String,
-    savingsGoals: List<SavingsGoalWithDeposits>,
-    onDismiss: () -> Unit,
-    onSaveDeposit: (goal: SavingsGoalEntity, amount: Double, note: String) -> Unit
-) {
-    val colors = ShiftlyColors.current
-    var amountText by remember { mutableStateOf("") }
-    var noteText by remember { mutableStateOf("") }
-    var selectedGoal by remember(savingsGoals) {
-        mutableStateOf((savingsGoals.firstOrNull { it.goal.isActive } ?: savingsGoals.firstOrNull())?.goal)
-    }
-    val parsedAmount = remember(amountText) { amountText.toDoubleOrNull() ?: 0.0 }
-    val submitDeposit: () -> Unit = {
-        if (parsedAmount > 0.0) {
-            selectedGoal?.let { goal ->
-                onSaveDeposit(goal, parsedAmount, noteText.trim())
-            }
-        }
-    }
-
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = colors.surface,
-        scrimColor = shiftlySheetScrimColor(),
-        tonalElevation = 0.dp,
-        shape = SheetTopRoundedShape,
-        dragHandle = { ShiftlySheetDragHandle() }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            ShiftlySheetHeader(
-                title = "Add Deposit",
-                onCancel = onDismiss,
-                actionLabel = "Save",
-                actionEnabled = selectedGoal != null && parsedAmount > 0.0,
-                onAction = submitDeposit
-            )
-
-            if (selectedGoal == null) {
-                Text(
-                    text = "No active savings goal found.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary
-                )
-                ShiftlySecondaryTextButton(
-                    text = "Close",
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            } else {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = colors.cardElevated,
-                    shadowElevation = 0.dp,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        // Row 1: Target Goal
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 50.dp)
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Target Goal",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.SemiBold,
-                                    fontSize = 15.sp
-                                ),
-                                color = colors.textPrimary
-                            )
-                            Text(
-                                text = selectedGoal?.title.orEmpty(),
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = colors.azureAccent,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        ShiftlyHairlineDivider(startInset = 16.dp)
-
-                        // Row 2: Amount
-                        QuickDepositInsetRow(
-                            label = "Amount ($currencySymbol)",
-                            value = amountText,
-                            onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
-                            placeholder = "0.00",
-                            prefix = currencySymbol,
-                            isNumeric = true
-                        )
-                        ShiftlyHairlineDivider(startInset = 16.dp)
-
-                        // Row 3: Note
-                        QuickDepositInsetRow(
-                            label = "Note (optional)",
-                            value = noteText,
-                            onValueChange = { noteText = it },
-                            placeholder = "Note"
-                        )
-                    }
-                }
-
-                ShiftlySheetBottomButtons(
-                    onCancel = onDismiss,
-                    onAction = submitDeposit,
-                    actionLabel = "Save",
-                    actionEnabled = parsedAmount > 0.0
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickDepositInsetRow(
-    label: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    prefix: String? = null,
-    isNumeric: Boolean = false
-) {
-    val colors = ShiftlyColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 50.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .heightIn(min = 54.dp)
+            .clickable {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(22.dp)
+        )
         Text(
-            text = label,
-            style = MaterialTheme.typography.titleMedium.copy(
+            text = title,
+            style = MaterialTheme.typography.titleSmall.copy(
                 fontFamily = InterFontFamily,
                 fontWeight = FontWeight.SemiBold,
-                fontSize = 15.sp
+                fontSize = 16.sp
             ),
             color = colors.textPrimary,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
         )
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            if (prefix != null && value.isNotEmpty()) {
-                Text(
-                    text = prefix,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textPrimary
-                    )
-                )
-            }
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = if (isNumeric) KeyboardType.Decimal else KeyboardType.Text
-                ),
-                cursorBrush = SolidColor(colors.azureAccent),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    color = colors.textPrimary,
-                    textAlign = TextAlign.End
-                ).let { if (isNumeric) it.tabular() else it },
-                decorationBox = { inner ->
-                    Box(contentAlignment = Alignment.CenterEnd) {
-                        if (value.isEmpty()) {
-                            Text(
-                                text = placeholder,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontFamily = InterFontFamily,
-                                    color = colors.textSecondary
-                                ),
-                                textAlign = TextAlign.End
-                            )
-                        }
-                        inner()
-                    }
-                },
-                modifier = Modifier.width(150.dp)
-            )
-        }
+        Icon(
+            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+            contentDescription = null,
+            tint = colors.textSecondary,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
 
 /**
- * Full-width iOS-style docked bottom navigation bar with translucent dark surface and hairline top border:
+ * Full-width iOS-style docked bottom navigation bar with solid opaque surface and hairline top border:
  * Home | Analytics | Quick Add (+) | Tools | Profile.
  */
 @Composable
@@ -1383,7 +1232,7 @@ fun FloatingPillBottomBar(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                if (colors.isDark) Color(0xEB1C1C1E) else colors.surface.copy(alpha = 0.94f)
+                if (colors.isDark) Color(0xFF161618) else Color(0xFFFFFFFF)
             )
     ) {
         ShiftlyHairlineDivider()

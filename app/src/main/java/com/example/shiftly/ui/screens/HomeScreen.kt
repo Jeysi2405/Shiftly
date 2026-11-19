@@ -476,7 +476,7 @@ fun HomeScreenContent(
                                 currencySymbol = currency
                             ) { onTimelineItemClick(item) }
                             if (idx < displayedTimeline.lastIndex) {
-                                ShiftlyHairlineDivider(startInset = 66.dp)
+                                ShiftlyHairlineDivider(startInset = 56.dp)
                             }
                         }
                     }

@@ -565,9 +565,9 @@ fun TopSpendingCategoriesCard(
                                 ShiftlyIosIconTile(
                                     iconRes = categoryIcon(item.category),
                                     backgroundColor = colors.coralBright,
-                                    size = 32.dp,
+                                    size = 28.dp,
                                     cornerRadius = 8.dp,
-                                    iconSize = 16.dp
+                                    iconSize = 22.dp
                                 )
                                 Text(
                                     text = item.category,
@@ -589,14 +589,14 @@ fun TopSpendingCategoriesCard(
                             color = colors.mintBright,
                             trackColor = colors.separator,
                             modifier = Modifier
-                                .padding(start = 42.dp)
+                                .padding(start = 38.dp)
                                 .semantics {
                                     contentDescription = "${item.category}, ${item.percentage}% of period spending"
                                 }
                         )
                     }
                     if (index < categories.lastIndex) {
-                        ShiftlyHairlineDivider(startInset = 42.dp)
+                        ShiftlyHairlineDivider(startInset = 38.dp)
                     }
                 }
             }
@@ -787,7 +787,7 @@ fun HoursOfWorkCostCard(
                                 backgroundColor = colors.mintBright,
                                 size = 28.dp,
                                 cornerRadius = 7.dp,
-                                iconSize = 14.dp
+                                iconSize = 22.dp
                             )
                             Text(
                                 text = "${entry.category} = ${ShiftlyFormatters.formatHours(entry.dutyHours)} of duty",
@@ -851,9 +851,9 @@ fun OnBudgetStreakCard(
                 ShiftlyIosIconTile(
                     iconRes = R.drawable.ic_lucide_flame,
                     backgroundColor = colors.mintBright,
-                    size = 36.dp,
+                    size = 28.dp,
                     cornerRadius = 9.dp,
-                    iconSize = 18.dp
+                    iconSize = 22.dp
                 )
                 Text(
                     text = if (hasBudget) "$streakDays-day streak" else "No budget set",
@@ -922,9 +922,9 @@ fun UnsettledSplitsTrackerCard(
                 ShiftlyIosIconTile(
                     iconRes = R.drawable.ic_lucide_split,
                     backgroundColor = colors.azurePrimary,
-                    size = 36.dp,
+                    size = 28.dp,
                     cornerRadius = 9.dp,
-                    iconSize = 18.dp
+                    iconSize = 22.dp
                 )
                 Column {
                     Text(
@@ -1082,9 +1082,9 @@ fun PeakShiftSpendPatternCard(
                     ShiftlyIosIconTile(
                         iconRes = R.drawable.ic_lucide_trending_up,
                         backgroundColor = colors.mintBright,
-                        size = 32.dp,
+                        size = 28.dp,
                         cornerRadius = 8.dp,
-                        iconSize = 16.dp
+                        iconSize = 22.dp
                     )
                     Text(
                         text = "Best Earning Day",
@@ -1106,7 +1106,7 @@ fun PeakShiftSpendPatternCard(
                 )
             }
 
-            ShiftlyHairlineDivider(startInset = 42.dp)
+            ShiftlyHairlineDivider(startInset = 38.dp)
 
             // Row 2: Peak Spend Day
             Row(
@@ -1121,9 +1121,9 @@ fun PeakShiftSpendPatternCard(
                     ShiftlyIosIconTile(
                         iconRes = R.drawable.ic_lucide_receipt,
                         backgroundColor = colors.coralBright,
-                        size = 32.dp,
+                        size = 28.dp,
                         cornerRadius = 8.dp,
-                        iconSize = 16.dp
+                        iconSize = 22.dp
                     )
                     Text(
                         text = "Peak Spend Day",

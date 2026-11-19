@@ -210,6 +210,15 @@ class ExpenseViewModel(
         }
     }
 
+    fun updateExpense(expense: ExpenseEntity) {
+        if (expense.id <= 0L || expense.title.isBlank() || !expense.amount.isFinite() || expense.amount <= 0.0) return
+        viewModelScope.launch {
+            repository.updateExpense(
+                expense.copy(title = expense.title.trim())
+            )
+        }
+    }
+
     fun deleteExpense(expense: ExpenseEntity) {
         viewModelScope.launch {
             repository.deleteExpense(expense)

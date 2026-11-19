@@ -59,11 +59,13 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.PaycheckDeductionsSetting
 import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyIosSwitch
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
-import com.example.shiftly.ui.theme.tabular
+import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
+import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -88,7 +90,8 @@ fun PaycheckEstimatorSheetContent(
     currencySymbol: String,
     grossPay: Double,
     deductions: PaycheckDeductionsSetting,
-    onSaveDeductions: (PaycheckDeductionsSetting) -> Unit
+    onSaveDeductions: (PaycheckDeductionsSetting) -> Unit,
+    onDismiss: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
     var currentSetting by remember(deductions) { mutableStateOf(deductions) }
@@ -293,6 +296,11 @@ fun PaycheckEstimatorSheetContent(
                 )
             }
         }
+
+        ShiftlySheetCloseButton(
+            label = "Done",
+            onClick = onDismiss
+        )
     }
 }
 
@@ -395,7 +403,8 @@ private fun DeductionConfigRow(
 fun IouTrackerSheetContent(
     currencySymbol: String,
     entries: List<IouEntrySetting>,
-    onSaveEntries: (List<IouEntrySetting>) -> Unit
+    onSaveEntries: (List<IouEntrySetting>) -> Unit,
+    onDismiss: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
     val itemList = remember(entries) {
@@ -406,16 +415,13 @@ fun IouTrackerSheetContent(
     var amountText by remember { mutableStateOf("") }
     var isLent by remember { mutableStateOf(true) } // true = Lent, false = Borrowed
     var noteText by remember { mutableStateOf("") }
+    var pendingDeleteEntry by remember { mutableStateOf<IouEntrySetting?>(null) }
 
     val totalLent = remember(itemList.toList()) {
         itemList.filter { !it.isSettled && it.isLent }.sumOf { it.amount }
     }
     val totalBorrowed = remember(itemList.toList()) {
         itemList.filter { !it.isSettled && !it.isLent }.sumOf { it.amount }
-    }
-
-    fun notifyChanged() {
-        onSaveEntries(itemList.toList())
     }
 
     Column(
@@ -591,7 +597,6 @@ fun IouTrackerSheetContent(
                     personName = ""
                     amountText = ""
                     noteText = ""
-                    notifyChanged()
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -685,15 +690,11 @@ fun IouTrackerSheetContent(
                                     checked = entry.isSettled,
                                     onCheckedChange = { settled ->
                                         itemList[idx] = entry.copy(isSettled = settled)
-                                        notifyChanged()
                                     }
                                 )
 
                                 IconButton(
-                                    onClick = {
-                                        itemList.removeAt(idx)
-                                        notifyChanged()
-                                    },
+                                    onClick = { pendingDeleteEntry = entry },
                                     modifier = Modifier.size(36.dp)
                                 ) {
                                     Icon(
@@ -709,6 +710,28 @@ fun IouTrackerSheetContent(
                 }
             }
         }
+
+        ShiftlySheetBottomButtons(
+            onCancel = onDismiss,
+            onAction = {
+                onSaveEntries(itemList.toList())
+                onDismiss()
+            },
+            cancelLabel = "Cancel",
+            actionLabel = "Save"
+        )
+    }
+
+    pendingDeleteEntry?.let { entryToDelete ->
+        ShiftlyDeleteConfirmDialog(
+            title = "Delete Record?",
+            message = "This ${if (entryToDelete.isLent) "lent" else "borrowed"} record for ${entryToDelete.personName} will be permanently removed.",
+            onDismiss = { pendingDeleteEntry = null },
+            onConfirm = {
+                itemList.removeAll { it.id == entryToDelete.id }
+                pendingDeleteEntry = null
+            }
+        )
     }
 }
 
@@ -798,7 +821,8 @@ private fun IouInsetRow(
 fun ActivityCalendarSheetContent(
     currencySymbol: String,
     shifts: List<ShiftEntity>,
-    expenses: List<ExpenseEntity>
+    expenses: List<ExpenseEntity>,
+    onDismiss: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
@@ -832,6 +856,18 @@ fun ActivityCalendarSheetContent(
     }
     val selectedExpenseTotal = remember(expensesForSelectedDate) {
         expensesForSelectedDate.sumOf { it.amount }
+    }
+
+    val sundayFirstDays = remember {
+        listOf(
+            DayOfWeek.SUNDAY,
+            DayOfWeek.MONDAY,
+            DayOfWeek.TUESDAY,
+            DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY,
+            DayOfWeek.FRIDAY,
+            DayOfWeek.SATURDAY
+        )
     }
 
     Column(
@@ -895,7 +931,7 @@ fun ActivityCalendarSheetContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    DayOfWeek.entries.forEach { dow ->
+                    sundayFirstDays.forEach { dow ->
                         Text(
                             text = dow.getDisplayName(TextStyle.NARROW, locale),
                             style = MaterialTheme.typography.labelSmall.copy(
@@ -1122,7 +1158,7 @@ fun ActivityCalendarSheetContent(
                                         backgroundColor = colors.azurePrimary,
                                         size = 28.dp,
                                         cornerRadius = 7.dp,
-                                        iconSize = 14.dp
+                                        iconSize = 22.dp
                                     )
                                     Text(
                                         text = "${startLocal.format(timeFormatter)} - ${endLocal.format(timeFormatter)}",
@@ -1156,7 +1192,7 @@ fun ActivityCalendarSheetContent(
                                         backgroundColor = colors.coralBright,
                                         size = 28.dp,
                                         cornerRadius = 7.dp,
-                                        iconSize = 14.dp
+                                        iconSize = 22.dp
                                     )
                                     Text(
                                         text = "${expense.category}: ${expense.title}",
@@ -1180,5 +1216,10 @@ fun ActivityCalendarSheetContent(
                 }
             }
         }
+
+        ShiftlySheetCloseButton(
+            label = "Close",
+            onClick = onDismiss
+        )
     }
 }

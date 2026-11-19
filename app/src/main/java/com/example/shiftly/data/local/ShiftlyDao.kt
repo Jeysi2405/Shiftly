@@ -53,6 +53,9 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses ORDER BY dateEpochDay DESC, id DESC")
     suspend fun getAllExpensesOnce(): List<ExpenseEntity>
 
+    @Query("SELECT * FROM expenses WHERE id = :id LIMIT 1")
+    suspend fun getExpenseByIdOnce(id: Long): ExpenseEntity?
+
     @Query("SELECT * FROM expenses WHERE linkedSplitBillId = :billId")
     suspend fun getExpensesByLinkedSplitBillIdOnce(billId: Long): List<ExpenseEntity>
 

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -44,9 +46,11 @@ import com.example.shiftly.data.local.AllowanceSource
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
-import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyHelpIconButton
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
@@ -69,15 +73,30 @@ fun AllowanceScreen(
 
     var showAddSheet by remember { mutableStateOf(false) }
     var showChangeCutoffSheet by remember { mutableStateOf(false) }
+    var showTutorialSheet by remember { mutableStateOf(false) }
     var pendingDeleteEntry by remember { mutableStateOf<AllowanceEntryEntity?>(null) }
 
     AllowanceScreenContent(
         state = state,
         onBack = onBack,
+        onOpenHelp = { showTutorialSheet = true },
         onOpenAddAllowance = { showAddSheet = true },
         onOpenChangeCutoff = { showChangeCutoffSheet = true },
         onDeleteEntry = { pendingDeleteEntry = it }
     )
+
+    if (showTutorialSheet) {
+        ShiftlyScreenTutorialSheet(
+            title = "Allowance & Cutoff Guide",
+            subtitle = "Track stipends, salary payouts, and extra income.",
+            steps = listOf(
+                "Add income entries" to "Tap Add in the top corner to record allowances, salary payouts, freelance work, or family support.",
+                "Customize your cutoff schedule" to "Tap Change Cutoff to set semi-monthly, weekly, or custom pay periods that match your schedule.",
+                "Monitor pending shift payouts" to "See earnings accumulated from logged shifts inside your active cutoff window at a glance."
+            ),
+            onDismiss = { showTutorialSheet = false }
+        )
+    }
 
     if (showAddSheet) {
         AddAllowanceBottomSheet(
@@ -107,9 +126,9 @@ fun AllowanceScreen(
     }
 
     pendingDeleteEntry?.let { entryToDelete ->
-        ShiftlyConfirmDeleteDialog(
-            title = "Delete Allowance Entry?",
-            message = "Remove \"${entryToDelete.title}\"?",
+        ShiftlyDeleteConfirmDialog(
+            title = "Delete Allowance?",
+            message = "\"${entryToDelete.title}\" will be permanently removed.",
             onDismiss = { pendingDeleteEntry = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -125,6 +144,7 @@ fun AllowanceScreen(
 fun AllowanceScreenContent(
     state: AllowanceUiState,
     onBack: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
     onOpenAddAllowance: () -> Unit = {},
     onOpenChangeCutoff: () -> Unit = {},
     onDeleteEntry: (AllowanceEntryEntity) -> Unit = {},
@@ -149,18 +169,24 @@ fun AllowanceScreenContent(
                 onBackClick = onBack,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 trailing = {
-                    ShiftlySecondaryTextButton(
-                        text = "Add",
-                        onClick = onOpenAddAllowance,
-                        leadingIcon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_plus),
-                                contentDescription = null,
-                                tint = colors.azureAccent,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        ShiftlyHelpIconButton(onClick = onOpenHelp)
+                        ShiftlySecondaryTextButton(
+                            text = "Add",
+                            onClick = onOpenAddAllowance,
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_lucide_plus),
+                                    contentDescription = null,
+                                    tint = colors.azureAccent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        )
+                    }
                 }
             )
         }
@@ -258,7 +284,7 @@ fun AllowanceScreenContent(
                             shape = RectangleShape
                         )
                         if (idx < state.entries.lastIndex) {
-                            ShiftlyHairlineDivider(startInset = 64.dp)
+                            ShiftlyHairlineDivider(startInset = 54.dp)
                         }
                     }
                 }

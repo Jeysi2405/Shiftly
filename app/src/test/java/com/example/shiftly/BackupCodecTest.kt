@@ -371,6 +371,43 @@ class BackupCodecTest {
     }
 
     @Test
+    fun shiftsAndExpensesCsvExports_formatHeadersAndEscapeFields() {
+        val shiftsCsv = BackupCodec.buildShiftsCsvExport(
+            currencySymbol = "₱",
+            shifts = listOf(
+                ShiftEntity(
+                    id = 1L,
+                    dateEpochDay = 20400L,
+                    timeInMillis = 1000L,
+                    timeOutMillis = 7201000L,
+                    durationMinutes = 120,
+                    lockedHourlyRate = 96.38,
+                    totalEarned = 192.76,
+                    overtimeNote = "Campus, \"Cafe\"",
+                    dayType = "ORDINARY"
+                )
+            )
+        )
+        assertTrue(shiftsCsv.contains("Date,DayType,Duration_Min,Hourly_Rate(₱),Earned (₱),Note"))
+        assertTrue(shiftsCsv.contains("ORDINARY,120,96.38,192.76,\"Campus, \"\"Cafe\"\"\""))
+
+        val expensesCsv = BackupCodec.buildExpensesCsvExport(
+            currencySymbol = "₱",
+            expenses = listOf(
+                ExpenseEntity(
+                    id = 2L,
+                    title = "Lunch, \"Special\"",
+                    amount = 145.5,
+                    category = "Food",
+                    dateEpochDay = 20400L
+                )
+            )
+        )
+        assertTrue(expensesCsv.contains("Date,Title,Category,Amount (₱)"))
+        assertTrue(expensesCsv.contains("\"Lunch, \"\"Special\"\"\",Food,145.50"))
+    }
+
+    @Test
     fun decodeJson_filtersInvalidRecordsAndPreservesSmallSavingsGoalTarget() {
         val json = """
             {

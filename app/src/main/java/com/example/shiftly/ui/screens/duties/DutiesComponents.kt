@@ -64,6 +64,7 @@ import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
@@ -184,10 +185,9 @@ fun DutiesWageRateCard(
                     ShiftlyIosIconTile(
                         iconRes = R.drawable.ic_lucide_banknote,
                         backgroundColor = colors.mintBright,
-                        size = 34.dp,
+                        size = 28.dp,
                         cornerRadius = 9.dp,
-                        iconSize = 18.dp,
-                        iconTint = PureWhite
+                        iconSize = 22.dp
                     )
                     Text(
                         text = "WAGE & RATE SETTINGS",
@@ -207,10 +207,7 @@ fun DutiesWageRateCard(
                             minWageInput = if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else ""
                             isEditing = true
                         },
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(colors.surface)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_pencil),
@@ -566,20 +563,12 @@ fun DayTypePromptSheet(
                             }
                         }
                         if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.azurePrimary),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_check),
-                                    contentDescription = "Selected",
-                                    tint = PureWhite,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_check),
+                                contentDescription = "Selected",
+                                tint = colors.azurePrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
                     if (idx < options.lastIndex) {
@@ -587,6 +576,11 @@ fun DayTypePromptSheet(
                     }
                 }
             }
+
+            ShiftlySheetCloseButton(
+                label = "Close",
+                onClick = onDismiss
+            )
         }
     }
 }
@@ -1032,10 +1026,9 @@ fun ShiftHistoryItemCard(
                     ShiftlyIosIconTile(
                         iconRes = R.drawable.ic_lucide_clock,
                         backgroundColor = colors.mintBright,
-                        size = 38.dp,
+                        size = 28.dp,
                         cornerRadius = 9.dp,
-                        iconSize = 19.dp,
-                        iconTint = PureWhite
+                        iconSize = 22.dp
                     )
 
                     Column {

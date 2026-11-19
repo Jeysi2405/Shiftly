@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,10 +45,12 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
-import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyHelpIconButton
 import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
@@ -73,13 +76,23 @@ fun ExpenseScreen(
     val haptics = LocalHapticFeedback.current
 
     var showAddSheet by remember { mutableStateOf(false) }
+    var editingExpense by remember { mutableStateOf<ExpenseEntity?>(null) }
+    var showTutorialSheet by remember { mutableStateOf(false) }
     var viewingReceiptExpense by remember { mutableStateOf<ExpenseEntity?>(null) }
     var pendingDeleteExpense by remember { mutableStateOf<ExpenseEntity?>(null) }
 
     ExpenseScreenContent(
         state = state,
         onBack = onBack,
-        onOpenAddSheet = { showAddSheet = true },
+        onOpenAddSheet = {
+            editingExpense = null
+            showAddSheet = true
+        },
+        onEditExpense = { expense ->
+            editingExpense = expense
+            showAddSheet = true
+        },
+        onOpenHelp = { showTutorialSheet = true },
         onPreviousMonth = { viewModel.shiftMonth(-1L) },
         onNextMonth = { viewModel.shiftMonth(1L) },
         onToggleAllMonths = { viewModel.toggleAllMonths() },
@@ -89,23 +102,54 @@ fun ExpenseScreen(
         onDeleteExpense = { pendingDeleteExpense = it },
     )
 
+    if (showTutorialSheet) {
+        ShiftlyScreenTutorialSheet(
+            title = "Expenses & Receipts Guide",
+            subtitle = "Keep track of every expense and spot spending habits.",
+            steps = listOf(
+                "Log daily expenses" to "Tap Add in the top corner to record an amount, pick a category, and attach a receipt photo if needed.",
+                "Filter by month or category" to "Use the month switcher and category chips to inspect specific spending periods and totals.",
+                "Watch your monthly budget" to "Your summary card compares spending against your budget so you always know how much room is left."
+            ),
+            onDismiss = { showTutorialSheet = false }
+        )
+    }
+
     if (showAddSheet) {
         AddExpenseBottomSheet(
             currencySymbol = state.currencySymbol,
             availableCategories = state.availableCategories,
-            onDismiss = { showAddSheet = false },
+            editingExpense = editingExpense,
+            onDismiss = {
+                showAddSheet = false
+                editingExpense = null
+            },
             onSaveExpense = { title, amount, category, date, receiptPath ->
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                viewModel.addExpense(title, amount, category, date, receiptPath)
-                onShowMessage("Expense saved")
+                val existing = editingExpense
+                if (existing != null) {
+                    viewModel.updateExpense(
+                        existing.copy(
+                            title = title,
+                            amount = amount,
+                            category = category,
+                            dateEpochDay = date.toEpochDay(),
+                            receiptImagePath = receiptPath
+                        )
+                    )
+                    onShowMessage("Expense updated")
+                } else {
+                    viewModel.addExpense(title, amount, category, date, receiptPath)
+                    onShowMessage("Expense saved")
+                }
             }
         )
     }
 
     pendingDeleteExpense?.let { expenseToDelete ->
-        ShiftlyConfirmDeleteDialog(
+        ShiftlyDeleteConfirmDialog(
             title = "Delete Expense?",
-            message = "Remove \"${expenseToDelete.title}\"?",
+            message = "\"${expenseToDelete.title}\" will be permanently removed.",
             onDismiss = { pendingDeleteExpense = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -132,7 +176,9 @@ fun ExpenseScreenContent(
     onSelectCategory: (String) -> Unit,
     onViewReceipt: (ExpenseEntity) -> Unit,
     onDeleteExpense: (ExpenseEntity) -> Unit,
+    onEditExpense: (ExpenseEntity) -> Unit = {},
     onBack: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
     onPreviousMonth: () -> Unit = {},
     onNextMonth: () -> Unit = {},
     onToggleAllMonths: () -> Unit = {},
@@ -165,18 +211,24 @@ fun ExpenseScreenContent(
                 onBackClick = onBack,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 trailing = {
-                    ShiftlySecondaryTextButton(
-                        text = "Add",
-                        onClick = onOpenAddSheet,
-                        leadingIcon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_plus),
-                                contentDescription = null,
-                                tint = colors.azureAccent,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        ShiftlyHelpIconButton(onClick = onOpenHelp)
+                        ShiftlySecondaryTextButton(
+                            text = "Add",
+                            onClick = onOpenAddSheet,
+                            leadingIcon = {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_lucide_plus),
+                                    contentDescription = null,
+                                    tint = colors.azureAccent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        )
+                    }
                 }
             )
         }
@@ -284,12 +336,13 @@ fun ExpenseScreenContent(
                             currencySymbol = state.currencySymbol,
                             onViewReceipt = onViewReceipt,
                             onDelete = { onDeleteExpense(expense) },
+                            onClick = { onEditExpense(expense) },
                             dateFormatter = itemDateFormatter,
                             containerColor = Color.Transparent,
                             shape = RectangleShape
                         )
                         if (idx < state.filteredExpenses.lastIndex) {
-                            ShiftlyHairlineDivider(startInset = 64.dp)
+                            ShiftlyHairlineDivider(startInset = 54.dp)
                         }
                     }
                 }

@@ -3,13 +3,13 @@ package com.example.shiftly.ui.screens
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,13 +42,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -67,11 +67,14 @@ import coil.request.ImageRequest
 import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ProfilePhotoHelper
+import com.example.shiftly.ui.components.ShiftlyFeatureGuideSheet
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
+import com.example.shiftly.ui.screens.profile.LegalInfoBottomSheet
+import com.example.shiftly.ui.screens.profile.LegalTopic
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -87,6 +90,13 @@ private val ElectricBlue = Color(0xFF3B82F6)
 private val TextPrimary = Color(0xFFF8FAFC)
 private val TextSecondary = Color(0xFF94A3B8)
 
+private data class PendingSetupProfile(
+    val name: String,
+    val rate: Double,
+    val monthlyBudget: Double,
+    val profilePhotoPath: String?
+)
+
 private fun filterDecimal(raw: String, current: String): String {
     val filtered = raw.filter { it.isDigit() || it == '.' }
     return if (filtered.count { it == '.' } <= 1) filtered else current
@@ -95,6 +105,12 @@ private fun filterDecimal(raw: String, current: String): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WelcomeScreen(
+    onSaveSetupProfile: (
+        name: String,
+        rate: Double,
+        monthlyBudget: Double,
+        profilePhotoPath: String?
+    ) -> Unit = { _, _, _, _ -> },
     onGetStartedComplete: (
         name: String,
         rate: Double,
@@ -103,7 +119,10 @@ fun WelcomeScreen(
     ) -> Unit
 ) {
     val colors = ShiftlyColors.current
-    var showSetupSheet by remember { mutableStateOf(false) }
+    var showSetupSheet by rememberSaveable { mutableStateOf(false) }
+    var showLegalSheet by rememberSaveable { mutableStateOf(false) }
+    var showFeatureGuideSheet by rememberSaveable { mutableStateOf(false) }
+    var pendingSetupProfile by remember { mutableStateOf<PendingSetupProfile?>(null) }
 
     Box(
         modifier = Modifier
@@ -118,32 +137,7 @@ fun WelcomeScreen(
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.padding(top = 8.dp)
-            ) {
-                Image(
-                    painter = painterResource(R.mipmap.ic_launcher_foreground),
-                    contentDescription = "Shiftly Logo",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .graphicsLayer {
-                            scaleX = 1.45f
-                            scaleY = 1.45f
-                        }
-                )
-                Text(
-                    text = "Shiftly",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = TextPrimary
-                )
-            }
+            Spacer(modifier = Modifier.height(44.dp))
 
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Text(
@@ -209,8 +203,32 @@ fun WelcomeScreen(
                         )
                     )
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "By continuing, you agree to our Terms & Privacy Policy",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = InterFontFamily,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp
+                    ),
+                    color = Color(0xFF8E8E93),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { showLegalSheet = true }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
             }
         }
+    }
+
+    if (showLegalSheet) {
+        LegalInfoBottomSheet(
+            topic = LegalTopic.TERMS_AND_PRIVACY,
+            onDismiss = { showLegalSheet = false }
+        )
     }
 
     if (showSetupSheet) {
@@ -245,7 +263,9 @@ fun WelcomeScreen(
                 }
                 else -> {
                     showSetupSheet = false
-                    onGetStartedComplete(cleanName, parsedRate, parsedBudget, photoPath)
+                    pendingSetupProfile = PendingSetupProfile(cleanName, parsedRate, parsedBudget, photoPath)
+                    onSaveSetupProfile(cleanName, parsedRate, parsedBudget, photoPath)
+                    showFeatureGuideSheet = true
                 }
             }
         }
@@ -460,6 +480,22 @@ fun WelcomeScreen(
                 )
             }
         }
+    }
+
+    if (showFeatureGuideSheet) {
+        val savedProfile = pendingSetupProfile
+        ShiftlyFeatureGuideSheet(
+            primaryButtonText = "Start Exploring",
+            onDismiss = {
+                showFeatureGuideSheet = false
+                onGetStartedComplete(
+                    savedProfile?.name.orEmpty(),
+                    savedProfile?.rate ?: 0.0,
+                    savedProfile?.monthlyBudget ?: 0.0,
+                    savedProfile?.profilePhotoPath
+                )
+            }
+        )
     }
 }
 

@@ -28,8 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TimePicker
@@ -64,10 +62,12 @@ import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
-import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
+import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
+import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.shiftlyPressClickable
@@ -862,18 +862,6 @@ fun ManualShiftSheetContent(
     var selectedDayType by remember(initialDayType) { mutableStateOf(initialDayType) }
     var showDayTypeSheet by remember { mutableStateOf(false) }
 
-    val sheetFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = colors.azureAccent,
-        unfocusedBorderColor = Color.Transparent,
-        focusedLabelColor = colors.azureAccent,
-        unfocusedLabelColor = colors.textSecondary,
-        focusedTextColor = colors.textPrimary,
-        unfocusedTextColor = colors.textPrimary,
-        cursorColor = colors.azureAccent,
-        focusedContainerColor = colors.cardElevated,
-        unfocusedContainerColor = colors.cardElevated
-    )
-
     val zone = remember { ZoneId.systemDefault() }
     val computedShiftPreview = remember(
         pickedDate,
@@ -1027,8 +1015,6 @@ fun ManualShiftSheetContent(
             }
         }
 
-
-
         LogShiftReceiptPreviewCard(
             totalMinutes = totalMinutes,
             currencySymbol = currencySymbol,
@@ -1070,6 +1056,7 @@ fun DutiesSettingsSheet(
     var startMin by remember { mutableIntStateOf(0) }
     var endHour24 by remember { mutableIntStateOf(18) }
     var endMin by remember { mutableIntStateOf(0) }
+    var pendingDeletePreset by remember { mutableStateOf<ShiftTimePreset?>(null) }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -1151,7 +1138,7 @@ fun DutiesSettingsSheet(
                             )
                             val deletePresetInteraction = remember { MutableInteractionSource() }
                             IconButton(
-                                onClick = { onDeletePreset(preset.id) },
+                                onClick = { pendingDeletePreset = preset },
                                 interactionSource = deletePresetInteraction,
                                 modifier = Modifier
                                     .size(36.dp)
@@ -1201,7 +1188,25 @@ fun DutiesSettingsSheet(
                     onSavePreset(startHour24, startMin, endHour24, endMin)
                 }
             )
+
+            ShiftlySheetCloseButton(
+                label = "Done",
+                onClick = onDismiss
+            )
         }
+    }
+
+    pendingDeletePreset?.let { presetToDelete ->
+        ShiftlyDeleteConfirmDialog(
+            title = "Remove Time Preset?",
+            message = "This quick time preset (${presetToDelete.label}) will be removed.",
+            confirmLabel = "Remove",
+            onDismiss = { pendingDeletePreset = null },
+            onConfirm = {
+                onDeletePreset(presetToDelete.id)
+                pendingDeletePreset = null
+            }
+        )
     }
 }
 

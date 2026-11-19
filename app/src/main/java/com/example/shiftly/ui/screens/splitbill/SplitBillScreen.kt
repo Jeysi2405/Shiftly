@@ -51,12 +51,14 @@ import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
-import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyDialogShell
+import com.example.shiftly.ui.components.ShiftlyHelpIconButton
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
@@ -87,6 +89,7 @@ fun SplitBillScreen(
     val listState = rememberLazyListState()
 
     var showNewSplitSheet by remember { mutableStateOf(false) }
+    var showTutorialSheet by remember { mutableStateOf(false) }
     var pendingDeleteBill by remember { mutableStateOf<SplitBillEntity?>(null) }
     var prefillTrigger by remember { mutableIntStateOf(0) }
     var prefillAmount by remember { mutableStateOf("") }
@@ -96,6 +99,7 @@ fun SplitBillScreen(
     SplitBillScreenContent(
         state = state,
         onBack = onBack,
+        onOpenHelp = { showTutorialSheet = true },
         listState = listState,
         onPreviousMonth = { viewModel.shiftMonth(-1L) },
         onNextMonth = { viewModel.shiftMonth(1L) },
@@ -127,6 +131,19 @@ fun SplitBillScreen(
         }
     )
 
+    if (showTutorialSheet) {
+        ShiftlyScreenTutorialSheet(
+            title = "Split Bill Guide",
+            subtitle = "Divide shared meals or group bills fairly with friends.",
+            steps = listOf(
+                "Create a new split" to "Tap New Split, enter the total bill, and set how many people are sharing—Shiftly calculates each share automatically.",
+                "Track who has paid" to "Tap each person's name on a bill card to mark their share as paid and watch pending totals update.",
+                "Log your own share" to "Optionally add your share directly into Expenses so your personal spending stays accurate."
+            ),
+            onDismiss = { showTutorialSheet = false }
+        )
+    }
+
     if (showNewSplitSheet) {
         NewSplitBillBottomSheet(
             currencySymbol = state.currencySymbol,
@@ -156,6 +173,7 @@ fun SplitBillScreen(
 
     pendingDeleteBill?.let { billToDelete ->
         if (billToDelete.isLoggedToExpense) {
+            val dismissDialog: () -> Unit = { pendingDeleteBill = null }
             val deleteBothAction: () -> Unit = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 viewModel.deleteSplitBill(billToDelete, deleteLinkedExpense = true)
@@ -164,9 +182,9 @@ fun SplitBillScreen(
             }
             ShiftlyDialogShell(
                 title = "Delete Split Bill?",
-                onDismiss = { pendingDeleteBill = null },
-                actionLabel = "Done",
-                onAction = deleteBothAction,
+                onDismiss = dismissDialog,
+                actionLabel = "Cancel",
+                onAction = dismissDialog,
                 maxWidth = 380.dp,
                 horizontalOuterPadding = 24.dp,
                 contentHorizontalPadding = 20.dp
@@ -179,9 +197,9 @@ fun SplitBillScreen(
                     ShiftlyIosIconTile(
                         iconRes = R.drawable.ic_lucide_trash_2,
                         backgroundColor = colors.coralBright,
-                        size = 44.dp,
+                        size = 36.dp,
                         cornerRadius = 11.dp,
-                        iconSize = 22.dp
+                        iconSize = 28.dp
                     )
                     Text(
                         text = "\"${billToDelete.title}\" also logged your share to Expenses. Delete both entries or keep the logged expense?",
@@ -228,9 +246,9 @@ fun SplitBillScreen(
                 }
             }
         } else {
-            ShiftlyConfirmDeleteDialog(
+            ShiftlyDeleteConfirmDialog(
                 title = "Delete Split Bill?",
-                message = "Remove \"${billToDelete.title}\"?",
+                message = "\"${billToDelete.title}\" and participant payment statuses will be removed.",
                 onDismiss = { pendingDeleteBill = null },
                 onConfirm = {
                     haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -252,6 +270,7 @@ fun SplitBillScreenContent(
     onDeleteBill: (SplitBillEntity) -> Unit,
     onTrySampleSplit: () -> Unit,
     onBack: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     onPreviousMonth: () -> Unit = {},
     onNextMonth: () -> Unit = {},
@@ -276,6 +295,9 @@ fun SplitBillScreenContent(
                 title = "Split Bill",
                 subtitle = null,
                 onBackClick = onBack,
+                trailing = {
+                    ShiftlyHelpIconButton(onClick = onOpenHelp)
+                },
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)
             )
         }

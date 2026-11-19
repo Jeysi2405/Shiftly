@@ -41,7 +41,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,12 +49,12 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
-import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
 import com.example.shiftly.ui.components.ShiftlyConfirmDialog
-import com.example.shiftly.ui.components.ShiftlyDialogShell
+import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
-import com.example.shiftly.ui.components.ShiftlyIosIconTile
+import com.example.shiftly.ui.components.ShiftlyHelpIconButton
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.shiftlyPressEffect
@@ -65,7 +64,6 @@ import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.InterFontFamily
-import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.DayType
@@ -89,6 +87,7 @@ fun DutiesScreen(
 
     var showLogShiftSheet by remember { mutableStateOf(false) }
     var showDutiesSettingsSheet by remember { mutableStateOf(false) }
+    var showTutorialSheet by remember { mutableStateOf(false) }
     var editingShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var pendingConfirmEditShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var pendingDeleteShift by remember { mutableStateOf<ShiftEntity?>(null) }
@@ -108,6 +107,7 @@ fun DutiesScreen(
             }
         },
         onOpenSettings = { showDutiesSettingsSheet = true },
+        onOpenHelp = { showTutorialSheet = true },
         onPreviousMonth = { viewModel.changeCalendarMonth(-1) },
         onNextMonth = { viewModel.changeCalendarMonth(1) },
         onSelectCalendarDate = { clickedDate ->
@@ -122,6 +122,19 @@ fun DutiesScreen(
         onEditShift = { editingShift = it },
         onDeleteShift = { pendingDeleteShift = it }
     )
+
+    if (showTutorialSheet) {
+        ShiftlyScreenTutorialSheet(
+            title = "Duties & Shifts Guide",
+            subtitle = "Log your shifts and let Shiftly calculate your pay.",
+            steps = listOf(
+                "Tap Log Shift or any calendar day" to "Record your clock-in and clock-out times in seconds using saved presets or custom hours.",
+                "Choose the day type" to "Mark ordinary, special, or regular holidays so night differential, overtime, and holiday pay compute automatically.",
+                "Set your rates & presets" to "Tap the gear icon anytime to adjust your hourly rate, daily minimum wage, or quick shift presets."
+            ),
+            onDismiss = { showTutorialSheet = false }
+        )
+    }
 
     if (showDutiesSettingsSheet) {
         DutiesSettingsSheet(
@@ -263,11 +276,10 @@ fun DutiesScreen(
 
     pendingDeleteShift?.let { shiftToDelete ->
         val deleteFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
-        ShiftlyConfirmDeleteDialog(
-            title = "Delete Shift",
-            message = "Remove shift on ${
-                LocalDate.ofEpochDay(shiftToDelete.dateEpochDay).format(deleteFormatter)
-            }?",
+        val formattedDate = LocalDate.ofEpochDay(shiftToDelete.dateEpochDay).format(deleteFormatter)
+        ShiftlyDeleteConfirmDialog(
+            title = "Delete Shift?",
+            message = "This logged shift on $formattedDate and its computed earnings will be permanently removed.",
             onDismiss = { pendingDeleteShift = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -285,6 +297,7 @@ fun DutiesScreenContent(
     onBack: () -> Unit = {},
     onOpenLogShift: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
     onPreviousMonth: () -> Unit = {},
     onNextMonth: () -> Unit = {},
     onSelectCalendarDate: (LocalDate) -> Unit = {},
@@ -303,7 +316,7 @@ fun DutiesScreenContent(
         contentPadding = PaddingValues(top = 10.dp),
         verticalArrangement = Arrangement.Top
     ) {
-        // 0. Screen Header with Back & Settings Action
+        // 0. Screen Header with Back, Help & Settings Action
         item(key = "duties_header", contentType = "header") {
             Row(
                 modifier = Modifier
@@ -338,20 +351,26 @@ fun DutiesScreenContent(
                     )
                 }
 
-                val settingsInteraction = remember { MutableInteractionSource() }
-                IconButton(
-                    onClick = onOpenSettings,
-                    interactionSource = settingsInteraction,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .shiftlyPressEffect(settingsInteraction)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_settings),
-                        contentDescription = "Duties Settings",
-                        tint = colors.textPrimary,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    ShiftlyHelpIconButton(onClick = onOpenHelp)
+                    val settingsInteraction = remember { MutableInteractionSource() }
+                    IconButton(
+                        onClick = onOpenSettings,
+                        interactionSource = settingsInteraction,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .shiftlyPressEffect(settingsInteraction)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_settings),
+                            contentDescription = "Duties Settings",
+                            tint = colors.textPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
         }
@@ -474,7 +493,7 @@ fun DutiesScreenContent(
                             shape = RectangleShape
                         )
                         if (idx < state.displayedShifts.lastIndex) {
-                            ShiftlyHairlineDivider(startInset = 64.dp)
+                            ShiftlyHairlineDivider(startInset = 54.dp)
                         }
                     }
                 }

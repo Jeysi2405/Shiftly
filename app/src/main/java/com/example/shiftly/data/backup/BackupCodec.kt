@@ -6,7 +6,9 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
+import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.ManagedCategorySetting
+import com.example.shiftly.data.local.PaycheckDeductionsSetting
 import com.example.shiftly.data.local.PreferenceJsonCodec
 import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.RecurringEntrySetting
@@ -59,6 +61,8 @@ data class BackupPayload(
     val monthlyBudget: Double? = null,
     val savingsBuffer: Double? = null,
     val settings: ShiftlySettingsSnapshot? = null,
+    val paycheckDeductions: PaycheckDeductionsSetting? = null,
+    val iouEntries: List<IouEntrySetting> = emptyList(),
     val shifts: List<ShiftEntity> = emptyList(),
     val expenses: List<BackupExpenseRecord> = emptyList(),
     val extraIncomes: List<ExtraIncomeEntity> = emptyList(),
@@ -121,12 +125,38 @@ object BackupCodec {
                         put("overtimeMultiplier", s.overtimeMultiplier)
                         put("savingsGoalTitle", s.savingsGoalTitle)
                         put("savingsGoalTarget", s.savingsGoalTarget)
+                        put("jobTitle", s.jobTitle)
+                        put("workplace", s.workplace)
+                        put("workType", s.workType)
+                        put("targetWeeklyHours", s.targetWeeklyHours)
                         put("categoryBudgets", JSONArray(PreferenceJsonCodec.encodeCategoryBudgets(s.categoryBudgets)))
                         put("managedCategories", JSONArray(PreferenceJsonCodec.encodeManagedCategories(s.managedCategories)))
                         put("recurringEntries", JSONArray(PreferenceJsonCodec.encodeRecurringEntries(s.recurringEntries)))
                         put("shiftTimePresets", JSONArray(PreferenceJsonCodec.encodeShiftTimePresets(s.shiftTimePresets)))
                     }
                 )
+            }
+
+            payload.paycheckDeductions?.let { d ->
+                put(
+                    "paycheckDeductions",
+                    JSONObject().apply {
+                        put("sssEnabled", d.sssEnabled)
+                        put("sssAmount", d.sssAmount)
+                        put("philhealthEnabled", d.philhealthEnabled)
+                        put("philhealthAmount", d.philhealthAmount)
+                        put("pagibigEnabled", d.pagibigEnabled)
+                        put("pagibigAmount", d.pagibigAmount)
+                        put("taxEnabled", d.taxEnabled)
+                        put("taxPercent", d.taxPercent)
+                        put("customEnabled", d.customEnabled)
+                        put("customAmount", d.customAmount)
+                    }
+                )
+            }
+
+            if (payload.iouEntries.isNotEmpty()) {
+                put("iouEntries", JSONArray(PreferenceJsonCodec.encodeIouEntries(payload.iouEntries)))
             }
 
             put(
@@ -353,6 +383,8 @@ object BackupCodec {
                 day2 = s.optInt("cutoffDay2", fallbackCutoff.day2),
                 weeklyDayOfWeek = s.optInt("cutoffWeeklyDay", fallbackCutoff.weeklyDayOfWeek)
             ).normalized()
+            val targetWeeklyHours = s.optDouble("targetWeeklyHours", 40.0)
+                .takeIf { it.isFinite() && it >= 0.0 } ?: 40.0
             ShiftlySettingsSnapshot(
                 payCycleSchedule = payCycle,
                 paydayReminderEnabled = legacyPayday,
@@ -373,9 +405,31 @@ object BackupCodec {
                 cutoffDay1 = cutoffConfig.day1,
                 cutoffDay2 = cutoffConfig.day2,
                 cutoffWeeklyDay = cutoffConfig.weeklyDayOfWeek,
-                legacyRecurringMigrated = s.optBoolean("legacyRecurringMigrated", false)
+                legacyRecurringMigrated = s.optBoolean("legacyRecurringMigrated", false),
+                jobTitle = s.optString("jobTitle", "").trim(),
+                workplace = s.optString("workplace", "").trim(),
+                workType = s.optString("workType", "Full-Time").trim().ifEmpty { "Full-Time" },
+                targetWeeklyHours = targetWeeklyHours
             )
         }
+
+        val deductionsObj = root.optJSONObject("paycheckDeductions")
+        val paycheckDeductions = deductionsObj?.let { d ->
+            PaycheckDeductionsSetting(
+                sssEnabled = d.optBoolean("sssEnabled", false),
+                sssAmount = d.optDouble("sssAmount", 0.0).takeIf { it.isFinite() && it >= 0.0 } ?: 0.0,
+                philhealthEnabled = d.optBoolean("philhealthEnabled", false),
+                philhealthAmount = d.optDouble("philhealthAmount", 0.0).takeIf { it.isFinite() && it >= 0.0 } ?: 0.0,
+                pagibigEnabled = d.optBoolean("pagibigEnabled", false),
+                pagibigAmount = d.optDouble("pagibigAmount", 0.0).takeIf { it.isFinite() && it >= 0.0 } ?: 0.0,
+                taxEnabled = d.optBoolean("taxEnabled", false),
+                taxPercent = d.optDouble("taxPercent", 0.0).takeIf { it.isFinite() && it >= 0.0 } ?: 0.0,
+                customEnabled = d.optBoolean("customEnabled", false),
+                customAmount = d.optDouble("customAmount", 0.0).takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
+            )
+        }
+
+        val iouEntries = PreferenceJsonCodec.decodeIouEntries(root.optJSONArray("iouEntries")?.toString())
 
         val shiftsArray = root.optJSONArray("shifts") ?: JSONArray()
         val shifts = buildList {
@@ -616,6 +670,8 @@ object BackupCodec {
             monthlyBudget = monthlyBudget,
             savingsBuffer = savingsBuffer,
             settings = settings,
+            paycheckDeductions = paycheckDeductions,
+            iouEntries = iouEntries,
             shifts = shifts,
             expenses = expenses,
             extraIncomes = extraIncomes,
@@ -737,6 +793,37 @@ object BackupCodec {
             val category = escapeCsvField(e.category)
             val amount = String.format(locale, "%.2f", e.amount)
             appendLine("Expense,$date,$title,$category,0,-$amount")
+        }
+    }
+
+    fun buildShiftsCsvExport(
+        shifts: List<ShiftEntity>,
+        currencySymbol: String,
+        locale: Locale = Locale.US
+    ): String = buildString {
+        appendLine("Date,DayType,Duration_Min,Hourly_Rate(${escapeCsvField(currencySymbol)}),${escapeCsvField("Earned ($currencySymbol)")},Note")
+        shifts.forEach { s ->
+            val date = LocalDate.ofEpochDay(s.dateEpochDay)
+            val dayType = escapeCsvField(s.dayType)
+            val rate = String.format(locale, "%.2f", s.lockedHourlyRate)
+            val earned = String.format(locale, "%.2f", s.totalEarned)
+            val note = escapeCsvField(s.overtimeNote)
+            appendLine("$date,$dayType,${s.durationMinutes},$rate,$earned,$note")
+        }
+    }
+
+    fun buildExpensesCsvExport(
+        expenses: List<ExpenseEntity>,
+        currencySymbol: String,
+        locale: Locale = Locale.US
+    ): String = buildString {
+        appendLine("Date,Title,Category,${escapeCsvField("Amount ($currencySymbol)")}")
+        expenses.forEach { e ->
+            val date = LocalDate.ofEpochDay(e.dateEpochDay)
+            val title = escapeCsvField(e.title)
+            val category = escapeCsvField(e.category)
+            val amount = String.format(locale, "%.2f", e.amount)
+            appendLine("$date,$title,$category,$amount")
         }
     }
 

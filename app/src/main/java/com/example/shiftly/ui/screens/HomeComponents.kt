@@ -463,11 +463,10 @@ fun NotificationInboxDropdown(
                         ) {
                             ShiftlyIosIconTile(
                                 iconRes = R.drawable.ic_lucide_bell,
-                                backgroundColor = colors.cardElevated,
-                                size = 44.dp,
+                                backgroundColor = colors.textSecondary,
+                                size = 36.dp,
                                 cornerRadius = 11.dp,
-                                iconSize = 20.dp,
-                                iconTint = colors.textSecondary
+                                iconSize = 28.dp
                             )
                             Text(
                                 text = "All caught up",
@@ -510,7 +509,7 @@ fun NotificationInboxDropdown(
                                         onClick = { onItemClick(item) }
                                     )
                                     if (idx < notifications.lastIndex) {
-                                        ShiftlyHairlineDivider(startInset = 64.dp)
+                                        ShiftlyHairlineDivider(startInset = 56.dp)
                                     }
                                 }
                             }
@@ -554,9 +553,9 @@ private fun NotificationInboxRow(
         ShiftlyIosIconTile(
             iconRes = visual.iconRes,
             backgroundColor = visual.tileColor,
-            size = 36.dp,
+            size = 28.dp,
             cornerRadius = 9.dp,
-            iconSize = 18.dp
+            iconSize = 22.dp
         )
 
         Column(
@@ -768,9 +767,9 @@ private fun NotificationHeadsUpCard(
                 ShiftlyIosIconTile(
                     iconRes = visual.iconRes,
                     backgroundColor = visual.tileColor,
-                    size = 36.dp,
+                    size = 28.dp,
                     cornerRadius = 9.dp,
-                    iconSize = 18.dp
+                    iconSize = 22.dp
                 )
 
                 Column(
@@ -1252,9 +1251,7 @@ private fun SavingsGoalsHeroCard(
                             if (goals.size > 1) {
                                 Box(
                                     modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.cardElevated)
+                                        .size(28.dp)
                                         .shiftlyPressClickable {
                                             val prev = if (safeIdx > 0) safeIdx - 1 else goals.lastIndex
                                             val targetId = goals[prev].goalWithDeposits.goal.id
@@ -1267,7 +1264,7 @@ private fun SavingsGoalsHeroCard(
                                         painter = painterResource(R.drawable.ic_lucide_chevron_left),
                                         contentDescription = "Previous goal",
                                         tint = colors.textPrimary,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
                                 Text(
@@ -1280,9 +1277,7 @@ private fun SavingsGoalsHeroCard(
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.cardElevated)
+                                        .size(28.dp)
                                         .shiftlyPressClickable {
                                             val next = if (safeIdx < goals.lastIndex) safeIdx + 1 else 0
                                             val targetId = goals[next].goalWithDeposits.goal.id
@@ -1295,7 +1290,7 @@ private fun SavingsGoalsHeroCard(
                                         painter = painterResource(R.drawable.ic_lucide_chevron_right),
                                         contentDescription = "Next goal",
                                         tint = colors.textPrimary,
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
                             } else {
@@ -1556,7 +1551,7 @@ fun MonthlyTopCategoriesCard(
                                             backgroundColor = colors.coralBright,
                                             size = 28.dp,
                                             cornerRadius = 8.dp,
-                                            iconSize = 14.dp
+                                            iconSize = 22.dp
                                         )
                                         Text(
                                             text = item.category,
@@ -1724,9 +1719,9 @@ fun PendingSplitsBanner(
                 ShiftlyIosIconTile(
                     iconRes = R.drawable.ic_lucide_split,
                     backgroundColor = colors.azurePrimary,
-                    size = 36.dp,
+                    size = 28.dp,
                     cornerRadius = 9.dp,
-                    iconSize = 18.dp
+                    iconSize = 22.dp
                 )
                 Column {
                     Text(
@@ -1788,9 +1783,9 @@ fun UpcomingBillSmartBanner(
                 ShiftlyIosIconTile(
                     iconRes = R.drawable.ic_lucide_repeat,
                     backgroundColor = colors.iosOrange,
-                    size = 32.dp,
+                    size = 28.dp,
                     cornerRadius = 8.dp,
-                    iconSize = 16.dp
+                    iconSize = 22.dp
                 )
                 Text(
                     text = "Upcoming: $title (${ShiftlyFormatters.formatCurrency(currencySymbol, amount)}) • Due $dueDateLabel",
@@ -1847,9 +1842,9 @@ fun PaydayCutoffSmartBanner(
                 ShiftlyIosIconTile(
                     iconRes = R.drawable.ic_lucide_wallet,
                     backgroundColor = colors.mintBright,
-                    size = 32.dp,
+                    size = 28.dp,
                     cornerRadius = 8.dp,
-                    iconSize = 16.dp
+                    iconSize = 22.dp
                 )
                 Text(
                     text = "Payday cutoff on day $cutoffDayOfMonth • Est. +${ShiftlyFormatters.formatCurrency(currencySymbol, estimatedEarnings)}",
@@ -2014,9 +2009,9 @@ fun HomeTimelineRow(
         ShiftlyIosIconTile(
             iconRes = iconRes,
             backgroundColor = if (isIncome) colors.mintBright else colors.coralBright,
-            size = 38.dp,
+            size = 28.dp,
             cornerRadius = 9.dp,
-            iconSize = 18.dp
+            iconSize = 22.dp
         )
 
         Column(modifier = Modifier.weight(1f)) {

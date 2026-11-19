@@ -171,6 +171,7 @@ abstract class ShiftlyDatabase : RoomDatabase() {
                         MIGRATION_5_6,
                         MIGRATION_6_7
                     )
+                    .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()
                 INSTANCE = instance
                 instance

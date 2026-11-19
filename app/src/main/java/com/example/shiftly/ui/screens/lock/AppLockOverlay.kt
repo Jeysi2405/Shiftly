@@ -203,9 +203,9 @@ fun AppLockGateScreen(
             ShiftlyIosIconTile(
                 iconRes = if (method == "Fingerprint Only") R.drawable.ic_lucide_fingerprint else R.drawable.ic_lucide_lock,
                 backgroundColor = colors.azurePrimary,
-                size = 56.dp,
+                size = 48.dp,
                 cornerRadius = 14.dp,
-                iconSize = 28.dp,
+                iconSize = 34.dp,
                 contentDescription = "Shiftly locked"
             )
 

@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
@@ -36,8 +37,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberDatePickerState
@@ -52,11 +51,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -64,11 +64,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
@@ -81,12 +78,12 @@ import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
+import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
-import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.CutoffCalculator
@@ -155,9 +152,9 @@ fun AllowanceHeroCard(
                 ShiftlyIosIconTile(
                     iconRes = R.drawable.ic_lucide_wallet,
                     backgroundColor = colors.mintBright,
-                    size = 40.dp,
+                    size = 28.dp,
                     cornerRadius = 10.dp,
-                    iconSize = 20.dp
+                    iconSize = 24.dp
                 )
             }
 
@@ -355,7 +352,7 @@ fun AllowanceHistoryItemCard(
     val tileBg = when (entry.source) {
         AllowanceSource.SALARY -> colors.mintBright
         AllowanceSource.BUSINESS -> colors.azurePrimary
-        else -> colors.surface
+        else -> colors.textSecondary
     }
     val chipBg = when (entry.source) {
         AllowanceSource.SALARY -> colors.mintContainer
@@ -384,10 +381,9 @@ fun AllowanceHistoryItemCard(
             ShiftlyIosIconTile(
                 iconRes = iconRes,
                 backgroundColor = tileBg,
-                size = 38.dp,
+                size = 28.dp,
                 cornerRadius = 9.dp,
-                iconSize = 18.dp,
-                iconTint = PureWhite
+                iconSize = 22.dp
             )
 
             Column(
@@ -531,17 +527,7 @@ fun AddAllowanceBottomSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            ShiftlySheetHeader(
-                title = "Add Allowance",
-                onCancel = onDismiss,
-                actionLabel = "Add",
-                actionEnabled = isValid,
-                onAction = {
-                    if (isValid) {
-                        onSave(title.trim(), parsedAmount, selectedSource, selectedDate)
-                    }
-                }
-            )
+            ShiftlySheetHeader(title = "Add Allowance")
 
             var isSourceExpanded by remember { mutableStateOf(false) }
 
@@ -707,9 +693,9 @@ fun AddAllowanceBottomSheet(
                             ShiftlyIosIconTile(
                                 iconRes = allowanceSourceIcon(selectedSource),
                                 backgroundColor = colors.mintBright,
-                                size = 26.dp,
+                                size = 24.dp,
                                 cornerRadius = 6.dp,
-                                iconSize = 13.dp
+                                iconSize = 20.dp
                             )
                             Text(
                                 text = selectedSource,
@@ -938,12 +924,7 @@ fun ChangeCutoffScheduleSheet(
                 .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            ShiftlySheetHeader(
-                title = "Payday Cutoff Schedule",
-                onCancel = onDismiss,
-                actionLabel = "Save",
-                onAction = { onSave(previewConfig) }
-            )
+            ShiftlySheetHeader(title = "Payday Cutoff Schedule")
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1121,6 +1102,13 @@ fun ChangeCutoffScheduleSheet(
                     )
                 }
             }
+
+            ShiftlySheetBottomButtons(
+                onCancel = onDismiss,
+                onAction = { onSave(previewConfig) },
+                cancelLabel = "Cancel",
+                actionLabel = "Save"
+            )
         }
     }
 }
