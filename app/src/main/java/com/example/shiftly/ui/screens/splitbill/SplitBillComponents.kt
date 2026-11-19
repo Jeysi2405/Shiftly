@@ -56,6 +56,7 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
+import com.example.shiftly.ui.components.ShiftlyConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyGlassCard
@@ -924,40 +925,20 @@ fun SplitBillLogItemCard(
         }
         val targetStatus = if (participant.hasPaid) "Unpaid" else "Paid"
 
-        ShiftlyDialogShell(
+        ShiftlyConfirmDialog(
             title = "Payment Status",
+            message = "Confirm marking $personName as $targetStatus for this bill?",
+            iconRes = if (participant.hasPaid) R.drawable.ic_lucide_x else R.drawable.ic_lucide_check,
+            iconBgColor = if (participant.hasPaid) colors.cardElevated else colors.mintBright,
+            iconTint = if (participant.hasPaid) colors.textPrimary else colors.onAzurePrimary,
+            noLabel = "No",
+            yesLabel = "Yes",
+            isDestructive = false,
             onDismiss = { selectedParticipantForPrompt = null },
-            actionLabel = "Done",
-            onAction = {
+            onConfirm = {
                 onToggleParticipantPaid(participant)
                 selectedParticipantForPrompt = null
-            },
-            maxWidth = 380.dp,
-            horizontalOuterPadding = 24.dp,
-            contentHorizontalPadding = 20.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ShiftlyIosIconTile(
-                    iconRes = if (participant.hasPaid) R.drawable.ic_lucide_x else R.drawable.ic_lucide_check,
-                    backgroundColor = if (participant.hasPaid) colors.cardElevated else colors.mintBright,
-                    size = 44.dp,
-                    cornerRadius = 11.dp,
-                    iconSize = 22.dp,
-                    iconTint = if (participant.hasPaid) colors.textPrimary else colors.onAzurePrimary
-                )
-                Text(
-                    text = "Confirm marking $personName as $targetStatus for this bill?",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textSecondary,
-                    textAlign = TextAlign.Center
-                )
             }
-        }
+        )
     }
 }

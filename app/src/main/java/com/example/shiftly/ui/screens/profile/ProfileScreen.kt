@@ -486,7 +486,7 @@ fun ProfileScreen(
 
         ActiveSettingsSheet.BUDGETS -> {
             SettingsSheetContainer(
-                title = "Monthly & Category Budgets",
+                title = "Budgets",
                 onDismiss = { activeSheet = null },
                 actionLabel = "Save",
                 actionEnabled = sheetActionState.enabled,
@@ -498,8 +498,9 @@ fun ProfileScreen(
                     currentCategoryBudgets = state.settings.categoryBudgets,
                     managedCategories = state.settings.managedCategories,
                     onDismiss = { activeSheet = null },
-                    onSave = { monthly, categoryList ->
+                    onSave = { monthly, categoryList, managedList ->
                         viewModel.updateBudgets(monthly, categoryList)
+                        viewModel.updateManagedCategories(managedList)
                         activeSheet = null
                         onShowMessage("Budgets saved")
                     },
@@ -636,7 +637,7 @@ private fun ProfileScreenContent(
                 ShiftlyScreenHeader(
                     title = "Profile",
                     largeTitle = true,
-                    subtitle = state.userName.takeIf { it.isNotBlank() },
+                    subtitle = null,
                     modifier = Modifier
                         .padding(horizontal = 20.dp)
                         .graphicsLayer { alpha = headerAlpha },
@@ -644,44 +645,24 @@ private fun ProfileScreenContent(
                         Box(
                             modifier = Modifier
                                 .size(52.dp)
-                                .shiftlyPressClickable(onClick = onAvatarClick)
+                                .clip(CircleShape)
+                                .background(colors.card)
+                                .shiftlyPressClickable(onClick = onAvatarClick),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.card),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (avatarRequest != null) {
-                                    AsyncImage(
-                                        model = avatarRequest,
-                                        contentDescription = "Profile photo",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(52.dp)
-                                    )
-                                } else {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_lucide_user),
-                                        contentDescription = "Add profile photo",
-                                        tint = colors.textSecondary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .align(Alignment.BottomEnd)
-                                    .clip(CircleShape)
-                                    .background(colors.azurePrimary),
-                                contentAlignment = Alignment.Center
-                            ) {
+                            if (avatarRequest != null) {
+                                AsyncImage(
+                                    model = avatarRequest,
+                                    contentDescription = "Profile photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(52.dp)
+                                )
+                            } else {
                                 Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_camera),
-                                    contentDescription = null,
-                                    tint = PureWhite,
-                                    modifier = Modifier.size(11.dp)
+                                    painter = painterResource(R.drawable.ic_lucide_user),
+                                    contentDescription = "Profile photo",
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }

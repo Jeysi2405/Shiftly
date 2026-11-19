@@ -112,7 +112,7 @@ fun ToolsScreen(
     if (showBudgetsSheet) {
         val budgetsActionState = remember { ShiftlySheetActionState() }
         SettingsSheetContainer(
-            title = "Monthly & Category Budgets",
+            title = "Budgets",
             onDismiss = {
                 showManageCategoriesSheet = false
                 showBudgetsSheet = false
@@ -126,10 +126,10 @@ fun ToolsScreen(
                 currentMonthlyBudget = state.monthlyBudget,
                 currentCategoryBudgets = state.settings.categoryBudgets,
                 managedCategories = state.settings.managedCategories,
-                onManageCategories = { showManageCategoriesSheet = true },
                 onDismiss = { showBudgetsSheet = false },
-                onSave = { monthly, categoryList ->
+                onSave = { monthly, categoryList, managedList ->
                     viewModel.updateBudgets(monthly, categoryList)
+                    viewModel.updateManagedCategories(managedList)
                     showBudgetsSheet = false
                     onShowMessage("Budgets saved")
                 },

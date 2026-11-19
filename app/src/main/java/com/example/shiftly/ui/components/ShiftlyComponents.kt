@@ -1039,7 +1039,152 @@ fun ShiftlySectionHeader(
 }
 
 /**
- * Consistent destructive delete confirmation modal with iOS sheet header.
+ * Standardized iOS-style confirmation & delete prompt dialog without top header buttons.
+ * Displays centered drag handle, centered bold title, icon, question text, and a bottom row of No / Yes buttons.
+ */
+@Composable
+fun ShiftlyConfirmDialog(
+    title: String,
+    message: String,
+    iconRes: Int = R.drawable.ic_lucide_trash_2,
+    iconBgColor: Color = ShiftlyColors.current.coralBright,
+    iconTint: Color = PureWhite,
+    noLabel: String = "No",
+    yesLabel: String = "Yes",
+    isDestructive: Boolean = true,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val slideOffsetY = remember { Animatable(140f) }
+    val cardAlpha = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        launch {
+            slideOffsetY.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+            )
+        }
+        launch {
+            cardAlpha.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)
+            )
+        }
+    }
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(shiftlySheetScrimColor())
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss
+                )
+                .padding(horizontal = 24.dp, vertical = 20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Surface(
+                shape = DialogCardShape,
+                color = colors.surface,
+                shadowElevation = 0.dp,
+                modifier = Modifier
+                    .widthIn(max = 380.dp)
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        translationY = slideOffsetY.value
+                        alpha = cardAlpha.value
+                    }
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {}
+                    )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 20.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    ShiftlySheetDragHandle()
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp
+                        ),
+                        color = colors.textPrimary,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    ShiftlyIosIconTile(
+                        iconRes = iconRes,
+                        backgroundColor = iconBgColor,
+                        size = 44.dp,
+                        cornerRadius = 11.dp,
+                        iconSize = 22.dp,
+                        iconTint = iconTint
+                    )
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary,
+                        textAlign = TextAlign.Center
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        ShiftlySecondaryTextButton(
+                            text = noLabel,
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 46.dp)
+                        )
+                        Button(
+                            onClick = {
+                                onConfirm()
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isDestructive) Color(0xFFFF453A) else colors.azurePrimary,
+                                contentColor = PureWhite
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 46.dp)
+                        ) {
+                            Text(
+                                text = yesLabel,
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Consistent destructive delete confirmation modal.
  */
 @Composable
 fun ShiftlyConfirmDeleteDialog(
@@ -1048,36 +1193,15 @@ fun ShiftlyConfirmDeleteDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    val colors = ShiftlyColors.current
-    ShiftlyDialogShell(
+    ShiftlyConfirmDialog(
         title = title,
+        message = message,
+        iconRes = R.drawable.ic_lucide_trash_2,
+        iconBgColor = ShiftlyColors.current.coralBright,
+        noLabel = "No",
+        yesLabel = "Yes",
+        isDestructive = true,
         onDismiss = onDismiss,
-        actionLabel = "Done",
-        onAction = onConfirm,
-        maxWidth = 380.dp,
-        horizontalOuterPadding = 24.dp,
-        contentHorizontalPadding = 20.dp
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 4.dp, bottom = 4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ShiftlyIosIconTile(
-                iconRes = R.drawable.ic_lucide_trash_2,
-                backgroundColor = colors.coralBright,
-                size = 44.dp,
-                cornerRadius = 11.dp,
-                iconSize = 22.dp
-            )
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = colors.textSecondary,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
+        onConfirm = onConfirm
+    )
 }

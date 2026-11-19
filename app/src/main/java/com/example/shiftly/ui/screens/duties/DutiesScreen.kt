@@ -51,6 +51,7 @@ import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
@@ -192,41 +193,20 @@ fun DutiesScreen(
 
     pendingConfirmEditShift?.let { shiftToConfirm ->
         val colors = ShiftlyColors.current
-        ShiftlyDialogShell(
+        ShiftlyConfirmDialog(
             title = "Edit Shift",
+            message = "Are you sure you want to edit the shift for this day?",
+            iconRes = R.drawable.ic_lucide_square_pen,
+            iconBgColor = colors.azurePrimary,
+            noLabel = "No",
+            yesLabel = "Yes",
+            isDestructive = false,
             onDismiss = { pendingConfirmEditShift = null },
-            actionLabel = "Done",
-            onAction = {
+            onConfirm = {
                 editingShift = shiftToConfirm
                 pendingConfirmEditShift = null
-            },
-            maxWidth = 380.dp,
-            horizontalOuterPadding = 24.dp,
-            contentHorizontalPadding = 20.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                ShiftlyIosIconTile(
-                    iconRes = R.drawable.ic_lucide_square_pen,
-                    backgroundColor = colors.azurePrimary,
-                    size = 44.dp,
-                    cornerRadius = 11.dp,
-                    iconSize = 22.dp,
-                    iconTint = PureWhite
-                )
-                Text(
-                    text = "Are you sure you want to edit the shift for this day?",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary,
-                    textAlign = TextAlign.Center
-                )
             }
-        }
+        )
     }
 
     editingShift?.let { targetShift ->

@@ -1,6 +1,14 @@
 package com.example.shiftly.ui.screens.profile
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -75,6 +84,7 @@ import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
+import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
@@ -526,6 +536,7 @@ fun ThemeSelectorSheetContent(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun AccountEditSheetContent(
     currentName: String,
@@ -631,27 +642,51 @@ fun AccountEditSheetContent(
         }
     }
 
-    OutlinedTextField(
-        value = nameInput,
-        onValueChange = { nameInput = it },
-        label = { Text("Display Name", fontFamily = InterFontFamily) },
-        placeholder = {
-            Text(
-                text = "What I gonna call you?",
-                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                color = colors.textSecondary
-            )
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(14.dp),
-        colors = shiftlySheetFieldColors(),
-        modifier = Modifier.fillMaxWidth()
-    )
-    Text(
-        text = "Hourly rate: ${ShiftlyFormatters.formatCurrency(currencySymbol, hourlyRate)}/hr (edit in Duties & Shifts settings)",
-        style = MaterialTheme.typography.bodySmall.tabular(),
-        color = colors.textSecondary
-    )
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = "Display Name",
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Medium
+            ),
+            color = colors.textSecondary
+        )
+        BasicTextField(
+            value = nameInput,
+            onValueChange = { nameInput = it },
+            singleLine = true,
+            textStyle = MaterialTheme.typography.bodyLarge.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Medium,
+                color = colors.textPrimary
+            ),
+            cursorBrush = SolidColor(colors.azureAccent),
+            decorationBox = { innerTextField ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(colors.cardElevated)
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (nameInput.isEmpty()) {
+                        Text(
+                            text = "What I gonna call you?",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                            color = colors.textSecondary
+                        )
+                    }
+                    innerTextField()
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
 }
 
 @Composable
@@ -941,6 +976,7 @@ private fun SelectableRulePill(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun BudgetsEditorSheetContent(
     currencySymbol: String,
@@ -949,13 +985,33 @@ fun BudgetsEditorSheetContent(
     managedCategories: List<ManagedCategorySetting> = emptyList(),
     onManageCategories: (() -> Unit)? = null,
     onDismiss: () -> Unit = {},
-    onSave: (Double, List<CategoryBudgetSetting>) -> Unit,
+    onSave: (monthlyBudget: Double, categoryBudgets: List<CategoryBudgetSetting>, managedCategories: List<ManagedCategorySetting>) -> Unit,
     actionState: ShiftlySheetActionState? = null
 ) {
     val colors = ShiftlyColors.current
     var monthlyInput by remember {
         mutableStateOf(if (currentMonthlyBudget > 0.0) formatEditableNumber(currentMonthlyBudget) else "")
     }
+    var isMonthlyExpanded by remember { mutableStateOf(false) }
+    var isCategoryLimitsExpanded by remember { mutableStateOf(false) }
+    var isManageCategoriesExpanded by remember { mutableStateOf(false) }
+
+    val monthlyChevronRotation by animateFloatAsState(
+        targetValue = if (isMonthlyExpanded) 90f else 0f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+        label = "monthlyChevron"
+    )
+    val categoryChevronRotation by animateFloatAsState(
+        targetValue = if (isCategoryLimitsExpanded) 90f else 0f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+        label = "categoryChevron"
+    )
+    val manageChevronRotation by animateFloatAsState(
+        targetValue = if (isManageCategoriesExpanded) 90f else 0f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+        label = "manageChevron"
+    )
+
     val editedBudgets = remember(currentCategoryBudgets) {
         mutableStateListOf<Pair<String, String>>().apply {
             val seen = mutableSetOf<String>()
@@ -980,6 +1036,16 @@ fun BudgetsEditorSheetContent(
                 }
         }
     }
+
+    val managedCategoriesList = remember(managedCategories) {
+        mutableStateListOf<ManagedCategorySetting>().apply {
+            val initialList = managedCategories.ifEmpty {
+                ExpenseViewModel.EXPENSE_CATEGORIES.map { ManagedCategorySetting(it, true) }
+            }
+            addAll(initialList)
+        }
+    }
+    var newCategoryName by remember { mutableStateOf("") }
 
     LaunchedEffect(managedCategories) {
         val visibleNames = managedCategories
@@ -1024,10 +1090,11 @@ fun BudgetsEditorSheetContent(
             val limit = raw.toDoubleOrNull()
             if (limit != null && limit.isFinite() && limit > 0.0) CategoryBudgetSetting(cat, limit) else null
         }
-        onSave(monthly, list)
+        val cleanManaged = managedCategoriesList.filter { it.name.isNotBlank() }
+        onSave(monthly, list, cleanManaged)
     }
 
-    LaunchedEffect(monthlyInput, editedBudgets.toList()) {
+    LaunchedEffect(monthlyInput, editedBudgets.toList(), managedCategoriesList.toList()) {
         actionState?.enabled = true
         actionState?.onSave = performSave
     }
@@ -1036,105 +1103,89 @@ fun BudgetsEditorSheetContent(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // Collapsible Card 1: Monthly Budget
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = colors.cardElevated,
             shadowElevation = 0.dp,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .clickable { isMonthlyExpanded = !isMonthlyExpanded }
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 52.dp)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Monthly Budget",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = colors.textPrimary,
-                    modifier = Modifier.weight(1f)
-                )
-                CompactBudgetAmountField(
-                    currencySymbol = currencySymbol,
-                    value = monthlyInput,
-                    onValueChange = { monthlyInput = filterSingleDecimalInput(it, monthlyInput) },
-                    placeholder = "Optional",
-                    modifier = Modifier.width(132.dp)
-                )
-            }
-        }
-
-        if (editedBudgets.isNotEmpty()) {
-            Text(
-                text = "Per-Category Limits",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp
-                ),
-                color = colors.textPrimary,
-                modifier = Modifier.padding(top = 2.dp)
-            )
-
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = colors.cardElevated,
-                shadowElevation = 0.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    editedBudgets.forEachIndexed { idx, (cat, limitStr) ->
-                        if (idx > 0) {
-                            ShiftlyHairlineDivider(startInset = 52.dp)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Monthly Budget",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val parsedMonthly = monthlyInput.toDoubleOrNull()
+                        val displaySummary = if (parsedMonthly != null && parsedMonthly > 0.0) {
+                            ShiftlyFormatters.formatCurrency(currencySymbol, parsedMonthly)
+                        } else {
+                            "Optional"
                         }
-                        Row(
+                        Text(
+                            text = displaySummary,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = if (parsedMonthly != null && parsedMonthly > 0.0) colors.azureAccent else colors.textSecondary
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            contentDescription = if (isMonthlyExpanded) "Collapse monthly budget" else "Expand monthly budget",
+                            tint = colors.textSecondary,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 48.dp)
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            ShiftlyIosIconTile(
-                                iconRes = categoryIcon(cat),
-                                backgroundColor = colors.coralBright,
-                                size = 30.dp,
-                                cornerRadius = 8.dp,
-                                iconSize = 15.dp
-                            )
-                            Text(
-                                text = cat,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                color = colors.textPrimary,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            CompactBudgetAmountField(
-                                currencySymbol = currencySymbol,
-                                value = limitStr,
-                                onValueChange = { updated ->
-                                    editedBudgets[idx] = cat to filterSingleDecimalInput(updated, limitStr)
-                                },
-                                placeholder = "No cap",
-                                modifier = Modifier.width(114.dp)
-                            )
-                        }
+                                .size(20.dp)
+                                .graphicsLayer { rotationZ = monthlyChevronRotation }
+                        )
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = isMonthlyExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 14.dp)
+                    ) {
+                        ShiftlyHairlineDivider(modifier = Modifier.padding(bottom = 12.dp))
+                        CompactBudgetAmountField(
+                            currencySymbol = currencySymbol,
+                            value = monthlyInput,
+                            onValueChange = { monthlyInput = filterSingleDecimalInput(it, monthlyInput) },
+                            placeholder = "Set overall monthly limit",
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
             }
         }
 
-        if (onManageCategories != null) {
+        // Collapsible Card 2: Per-Category Limits
+        if (editedBudgets.isNotEmpty()) {
             Surface(
                 shape = RoundedCornerShape(18.dp),
                 color = colors.cardElevated,
@@ -1142,23 +1193,123 @@ fun BudgetsEditorSheetContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .clickable(onClick = onManageCategories)
+                    .clickable { isCategoryLimitsExpanded = !isCategoryLimitsExpanded }
             ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 52.dp)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Per-Category Limits",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp
+                            ),
+                            color = colors.textPrimary
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val activeCapsCount = editedBudgets.count { it.second.isNotBlank() }
+                            Text(
+                                text = if (activeCapsCount > 0) "$activeCapsCount set" else "Optional",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = if (activeCapsCount > 0) colors.azureAccent else colors.textSecondary
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                                contentDescription = if (isCategoryLimitsExpanded) "Collapse category limits" else "Expand category limits",
+                                tint = colors.textSecondary,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .graphicsLayer { rotationZ = categoryChevronRotation }
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = isCategoryLimitsExpanded,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            ShiftlyHairlineDivider(startInset = 16.dp)
+                            editedBudgets.forEachIndexed { idx, (cat, limitStr) ->
+                                if (idx > 0) {
+                                    ShiftlyHairlineDivider(startInset = 52.dp)
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 48.dp)
+                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    ShiftlyIosIconTile(
+                                        iconRes = categoryIcon(cat),
+                                        backgroundColor = colors.coralBright,
+                                        size = 30.dp,
+                                        cornerRadius = 8.dp,
+                                        iconSize = 15.dp
+                                    )
+                                    Text(
+                                        text = cat,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.Medium
+                                        ),
+                                        color = colors.textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    CompactBudgetAmountField(
+                                        currencySymbol = currencySymbol,
+                                        value = limitStr,
+                                        onValueChange = { updated ->
+                                            editedBudgets[idx] = cat to filterSingleDecimalInput(updated, limitStr)
+                                        },
+                                        placeholder = "No cap",
+                                        modifier = Modifier.width(114.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Collapsible Card 3: Manage Categories
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .clickable { isManageCategoriesExpanded = !isManageCategoriesExpanded }
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        .heightIn(min = 52.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ShiftlyIosIconTile(
-                        iconRes = R.drawable.ic_lucide_tags,
-                        backgroundColor = colors.azurePrimary,
-                        size = 30.dp,
-                        cornerRadius = 8.dp,
-                        iconSize = 15.dp
-                    )
                     Text(
                         text = "Manage Categories",
                         style = MaterialTheme.typography.titleMedium.copy(
@@ -1166,19 +1317,168 @@ fun BudgetsEditorSheetContent(
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 15.sp
                         ),
-                        color = colors.textPrimary,
-                        modifier = Modifier.weight(1f)
+                        color = colors.textPrimary
                     )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                        contentDescription = "Manage Categories",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val activeCatCount = managedCategoriesList.count { it.isVisible }
+                        Text(
+                            text = "$activeCatCount active",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = colors.azureAccent
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            contentDescription = if (isManageCategoriesExpanded) "Collapse manage categories" else "Expand manage categories",
+                            tint = colors.textSecondary,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .graphicsLayer { rotationZ = manageChevronRotation }
+                        )
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = isManageCategoriesExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+
+                        // Compact Add Category Row
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(40.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(colors.surface)
+                                    .padding(horizontal = 12.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (newCategoryName.isEmpty()) {
+                                    Text(
+                                        text = "Add Category",
+                                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = InterFontFamily),
+                                        color = colors.textSecondary
+                                    )
+                                }
+                                BasicTextField(
+                                    value = newCategoryName,
+                                    onValueChange = { newCategoryName = it },
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.Medium,
+                                        color = colors.textPrimary
+                                    ),
+                                    cursorBrush = SolidColor(colors.azureAccent),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = colors.azurePrimary,
+                                shadowElevation = 0.dp,
+                                modifier = Modifier
+                                    .size(width = 44.dp, height = 40.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable {
+                                        val clean = newCategoryName.trim()
+                                        if (clean.isNotEmpty() && managedCategoriesList.none { it.name.equals(clean, true) }) {
+                                            managedCategoriesList.add(ManagedCategorySetting(clean, true))
+                                            newCategoryName = ""
+                                        }
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_lucide_plus),
+                                        contentDescription = "Add category",
+                                        tint = PureWhite,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Unified Category Rows with Hairline Dividers
+                        managedCategoriesList.forEachIndexed { idx, item ->
+                            ShiftlyHairlineDivider(startInset = 52.dp)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                ShiftlyIosIconTile(
+                                    iconRes = categoryIcon(item.name),
+                                    backgroundColor = colors.coralBright,
+                                    size = 30.dp,
+                                    cornerRadius = 8.dp,
+                                    iconSize = 15.dp
+                                )
+                                BasicTextField(
+                                    value = item.name,
+                                    onValueChange = { updated -> managedCategoriesList[idx] = item.copy(name = updated) },
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.Medium,
+                                        color = colors.textPrimary
+                                    ),
+                                    cursorBrush = SolidColor(colors.azureAccent),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                ShiftlyIosSwitch(
+                                    checked = item.isVisible,
+                                    onCheckedChange = { vis -> managedCategoriesList[idx] = item.copy(isVisible = vis) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+fun BudgetsEditorSheetContent(
+    currencySymbol: String,
+    currentMonthlyBudget: Double,
+    currentCategoryBudgets: List<CategoryBudgetSetting>,
+    managedCategories: List<ManagedCategorySetting> = emptyList(),
+    onManageCategories: (() -> Unit)? = null,
+    onDismiss: () -> Unit = {},
+    onSave: (Double, List<CategoryBudgetSetting>) -> Unit,
+    actionState: ShiftlySheetActionState? = null
+) {
+    BudgetsEditorSheetContent(
+        currencySymbol = currencySymbol,
+        currentMonthlyBudget = currentMonthlyBudget,
+        currentCategoryBudgets = currentCategoryBudgets,
+        managedCategories = managedCategories,
+        onManageCategories = onManageCategories,
+        onDismiss = onDismiss,
+        onSave = { monthly, list, _ -> onSave(monthly, list) },
+        actionState = actionState
+    )
 }
 
 @Composable
@@ -1588,25 +1888,20 @@ fun AppLockSheetContent(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .background(colors.cardElevated)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                "Enable App Lock",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = InterFontFamily,
-                    fontSize = 15.sp
-                ),
-                color = colors.textPrimary
-            )
-            Text(
-                "Lock balances on launch and when backgrounded",
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textSecondary
-            )
-        }
+        Text(
+            "Enable App Lock",
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            ),
+            color = colors.textPrimary,
+            modifier = Modifier.weight(1f)
+        )
         ShiftlyIosSwitch(
             checked = enabled,
             onCheckedChange = {
@@ -1616,22 +1911,59 @@ fun AppLockSheetContent(
         )
     }
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(colors.cardElevated)
+            .selectableGroup()
     ) {
-        APP_LOCK_METHOD_OPTIONS.forEach { option ->
-            SelectableRulePill(
-                label = option.replace(" Only", ""),
-                selected = method == option,
-                onClick = {
-                    method = option
-                    errorMessage = null
-                },
-                modifier = Modifier.weight(1f)
-            )
+        APP_LOCK_METHOD_OPTIONS.forEachIndexed { index, option ->
+            if (index > 0) {
+                ShiftlyHairlineDivider(startInset = 16.dp)
+            }
+            val isSelected = method == option
+            val displayLabel = option.replace(" Only", "")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 50.dp)
+                    .clickable(role = Role.RadioButton) {
+                        method = option
+                        errorMessage = null
+                    }
+                    .semantics(mergeDescendants = true) {
+                        selected = isSelected
+                    }
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = displayLabel,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                    ),
+                    color = if (isSelected) colors.azureAccent else colors.textPrimary
+                )
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .size(22.dp)
+                            .clip(CircleShape)
+                            .background(colors.azurePrimary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_check),
+                            contentDescription = "Selected",
+                            tint = PureWhite,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
+                }
+            }
         }
     }
 

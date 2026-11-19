@@ -126,7 +126,9 @@ import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.lock.AppLockGateScreen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.ProfileScreen
+import com.example.shiftly.ui.screens.recurring.AddEditRecurringBillBottomSheet
 import com.example.shiftly.ui.screens.recurring.RecurringBillsScreen
+import com.example.shiftly.ui.screens.recurring.RecurringBillsViewModel
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.splitbill.NewSplitBillBottomSheet
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
@@ -341,6 +343,7 @@ private fun MainDashboardShell(
     var quickSplitTrigger by remember { mutableIntStateOf(0) }
     var showQuickAddGoalSheet by remember { mutableStateOf(false) }
     var showQuickDepositSheet by remember { mutableStateOf(false) }
+    var showQuickAddRecurringBillSheet by remember { mutableStateOf(false) }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -646,6 +649,10 @@ private fun MainDashboardShell(
             onAddDeposit = {
                 showQuickActionSheet = false
                 showQuickDepositSheet = true
+            },
+            onAddRecurringBill = {
+                showQuickActionSheet = false
+                showQuickAddRecurringBillSheet = true
             }
         )
     }
@@ -694,6 +701,14 @@ private fun MainDashboardShell(
         QuickDepositSheetHost(
             repository = repository,
             onDismiss = { showQuickDepositSheet = false },
+            onShowMessage = showMessage
+        )
+    }
+
+    if (showQuickAddRecurringBillSheet) {
+        QuickAddRecurringBillSheetHost(
+            repository = repository,
+            onDismiss = { showQuickAddRecurringBillSheet = false },
             onShowMessage = showMessage
         )
     }
@@ -911,6 +926,46 @@ private fun QuickDepositSheetHost(
     )
 }
 
+@Composable
+private fun QuickAddRecurringBillSheetHost(
+    repository: ShiftlyRepository,
+    onDismiss: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    val recurringViewModel: RecurringBillsViewModel = viewModel(factory = RecurringBillsViewModel.Factory(repository))
+    val recurringState by recurringViewModel.uiState.collectAsStateWithLifecycle()
+
+    AddEditRecurringBillBottomSheet(
+        currencySymbol = recurringState.currencySymbol,
+        availableCategories = recurringState.availableCategories,
+        editingBill = null,
+        onDismiss = onDismiss,
+        onSave = { title, amount, category, frequency, dueDate, dueHour, dueMinute, autoLog ->
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            recurringViewModel.saveBill(
+                existing = null,
+                title = title,
+                amount = amount,
+                category = category,
+                frequency = frequency,
+                dueDate = dueDate,
+                dueHour = dueHour,
+                dueMinute = dueMinute,
+                isEnabled = autoLog,
+                onResult = { posted ->
+                    onDismiss()
+                    if (posted > 0) {
+                        onShowMessage("Recurring bill \"$title\" saved & logged to Expenses")
+                    } else {
+                        onShowMessage("Recurring bill \"$title\" saved")
+                    }
+                }
+            )
+        }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QuickAddActionSheet(
@@ -919,7 +974,8 @@ private fun QuickAddActionSheet(
     onAddExpense: () -> Unit,
     onSplitBill: () -> Unit,
     onAddSavingsGoal: () -> Unit,
-    onAddDeposit: () -> Unit
+    onAddDeposit: () -> Unit,
+    onAddRecurringBill: () -> Unit
 ) {
     val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -940,12 +996,45 @@ private fun QuickAddActionSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ShiftlySheetHeader(
-                title = "Quick Add",
-                onCancel = onDismiss,
-                actionLabel = "Done",
-                onAction = onDismiss
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 44.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = "Quick Add",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    ),
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                )
+
+                val cancelInteraction = remember { MutableInteractionSource() }
+                TextButton(
+                    onClick = onDismiss,
+                    interactionSource = cancelInteraction,
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .heightIn(min = 44.dp)
+                        .shiftlyPressEffect(cancelInteraction)
+                ) {
+                    Text(
+                        text = "Cancel",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Normal
+                        ),
+                        color = colors.azureAccent,
+                        maxLines = 1
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -992,7 +1081,13 @@ private fun QuickAddActionSheet(
                     onClick = onAddDeposit,
                     modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.weight(1f))
+                QuickAddOptionBox(
+                    title = "Recurring",
+                    iconRes = R.drawable.ic_lucide_repeat,
+                    iconBg = colors.iosOrange,
+                    onClick = onAddRecurringBill,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -1210,7 +1305,7 @@ fun FloatingPillBottomBar(
                 )
             }
 
-            // Subtle Center Quick Add Tab Button
+            // Center Quick Add Button (Icon Only, Larger, Brighter)
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -1224,41 +1319,14 @@ fun FloatingPillBottomBar(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                colors.azureAccent.copy(alpha = if (isFabActive) 0.24f else 0.14f)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_plus),
-                            contentDescription = null,
-                            tint = colors.azureAccent,
-                            modifier = Modifier
-                                .size(17.dp)
-                                .graphicsLayer { rotationZ = fabRotationState.value }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(3.dp))
-                    Text(
-                        text = "Add",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontSize = 11.sp,
-                            fontWeight = if (isFabActive) FontWeight.SemiBold else FontWeight.Medium
-                        ),
-                        color = if (isFabActive) colors.azureAccent else colors.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_plus),
+                    contentDescription = "Quick add action",
+                    tint = Color(0xFF0A84FF),
+                    modifier = Modifier
+                        .size(32.dp)
+                        .graphicsLayer { rotationZ = fabRotationState.value }
+                )
             }
 
             rightItems.forEach { screen ->
