@@ -1,6 +1,11 @@
 package com.example.shiftly.ui.screens.allowance
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +52,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -606,42 +612,41 @@ fun AddAllowanceBottomSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Source",
-                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary
-                )
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(colors.cardElevated)
-                ) {
-                    AllowanceSource.ALL.forEachIndexed { idx, source ->
-                        val isSelected = selectedSource == source
+            var isSourceExpanded by remember { mutableStateOf(false) }
+
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = colors.cardElevated,
+                shadowElevation = 0.dp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable { isSourceExpanded = !isSourceExpanded }
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(if (isSelected) colors.mintContainer else Color.Transparent)
-                                .clickable(role = Role.RadioButton) { selectedSource = source }
-                                .semantics(mergeDescendants = true) { selected = isSelected }
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Icon(
-                                    painter = painterResource(allowanceSourceIcon(source)),
-                                    contentDescription = null,
-                                    tint = if (isSelected) colors.mintInk else colors.textSecondary,
-                                    modifier = Modifier.size(18.dp)
+                            Icon(
+                                painter = painterResource(allowanceSourceIcon(selectedSource)),
+                                contentDescription = null,
+                                tint = colors.mintInk,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Column {
+                                Text(
+                                    text = "Source",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                                    color = colors.textSecondary
                                 )
                                 Text(
-                                    text = source,
+                                    text = selectedSource,
                                     style = MaterialTheme.typography.titleSmall.copy(
                                         fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.SemiBold
@@ -649,25 +654,70 @@ fun AddAllowanceBottomSheet(
                                     color = colors.textPrimary
                                 )
                             }
-                            if (isSelected) {
-                                Box(
+                        }
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            contentDescription = "Toggle source dropdown",
+                            tint = colors.textSecondary,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .graphicsLayer { rotationZ = if (isSourceExpanded) 90f else 0f }
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = isSourceExpanded,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            ShiftlyHairlineDivider(startInset = 14.dp)
+                            AllowanceSource.ALL.forEachIndexed { idx, source ->
+                                val isSelected = selectedSource == source
+                                Row(
                                     modifier = Modifier
-                                        .size(22.dp)
-                                        .clip(CircleShape)
-                                        .background(colors.mintInk),
-                                    contentAlignment = Alignment.Center
+                                        .fillMaxWidth()
+                                        .background(if (isSelected) colors.mintContainer else Color.Transparent)
+                                        .clickable {
+                                            selectedSource = source
+                                            isSourceExpanded = false
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_lucide_check),
-                                        contentDescription = "Selected",
-                                        tint = PureWhite,
-                                        modifier = Modifier.size(13.dp)
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(allowanceSourceIcon(source)),
+                                            contentDescription = null,
+                                            tint = if (isSelected) colors.mintInk else colors.textSecondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = source,
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                fontFamily = InterFontFamily,
+                                                fontWeight = FontWeight.SemiBold
+                                            ),
+                                            color = colors.textPrimary
+                                        )
+                                    }
+                                    if (isSelected) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_lucide_check),
+                                            contentDescription = "Selected",
+                                            tint = colors.mintInk,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                                if (idx < AllowanceSource.ALL.lastIndex) {
+                                    ShiftlyHairlineDivider(startInset = 42.dp)
                                 }
                             }
-                        }
-                        if (idx < AllowanceSource.ALL.lastIndex) {
-                            ShiftlyHairlineDivider(startInset = 42.dp)
                         }
                     }
                 }

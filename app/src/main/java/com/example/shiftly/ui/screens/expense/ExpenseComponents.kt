@@ -95,6 +95,7 @@ import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
+import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.shiftlyPressClickable
@@ -1121,6 +1122,17 @@ fun AddExpenseSheetContent(
                     )
                 }
             }
+
+            ShiftlySheetBottomButtons(
+                onCancel = onDismiss,
+                onAction = {
+                    if (canSubmit) {
+                        onSaveExpense(title, parsedAmount, selectedCategory, selectedDate, savedReceiptPath)
+                    }
+                },
+                actionLabel = "Save",
+                actionEnabled = canSubmit
+            )
         }
     }
 

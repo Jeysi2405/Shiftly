@@ -543,7 +543,7 @@ fun ProfileScreen(
 
         ActiveSettingsSheet.BACKUP_EXPORT -> {
             SettingsSheetContainer(
-                title = "Backup, Restore & Export",
+                title = "Data & Backup",
                 onDismiss = { activeSheet = null }
             ) {
                 BackupAndExportSheetContent(

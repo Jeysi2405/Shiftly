@@ -63,6 +63,7 @@ import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyIosSwitch
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
+import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -483,141 +484,118 @@ fun IouTrackerSheetContent(
             modifier = Modifier.padding(horizontal = 4.dp)
         )
 
+        // 2-option Segmented Toggle
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(9.dp))
+                .background(colors.surface)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(35.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(if (isLent) colors.mintContainer else Color.Transparent)
+                    .clickable { isLent = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Lent",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = if (isLent) FontWeight.SemiBold else FontWeight.Medium,
+                        fontSize = 13.sp
+                    ),
+                    color = if (isLent) colors.mintInk else colors.textSecondary
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(35.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(if (!isLent) colors.coralContainer else Color.Transparent)
+                    .clickable { isLent = false },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Borrowed",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = if (!isLent) FontWeight.SemiBold else FontWeight.Medium,
+                        fontSize = 13.sp
+                    ),
+                    color = if (!isLent) colors.coralInk else colors.textSecondary
+                )
+            }
+        }
+
+        // Single clean iOS Inset-Grouped Container
         Surface(
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(16.dp),
             color = colors.cardElevated,
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = personName,
-                        onValueChange = { personName = it },
-                        label = { Text("Person Name", fontFamily = InterFontFamily) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colors.azureAccent,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = colors.surface,
-                            unfocusedContainerColor = colors.surface
-                        ),
-                        modifier = Modifier.weight(1.2f)
-                    )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                IouInsetRow(
+                    label = "Person Name",
+                    value = personName,
+                    onValueChange = { personName = it },
+                    placeholder = "Name"
+                )
+                ShiftlyHairlineDivider(startInset = 16.dp)
 
-                    OutlinedTextField(
-                        value = amountText,
-                        onValueChange = { input ->
-                            val filtered = input.filter { it.isDigit() || it == '.' }
-                            if (filtered.count { it == '.' } <= 1) amountText = filtered
-                        },
-                        label = { Text("Amount ($currencySymbol)", fontFamily = InterFontFamily) },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = colors.azureAccent,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = colors.surface,
-                            unfocusedContainerColor = colors.surface
-                        ),
-                        modifier = Modifier.weight(0.8f)
-                    )
-                }
+                IouInsetRow(
+                    label = "Amount ($currencySymbol)",
+                    value = amountText,
+                    onValueChange = { input ->
+                        val filtered = input.filter { it.isDigit() || it == '.' }
+                        if (filtered.count { it == '.' } <= 1) amountText = filtered
+                    },
+                    placeholder = "0.00",
+                    prefix = currencySymbol,
+                    isNumeric = true
+                )
+                ShiftlyHairlineDivider(startInset = 16.dp)
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(42.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (isLent) colors.mintContainer else colors.surface)
-                            .clickable { isLent = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Lent (Owed to you)",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = if (isLent) colors.mintInk else colors.textSecondary
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(42.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(if (!isLent) colors.coralContainer else colors.surface)
-                            .clickable { isLent = false },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Borrowed (You owe)",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = if (!isLent) colors.coralInk else colors.textSecondary
-                        )
-                    }
-                }
-
-                OutlinedTextField(
+                IouInsetRow(
+                    label = "Note (optional)",
                     value = noteText,
                     onValueChange = { noteText = it },
-                    label = { Text("Note (optional)", fontFamily = InterFontFamily) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = colors.azureAccent,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = colors.surface,
-                        unfocusedContainerColor = colors.surface
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                ShiftlySecondaryTextButton(
-                    text = "Add Entry",
-                    onClick = {
-                        val amt = amountText.toDoubleOrNull() ?: 0.0
-                        if (personName.isNotBlank() && amt > 0.0) {
-                            itemList.add(
-                                0,
-                                IouEntrySetting(
-                                    id = UUID.randomUUID().toString(),
-                                    personName = personName.trim(),
-                                    amount = amt,
-                                    isLent = isLent,
-                                    note = noteText.trim(),
-                                    isSettled = false
-                                )
-                            )
-                            personName = ""
-                            amountText = ""
-                            noteText = ""
-                            notifyChanged()
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
+                    placeholder = "Note"
                 )
             }
         }
+
+        ShiftlySecondaryTextButton(
+            text = "Add Entry",
+            onClick = {
+                val amt = amountText.toDoubleOrNull() ?: 0.0
+                if (personName.isNotBlank() && amt > 0.0) {
+                    itemList.add(
+                        0,
+                        IouEntrySetting(
+                            id = UUID.randomUUID().toString(),
+                            personName = personName.trim(),
+                            amount = amt,
+                            isLent = isLent,
+                            note = noteText.trim(),
+                            isSettled = false
+                        )
+                    )
+                    personName = ""
+                    amountText = ""
+                    noteText = ""
+                    notifyChanged()
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
 
         // Active / Settled Entries List
         if (itemList.isNotEmpty()) {
@@ -730,6 +708,84 @@ fun IouTrackerSheetContent(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun IouInsetRow(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    prefix: String? = null,
+    isNumeric: Boolean = false
+) {
+    val colors = ShiftlyColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 50.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            ),
+            color = colors.textPrimary,
+            maxLines = 1
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (prefix != null && value.isNotEmpty()) {
+                Text(
+                    text = prefix,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary
+                    )
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (isNumeric) KeyboardType.Decimal else KeyboardType.Text
+                ),
+                cursorBrush = SolidColor(colors.azureAccent),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.End
+                ).let { if (isNumeric) it.tabular() else it },
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterEnd) {
+                        if (value.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    color = colors.textSecondary
+                                ),
+                                textAlign = TextAlign.End
+                            )
+                        }
+                        inner()
+                    }
+                },
+                modifier = Modifier.width(150.dp)
+            )
         }
     }
 }

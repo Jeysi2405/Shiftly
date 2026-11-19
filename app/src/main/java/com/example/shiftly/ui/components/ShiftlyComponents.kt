@@ -253,47 +253,27 @@ fun ShiftlySheetDragHandle(modifier: Modifier = Modifier) {
 }
 
 /**
- * Standardized iOS-style sheet/dialog navigation header:
- * "Cancel" on the left, centered bold title, and a blue text action on the right.
+ * Standardized sheet title header:
+ * Centered bold title only.
  */
 @Composable
 fun ShiftlySheetHeader(
     title: String,
-    onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    onCancel: (() -> Unit)? = null,
     cancelLabel: String = "Cancel",
     actionLabel: String? = "Done",
     actionEnabled: Boolean = true,
-    onAction: (() -> Unit)? = onCancel
+    onAction: (() -> Unit)? = null
 ) {
     val colors = ShiftlyColors.current
-    val cancelInteraction = remember { MutableInteractionSource() }
-    val actionInteraction = remember { MutableInteractionSource() }
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 48.dp)
+            .heightIn(min = 40.dp)
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
     ) {
-        TextButton(
-            onClick = onCancel,
-            interactionSource = cancelInteraction,
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .heightIn(min = 44.dp)
-                .shiftlyPressEffect(cancelInteraction)
-        ) {
-            Text(
-                text = cancelLabel,
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.Normal
-                ),
-                color = colors.azureAccent,
-                maxLines = 1
-            )
-        }
-
         Text(
             text = title,
             style = MaterialTheme.typography.titleMedium.copy(
@@ -305,31 +285,71 @@ fun ShiftlySheetHeader(
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 78.dp)
-                .semantics { heading() }
+            modifier = Modifier.semantics { heading() }
         )
+    }
+}
 
-        if (actionLabel != null && onAction != null) {
-            TextButton(
-                onClick = onAction,
-                enabled = actionEnabled,
-                interactionSource = actionInteraction,
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .heightIn(min = 44.dp)
-                    .shiftlyPressEffect(actionInteraction, enabled = actionEnabled)
-            ) {
+/**
+ * Standardized sheet bottom button row:
+ * Cancel (left, cardElevated fill) | Action (right, azurePrimary fill).
+ */
+@Composable
+fun ShiftlySheetBottomButtons(
+    onCancel: () -> Unit,
+    onAction: () -> Unit,
+    cancelLabel: String = "Cancel",
+    actionLabel: String = "Save",
+    actionEnabled: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .shiftlyPressClickable(onClick = onCancel)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
                 Text(
-                    text = actionLabel,
-                    style = MaterialTheme.typography.bodyLarge.copy(
+                    text = cancelLabel,
+                    style = MaterialTheme.typography.labelLarge.copy(
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = if (actionEnabled) colors.azureAccent else colors.disabledContent,
-                    maxLines = 1
+                    color = colors.textPrimary
+                )
+            }
+        }
+
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = if (actionEnabled) colors.azurePrimary else colors.disabledContainer,
+            shadowElevation = 0.dp,
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .shiftlyPressClickable(enabled = actionEnabled, onClick = onAction)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = actionLabel,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = if (actionEnabled) PureWhite else colors.disabledContent
                 )
             }
         }

@@ -91,6 +91,7 @@ import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyIosSwitch
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
+import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
@@ -814,6 +815,71 @@ fun AccountEditSheetContent(
             }
         }
     }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Button(
+            onClick = { actionState?.onSave = null },
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF2C2C2E),
+                contentColor = colors.textPrimary
+            ),
+            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+        ) {
+            Text(
+                text = "Cancel",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 15.sp
+                )
+            )
+        }
+
+        Button(
+            onClick = {
+                if (isValid) {
+                    onSave(
+                        nameInput.trim(),
+                        jobTitleInput.trim(),
+                        workplaceInput.trim(),
+                        selectedWorkType,
+                        parsedHours
+                    )
+                }
+            },
+            enabled = isValid,
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF0A84FF),
+                contentColor = PureWhite,
+                disabledContainerColor = colors.disabledContainer,
+                disabledContentColor = colors.disabledContent
+            ),
+            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+        ) {
+            Text(
+                text = "Save",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+            )
+        }
+    }
 }
 
 @Composable
@@ -1123,6 +1189,12 @@ fun NotificationsSheetContent(
             )
         }
     }
+
+    ShiftlySheetBottomButtons(
+        onCancel = { onSave(false, false, false, false) },
+        onAction = { onSave(masterEnabled, billRem, shiftRem, savingsRem) },
+        actionLabel = "Save"
+    )
 }
 
 @Composable
@@ -2189,32 +2261,68 @@ fun AppLockSheetContent(
     }
 
     if (method != "Fingerprint Only") {
-        OutlinedTextField(
-            value = newPin,
-            onValueChange = {
-                newPin = it.filter(Char::isDigit).take(4)
-                errorMessage = null
-            },
-            label = {
-                Text(
-                    if (hasSavedPin) "New 4-Digit PIN (leave blank to keep current)" else "Set 4-Digit PIN",
-                    fontFamily = InterFontFamily
-                )
-            },
-            placeholder = {
-                Text(
-                    text = if (hasSavedPin) "••••" else "Enter 4 digits",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary
-                )
-            },
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            shape = RoundedCornerShape(14.dp),
-            colors = shiftlySheetFieldColors(),
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
-        )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 50.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "4-Digit PIN",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    ),
+                    color = colors.textPrimary
+                )
+                BasicTextField(
+                    value = newPin,
+                    onValueChange = {
+                        newPin = it.filter(Char::isDigit).take(4)
+                        errorMessage = null
+                    },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    cursorBrush = SolidColor(colors.azureAccent),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Bold,
+                        color = colors.textPrimary,
+                        textAlign = TextAlign.End,
+                        letterSpacing = 4.sp
+                    ).tabular(),
+                    decorationBox = { inner ->
+                        Box(contentAlignment = Alignment.CenterEnd) {
+                            if (newPin.isEmpty()) {
+                                Text(
+                                    text = if (hasSavedPin) "Leave blank to keep" else "••••",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontFamily = InterFontFamily,
+                                        color = colors.textSecondary,
+                                        letterSpacing = 0.sp
+                                    ),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                            inner()
+                        }
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 16.dp)
+                )
+            }
+        }
     }
 
     if (!errorMessage.isNullOrBlank()) {
@@ -2223,6 +2331,58 @@ fun AppLockSheetContent(
             style = MaterialTheme.typography.bodySmall,
             color = colors.coralTextOnSurface
         )
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Button(
+            onClick = { actionState?.onSave = null },
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF2C2C2E),
+                contentColor = colors.textPrimary
+            ),
+            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+        ) {
+            Text(
+                text = "Cancel",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 15.sp
+                )
+            )
+        }
+
+        Button(
+            onClick = submit,
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF0A84FF),
+                contentColor = PureWhite
+            ),
+            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+        ) {
+            Text(
+                text = "Save",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+            )
+        }
     }
 }
 
@@ -2236,99 +2396,113 @@ fun BackupAndExportSheetContent(
     onRestoreJson: (String, RestoreMode) -> Unit
 ) {
     val colors = ShiftlyColors.current
-    var restoreJsonInput by remember { mutableStateOf("") }
     var restoreMode by remember { mutableStateOf(RestoreMode.MERGE) }
 
-    ShiftlySecondaryTextButton(
-        text = "Export Full Backup (.zip + Receipts)",
-        onClick = onExportZip,
-        leadingIcon = {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_folder_archive),
-                contentDescription = null,
-                tint = colors.azureAccent,
-                modifier = Modifier.size(18.dp)
-            )
-        },
-        modifier = Modifier.fillMaxWidth()
+    // Section 1: EXPORT DATA
+    Text(
+        text = "EXPORT DATA",
+        style = MaterialTheme.typography.labelSmall.copy(
+            fontFamily = InterFontFamily,
+            letterSpacing = 0.5.sp
+        ),
+        color = colors.textSecondary,
+        modifier = Modifier.padding(horizontal = 4.dp)
     )
 
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ShiftlySecondaryTextButton(
-            text = "JSON",
-            onClick = onExportJson,
-            leadingIcon = {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_cloud_upload),
-                    contentDescription = null,
-                    tint = colors.azureAccent,
-                    modifier = Modifier.size(16.dp)
-                )
-            },
-            modifier = Modifier.weight(1f)
-        )
-        ShiftlySecondaryTextButton(
-            text = "CSV",
-            onClick = onExportCsv,
-            leadingIcon = {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_file_spreadsheet),
-                    contentDescription = null,
-                    tint = colors.azureAccent,
-                    modifier = Modifier.size(16.dp)
-                )
-            },
-            modifier = Modifier.weight(1f)
-        )
-        ShiftlySecondaryTextButton(
-            text = "PDF",
-            onClick = onExportPdf,
-            leadingIcon = {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_file_text),
-                    contentDescription = null,
-                    tint = colors.azureAccent,
-                    modifier = Modifier.size(16.dp)
-                )
-            },
-            modifier = Modifier.weight(1f)
-        )
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = colors.cardElevated,
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            ExportOptionInsetRow(
+                iconRes = R.drawable.ic_lucide_folder_archive,
+                label = "Full Backup (.zip + Receipts)",
+                onClick = onExportZip
+            )
+            ShiftlyHairlineDivider(startInset = 42.dp)
+
+            ExportOptionInsetRow(
+                iconRes = R.drawable.ic_lucide_file_text,
+                label = "PDF Statement",
+                onClick = onExportPdf
+            )
+            ShiftlyHairlineDivider(startInset = 42.dp)
+
+            ExportOptionInsetRow(
+                iconRes = R.drawable.ic_lucide_file_spreadsheet,
+                label = "CSV Spreadsheet",
+                onClick = onExportCsv
+            )
+            ShiftlyHairlineDivider(startInset = 42.dp)
+
+            ExportOptionInsetRow(
+                iconRes = R.drawable.ic_lucide_cloud_upload,
+                label = "JSON Snapshot",
+                onClick = onExportJson
+            )
+        }
     }
 
-    ShiftlyHairlineDivider()
+    // Section 2: RESTORE BACKUP
     Text(
-        "Restore Mode",
-        style = MaterialTheme.typography.titleMedium.copy(
+        text = "RESTORE BACKUP",
+        style = MaterialTheme.typography.labelSmall.copy(
             fontFamily = InterFontFamily,
-            fontSize = 15.sp
+            letterSpacing = 0.5.sp
         ),
-        color = colors.textPrimary
+        color = colors.textSecondary,
+        modifier = Modifier.padding(horizontal = 4.dp)
     )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+            .clip(RoundedCornerShape(9.dp))
+            .background(colors.surface)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        SelectableRulePill(
-            label = "Merge (No Dupes)",
-            selected = restoreMode == RestoreMode.MERGE,
-            onClick = { restoreMode = RestoreMode.MERGE },
-            modifier = Modifier.weight(1f)
-        )
-        SelectableRulePill(
-            label = "Replace All",
-            selected = restoreMode == RestoreMode.REPLACE,
-            onClick = { restoreMode = RestoreMode.REPLACE },
-            modifier = Modifier.weight(1f)
-        )
-    }
-    if (restoreMode == RestoreMode.REPLACE) {
-        Text(
-            text = "Replace All erases your current shifts, expenses, split bills, and receipts before restoring.",
-            style = MaterialTheme.typography.bodySmall,
-            color = colors.coralTextOnSurface
-        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(35.dp)
+                .clip(RoundedCornerShape(7.dp))
+                .background(if (restoreMode == RestoreMode.MERGE) colors.azurePrimary else Color.Transparent)
+                .clickable { restoreMode = RestoreMode.MERGE },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Merge",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = if (restoreMode == RestoreMode.MERGE) FontWeight.SemiBold else FontWeight.Medium,
+                    fontSize = 13.sp
+                ),
+                color = if (restoreMode == RestoreMode.MERGE) PureWhite else colors.textSecondary
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(35.dp)
+                .clip(RoundedCornerShape(7.dp))
+                .background(if (restoreMode == RestoreMode.REPLACE) colors.coralBright else Color.Transparent)
+                .clickable { restoreMode = RestoreMode.REPLACE },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Replace All",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = if (restoreMode == RestoreMode.REPLACE) FontWeight.SemiBold else FontWeight.Medium,
+                    fontSize = 13.sp
+                ),
+                color = if (restoreMode == RestoreMode.REPLACE) PureWhite else colors.textSecondary
+            )
+        }
     }
 
     ShiftlySecondaryTextButton(
@@ -2344,28 +2518,48 @@ fun BackupAndExportSheetContent(
         },
         modifier = Modifier.fillMaxWidth()
     )
+}
 
-    OutlinedTextField(
-        value = restoreJsonInput,
-        onValueChange = { restoreJsonInput = it },
-        label = { Text("Or paste exported JSON backup", fontFamily = InterFontFamily) },
-        minLines = 3,
-        maxLines = 5,
-        shape = RoundedCornerShape(14.dp),
-        colors = shiftlySheetFieldColors(),
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    ShiftlyPrimaryPillButton(
-        text = if (restoreMode == RestoreMode.REPLACE) "Replace & Restore JSON" else "Merge & Restore JSON",
-        enabled = restoreJsonInput.isNotBlank(),
-        leadingIcon = {
+@Composable
+private fun ExportOptionInsetRow(
+    @DrawableRes iconRes: Int,
+    label: String,
+    onClick: () -> Unit
+) {
+    val colors = ShiftlyColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             Icon(
-                painter = painterResource(R.drawable.ic_lucide_download),
+                painter = painterResource(iconRes),
                 contentDescription = null,
+                tint = colors.azureAccent,
                 modifier = Modifier.size(18.dp)
             )
-        },
-        onClick = { onRestoreJson(restoreJsonInput, restoreMode) }
-    )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = colors.textPrimary
+            )
+        }
+        Icon(
+            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+            contentDescription = null,
+            tint = colors.textSecondary,
+            modifier = Modifier.size(16.dp)
+        )
+    }
 }

@@ -3,31 +3,36 @@ package com.example.shiftly.ui.screens
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -42,15 +47,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -60,18 +67,25 @@ import coil.request.ImageRequest
 import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ProfilePhotoHelper
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
-import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
+import com.example.shiftly.ui.theme.tabular
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private val ObsidianBackground = Color(0xFF0B0F17)
+private val ElectricBlue = Color(0xFF3B82F6)
+private val TextPrimary = Color(0xFFF8FAFC)
+private val TextSecondary = Color(0xFF94A3B8)
 
 private fun filterDecimal(raw: String, current: String): String {
     val filtered = raw.filter { it.isDigit() || it == '.' }
@@ -94,7 +108,7 @@ fun WelcomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(colors.background)
+            .background(ObsidianBackground)
     ) {
         Column(
             modifier = Modifier
@@ -109,47 +123,42 @@ fun WelcomeScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.padding(top = 8.dp)
             ) {
-                Box(
+                Image(
+                    painter = painterResource(R.mipmap.ic_launcher_foreground),
+                    contentDescription = "Shiftly Logo",
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(38.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(colors.azurePrimary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "₱",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = colors.onAzurePrimary
-                    )
-                }
+                        .graphicsLayer {
+                            scaleX = 1.45f
+                            scaleY = 1.45f
+                        }
+                )
                 Text(
                     text = "Shiftly",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     ),
-                    color = colors.textPrimary
+                    color = TextPrimary
                 )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Text(
                     text = buildAnnotatedString {
-                        append("Track every ")
+                        append("Earn ")
                         withStyle(
                             SpanStyle(
                                 fontFamily = InterFontFamily,
-                                fontStyle = FontStyle.Italic,
-                                fontWeight = FontWeight.Medium,
-                                color = colors.azureAccent
+                                fontWeight = FontWeight.Bold,
+                                color = ElectricBlue
                             )
                         ) {
-                            append("earned")
+                            append("smarter,")
                         }
-                        append("\npeso between classes.")
+                        append("\nspend clearer.")
                     },
                     style = MaterialTheme.typography.displayMedium.copy(
                         fontFamily = InterFontFamily,
@@ -157,13 +166,16 @@ fun WelcomeScreen(
                         fontSize = 36.sp,
                         lineHeight = 43.sp
                     ),
-                    color = colors.textPrimary
+                    color = TextPrimary
                 )
 
                 Text(
-                    text = "Log duty shifts in seconds, watch your pay add up automatically, and keep campus expenses and split bills effortless.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = colors.textSecondary
+                    text = "Log your shifts, track your spend, and split the bill.",
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontFamily = InterFontFamily,
+                        lineHeight = 24.sp
+                    ),
+                    color = TextSecondary
                 )
             }
 
@@ -173,10 +185,30 @@ fun WelcomeScreen(
                     .padding(bottom = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                ShiftlyPrimaryPillButton(
-                    text = "Get Started",
-                    onClick = { showSetupSheet = true }
-                )
+                Button(
+                    onClick = { showSetupSheet = true },
+                    shape = RoundedCornerShape(50),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ElectricBlue,
+                        contentColor = PureWhite
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Text(
+                        text = "Get Started",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp
+                        )
+                    )
+                }
             }
         }
     }
@@ -250,17 +282,6 @@ fun WelcomeScreen(
             }
         }
 
-        val fieldColors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = colors.azureAccent,
-            unfocusedBorderColor = Color.Transparent,
-            focusedLabelColor = colors.azureAccent,
-            unfocusedLabelColor = colors.textSecondary,
-            focusedTextColor = colors.textPrimary,
-            unfocusedTextColor = colors.textPrimary,
-            focusedContainerColor = colors.cardElevated,
-            unfocusedContainerColor = colors.cardElevated
-        )
-
         ModalBottomSheet(
             onDismissRequest = { showSetupSheet = false },
             sheetState = sheetState,
@@ -277,22 +298,28 @@ fun WelcomeScreen(
                     .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                ShiftlySheetHeader(
-                    title = "Set Up Tracker",
-                    onCancel = { showSetupSheet = false },
-                    actionLabel = "Save",
-                    onAction = submitSetup
-                )
-                Text(
-                    text = "You can adjust your name, hourly rate, and monthly budget anytime in Profile.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 44.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Set Up Tracker",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp
+                        ),
+                        color = colors.textPrimary,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
-                // Profile Photo Picker
+                // Clean Avatar Picker Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -300,7 +327,7 @@ fun WelcomeScreen(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(68.dp)
+                            .size(64.dp)
                             .clip(CircleShape)
                             .background(colors.cardElevated)
                             .clickable {
@@ -321,147 +348,102 @@ fun WelcomeScreen(
                         } else {
                             Icon(
                                 painter = painterResource(R.drawable.ic_lucide_camera),
-                                contentDescription = "Add profile photo",
+                                contentDescription = "Choose photo",
                                 tint = colors.azureAccent,
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
 
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (photoPath != null) "Profile photo added" else "Add profile photo (optional)",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = colors.textPrimary
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = {
+                                suppressNextRelock()
+                                photoPicker.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                        ) {
+                            Text(
+                                text = if (photoPath != null) "Change Photo" else "Choose Photo",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.azureAccent
+                            )
+                        }
+                        if (photoPath != null) {
                             TextButton(
                                 onClick = {
-                                    suppressNextRelock()
-                                    photoPicker.launch(
-                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                    )
+                                    val oldPath = photoPath
+                                    photoPath = null
+                                    coroutineScope.launch(Dispatchers.IO) {
+                                        ProfilePhotoHelper.deleteProfilePhoto(oldPath)
+                                    }
                                 }
                             ) {
                                 Text(
-                                    text = if (photoPath != null) "Change photo" else "Choose photo",
+                                    text = "Remove",
                                     style = MaterialTheme.typography.labelLarge.copy(
-                                        fontFamily = InterFontFamily
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold
                                     ),
-                                    color = colors.azureAccent
+                                    color = colors.coralTextOnSurface
                                 )
-                            }
-                            if (photoPath != null) {
-                                TextButton(
-                                    onClick = {
-                                        val oldPath = photoPath
-                                        photoPath = null
-                                        coroutineScope.launch(Dispatchers.IO) {
-                                            ProfilePhotoHelper.deleteProfilePhoto(oldPath)
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_lucide_x),
-                                        contentDescription = null,
-                                        tint = colors.coralTextOnSurface,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.size(4.dp))
-                                    Text(
-                                        text = "Remove",
-                                        style = MaterialTheme.typography.labelLarge.copy(
-                                            fontFamily = InterFontFamily
-                                        ),
-                                        color = colors.coralTextOnSurface
-                                    )
-                                }
                             }
                         }
                     }
                 }
 
-                OutlinedTextField(
-                    value = nameInput,
-                    onValueChange = {
-                        nameInput = it
-                        validationError = null
-                    },
-                    label = { Text("Display Name", fontFamily = InterFontFamily) },
-                    placeholder = {
-                        Text(
-                            text = "What I gonna call you?",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textSecondary
-                        )
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = fieldColors,
+                // Unified iOS Inset-Grouped Form Container
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = colors.cardElevated,
+                    shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
-                )
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        // Row 1: Display Name
+                        TrackerFormInsetRow(
+                            label = "Display Name",
+                            value = nameInput,
+                            onValueChange = {
+                                nameInput = it
+                                validationError = null
+                            },
+                            placeholder = "Your name"
+                        )
+                        ShiftlyHairlineDivider(startInset = 16.dp)
 
-                OutlinedTextField(
-                    value = rateInput,
-                    onValueChange = {
-                        rateInput = filterDecimal(it, rateInput)
-                        validationError = null
-                    },
-                    label = { Text("Hourly Rate (₱)", fontFamily = InterFontFamily) },
-                    placeholder = {
-                        Text(
-                            text = "What is your hourly rate?",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textSecondary
+                        // Row 2: Hourly Rate
+                        TrackerFormInsetRow(
+                            label = "Hourly Rate",
+                            value = rateInput,
+                            onValueChange = {
+                                rateInput = filterDecimal(it, rateInput)
+                                validationError = null
+                            },
+                            placeholder = "₱ 0.00",
+                            prefix = "₱",
+                            isNumeric = true
                         )
-                    },
-                    prefix = {
-                        Text(
-                            text = "₱",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = colors.textPrimary
-                        )
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                        ShiftlyHairlineDivider(startInset = 16.dp)
 
-                OutlinedTextField(
-                    value = budgetInput,
-                    onValueChange = {
-                        budgetInput = filterDecimal(it, budgetInput)
-                        validationError = null
-                    },
-                    label = { Text("Monthly Budget (₱)", fontFamily = InterFontFamily) },
-                    placeholder = {
-                        Text(
-                            text = "What is your monthly budget?",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textSecondary
+                        // Row 3: Monthly Budget
+                        TrackerFormInsetRow(
+                            label = "Monthly Budget",
+                            value = budgetInput,
+                            onValueChange = {
+                                budgetInput = filterDecimal(it, budgetInput)
+                                validationError = null
+                            },
+                            placeholder = "₱ Optional",
+                            prefix = "₱",
+                            isNumeric = true
                         )
-                    },
-                    prefix = {
-                        Text(
-                            text = "₱",
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = colors.textPrimary
-                        )
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    }
+                }
 
                 if (!validationError.isNullOrBlank()) {
                     Text(
@@ -470,7 +452,90 @@ fun WelcomeScreen(
                         color = colors.coralTextOnSurface
                     )
                 }
+
+                ShiftlySheetBottomButtons(
+                    onCancel = { showSetupSheet = false },
+                    onAction = submitSetup,
+                    actionLabel = "Save"
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun TrackerFormInsetRow(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    prefix: String? = null,
+    isNumeric: Boolean = false
+) {
+    val colors = ShiftlyColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 50.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            ),
+            color = colors.textPrimary
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (prefix != null && value.isNotEmpty()) {
+                Text(
+                    text = prefix,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary
+                    )
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (isNumeric) KeyboardType.Decimal else KeyboardType.Text
+                ),
+                cursorBrush = SolidColor(colors.azureAccent),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.End
+                ).let { if (isNumeric) it.tabular() else it },
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterEnd) {
+                        if (value.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    color = colors.textSecondary
+                                ),
+                                textAlign = TextAlign.End
+                            )
+                        }
+                        inner()
+                    }
+                },
+                modifier = Modifier.width(160.dp)
+            )
         }
     }
 }

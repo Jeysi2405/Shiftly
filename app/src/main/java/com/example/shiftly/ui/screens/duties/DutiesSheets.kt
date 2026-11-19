@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
+import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
@@ -1003,6 +1004,13 @@ fun ManualShiftSheetContent(
             totalMinutes = totalMinutes,
             currencySymbol = currencySymbol,
             wageDetails = wageDetails
+        )
+
+        ShiftlySheetBottomButtons(
+            onCancel = onDismiss,
+            onAction = saveAction,
+            actionLabel = if (title.contains("Edit", ignoreCase = true)) "Update" else "Save",
+            actionEnabled = !isDateAlreadyLogged
         )
     }
 
