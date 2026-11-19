@@ -1,6 +1,8 @@
 package com.example.shiftly.ui.screens
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,11 +16,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -39,6 +45,7 @@ import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlySectionHeader
@@ -60,6 +67,7 @@ import com.example.shiftly.utils.SavingsGoalMath
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlin.coroutines.cancellation.CancellationException
 
 @Composable
 fun HomeScreen(
@@ -81,9 +89,14 @@ fun HomeScreen(
     var showGoalDetailSheet by remember { mutableStateOf(false) }
     var isInboxOpen by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = isInboxOpen) {
-        isInboxOpen = false
-        viewModel.markAllNotificationsRead()
+    PredictiveBackHandler(enabled = isInboxOpen) { progress ->
+        try {
+            progress.collect { }
+            isInboxOpen = false
+            viewModel.markAllNotificationsRead()
+        } catch (_: CancellationException) {
+            // Back gesture cancelled: keep inbox open.
+        }
     }
 
     val handleNotificationItemClick: (InAppNotificationItem) -> Unit = { item ->
@@ -203,7 +216,8 @@ fun HomeScreenContent(
     onTimelineItemClick: (TimelineActivityItem) -> Unit = {},
     todayOverride: LocalDate? = null,
     greetingHourOverride: Int? = null,
-    notificationReferenceTimeMillis: Long? = null
+    notificationReferenceTimeMillis: Long? = null,
+    listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
     val currency = state.currencySymbol
@@ -217,8 +231,24 @@ fun HomeScreenContent(
     val nearLimit = budgetRatio >= 0.80f
     val budgetPct = (budgetRatio * 100).toInt()
 
+    val isTitleCollapsed by remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 70
+        }
+    }
+    val headerAlpha by remember(listState) {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                0f
+            } else {
+                (1f - listState.firstVisibleItemScrollOffset / 140f).coerceIn(0f, 1f)
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
@@ -226,7 +256,11 @@ fun HomeScreenContent(
             verticalArrangement = Arrangement.Top
         ) {
             item(key = "greeting_header", contentType = "greeting_header") {
-                Box(modifier = Modifier.padding(bottom = 14.dp)) {
+                Box(
+                    modifier = Modifier
+                        .padding(bottom = 14.dp)
+                        .graphicsLayer { alpha = headerAlpha }
+                ) {
                     HomeGreetingHeader(
                         userName = state.userName,
                         profilePhotoPath = state.profilePhotoPath,
@@ -371,6 +405,14 @@ fun HomeScreenContent(
                     }
                     Box(
                         modifier = Modifier
+                            .animateItem(
+                                fadeInSpec = spring(dampingRatio = 0.8f),
+                                placementSpec = spring(
+                                    dampingRatio = 0.8f,
+                                    stiffness = Spring.StiffnessMediumLow
+                                ),
+                                fadeOutSpec = spring(dampingRatio = 0.8f)
+                            )
                             .fillMaxWidth()
                             .shiftlySheetBodyBand(colors.surface)
                             .padding(horizontal = 20.dp)
@@ -402,6 +444,12 @@ fun HomeScreenContent(
                 }
             }
         }
+
+        ShiftlyCollapsedTopBar(
+            title = "Home",
+            isCollapsed = isTitleCollapsed,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
 
         NotificationInboxDropdown(
             visible = isInboxOpen,

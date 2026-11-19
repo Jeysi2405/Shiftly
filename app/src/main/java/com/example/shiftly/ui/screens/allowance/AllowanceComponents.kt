@@ -24,11 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,7 +35,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -68,11 +64,16 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.AllowanceSource
 import com.example.shiftly.data.local.CutoffScheduleConfig
+import com.example.shiftly.ui.components.ShiftlyDialogShell
+import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -273,29 +274,10 @@ fun AllowanceCutoffScheduleCard(
                     )
                 }
 
-                Button(
-                    onClick = onChangeCutoff,
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.azureContainer,
-                        contentColor = colors.azureInk
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp
-                    ),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    modifier = Modifier.heightIn(min = 38.dp)
-                ) {
-                    Text(
-                        text = "Change Cutoff",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.azureInk
-                    )
-                }
+                ShiftlySecondaryTextButton(
+                    text = "Change Cutoff",
+                    onClick = onChangeCutoff
+                )
             }
 
             ShiftlyHairlineDivider()
@@ -480,43 +462,14 @@ fun AllowanceEmptyCard(
     onAddAllowance: () -> Unit
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = colors.cardElevated,
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ShiftlyIosIconTile(
-                iconRes = R.drawable.ic_lucide_wallet,
-                backgroundColor = colors.mintBright,
-                size = 48.dp,
-                cornerRadius = 12.dp,
-                iconSize = 24.dp
-            )
-            Text(
-                text = "No allowance entries yet",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = colors.textPrimary
-            )
-            Text(
-                text = "Log Salary, Business, or Others income — and reached Duties cutoffs auto-credit here on payday.",
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textSecondary
-            )
-            ShiftlyPrimaryPillButton(
-                text = "Add Allowance",
-                onClick = onAddAllowance
-            )
-        }
-    }
+    ShiftlyEmptyState(
+        iconRes = R.drawable.ic_lucide_wallet,
+        title = "No allowance entries yet",
+        subtitle = "Log Salary, Business, or Others income — and reached Duties cutoffs auto-credit here on payday.",
+        actionText = "Add Allowance",
+        onAction = onAddAllowance,
+        iconBackgroundColor = colors.mintBright
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -552,8 +505,10 @@ fun AddAllowanceBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        dragHandle = { ShiftlySheetDragHandle() },
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
@@ -562,30 +517,20 @@ fun AddAllowanceBottomSheet(
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 26.dp),
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Add Allowance",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.textPrimary
-                )
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 44.dp)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
+            ShiftlySheetHeader(
+                title = "Add Allowance",
+                onCancel = onDismiss,
+                actionLabel = "Add",
+                actionEnabled = isValid,
+                onAction = {
+                    if (isValid) {
+                        onSave(title.trim(), parsedAmount, selectedSource, selectedDate)
+                    }
                 }
-            }
+            )
 
             OutlinedTextField(
                 value = amountText,
@@ -756,55 +701,30 @@ fun AddAllowanceBottomSheet(
                     )
                 }
             }
-
-            ShiftlyPrimaryPillButton(
-                text = "Save Allowance",
-                enabled = isValid,
-                onClick = {
-                    onSave(title.trim(), parsedAmount, selectedSource, selectedDate)
-                }
-            )
         }
     }
 
     if (showDatePicker) {
         val initialMillis = selectedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            tonalElevation = 0.dp,
-            colors = DatePickerDefaults.colors(containerColor = colors.surface),
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            selectedDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text(
-                        text = "Select",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.azureAccent
-                    )
+        ShiftlyDialogShell(
+            title = "Select Date",
+            onDismiss = { showDatePicker = false },
+            actionLabel = "Done",
+            onAction = {
+                datePickerState.selectedDateMillis?.let { millis ->
+                    selectedDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
                 }
+                showDatePicker = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            horizontalOuterPadding = 12.dp,
+            contentHorizontalPadding = 8.dp
         ) {
             DatePicker(
                 state = datePickerState,
+                title = null,
+                headline = null,
+                showModeToggle = false,
                 colors = DatePickerDefaults.colors(
                     containerColor = colors.surface,
                     titleContentColor = colors.textPrimary,
@@ -864,8 +784,10 @@ fun ChangeCutoffScheduleSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        dragHandle = { ShiftlySheetDragHandle() },
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
@@ -874,30 +796,15 @@ fun ChangeCutoffScheduleSheet(
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 26.dp),
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Payday Cutoff Schedule",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.textPrimary
-                )
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 44.dp)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            ShiftlySheetHeader(
+                title = "Payday Cutoff Schedule",
+                onCancel = onDismiss,
+                actionLabel = "Save",
+                onAction = { onSave(previewConfig) }
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1075,11 +982,6 @@ fun ChangeCutoffScheduleSheet(
                     )
                 }
             }
-
-            ShiftlyPrimaryPillButton(
-                text = "Save Cutoff Schedule",
-                onClick = { onSave(previewConfig) }
-            )
         }
     }
 }

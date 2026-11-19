@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -79,6 +81,7 @@ private tailrec fun Context.findActivity(): Activity? = when (this) {
     else -> null
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShiftlyTheme(
     themeMode: String = "SYSTEM",
@@ -105,7 +108,10 @@ fun ShiftlyTheme(
         }
     }
 
-    CompositionLocalProvider(LocalShiftlyColors provides shiftlyColors) {
+    CompositionLocalProvider(
+        LocalShiftlyColors provides shiftlyColors,
+        LocalRippleConfiguration provides null
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             typography = AppTypography,

@@ -17,12 +17,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -31,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
@@ -121,87 +124,112 @@ fun AnalyticsScreenContent(
     listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
-    LazyColumn(
-        state = listState,
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(top = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        item(key = "analytics_top_bar", contentType = "top_bar") {
-            AnalyticsTopBar(
-                rangeLabel = state.selectedRange.fullLabel
-            )
+    val isTitleCollapsed by remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 70
         }
-
-        item(key = "analytics_range_control", contentType = "range_control") {
-            AnalyticsRangeSegmentedControl(
-                selectedRange = state.selectedRange,
-                onSelectRange = onSelectRange,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-        }
-
-        item(key = "analytics_chart_card", contentType = "chart_card") {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                IncomeVsExpenseGlassChartCard(state = state)
+    }
+    val headerAlpha by remember(listState) {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                0f
+            } else {
+                (1f - listState.firstVisibleItemScrollOffset / 140f).coerceIn(0f, 1f)
             }
         }
+    }
 
-        item(key = "analytics_insights_sheet", contentType = "insights_sheet") {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 520.dp),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                color = colors.surface,
-                shadowElevation = 0.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    ShiftlySheetDragHandle()
-
-                    Text(
-                        text = "Insights",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colors.textPrimary,
-                        modifier = Modifier.semantics { heading() }
-                    )
-
-                    OnBudgetStreakCard(
-                        streakDays = state.underBudgetStreakDays,
-                        streakTargetDays = state.streakTargetDays,
-                        dailyAllowance = state.dailyBudgetAllowance,
-                        currencySymbol = state.currencySymbol
-                    )
-
-                    TopSpendingCategoriesCard(
-                        categories = state.categoryInsights,
-                        currencySymbol = state.currencySymbol
-                    )
-
-                    EarningsHoursBreakdownCard(
-                        currencySymbol = state.currencySymbol,
-                        earnings = state.periodIncome,
-                        totalHours = state.totalWorkedHours,
-                        regularHours = state.regularHours,
-                        nightDiffHours = state.nightDiffHours,
-                        overtimeHours = state.overtimeHours
-                    )
-
-                    HoursOfWorkCostCard(
-                        currencySymbol = state.currencySymbol,
-                        hourlyRate = state.hourlyRate,
-                        items = state.workHoursCosts
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            contentPadding = PaddingValues(top = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            item(key = "analytics_top_bar", contentType = "top_bar") {
+                Box(modifier = Modifier.graphicsLayer { alpha = headerAlpha }) {
+                    AnalyticsTopBar(
+                        rangeLabel = state.selectedRange.fullLabel
                     )
                 }
             }
+
+            item(key = "analytics_range_control", contentType = "range_control") {
+                AnalyticsRangeSegmentedControl(
+                    selectedRange = state.selectedRange,
+                    onSelectRange = onSelectRange,
+                    modifier = Modifier.padding(horizontal = 20.dp)
+                )
+            }
+
+            item(key = "analytics_chart_card", contentType = "chart_card") {
+                Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    IncomeVsExpenseGlassChartCard(state = state)
+                }
+            }
+
+            item(key = "analytics_insights_sheet", contentType = "insights_sheet") {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 520.dp),
+                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    color = colors.surface,
+                    shadowElevation = 0.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        ShiftlySheetDragHandle()
+
+                        Text(
+                            text = "Insights",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colors.textPrimary,
+                            modifier = Modifier.semantics { heading() }
+                        )
+
+                        OnBudgetStreakCard(
+                            streakDays = state.underBudgetStreakDays,
+                            streakTargetDays = state.streakTargetDays,
+                            dailyAllowance = state.dailyBudgetAllowance,
+                            currencySymbol = state.currencySymbol
+                        )
+
+                        TopSpendingCategoriesCard(
+                            categories = state.categoryInsights,
+                            currencySymbol = state.currencySymbol
+                        )
+
+                        EarningsHoursBreakdownCard(
+                            currencySymbol = state.currencySymbol,
+                            earnings = state.periodIncome,
+                            totalHours = state.totalWorkedHours,
+                            regularHours = state.regularHours,
+                            nightDiffHours = state.nightDiffHours,
+                            overtimeHours = state.overtimeHours
+                        )
+
+                        HoursOfWorkCostCard(
+                            currencySymbol = state.currencySymbol,
+                            hourlyRate = state.hourlyRate,
+                            items = state.workHoursCosts
+                        )
+                    }
+                }
+            }
         }
+
+        ShiftlyCollapsedTopBar(
+            title = "Analytics",
+            isCollapsed = isTitleCollapsed,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 

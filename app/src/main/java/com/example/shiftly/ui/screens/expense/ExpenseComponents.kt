@@ -5,8 +5,8 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,11 +30,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,7 +41,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
@@ -70,10 +66,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -81,23 +79,27 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ReceiptStorageHelper
+import com.example.shiftly.ui.components.ShiftlyDialogShell
+import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyProgressBar
+import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.shiftlyPressClickable
+import com.example.shiftly.ui.components.shiftlyPressEffect
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
@@ -116,14 +118,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val ExpensePillShape = RoundedCornerShape(50)
-private val ExpenseCardShape = RoundedCornerShape(18.dp)
 private val ExpenseItemShape = RoundedCornerShape(18.dp)
 private val ExpenseFieldLargeShape = RoundedCornerShape(14.dp)
 private val ExpenseFieldShape = RoundedCornerShape(12.dp)
 private val ExpenseChipShape = RoundedCornerShape(10.dp)
 private val ExpenseThumbShape = RoundedCornerShape(10.dp)
-private val ExpenseSheetTopShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-private val ExpenseCategorySheetTopShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+private val ExpenseSheetTopShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+private val ExpenseCategorySheetTopShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
 
 @DrawableRes
 fun categoryIcon(category: String): Int {
@@ -383,6 +384,7 @@ fun ExpenseCategoryFilterRow(
     onSelectCategory: (String) -> Unit
 ) {
     val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -413,7 +415,10 @@ fun ExpenseCategoryFilterRow(
                     .heightIn(min = 42.dp)
                     .clip(ExpensePillShape)
                     .background(if (isSelected) colors.azurePrimary else colors.card)
-                    .clickable(role = Role.Tab) { onSelectCategory(category) }
+                    .shiftlyPressClickable(role = Role.Tab) {
+                        if (!isSelected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onSelectCategory(category)
+                    }
                     .semantics(mergeDescendants = true) {
                         selected = isSelected
                         contentDescription = "$category expenses filter"
@@ -455,57 +460,24 @@ fun ExpenseEmptyCard(
         monthLabel != null -> "No expenses in $monthLabel"
         else -> "No expenses logged yet"
     }
+    val subtitle = if (isFiltered) {
+        "Try clearing the active filter or tap + Add above."
+    } else {
+        "Start tracking your daily spending and save receipts."
+    }
     val buttonText = when {
         isCategoryFiltered -> "Show All Expenses"
         isMonthFiltered -> "Show All Months"
         else -> "Log your first expense"
     }
-    Surface(
-        shape = ExpenseCardShape,
-        color = colors.cardElevated,
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 26.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            ShiftlyIosIconTile(
-                iconRes = R.drawable.ic_lucide_receipt_text,
-                backgroundColor = colors.coralBright,
-                size = 48.dp,
-                cornerRadius = 12.dp,
-                iconSize = 24.dp,
-                iconTint = PureWhite
-            )
-            Text(
-                text = emptyTitle,
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
-                color = colors.textPrimary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            ShiftlyPrimaryPillButton(
-                text = buttonText,
-                onClick = if (isFiltered) onShowAll else onAddExpense
-            )
-            if (isFiltered) {
-                TextButton(onClick = onAddExpense) {
-                    Text(
-                        text = "Log Expense",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.azureInk
-                    )
-                }
-            }
-        }
-    }
+    ShiftlyEmptyState(
+        iconRes = R.drawable.ic_lucide_receipt_text,
+        title = emptyTitle,
+        subtitle = subtitle,
+        actionText = buttonText,
+        onAction = if (isFiltered) onShowAll else onAddExpense,
+        iconBackgroundColor = colors.coralBright
+    )
 }
 
 @Composable
@@ -585,7 +557,7 @@ fun ExpenseItemCard(
                         modifier = Modifier
                             .defaultMinSize(minWidth = 48.dp, minHeight = 40.dp)
                             .clip(ExpenseChipShape)
-                            .clickable(onClickLabel = "View receipt for ${expense.title}") {
+                            .shiftlyPressClickable(onClickLabel = "View receipt for ${expense.title}") {
                                 onViewReceipt(expense)
                             }
                             .semantics(mergeDescendants = true) {
@@ -635,9 +607,13 @@ fun ExpenseItemCard(
                     ).tabular(),
                     color = colors.coralInk
                 )
+                val deleteInteraction = remember { MutableInteractionSource() }
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(44.dp)
+                    interactionSource = deleteInteraction,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .shiftlyPressEffect(deleteInteraction)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_trash_2),
@@ -674,8 +650,10 @@ fun AddExpenseBottomSheet(
         },
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = ExpenseSheetTopShape
+        shape = ExpenseSheetTopShape,
+        dragHandle = { ShiftlySheetDragHandle() }
     ) {
         AddExpenseSheetContent(
             currencySymbol = currencySymbol,
@@ -807,6 +785,7 @@ fun AddExpenseSheetContent(
 
     val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
     val isValid = title.isNotBlank() && parsedAmount.isFinite() && parsedAmount > 0.0
+    val canSubmit = isValid && !isProcessingCameraPhoto
 
     Column(
         modifier = Modifier
@@ -815,30 +794,20 @@ fun AddExpenseSheetContent(
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp)
-            .padding(bottom = 26.dp),
+            .padding(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Add Expense",
-                style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
-                color = colors.textPrimary
-            )
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.heightIn(min = 48.dp)
-            ) {
-                Text(
-                    text = "Cancel",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary
-                )
+        ShiftlySheetHeader(
+            title = "Add Expense",
+            onCancel = onDismiss,
+            actionLabel = "Add",
+            actionEnabled = canSubmit,
+            onAction = {
+                if (canSubmit) {
+                    onSaveExpense(title, parsedAmount, selectedCategory, selectedDate, savedReceiptPath)
+                }
             }
-        }
+        )
 
         OutlinedTextField(
             value = amountText,
@@ -923,7 +892,7 @@ fun AddExpenseSheetContent(
                 .fillMaxWidth()
                 .heightIn(min = 52.dp)
                 .clip(ExpenseFieldShape)
-                .clickable { showCategoryPrompt = true }
+                .shiftlyPressClickable { showCategoryPrompt = true }
         ) {
             Row(
                 modifier = Modifier
@@ -985,7 +954,7 @@ fun AddExpenseSheetContent(
                     .weight(1f)
                     .heightIn(min = 48.dp)
                     .clip(ExpenseFieldShape)
-                    .clickable { showDatePicker = true }
+                    .shiftlyPressClickable { showDatePicker = true }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
@@ -1014,7 +983,7 @@ fun AddExpenseSheetContent(
                     .weight(1f)
                     .heightIn(min = 48.dp)
                     .clip(ExpenseFieldShape)
-                    .clickable { showTimePicker = true }
+                    .shiftlyPressClickable { showTimePicker = true }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
@@ -1071,6 +1040,7 @@ fun AddExpenseSheetContent(
                             color = colors.textPrimary,
                             modifier = Modifier.weight(1f)
                         )
+                        val removeReceiptInteraction = remember { MutableInteractionSource() }
                         IconButton(
                             onClick = {
                                 val oldPath = savedReceiptPath
@@ -1079,7 +1049,10 @@ fun AddExpenseSheetContent(
                                     ReceiptStorageHelper.deleteReceiptFile(oldPath)
                                 }
                             },
-                            modifier = Modifier.size(48.dp)
+                            interactionSource = removeReceiptInteraction,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .shiftlyPressEffect(removeReceiptInteraction)
                         ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_lucide_x),
@@ -1095,42 +1068,29 @@ fun AddExpenseSheetContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Button(
+                    ShiftlySecondaryTextButton(
+                        text = "Gallery",
+                        enabled = !isProcessingCameraPhoto,
                         onClick = {
                             suppressNextRelock()
                             galleryLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
-                        enabled = !isProcessingCameraPhoto,
-                        shape = ExpensePillShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.cardElevated,
-                            contentColor = colors.textPrimary
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 0.dp,
-                            pressedElevation = 0.dp
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_image),
-                            contentDescription = null,
-                            tint = colors.azureInk,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Gallery",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textPrimary
-                        )
-                    }
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_image),
+                                contentDescription = null,
+                                tint = colors.azureAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
 
-                    Button(
+                    ShiftlySecondaryTextButton(
+                        text = if (isProcessingCameraPhoto) "Saving..." else "Camera",
+                        enabled = !isProcessingCameraPhoto,
                         onClick = {
                             suppressNextRelock()
                             coroutineScope.launch {
@@ -1149,64 +1109,18 @@ fun AddExpenseSheetContent(
                                 }
                             }
                         },
-                        enabled = !isProcessingCameraPhoto,
-                        shape = ExpensePillShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.cardElevated,
-                            contentColor = colors.textPrimary
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 0.dp,
-                            pressedElevation = 0.dp
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 48.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_camera),
-                            contentDescription = null,
-                            tint = colors.azureInk,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isProcessingCameraPhoto) "Saving..." else "Camera",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textPrimary
-                        )
-                    }
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_camera),
+                                contentDescription = null,
+                                tint = colors.azureAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
-        }
-
-        Button(
-            onClick = {
-                onSaveExpense(title, parsedAmount, selectedCategory, selectedDate, savedReceiptPath)
-            },
-            enabled = isValid && !isProcessingCameraPhoto,
-            shape = ExpensePillShape,
-            elevation = ButtonDefaults.buttonElevation(
-                defaultElevation = 0.dp,
-                pressedElevation = 0.dp
-            ),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.azurePrimary,
-                contentColor = colors.onAzurePrimary,
-                disabledContainerColor = colors.disabledContainer,
-                disabledContentColor = colors.disabledContent
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 56.dp)
-        ) {
-            Text(
-                text = "Add Expense",
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.SemiBold
-                )
-            )
         }
     }
 
@@ -1225,40 +1139,18 @@ fun AddExpenseSheetContent(
             initialMinute = selectedTime.minute,
             is24Hour = false
         )
-        DatePickerDialog(
-            onDismissRequest = { showTimePicker = false },
-            tonalElevation = 0.dp,
-            colors = DatePickerDefaults.colors(containerColor = colors.surface),
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
-                        showTimePicker = false
-                    }
-                ) {
-                    Text(
-                        text = "OK",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.azureAccent
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
+        ShiftlyDialogShell(
+            title = "Select Time",
+            onDismiss = { showTimePicker = false },
+            actionLabel = "Done",
+            onAction = {
+                selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                showTimePicker = false
             }
         ) {
             Box(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(vertical = 8.dp)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
@@ -1270,7 +1162,7 @@ fun AddExpenseSheetContent(
                         clockDialUnselectedContentColor = colors.textSecondary,
                         selectorColor = colors.azurePrimary,
                         containerColor = colors.surface,
-                        periodSelectorBorderColor = colors.separator,
+                        periodSelectorBorderColor = Color.Transparent,
                         periodSelectorSelectedContainerColor = colors.azurePrimary,
                         periodSelectorUnselectedContainerColor = colors.cardElevated,
                         periodSelectorSelectedContentColor = colors.onAzurePrimary,
@@ -1289,43 +1181,26 @@ fun AddExpenseSheetContent(
         val initialMillis = selectedDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
 
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            tonalElevation = 0.dp,
-            colors = DatePickerDefaults.colors(containerColor = colors.surface),
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            selectedDate = Instant.ofEpochMilli(millis)
-                                .atZone(ZoneOffset.UTC)
-                                .toLocalDate()
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text(
-                        text = "Select",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.azureAccent
-                    )
+        ShiftlyDialogShell(
+            title = "Select Date",
+            onDismiss = { showDatePicker = false },
+            actionLabel = "Done",
+            onAction = {
+                datePickerState.selectedDateMillis?.let { millis ->
+                    selectedDate = Instant.ofEpochMilli(millis)
+                        .atZone(ZoneOffset.UTC)
+                        .toLocalDate()
                 }
+                showDatePicker = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            horizontalOuterPadding = 12.dp,
+            contentHorizontalPadding = 8.dp
         ) {
             DatePicker(
                 state = datePickerState,
+                title = null,
+                headline = null,
+                showModeToggle = false,
                 colors = DatePickerDefaults.colors(
                     containerColor = colors.surface,
                     titleContentColor = colors.textPrimary,
@@ -1362,8 +1237,10 @@ fun CategoryPromptSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = ExpenseCategorySheetTopShape
+        shape = ExpenseCategorySheetTopShape,
+        dragHandle = { ShiftlySheetDragHandle() }
     ) {
         Column(
             modifier = Modifier
@@ -1374,27 +1251,12 @@ fun CategoryPromptSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Select Category",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
-                    color = colors.textPrimary
-                )
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 44.dp)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            ShiftlySheetHeader(
+                title = "Select Category",
+                onCancel = onDismiss,
+                actionLabel = "Done",
+                onAction = onDismiss
+            )
 
             Column(
                 modifier = Modifier
@@ -1408,7 +1270,7 @@ fun CategoryPromptSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(if (isSelected) colors.coralContainer else Color.Transparent)
-                            .clickable(role = Role.RadioButton) {
+                            .shiftlyPressClickable(role = Role.RadioButton) {
                                 onSelectCategory(category)
                                 onDismiss()
                             }
@@ -1489,68 +1351,35 @@ fun ReceiptViewerDialog(
             .build()
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ShiftlyDialogShell(
+        title = expense.title,
+        onDismiss = onDismiss,
+        actionLabel = "Done",
+        onAction = onDismiss,
+        maxWidth = 420.dp,
+        horizontalOuterPadding = 16.dp,
+        contentHorizontalPadding = 16.dp
     ) {
-        Surface(
-            color = colors.background.copy(alpha = 0.96f),
-            shadowElevation = 0.dp,
-            modifier = Modifier.fillMaxSize()
+        Text(
+            text = "${ShiftlyFormatters.formatCurrency(currencySymbol, expense.amount)}  •  $dateLabel",
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily).tabular(),
+            color = colors.coralTextOnSurface
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 260.dp, max = 460.dp)
+                .clip(ExpenseItemShape)
+                .background(colors.cardElevated),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = expense.title,
-                            style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
-                            color = colors.textPrimary
-                        )
-                        Text(
-                            text = "${ShiftlyFormatters.formatCurrency(currencySymbol, expense.amount)}  •  $dateLabel",
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily).tabular(),
-                            color = colors.coralTextOnSurface
-                        )
-                    }
-
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.heightIn(min = 44.dp)
-                    ) {
-                        Text(
-                            text = "Cancel",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textSecondary
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .clip(ExpenseItemShape)
-                        .background(colors.surface),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AsyncImage(
-                        model = receiptRequest,
-                        contentDescription = "Receipt Proof",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            }
+            AsyncImage(
+                model = receiptRequest,
+                contentDescription = "Receipt Proof",
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }

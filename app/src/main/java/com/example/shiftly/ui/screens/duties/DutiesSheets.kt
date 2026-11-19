@@ -1,8 +1,8 @@
 package com.example.shiftly.ui.screens.duties
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +20,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,7 +29,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
@@ -46,7 +44,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -58,8 +58,14 @@ import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
+import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.shiftlyPressClickable
+import com.example.shiftly.ui.components.shiftlyPressEffect
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
@@ -131,7 +137,7 @@ private fun CompactShiftScheduleGrid(
                     .weight(1f)
                     .heightIn(min = 52.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { showDatePicker = true }
+                    .shiftlyPressClickable { showDatePicker = true }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -176,7 +182,7 @@ private fun CompactShiftScheduleGrid(
                     .weight(1f)
                     .heightIn(min = 52.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable(onClick = onDayTypeClick)
+                    .shiftlyPressClickable(onClick = onDayTypeClick)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -253,7 +259,7 @@ private fun CompactShiftScheduleGrid(
                     .weight(1f)
                     .heightIn(min = 52.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { showStartTimePicker = true }
+                    .shiftlyPressClickable { showStartTimePicker = true }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -297,7 +303,7 @@ private fun CompactShiftScheduleGrid(
                     .weight(1f)
                     .heightIn(min = 52.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { showEndTimePicker = true }
+                    .shiftlyPressClickable { showEndTimePicker = true }
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
@@ -339,45 +345,28 @@ private fun CompactShiftScheduleGrid(
         val initialMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
 
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            tonalElevation = 0.dp,
-            colors = DatePickerDefaults.colors(containerColor = colors.surface),
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            onDateChanged(
-                                Instant.ofEpochMilli(millis)
-                                    .atZone(ZoneOffset.UTC)
-                                    .toLocalDate()
-                            )
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text(
-                        text = "Select",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.azureAccent
+        ShiftlyDialogShell(
+            title = "Select Date",
+            onDismiss = { showDatePicker = false },
+            actionLabel = "Done",
+            onAction = {
+                datePickerState.selectedDateMillis?.let { millis ->
+                    onDateChanged(
+                        Instant.ofEpochMilli(millis)
+                            .atZone(ZoneOffset.UTC)
+                            .toLocalDate()
                     )
                 }
+                showDatePicker = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            horizontalOuterPadding = 12.dp,
+            contentHorizontalPadding = 8.dp
         ) {
             DatePicker(
                 state = datePickerState,
+                title = null,
+                headline = null,
+                showModeToggle = false,
                 colors = DatePickerDefaults.colors(
                     containerColor = colors.surface,
                     titleContentColor = colors.textPrimary,
@@ -406,6 +395,7 @@ private fun CompactShiftScheduleGrid(
             is24Hour = false
         )
         ShiftTimePickerDialog(
+            title = "Start Time",
             timePickerState = timePickerState,
             onDismiss = { showStartTimePicker = false },
             onConfirm = {
@@ -422,6 +412,7 @@ private fun CompactShiftScheduleGrid(
             is24Hour = false
         )
         ShiftTimePickerDialog(
+            title = "End Time",
             timePickerState = timePickerState,
             onDismiss = { showEndTimePicker = false },
             onConfirm = {
@@ -435,40 +426,21 @@ private fun CompactShiftScheduleGrid(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ShiftTimePickerDialog(
+    title: String = "Select Time",
     timePickerState: androidx.compose.material3.TimePickerState,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
     val colors = ShiftlyColors.current
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        tonalElevation = 0.dp,
-        colors = DatePickerDefaults.colors(containerColor = colors.surface),
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(
-                    text = "OK",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = colors.azureAccent
-                )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(
-                    text = "Cancel",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary
-                )
-            }
-        }
+    ShiftlyDialogShell(
+        title = title,
+        onDismiss = onDismiss,
+        actionLabel = "Done",
+        onAction = onConfirm
     ) {
         Box(
             modifier = Modifier
-                .padding(20.dp)
+                .padding(vertical = 8.dp)
                 .fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
@@ -480,7 +452,7 @@ private fun ShiftTimePickerDialog(
                     clockDialUnselectedContentColor = colors.textSecondary,
                     selectorColor = colors.azurePrimary,
                     containerColor = colors.surface,
-                    periodSelectorBorderColor = colors.separator,
+                    periodSelectorBorderColor = Color.Transparent,
                     periodSelectorSelectedContainerColor = colors.azurePrimary,
                     periodSelectorUnselectedContainerColor = colors.cardElevated,
                     periodSelectorSelectedContentColor = colors.onAzurePrimary,
@@ -506,6 +478,7 @@ private fun ShiftTimePresetsStrip(
     onSaveCurrentAsPreset: () -> Unit
 ) {
     val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
     val alreadyExists = remember(
         presets,
         currentStartHour24,
@@ -542,7 +515,7 @@ private fun ShiftTimePresetsStrip(
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .clickable(enabled = !alreadyExists, onClick = onSaveCurrentAsPreset)
+                    .shiftlyPressClickable(enabled = !alreadyExists, onClick = onSaveCurrentAsPreset)
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -588,7 +561,10 @@ private fun ShiftTimePresetsStrip(
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .clickable { onSelectPreset(preset) }
+                            .shiftlyPressClickable {
+                                if (!isActive) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSelectPreset(preset)
+                            }
                             .semantics(mergeDescendants = true) {
                                 selected = isActive
                                 contentDescription = "Preset shift ${preset.label}"
@@ -773,8 +749,10 @@ fun ManualShiftBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        dragHandle = { ShiftlySheetDragHandle() }
     ) {
         ManualShiftSheetContent(
             selectedDate = selectedDate,
@@ -886,6 +864,20 @@ fun ManualShiftSheetContent(
         pickedDate.toEpochDay() in blockedEpochDays
     }
 
+    val saveAction: () -> Unit = {
+        if (!isDateAlreadyLogged) {
+            onSave(
+                pickedDate,
+                startHour24,
+                startMin,
+                endHour24,
+                endMin,
+                manualNote.trim(),
+                selectedDayType
+            )
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -893,30 +885,16 @@ fun ManualShiftSheetContent(
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp)
-            .padding(bottom = 22.dp),
+            .padding(bottom = 14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
-                color = colors.textPrimary
-            )
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.heightIn(min = 44.dp)
-            ) {
-                Text(
-                    text = "Cancel",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary
-                )
-            }
-        }
+        ShiftlySheetHeader(
+            title = title,
+            onCancel = onDismiss,
+            actionLabel = "Save",
+            actionEnabled = !isDateAlreadyLogged,
+            onAction = saveAction
+        )
 
         if (showPresets) {
             ShiftTimePresetsStrip(
@@ -987,7 +965,7 @@ fun ManualShiftSheetContent(
                             modifier = Modifier
                                 .padding(start = 8.dp)
                                 .clip(RoundedCornerShape(50))
-                                .clickable { onSwitchToEdit(pickedDate) }
+                                .shiftlyPressClickable { onSwitchToEdit(pickedDate) }
                         ) {
                             Text(
                                 text = "Edit Existing",
@@ -1026,22 +1004,6 @@ fun ManualShiftSheetContent(
             currencySymbol = currencySymbol,
             wageDetails = wageDetails
         )
-
-        ShiftlyPrimaryPillButton(
-            text = confirmButtonText,
-            enabled = !isDateAlreadyLogged,
-            onClick = {
-                onSave(
-                    pickedDate,
-                    startHour24,
-                    startMin,
-                    endHour24,
-                    endMin,
-                    manualNote.trim(),
-                    selectedDayType
-                )
-            }
-        )
     }
 
     if (showDayTypeSheet) {
@@ -1077,8 +1039,10 @@ fun DutiesSettingsSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        dragHandle = { ShiftlySheetDragHandle() }
     ) {
         Column(
             modifier = Modifier
@@ -1090,27 +1054,12 @@ fun DutiesSettingsSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Duties Settings",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
-                    color = colors.textPrimary
-                )
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 44.dp)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            ShiftlySheetHeader(
+                title = "Duties Settings",
+                onCancel = onDismiss,
+                actionLabel = "Done",
+                onAction = onDismiss
+            )
 
             DutiesWageRateCard(
                 defaultHourlyRate = defaultHourlyRate,
@@ -1163,9 +1112,13 @@ fun DutiesSettingsSheet(
                                 ).tabular(),
                                 color = colors.textPrimary
                             )
+                            val deletePresetInteraction = remember { MutableInteractionSource() }
                             IconButton(
                                 onClick = { onDeletePreset(preset.id) },
-                                modifier = Modifier.size(36.dp)
+                                interactionSource = deletePresetInteraction,
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .shiftlyPressEffect(deletePresetInteraction)
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_lucide_trash_2),
@@ -1245,7 +1198,7 @@ private fun BasicPresetTimeSelectorCard(
                 .weight(1f)
                 .heightIn(min = 56.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .clickable { showStartTimePicker = true }
+                .shiftlyPressClickable { showStartTimePicker = true }
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -1289,7 +1242,7 @@ private fun BasicPresetTimeSelectorCard(
                 .weight(1f)
                 .heightIn(min = 56.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .clickable { showEndTimePicker = true }
+                .shiftlyPressClickable { showEndTimePicker = true }
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -1333,6 +1286,7 @@ private fun BasicPresetTimeSelectorCard(
             is24Hour = false
         )
         ShiftTimePickerDialog(
+            title = "Start Time",
             timePickerState = timePickerState,
             onDismiss = { showStartTimePicker = false },
             onConfirm = {
@@ -1349,6 +1303,7 @@ private fun BasicPresetTimeSelectorCard(
             is24Hour = false
         )
         ShiftTimePickerDialog(
+            title = "End Time",
             timePickerState = timePickerState,
             onDismiss = { showEndTimePicker = false },
             onConfirm = {

@@ -22,7 +22,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -31,10 +30,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
@@ -65,11 +61,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.RecurringBillEntity
+import com.example.shiftly.ui.components.ShiftlyDialogShell
+import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlyIosSwitch
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.theme.InterFontFamily
@@ -351,16 +352,9 @@ fun RecurringBillItemCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Switch(
+                    ShiftlyIosSwitch(
                         checked = bill.isEnabled,
-                        onCheckedChange = onToggleEnabled,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = colors.onAzurePrimary,
-                            checkedTrackColor = colors.azurePrimary,
-                            uncheckedThumbColor = colors.textSecondary,
-                            uncheckedTrackColor = colors.surface,
-                            uncheckedBorderColor = Color.Transparent
-                        )
+                        onCheckedChange = onToggleEnabled
                     )
                     IconButton(
                         onClick = onEdit,
@@ -395,43 +389,14 @@ fun RecurringBillsEmptyCard(
     onAddBill: () -> Unit
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = colors.cardElevated,
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            ShiftlyIosIconTile(
-                iconRes = R.drawable.ic_lucide_repeat,
-                backgroundColor = colors.azurePrimary,
-                size = 48.dp,
-                cornerRadius = 12.dp,
-                iconSize = 24.dp
-            )
-            Text(
-                text = "No recurring bills yet",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = colors.textPrimary
-            )
-            Text(
-                text = "Schedule bills with due dates for automatic logging.",
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textSecondary
-            )
-            ShiftlyPrimaryPillButton(
-                text = "Add Recurring Bill",
-                onClick = onAddBill
-            )
-        }
-    }
+    ShiftlyEmptyState(
+        iconRes = R.drawable.ic_lucide_repeat,
+        title = "No recurring bills yet",
+        subtitle = "Schedule bills with due dates for automatic logging.",
+        actionText = "Add Recurring Bill",
+        onAction = onAddBill,
+        iconBackgroundColor = colors.azurePrimary
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -514,8 +479,10 @@ fun AddEditRecurringBillBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        dragHandle = { ShiftlySheetDragHandle() },
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
@@ -524,30 +491,29 @@ fun AddEditRecurringBillBottomSheet(
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 26.dp),
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (editingBill == null) "New Recurring Bill" else "Edit Recurring Bill",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.textPrimary
-                )
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 44.dp)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
+            ShiftlySheetHeader(
+                title = if (editingBill == null) "New Recurring Bill" else "Edit Recurring Bill",
+                onCancel = onDismiss,
+                actionLabel = "Save",
+                actionEnabled = isValid,
+                onAction = {
+                    if (isValid) {
+                        onSave(
+                            title.trim(),
+                            parsedAmount,
+                            selectedCategory,
+                            selectedFrequency,
+                            dueDate,
+                            dueHour,
+                            dueMinute,
+                            isEnabled
+                        )
+                    }
                 }
-            }
+            )
 
             OutlinedTextField(
                 value = amountText,
@@ -794,7 +760,7 @@ fun AddEditRecurringBillBottomSheet(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -806,37 +772,13 @@ fun AddEditRecurringBillBottomSheet(
                             ),
                             color = colors.textPrimary
                         )
-                        Switch(
+                        ShiftlyIosSwitch(
                             checked = isEnabled,
-                            onCheckedChange = { isEnabled = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = colors.onAzurePrimary,
-                                checkedTrackColor = colors.azurePrimary,
-                                uncheckedThumbColor = colors.textSecondary,
-                                uncheckedTrackColor = colors.surface,
-                                uncheckedBorderColor = Color.Transparent
-                            )
+                            onCheckedChange = { isEnabled = it }
                         )
                     }
                 }
             }
-
-            ShiftlyPrimaryPillButton(
-                text = if (editingBill == null) "Save Recurring Bill" else "Update Recurring Bill",
-                enabled = isValid,
-                onClick = {
-                    onSave(
-                        title.trim(),
-                        parsedAmount,
-                        selectedCategory,
-                        selectedFrequency,
-                        dueDate,
-                        dueHour,
-                        dueMinute,
-                        isEnabled
-                    )
-                }
-            )
         }
     }
 
@@ -852,41 +794,24 @@ fun AddEditRecurringBillBottomSheet(
     if (showDatePicker) {
         val initialMillis = dueDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val datePickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            tonalElevation = 0.dp,
-            colors = DatePickerDefaults.colors(containerColor = colors.surface),
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        datePickerState.selectedDateMillis?.let { millis ->
-                            dueDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
-                        }
-                        showDatePicker = false
-                    }
-                ) {
-                    Text(
-                        text = "Select",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.azureAccent
-                    )
+        ShiftlyDialogShell(
+            title = "Due Date",
+            onDismiss = { showDatePicker = false },
+            actionLabel = "Done",
+            onAction = {
+                datePickerState.selectedDateMillis?.let { millis ->
+                    dueDate = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
                 }
+                showDatePicker = false
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            horizontalOuterPadding = 12.dp,
+            contentHorizontalPadding = 8.dp
         ) {
             DatePicker(
                 state = datePickerState,
+                title = null,
+                headline = null,
+                showModeToggle = false,
                 colors = DatePickerDefaults.colors(
                     containerColor = colors.surface,
                     titleContentColor = colors.textPrimary,
@@ -914,41 +839,19 @@ fun AddEditRecurringBillBottomSheet(
             initialMinute = dueMinute,
             is24Hour = false
         )
-        DatePickerDialog(
-            onDismissRequest = { showTimePicker = false },
-            tonalElevation = 0.dp,
-            colors = DatePickerDefaults.colors(containerColor = colors.surface),
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        dueHour = timePickerState.hour
-                        dueMinute = timePickerState.minute
-                        showTimePicker = false
-                    }
-                ) {
-                    Text(
-                        text = "OK",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.azureAccent
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
+        ShiftlyDialogShell(
+            title = "Due Time",
+            onDismiss = { showTimePicker = false },
+            actionLabel = "Done",
+            onAction = {
+                dueHour = timePickerState.hour
+                dueMinute = timePickerState.minute
+                showTimePicker = false
             }
         ) {
             Box(
                 modifier = Modifier
-                    .padding(20.dp)
+                    .padding(vertical = 8.dp)
                     .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {

@@ -1,5 +1,7 @@
 package com.example.shiftly.ui.screens.recurring
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,15 +15,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,7 +36,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,12 +46,12 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetTopBand
-import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.RecurringEngine
@@ -63,8 +61,6 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-private val RecurringPillShape = RoundedCornerShape(50)
 
 @Composable
 fun RecurringBillsScreen(
@@ -174,7 +170,8 @@ fun RecurringBillsScreenContent(
     onOpenAddSheet: () -> Unit = {},
     onEditBill: (RecurringBillEntity) -> Unit = {},
     onToggleEnabled: (RecurringBillEntity, Boolean) -> Unit = { _, _ -> },
-    onDeleteBill: (RecurringBillEntity) -> Unit = {}
+    onDeleteBill: (RecurringBillEntity) -> Unit = {},
+    listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
@@ -184,6 +181,7 @@ fun RecurringBillsScreenContent(
     val now = remember { LocalDateTime.now() }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding(),
@@ -213,33 +211,18 @@ fun RecurringBillsScreenContent(
                 )
 
                 if (state.bills.isNotEmpty()) {
-                    Button(
+                    ShiftlyPrimaryPillButton(
+                        text = "Add Recurring Bill",
                         onClick = onOpenAddSheet,
-                        shape = RecurringPillShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.azurePrimary,
-                            contentColor = colors.onAzurePrimary
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_plus),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Add Recurring Bill",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = colors.onAzurePrimary
-                        )
-                    }
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_plus),
+                                contentDescription = null,
+                                tint = colors.onAzurePrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
                 }
             }
         }
@@ -288,6 +271,11 @@ fun RecurringBillsScreenContent(
                 }
                 Box(
                     modifier = Modifier
+                        .animateItem(
+                            fadeInSpec = spring(dampingRatio = 0.8f),
+                            placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                            fadeOutSpec = spring(dampingRatio = 0.8f)
+                        )
                         .fillMaxWidth()
                         .shiftlySheetBodyBand(colors.surface)
                         .padding(horizontal = 20.dp)

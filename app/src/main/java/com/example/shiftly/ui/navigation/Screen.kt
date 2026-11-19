@@ -19,21 +19,21 @@ sealed class Screen(
     data object Home : Screen(
         route = "home",
         label = "Home",
-        selectedIconRes = R.drawable.ic_lucide_house,
+        selectedIconRes = R.drawable.ic_lucide_house_selected,
         unselectedIconRes = R.drawable.ic_lucide_house
     )
 
     data object Analytics : Screen(
         route = "analytics",
         label = "Analytics",
-        selectedIconRes = R.drawable.ic_lucide_chart_column,
+        selectedIconRes = R.drawable.ic_lucide_chart_column_selected,
         unselectedIconRes = R.drawable.ic_lucide_chart_column
     )
 
     data object Tools : Screen(
         route = "tools",
         label = "Tools",
-        selectedIconRes = R.drawable.ic_lucide_layout_grid,
+        selectedIconRes = R.drawable.ic_lucide_layout_grid_selected,
         unselectedIconRes = R.drawable.ic_lucide_layout_grid
     )
 
@@ -75,7 +75,7 @@ sealed class Screen(
     data object Profile : Screen(
         route = "profile",
         label = "Profile",
-        selectedIconRes = R.drawable.ic_lucide_user,
+        selectedIconRes = R.drawable.ic_lucide_user_selected,
         unselectedIconRes = R.drawable.ic_lucide_user
     )
 

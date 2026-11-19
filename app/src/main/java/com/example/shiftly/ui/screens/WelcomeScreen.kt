@@ -61,6 +61,9 @@ import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -189,6 +192,32 @@ fun WelcomeScreen(
         var photoPath by remember { mutableStateOf<String?>(null) }
         var validationError by remember { mutableStateOf<String?>(null) }
 
+        val submitSetup: () -> Unit = {
+            val cleanName = nameInput.trim()
+            val parsedRate = rateInput.toDoubleOrNull()
+            val parsedBudget = if (budgetInput.isBlank()) {
+                0.0
+            } else {
+                budgetInput.toDoubleOrNull()
+            }
+
+            when {
+                cleanName.isEmpty() -> {
+                    validationError = "Please enter your display name."
+                }
+                parsedRate == null || !parsedRate.isFinite() || parsedRate <= 0.0 -> {
+                    validationError = "Please enter a valid hourly rate above 0."
+                }
+                parsedBudget == null || !parsedBudget.isFinite() || parsedBudget < 0.0 -> {
+                    validationError = "Please enter a valid monthly budget."
+                }
+                else -> {
+                    showSetupSheet = false
+                    onGetStartedComplete(cleanName, parsedRate, parsedBudget, photoPath)
+                }
+            }
+        }
+
         val photoPicker = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.PickVisualMedia()
         ) { uri ->
@@ -236,8 +265,10 @@ fun WelcomeScreen(
             onDismissRequest = { showSetupSheet = false },
             sheetState = sheetState,
             containerColor = colors.surface,
+            scrimColor = shiftlySheetScrimColor(),
             tonalElevation = 0.dp,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            dragHandle = { ShiftlySheetDragHandle() }
         ) {
             Column(
                 modifier = Modifier
@@ -246,13 +277,14 @@ fun WelcomeScreen(
                     .imePadding()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp)
-                    .padding(bottom = 28.dp),
+                    .padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "Set up your tracker",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.textPrimary
+                ShiftlySheetHeader(
+                    title = "Set Up Tracker",
+                    onCancel = { showSetupSheet = false },
+                    actionLabel = "Save",
+                    onAction = submitSetup
                 )
                 Text(
                     text = "You can adjust your name, hourly rate, and monthly budget anytime in Profile.",
@@ -438,35 +470,6 @@ fun WelcomeScreen(
                         color = colors.coralTextOnSurface
                     )
                 }
-
-                ShiftlyPrimaryPillButton(
-                    text = "Continue to Home",
-                    onClick = {
-                        val cleanName = nameInput.trim()
-                        val parsedRate = rateInput.toDoubleOrNull()
-                        val parsedBudget = if (budgetInput.isBlank()) {
-                            0.0
-                        } else {
-                            budgetInput.toDoubleOrNull()
-                        }
-
-                        when {
-                            cleanName.isEmpty() -> {
-                                validationError = "Please enter your display name."
-                            }
-                            parsedRate == null || !parsedRate.isFinite() || parsedRate <= 0.0 -> {
-                                validationError = "Please enter a valid hourly rate above 0."
-                            }
-                            parsedBudget == null || !parsedBudget.isFinite() || parsedBudget < 0.0 -> {
-                                validationError = "Please enter a valid monthly budget."
-                            }
-                            else -> {
-                                showSetupSheet = false
-                                onGetStartedComplete(cleanName, parsedRate, parsedBudget, photoPath)
-                            }
-                        }
-                    }
-                )
             }
         }
     }

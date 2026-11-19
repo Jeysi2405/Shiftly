@@ -2,21 +2,22 @@ package com.example.shiftly.ui.navigation
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,7 +38,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -81,8 +81,10 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -90,6 +92,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -102,8 +105,13 @@ import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.shiftlyPressClickable
+import com.example.shiftly.ui.components.shiftlyPressEffect
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
 import com.example.shiftly.ui.screens.ToolsScreen
@@ -124,7 +132,6 @@ import com.example.shiftly.ui.screens.splitbill.NewSplitBillBottomSheet
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
 import com.example.shiftly.ui.screens.splitbill.SplitBillViewModel
 import com.example.shiftly.ui.theme.InterFontFamily
-import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.DayType
@@ -140,9 +147,65 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val NavBarPillShape = RoundedCornerShape(50)
-private val SheetTopRoundedShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-private val QuickAddOptionShape = RoundedCornerShape(16.dp)
+private val SheetTopRoundedShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
 private val DepositFieldShape = RoundedCornerShape(14.dp)
+
+private val TabRouteOrder by lazy {
+    listOf(Screen.Home.route, Screen.Analytics.route, Screen.Tools.route, Screen.Profile.route)
+}
+
+private fun <T> shiftlyNavSpring() = spring<T>(
+    dampingRatio = 0.8f,
+    stiffness = Spring.StiffnessMediumLow
+)
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabDirection(): Int {
+    val from = TabRouteOrder.indexOf(initialState.destination.route)
+    val to = TabRouteOrder.indexOf(targetState.destination.route)
+    return if (from >= 0 && to >= 0 && from != to) (if (to > from) 1 else -1) else 0
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.shiftlyEnter(): EnterTransition {
+    val dir = tabDirection()
+    return if (dir != 0) {
+        slideInHorizontally(shiftlyNavSpring<IntOffset>()) { it * dir } +
+            fadeIn(shiftlyNavSpring<Float>())
+    } else {
+        slideInHorizontally(shiftlyNavSpring<IntOffset>()) { it }
+    }
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.shiftlyExit(): ExitTransition {
+    val dir = tabDirection()
+    return if (dir != 0) {
+        slideOutHorizontally(shiftlyNavSpring<IntOffset>()) { -it * dir / 3 } +
+            fadeOut(shiftlyNavSpring<Float>())
+    } else {
+        slideOutHorizontally(shiftlyNavSpring<IntOffset>()) { -it / 3 } +
+            fadeOut(shiftlyNavSpring<Float>())
+    }
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.shiftlyPopEnter(): EnterTransition {
+    val dir = tabDirection()
+    return if (dir != 0) {
+        slideInHorizontally(shiftlyNavSpring<IntOffset>()) { it * dir } +
+            fadeIn(shiftlyNavSpring<Float>())
+    } else {
+        slideInHorizontally(shiftlyNavSpring<IntOffset>()) { -it / 3 } +
+            fadeIn(shiftlyNavSpring<Float>())
+    }
+}
+
+private fun AnimatedContentTransitionScope<NavBackStackEntry>.shiftlyPopExit(): ExitTransition {
+    val dir = tabDirection()
+    return if (dir != 0) {
+        slideOutHorizontally(shiftlyNavSpring<IntOffset>()) { -it * dir / 3 } +
+            fadeOut(shiftlyNavSpring<Float>())
+    } else {
+        slideOutHorizontally(shiftlyNavSpring<IntOffset>()) { it }
+    }
+}
 
 @Composable
 fun MainAppScreen() {
@@ -214,7 +277,9 @@ fun MainAppScreen() {
             } else {
                 AnimatedContent(
                     targetState = hasCompletedOnboarding,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    transitionSpec = {
+                        fadeIn(shiftlyNavSpring<Float>()) togetherWith fadeOut(shiftlyNavSpring<Float>())
+                    },
                     label = "OnboardingToMainTransition",
                 ) { completed ->
                     when (completed) {
@@ -429,9 +494,12 @@ private fun MainDashboardShell(
                                 modifier = Modifier.weight(1f, fill = false)
                             )
                             data.visuals.actionLabel?.let { actionLabel ->
+                                val actionInteraction = remember { MutableInteractionSource() }
                                 TextButton(
                                     onClick = { data.performAction() },
-                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                                    interactionSource = actionInteraction,
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                    modifier = Modifier.shiftlyPressEffect(actionInteraction)
                                 ) {
                                     Text(
                                         text = actionLabel,
@@ -450,8 +518,10 @@ private fun MainDashboardShell(
             bottomBar = {
                 AnimatedVisibility(
                     visible = !isSubScreen,
-                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
+                    enter = slideInVertically(shiftlyNavSpring<IntOffset>()) { it } +
+                        fadeIn(shiftlyNavSpring<Float>()),
+                    exit = slideOutVertically(shiftlyNavSpring<IntOffset>()) { it } +
+                        fadeOut(shiftlyNavSpring<Float>())
                 ) {
                     FloatingPillBottomBar(
                         items = Screen.bottomNavItems,
@@ -469,20 +539,10 @@ private fun MainDashboardShell(
                 modifier = Modifier
                     .fillMaxSize()
                     .consumeWindowInsets(innerPadding),
-                enterTransition = {
-                    fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                        scaleIn(initialScale = 0.985f, animationSpec = tween(180, easing = FastOutSlowInEasing))
-                },
-                exitTransition = {
-                    fadeOut(animationSpec = tween(140, easing = FastOutSlowInEasing))
-                },
-                popEnterTransition = {
-                    fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                        scaleIn(initialScale = 0.985f, animationSpec = tween(180, easing = FastOutSlowInEasing))
-                },
-                popExitTransition = {
-                    fadeOut(animationSpec = tween(140, easing = FastOutSlowInEasing))
-                }
+                enterTransition = { shiftlyEnter() },
+                exitTransition = { shiftlyExit() },
+                popEnterTransition = { shiftlyPopEnter() },
+                popExitTransition = { shiftlyPopExit() }
             ) {
                 composable(Screen.Home.route) {
                     HomeScreen(
@@ -867,8 +927,10 @@ private fun QuickAddActionSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = SheetTopRoundedShape
+        shape = SheetTopRoundedShape,
+        dragHandle = { ShiftlySheetDragHandle() }
     ) {
         Column(
             modifier = Modifier
@@ -876,33 +938,18 @@ private fun QuickAddActionSheet(
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Quick Add",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.textPrimary
-                )
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 44.dp)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            ShiftlySheetHeader(
+                title = "Quick Add",
+                onCancel = onDismiss,
+                actionLabel = "Done",
+                onAction = onDismiss
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 QuickAddOptionBox(
                     title = "Shift",
@@ -929,7 +976,7 @@ private fun QuickAddActionSheet(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 QuickAddOptionBox(
                     title = "Savings",
@@ -945,6 +992,7 @@ private fun QuickAddActionSheet(
                     onClick = onAddDeposit,
                     modifier = Modifier.weight(1f)
                 )
+                Spacer(modifier = Modifier.weight(1f))
             }
         }
     }
@@ -959,39 +1007,36 @@ private fun QuickAddOptionBox(
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        shape = QuickAddOptionShape,
-        color = colors.cardElevated,
-        shadowElevation = 0.dp,
+    val haptics = LocalHapticFeedback.current
+    Column(
         modifier = modifier
-            .clip(QuickAddOptionShape)
-            .clickable(onClick = onClick)
+            .clip(RoundedCornerShape(14.dp))
+            .shiftlyPressClickable {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp, horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ShiftlyIosIconTile(
-                iconRes = iconRes,
-                backgroundColor = iconBg,
-                size = 44.dp,
-                cornerRadius = 11.dp,
-                iconSize = 21.dp
-            )
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+        ShiftlyIosIconTile(
+            iconRes = iconRes,
+            backgroundColor = iconBg,
+            size = 56.dp,
+            cornerRadius = 14.dp,
+            iconSize = 26.dp
+        )
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Medium
+            ),
+            color = colors.textPrimary,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -1009,14 +1054,24 @@ private fun QuickDepositPromptSheet(
     var selectedGoal by remember(savingsGoals) {
         mutableStateOf((savingsGoals.firstOrNull { it.goal.isActive } ?: savingsGoals.firstOrNull())?.goal)
     }
+    val parsedAmount = remember(amountText) { amountText.toDoubleOrNull() ?: 0.0 }
+    val submitDeposit: () -> Unit = {
+        if (parsedAmount > 0.0) {
+            selectedGoal?.let { goal ->
+                onSaveDeposit(goal, parsedAmount, noteText.trim())
+            }
+        }
+    }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = SheetTopRoundedShape
+        shape = SheetTopRoundedShape,
+        dragHandle = { ShiftlySheetDragHandle() }
     ) {
         Column(
             modifier = Modifier
@@ -1025,30 +1080,16 @@ private fun QuickDepositPromptSheet(
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Add Deposit",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.textPrimary
-                )
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 44.dp)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            ShiftlySheetHeader(
+                title = "Add Deposit",
+                onCancel = onDismiss,
+                actionLabel = "Save",
+                actionEnabled = selectedGoal != null && parsedAmount > 0.0,
+                onAction = submitDeposit
+            )
 
             if (selectedGoal == null) {
                 Text(
@@ -1109,25 +1150,14 @@ private fun QuickDepositPromptSheet(
                     colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
-
-                val parsedAmount = remember(amountText) { amountText.toDoubleOrNull() ?: 0.0 }
-                ShiftlyPrimaryPillButton(
-                    text = "Save Deposit",
-                    enabled = parsedAmount > 0.0,
-                    onClick = {
-                        selectedGoal?.let { goal ->
-                            onSaveDeposit(goal, parsedAmount, noteText.trim())
-                        }
-                    }
-                )
             }
         }
     }
 }
 
 /**
- * Floating pill bottom navigation bar:
- * Home | Analytics | Round (+) FAB | Tools | Profile, with labels.
+ * Full-width iOS-style docked bottom navigation bar with translucent dark surface and hairline top border:
+ * Home | Analytics | Quick Add (+) | Tools | Profile.
  */
 @Composable
 fun FloatingPillBottomBar(
@@ -1139,92 +1169,106 @@ fun FloatingPillBottomBar(
     onFabClick: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
     val leftItems = remember(items) { items.take(2) }
     val rightItems = remember(items) { items.drop(2) }
 
     val fabRotationState = animateFloatAsState(
         targetValue = if (isFabActive) 45f else 0f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            dampingRatio = 0.8f,
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "fabRotation"
     )
 
-    Box(
+    Column(
         modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        contentAlignment = Alignment.Center
+            .background(
+                if (colors.isDark) Color(0xEB1C1C1E) else colors.surface.copy(alpha = 0.94f)
+            )
     ) {
-        Surface(
+        ShiftlyHairlineDivider()
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(68.dp),
-            shape = NavBarPillShape,
-            color = colors.surface,
-            shadowElevation = 0.dp
+                .navigationBarsPadding()
+                .height(66.dp)
+                .selectableGroup()
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
+            leftItems.forEach { screen ->
+                val onClick = remember(screen, onSelect) { { onSelect(screen) } }
+                BottomNavItemSlot(
+                    screen = screen,
+                    selected = isSelected(screen),
+                    onClick = onClick,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            // Subtle Center Quick Add Tab Button
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .selectableGroup()
-                    .padding(horizontal = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                leftItems.forEach { screen ->
-                    val onClick = remember(screen, onSelect) { { onSelect(screen) } }
-                    BottomNavItemSlot(
-                        screen = screen,
-                        selected = isSelected(screen),
-                        onClick = onClick,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // Center Round "+" FAB
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 52.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = colors.azurePrimary,
-                        shadowElevation = 0.dp,
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clip(CircleShape)
-                            .clickable(onClick = onFabClick)
-                            .semantics {
-                                contentDescription = "Quick add action"
-                            }
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_plus),
-                                contentDescription = null,
-                                tint = PureWhite,
-                                modifier = Modifier
-                                    .size(26.dp)
-                                    .graphicsLayer { rotationZ = fabRotationState.value }
-                            )
-                        }
+                    .weight(1f)
+                    .heightIn(min = 58.dp)
+                    .shiftlyPressClickable(role = Role.Button) {
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onFabClick()
                     }
-                }
-
-                rightItems.forEach { screen ->
-                    val onClick = remember(screen, onSelect) { { onSelect(screen) } }
-                    BottomNavItemSlot(
-                        screen = screen,
-                        selected = isSelected(screen),
-                        onClick = onClick,
-                        modifier = Modifier.weight(1f)
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = "Quick add action"
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(
+                                colors.azureAccent.copy(alpha = if (isFabActive) 0.24f else 0.14f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_plus),
+                            contentDescription = null,
+                            tint = colors.azureAccent,
+                            modifier = Modifier
+                                .size(17.dp)
+                                .graphicsLayer { rotationZ = fabRotationState.value }
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Add",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontSize = 11.sp,
+                            fontWeight = if (isFabActive) FontWeight.SemiBold else FontWeight.Medium
+                        ),
+                        color = if (isFabActive) colors.azureAccent else colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+            }
+
+            rightItems.forEach { screen ->
+                val onClick = remember(screen, onSelect) { { onSelect(screen) } }
+                BottomNavItemSlot(
+                    screen = screen,
+                    selected = isSelected(screen),
+                    onClick = onClick,
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
@@ -1238,29 +1282,20 @@ private fun BottomNavItemSlot(
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
     val contentTint by animateColorAsState(
-        targetValue = if (selected) colors.textPrimary else colors.textSecondary,
-        animationSpec = tween(160),
+        targetValue = if (selected) colors.azureAccent else colors.textSecondary,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
         label = "navContentTint"
-    )
-    val iconScaleState = animateFloatAsState(
-        targetValue = if (selected) 1.12f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "navIconScale"
     )
 
     Box(
         modifier = modifier
-            .heightIn(min = 52.dp)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                role = Role.Tab,
-                onClick = onClick
-            )
+            .heightIn(min = 58.dp)
+            .shiftlyPressClickable(role = Role.Tab) {
+                if (!selected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
             .semantics(mergeDescendants = true) {
                 this.selected = selected
                 contentDescription = screen.label
@@ -1277,21 +1312,15 @@ private fun BottomNavItemSlot(
                 ),
                 contentDescription = null,
                 tint = contentTint,
-                modifier = Modifier
-                    .size(21.dp)
-                    .graphicsLayer {
-                        val scale = iconScaleState.value
-                        scaleX = scale
-                        scaleY = scale
-                    }
+                modifier = Modifier.size(25.dp)
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = screen.label,
-                style = MaterialTheme.typography.labelSmall.copy(
+                style = MaterialTheme.typography.labelMedium.copy(
                     fontFamily = InterFontFamily,
-                    fontSize = 10.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                    fontSize = 11.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
                 ),
                 color = contentTint,
                 maxLines = 1,
@@ -1301,7 +1330,7 @@ private fun BottomNavItemSlot(
     }
 }
 
-@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "Floating Pill Bottom Bar")
+@Preview(showBackground = false, widthDp = 393, heightDp = 852, name = "Docked iOS Bottom Bar")
 @Composable
 private fun FloatingPillBottomBarPreview() {
     ShiftlyTheme {

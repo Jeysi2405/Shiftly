@@ -9,7 +9,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -63,9 +64,11 @@ import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
@@ -84,7 +87,7 @@ import java.io.File
 import java.time.LocalDate
 
 private val BACKUP_PICKER_MIME_TYPES = arrayOf("application/zip", "application/json", "text/plain", "*/*")
-private val ProfileSettingsSheetTopShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+private val ProfileSettingsSheetTopShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
 
 private enum class ActiveSettingsSheet {
     ACCOUNT,
@@ -376,11 +379,16 @@ fun ProfileScreen(
         )
     }
 
+    val sheetActionState = remember(activeSheet) { ShiftlySheetActionState() }
+
     when (activeSheet) {
         ActiveSettingsSheet.ACCOUNT -> {
             SettingsSheetContainer(
                 title = "Account Profile",
-                onDismiss = { activeSheet = null }
+                onDismiss = { activeSheet = null },
+                actionLabel = "Save",
+                actionEnabled = sheetActionState.enabled,
+                onAction = { sheetActionState.onSave?.invoke() }
             ) {
                 AccountEditSheetContent(
                     currentName = state.userName,
@@ -396,7 +404,8 @@ fun ProfileScreen(
                         viewModel.updateUserName(newName)
                         activeSheet = null
                         onShowMessage("Profile updated")
-                    }
+                    },
+                    actionState = sheetActionState
                 )
             }
         }
@@ -423,7 +432,10 @@ fun ProfileScreen(
         ActiveSettingsSheet.NOTIFICATIONS -> {
             SettingsSheetContainer(
                 title = "Notifications",
-                onDismiss = { activeSheet = null }
+                onDismiss = { activeSheet = null },
+                actionLabel = "Save",
+                actionEnabled = sheetActionState.enabled,
+                onAction = { sheetActionState.onSave?.invoke() }
             ) {
                 NotificationsSheetContent(
                     notificationsEnabled = state.settings.notificationsEnabled,
@@ -442,7 +454,8 @@ fun ProfileScreen(
                             activeSheet = null
                             onShowMessage("Notification preferences saved")
                         }
-                    }
+                    },
+                    actionState = sheetActionState
                 )
             }
         }
@@ -474,7 +487,10 @@ fun ProfileScreen(
         ActiveSettingsSheet.BUDGETS -> {
             SettingsSheetContainer(
                 title = "Monthly & Category Budgets",
-                onDismiss = { activeSheet = null }
+                onDismiss = { activeSheet = null },
+                actionLabel = "Save",
+                actionEnabled = sheetActionState.enabled,
+                onAction = { sheetActionState.onSave?.invoke() }
             ) {
                 BudgetsEditorSheetContent(
                     currencySymbol = state.currencySymbol,
@@ -486,7 +502,8 @@ fun ProfileScreen(
                         viewModel.updateBudgets(monthly, categoryList)
                         activeSheet = null
                         onShowMessage("Budgets saved")
-                    }
+                    },
+                    actionState = sheetActionState
                 )
             }
         }
@@ -494,7 +511,10 @@ fun ProfileScreen(
         ActiveSettingsSheet.APP_LOCK -> {
             SettingsSheetContainer(
                 title = "App Lock Security",
-                onDismiss = { activeSheet = null }
+                onDismiss = { activeSheet = null },
+                actionLabel = "Save",
+                actionEnabled = sheetActionState.enabled,
+                onAction = { sheetActionState.onSave?.invoke() }
             ) {
                 AppLockSheetContent(
                     currentEnabled = state.settings.appLockEnabled,
@@ -504,7 +524,8 @@ fun ProfileScreen(
                         viewModel.updateAppLock(enabled, method, newPin)
                         activeSheet = null
                         onShowMessage(if (enabled) "App lock saved ($method)" else "App lock disabled")
-                    }
+                    },
+                    actionState = sheetActionState
                 )
             }
         }
@@ -568,6 +589,18 @@ private fun ProfileScreenContent(
     val avatarSizePx = with(LocalDensity.current) { 52.dp.roundToPx() }
     val currency = state.currencySymbol
 
+    val isTitleCollapsed by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 70
+        }
+    }
+    val headerAlpha by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) 0f
+            else (1f - listState.firstVisibleItemScrollOffset / 90f).coerceIn(0f, 1f)
+        }
+    }
+
     val hasPhoto by produceState(initialValue = false, state.profilePhotoPath) {
         val path = state.profilePhotoPath
         value = if (path.isNullOrBlank()) {
@@ -590,167 +623,177 @@ private fun ProfileScreenContent(
         }
     }
 
-    LazyColumn(
-        state = listState,
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(top = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item(key = "profile_header", contentType = "header") {
-            ShiftlyScreenHeader(
-                title = "Profile",
-                largeTitle = true,
-                subtitle = state.userName.takeIf { it.isNotBlank() },
-                modifier = Modifier.padding(horizontal = 20.dp),
-                trailing = {
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clickable(onClick = onAvatarClick)
-                    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            contentPadding = PaddingValues(top = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item(key = "profile_header", contentType = "header") {
+                ShiftlyScreenHeader(
+                    title = "Profile",
+                    largeTitle = true,
+                    subtitle = state.userName.takeIf { it.isNotBlank() },
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .graphicsLayer { alpha = headerAlpha },
+                    trailing = {
                         Box(
                             modifier = Modifier
                                 .size(52.dp)
-                                .clip(CircleShape)
-                                .background(colors.card),
-                            contentAlignment = Alignment.Center
+                                .shiftlyPressClickable(onClick = onAvatarClick)
                         ) {
-                            if (avatarRequest != null) {
-                                AsyncImage(
-                                    model = avatarRequest,
-                                    contentDescription = "Profile photo",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(52.dp)
-                                )
-                            } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.card),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (avatarRequest != null) {
+                                    AsyncImage(
+                                        model = avatarRequest,
+                                        contentDescription = "Profile photo",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.size(52.dp)
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_lucide_user),
+                                        contentDescription = "Add profile photo",
+                                        tint = colors.textSecondary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .align(Alignment.BottomEnd)
+                                    .clip(CircleShape)
+                                    .background(colors.azurePrimary),
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_user),
-                                    contentDescription = "Add profile photo",
-                                    tint = colors.textSecondary,
-                                    modifier = Modifier.size(24.dp)
+                                    painter = painterResource(R.drawable.ic_lucide_camera),
+                                    contentDescription = null,
+                                    tint = PureWhite,
+                                    modifier = Modifier.size(11.dp)
                                 )
                             }
                         }
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .align(Alignment.BottomEnd)
-                                .clip(CircleShape)
-                                .background(colors.azurePrimary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_camera),
-                                contentDescription = null,
-                                tint = PureWhite,
-                                modifier = Modifier.size(11.dp)
+                    }
+                )
+            }
+
+            item(key = "profile_snapshot", contentType = "snapshot") {
+                Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                    ProfileSnapshotGlassCard(
+                        currencySymbol = currency,
+                        totalShifts = state.totalShifts,
+                        totalHoursWorked = state.totalHoursWorked,
+                        totalEarnings = state.totalEarnings,
+                        totalExpenses = state.totalExpenses
+                    )
+                }
+            }
+
+            item(key = "profile_settings_sheet", contentType = "settings_sheet") {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 520.dp),
+                    shape = ProfileSettingsSheetTopShape,
+                    color = colors.surface,
+                    shadowElevation = 0.dp
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        ShiftlySheetDragHandle()
+
+                        Text(
+                            text = "Settings",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = colors.textPrimary
+                        )
+
+                        SettingsGroupCard(groupTitle = "ACCOUNT & PREFERENCES") {
+                            SettingsChevronRow(
+                                iconRes = R.drawable.ic_lucide_user,
+                                title = "Account",
+                                iconBg = colors.azurePrimary,
+                                iconTint = PureWhite,
+                                onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 62.dp)
+                            SettingsChevronRow(
+                                iconRes = R.drawable.ic_lucide_circle_dollar_sign,
+                                title = "Currency",
+                                iconBg = colors.mintBright,
+                                iconTint = PureWhite,
+                                onClick = { onOpenSheet(ActiveSettingsSheet.CURRENCY) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 62.dp)
+                            SettingsSwitchRow(
+                                iconRes = R.drawable.ic_lucide_bell,
+                                title = "Notifications",
+                                checked = state.settings.notificationsEnabled,
+                                onCheckedChange = onToggleNotifications,
+                                onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) },
+                                iconBg = colors.iosOrange,
+                                iconTint = PureWhite
+                            )
+                            ShiftlyHairlineDivider(startInset = 62.dp)
+                            SettingsChevronRow(
+                                iconRes = R.drawable.ic_lucide_palette,
+                                title = "App Theme",
+                                subtitle = when (state.settings.themeMode.uppercase()) {
+                                    "LIGHT" -> "Light Mode"
+                                    "DARK" -> "Dark Mode"
+                                    else -> "System Default"
+                                },
+                                iconBg = colors.coralBright,
+                                iconTint = PureWhite,
+                                onClick = { onOpenSheet(ActiveSettingsSheet.THEME) }
+                            )
+                        }
+
+                        SettingsGroupCard(groupTitle = "SECURITY & DATA EXPORT") {
+                            SettingsSwitchRow(
+                                iconRes = R.drawable.ic_lucide_fingerprint,
+                                title = "App Lock",
+                                checked = state.settings.appLockEnabled,
+                                onCheckedChange = onToggleAppLock,
+                                onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },
+                                iconBg = colors.nightDiffPurple,
+                                iconTint = PureWhite
+                            )
+                            ShiftlyHairlineDivider(startInset = 62.dp)
+                            SettingsChevronRow(
+                                iconRes = R.drawable.ic_lucide_cloud_upload,
+                                title = "Data Export & Restore",
+                                iconBg = colors.azurePrimary,
+                                iconTint = PureWhite,
+                                onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }
                             )
                         }
                     }
                 }
-            )
-        }
-
-        item(key = "profile_snapshot", contentType = "snapshot") {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                ProfileSnapshotGlassCard(
-                    currencySymbol = currency,
-                    totalShifts = state.totalShifts,
-                    totalHoursWorked = state.totalHoursWorked,
-                    totalEarnings = state.totalEarnings,
-                    totalExpenses = state.totalExpenses
-                )
             }
         }
 
-        item(key = "profile_settings_sheet", contentType = "settings_sheet") {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 520.dp),
-                shape = ProfileSettingsSheetTopShape,
-                color = colors.surface,
-                shadowElevation = 0.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    ShiftlySheetDragHandle()
-
-                    Text(
-                        text = "Settings",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colors.textPrimary
-                    )
-
-                    SettingsGroupCard(groupTitle = "ACCOUNT & PREFERENCES") {
-                        SettingsChevronRow(
-                            iconRes = R.drawable.ic_lucide_user,
-                            title = "Account",
-                            iconBg = colors.azurePrimary,
-                            iconTint = PureWhite,
-                            onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
-                        )
-                        ShiftlyHairlineDivider(startInset = 62.dp)
-                        SettingsChevronRow(
-                            iconRes = R.drawable.ic_lucide_circle_dollar_sign,
-                            title = "Currency",
-                            iconBg = colors.mintBright,
-                            iconTint = PureWhite,
-                            onClick = { onOpenSheet(ActiveSettingsSheet.CURRENCY) }
-                        )
-                        ShiftlyHairlineDivider(startInset = 62.dp)
-                        SettingsSwitchRow(
-                            iconRes = R.drawable.ic_lucide_bell,
-                            title = "Notifications",
-                            checked = state.settings.notificationsEnabled,
-                            onCheckedChange = onToggleNotifications,
-                            onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) },
-                            iconBg = colors.iosOrange,
-                            iconTint = PureWhite
-                        )
-                        ShiftlyHairlineDivider(startInset = 62.dp)
-                        SettingsChevronRow(
-                            iconRes = R.drawable.ic_lucide_palette,
-                            title = "App Theme",
-                            subtitle = when (state.settings.themeMode.uppercase()) {
-                                "LIGHT" -> "Light Mode"
-                                "DARK" -> "Dark Mode"
-                                else -> "System Default"
-                            },
-                            iconBg = colors.coralBright,
-                            iconTint = PureWhite,
-                            onClick = { onOpenSheet(ActiveSettingsSheet.THEME) }
-                        )
-                    }
-
-                    SettingsGroupCard(groupTitle = "SECURITY & DATA EXPORT") {
-                        SettingsSwitchRow(
-                            iconRes = R.drawable.ic_lucide_fingerprint,
-                            title = "App Lock",
-                            checked = state.settings.appLockEnabled,
-                            onCheckedChange = onToggleAppLock,
-                            onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },
-                            iconBg = colors.nightDiffPurple,
-                            iconTint = PureWhite
-                        )
-                        ShiftlyHairlineDivider(startInset = 62.dp)
-                        SettingsChevronRow(
-                            iconRes = R.drawable.ic_lucide_cloud_upload,
-                            title = "Data Export & Restore",
-                            iconBg = colors.azurePrimary,
-                            iconTint = PureWhite,
-                            onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }
-                        )
-                    }
-                }
-            }
-        }
+        ShiftlyCollapsedTopBar(
+            title = "Profile",
+            isCollapsed = isTitleCollapsed,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 

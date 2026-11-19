@@ -1,9 +1,13 @@
 package com.example.shiftly.ui.screens
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,7 +28,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +43,8 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -43,6 +52,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
@@ -52,6 +62,8 @@ import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.shiftlyPressClickable
+import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
@@ -60,8 +72,8 @@ import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 
 private val ChartDashEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
-private val SegmentedOuterShape = RoundedCornerShape(12.dp)
-private val SegmentedInnerShape = RoundedCornerShape(9.dp)
+private val SegmentedOuterShape = RoundedCornerShape(10.dp)
+private val SegmentedThumbShape = RoundedCornerShape(8.dp)
 private val AnalyticsCardShape = RoundedCornerShape(18.dp)
 
 @Composable
@@ -84,43 +96,75 @@ fun AnalyticsRangeSegmentedControl(
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
+    val entries = AnalyticsRange.entries
+    val selectedIndex = entries.indexOf(selectedRange).coerceAtLeast(0)
+    val trackColor = if (colors.isDark) Color(0xFF1C1C1E) else Color(0xFFD1D1D6)
+    val thumbColor = if (colors.isDark) Color(0xFF3A3A3C) else Color(0xFF636366)
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = SegmentedOuterShape,
-        color = colors.card,
+        color = trackColor,
         shadowElevation = 0.dp
     ) {
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .selectableGroup()
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(3.dp)
         ) {
-            AnalyticsRange.entries.forEach { range ->
-                val isSelected = range == selectedRange
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 38.dp)
-                        .clip(SegmentedInnerShape)
-                        .background(if (isSelected) colors.azurePrimary else Color.Transparent)
-                        .clickable(role = Role.Tab) { onSelectRange(range) }
-                        .semantics(mergeDescendants = true) {
-                            selected = isSelected
-                            contentDescription = range.fullLabel
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = range.shortLabel,
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ).tabular(),
-                        color = if (isSelected) PureWhite else colors.textSecondary
-                    )
+            val segmentWidth = maxWidth / entries.size
+            val thumbOffset by animateDpAsState(
+                targetValue = segmentWidth * selectedIndex,
+                animationSpec = spring(dampingRatio = 0.8f),
+                label = "analyticsSegmentThumbOffset"
+            )
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(thumbOffset.roundToPx(), 0) }
+                    .width(segmentWidth)
+                    .height(32.dp)
+                    .clip(SegmentedThumbShape)
+                    .background(thumbColor)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .selectableGroup(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                entries.forEach { range ->
+                    val isSelected = range == selectedRange
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(32.dp)
+                            .clip(SegmentedThumbShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                role = Role.Tab
+                            ) {
+                                if (!isSelected) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onSelectRange(range)
+                            }
+                            .semantics(mergeDescendants = true) {
+                                selected = isSelected
+                                contentDescription = range.fullLabel
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = range.shortLabel,
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                            ).tabular(),
+                            color = if (isSelected) PureWhite else colors.textSecondary
+                        )
+                    }
                 }
             }
         }
@@ -465,7 +509,7 @@ fun InsightCardContainer(
                         modifier = Modifier
                             .heightIn(min = 40.dp)
                             .clip(RoundedCornerShape(50))
-                            .clickable(onClick = onTrailingAction)
+                            .shiftlyPressClickable(onClick = onTrailingAction)
                             .padding(horizontal = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -907,35 +951,30 @@ fun UnsettledSplitsTrackerCard(
                 }
             }
 
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = colors.azureContainer,
-                shadowElevation = 0.dp,
+            val openInteraction = remember { MutableInteractionSource() }
+            TextButton(
+                onClick = onOpenSplitBill,
+                interactionSource = openInteraction,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                 modifier = Modifier
                     .heightIn(min = 40.dp)
-                    .clip(RoundedCornerShape(50))
-                    .clickable(onClick = onOpenSplitBill)
+                    .shiftlyPressEffect(openInteraction)
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "Open",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.azureInk
-                    )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_arrow_right),
-                        contentDescription = "Open Split Bill",
-                        tint = colors.azureInk,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
+                Text(
+                    text = "Open",
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = colors.azureAccent
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_arrow_right),
+                    contentDescription = "Open Split Bill",
+                    tint = colors.azureAccent,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
 

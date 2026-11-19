@@ -304,10 +304,10 @@ fun AppLockGateScreen(
             } else {
                 Button(
                     onClick = { triggerBiometric() },
-                    shape = RoundedCornerShape(50),
+                    shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.card,
-                        contentColor = colors.textPrimary
+                        containerColor = colors.azurePrimary,
+                        contentColor = colors.onAzurePrimary
                     ),
                     elevation = ButtonDefaults.buttonElevation(
                         defaultElevation = 0.dp,
@@ -315,12 +315,12 @@ fun AppLockGateScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(52.dp)
+                        .height(50.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_fingerprint),
                         contentDescription = null,
-                        tint = colors.azureAccent,
+                        tint = colors.onAzurePrimary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.size(8.dp))
@@ -329,7 +329,8 @@ fun AppLockGateScreen(
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
-                        )
+                        ),
+                        color = colors.onAzurePrimary
                     )
                 }
                 if (!biometricsSupported && method == "Fingerprint Only") {

@@ -1,6 +1,9 @@
 package com.example.shiftly.ui.screens.duties
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,15 +22,11 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,7 +41,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,12 +51,15 @@ import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
@@ -190,11 +192,25 @@ fun DutiesScreen(
 
     pendingConfirmEditShift?.let { shiftToConfirm ->
         val colors = ShiftlyColors.current
-        AlertDialog(
-            onDismissRequest = { pendingConfirmEditShift = null },
-            containerColor = colors.surface,
-            shape = RoundedCornerShape(22.dp),
-            icon = {
+        ShiftlyDialogShell(
+            title = "Edit Shift",
+            onDismiss = { pendingConfirmEditShift = null },
+            actionLabel = "Done",
+            onAction = {
+                editingShift = shiftToConfirm
+                pendingConfirmEditShift = null
+            },
+            maxWidth = 380.dp,
+            horizontalOuterPadding = 24.dp,
+            contentHorizontalPadding = 20.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp, bottom = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 ShiftlyIosIconTile(
                     iconRes = R.drawable.ic_lucide_square_pen,
                     backgroundColor = colors.azurePrimary,
@@ -203,58 +219,14 @@ fun DutiesScreen(
                     iconSize = 22.dp,
                     iconTint = PureWhite
                 )
-            },
-            title = {
-                Text(
-                    text = "Edit Shift",
-                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
-                    color = colors.textPrimary
-                )
-            },
-            text = {
                 Text(
                     text = "Are you sure you want to edit the shift for this day?",
                     style = MaterialTheme.typography.bodyMedium.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary
+                    color = colors.textSecondary,
+                    textAlign = TextAlign.Center
                 )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        editingShift = shiftToConfirm
-                        pendingConfirmEditShift = null
-                    },
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.azurePrimary,
-                        contentColor = colors.onAzurePrimary
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp
-                    )
-                ) {
-                    Text(
-                        text = "Edit Shift",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingConfirmEditShift = null }) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily
-                        ),
-                        color = colors.textSecondary
-                    )
-                }
             }
-        )
+        }
     }
 
     editingShift?.let { targetShift ->
@@ -364,9 +336,13 @@ fun DutiesScreenContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    val backInteraction = remember { MutableInteractionSource() }
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.size(40.dp)
+                        interactionSource = backInteraction,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .shiftlyPressEffect(backInteraction)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_arrow_left),
@@ -382,9 +358,13 @@ fun DutiesScreenContent(
                     )
                 }
 
+                val settingsInteraction = remember { MutableInteractionSource() }
                 IconButton(
                     onClick = onOpenSettings,
-                    modifier = Modifier.size(40.dp)
+                    interactionSource = settingsInteraction,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .shiftlyPressEffect(settingsInteraction)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_settings),
@@ -490,6 +470,11 @@ fun DutiesScreenContent(
                 }
                 Box(
                     modifier = Modifier
+                        .animateItem(
+                            fadeInSpec = spring(dampingRatio = 0.8f),
+                            placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                            fadeOutSpec = spring(dampingRatio = 0.8f)
+                        )
                         .fillMaxWidth()
                         .shiftlySheetBodyBand(colors.surface)
                         .padding(horizontal = 20.dp)
@@ -596,10 +581,10 @@ private fun DutiesLogShiftSheetPreview() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.65f))
+                        .background(shiftlySheetScrimColor())
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
                         color = colors.surface,
                         shadowElevation = 0.dp,
                         modifier = Modifier

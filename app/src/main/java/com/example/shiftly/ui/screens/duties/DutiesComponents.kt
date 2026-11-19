@@ -16,14 +16,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -62,11 +59,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -230,7 +231,7 @@ fun DutiesWageRateCard(
                         Text(
                             text = "Cancel",
                             style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textSecondary
+                            color = colors.azureAccent
                         )
                     }
                 }
@@ -331,7 +332,16 @@ fun DutiesWageRateCard(
                     )
                 }
 
-                Button(
+                ShiftlyPrimaryPillButton(
+                    text = "Save",
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_check),
+                            contentDescription = null,
+                            tint = colors.onAzurePrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
                     onClick = {
                         val parsedMinWage = (minWageInput.toDoubleOrNull() ?: 0.0)
                             .takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
@@ -343,7 +353,7 @@ fun DutiesWageRateCard(
                         }
                         if (!resolvedHourly.isFinite() || resolvedHourly <= 0.0) {
                             onShowMessage("Enter an hourly rate above 0")
-                            return@Button
+                            return@ShiftlyPrimaryPillButton
                         }
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onSaveRates(resolvedHourly, parsedMinWage)
@@ -351,35 +361,8 @@ fun DutiesWageRateCard(
                         minWageInput = if (parsedMinWage > 0.0) formatWageEditableNumber(parsedMinWage) else ""
                         isEditing = false
                         onShowMessage("Wage settings saved")
-                    },
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.azurePrimary,
-                        contentColor = colors.onAzurePrimary
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 50.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_check),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Save",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.onAzurePrimary
-                    )
-                }
+                    }
+                )
             }
         }
     }
@@ -506,8 +489,10 @@ fun DayTypePromptSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+        dragHandle = { ShiftlySheetDragHandle() }
     ) {
         Column(
             modifier = Modifier
@@ -518,27 +503,12 @@ fun DayTypePromptSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Select Day Type",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
-                    color = colors.textPrimary
-                )
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 44.dp)
-                ) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            ShiftlySheetHeader(
+                title = "Select Day Type",
+                onCancel = onDismiss,
+                actionLabel = "Done",
+                onAction = onDismiss
+            )
 
             Column(
                 modifier = Modifier
@@ -985,46 +955,14 @@ fun ShiftHistoryEmptyCard(
     onLogFirstShift: () -> Unit
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = colors.cardElevated,
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 26.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            ShiftlyIosIconTile(
-                iconRes = R.drawable.ic_lucide_briefcase,
-                backgroundColor = colors.mintBright,
-                size = 48.dp,
-                cornerRadius = 12.dp,
-                iconSize = 24.dp,
-                iconTint = PureWhite
-            )
-            Text(
-                text = "No shifts logged this month",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
-                color = colors.textPrimary,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "Tap Log Shift above or choose any calendar day to record your hours.",
-                style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily),
-                color = colors.textSecondary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            ShiftlyPrimaryPillButton(
-                text = "Log Shift",
-                onClick = onLogFirstShift
-            )
-        }
-    }
+    ShiftlyEmptyState(
+        iconRes = R.drawable.ic_lucide_briefcase,
+        title = "No shifts logged this month",
+        subtitle = "Tap Log Shift above or choose any calendar day to record your hours.",
+        actionText = "Log Shift",
+        onAction = onLogFirstShift,
+        iconBackgroundColor = colors.mintBright
+    )
 }
 
 @Composable

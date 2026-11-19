@@ -1,5 +1,7 @@
 package com.example.shiftly.ui.screens.allowance
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,15 +15,12 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,7 +34,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -49,11 +47,11 @@ import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetTopBand
-import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
@@ -129,13 +127,15 @@ fun AllowanceScreenContent(
     onBack: () -> Unit = {},
     onOpenAddAllowance: () -> Unit = {},
     onOpenChangeCutoff: () -> Unit = {},
-    onDeleteEntry: (AllowanceEntryEntity) -> Unit = {}
+    onDeleteEntry: (AllowanceEntryEntity) -> Unit = {},
+    listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val itemDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
 
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding(),
@@ -149,35 +149,18 @@ fun AllowanceScreenContent(
                 onBackClick = onBack,
                 modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 trailing = {
-                    Button(
+                    ShiftlySecondaryTextButton(
+                        text = "Add",
                         onClick = onOpenAddAllowance,
-                        shape = RoundedCornerShape(50),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.azurePrimary,
-                            contentColor = colors.onAzurePrimary
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 0.dp,
-                            pressedElevation = 0.dp
-                        ),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-                        modifier = Modifier.heightIn(min = 44.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_plus),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Add",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = colors.onAzurePrimary
-                        )
-                    }
+                        leadingIcon = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_plus),
+                                contentDescription = null,
+                                tint = colors.azureAccent,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    )
                 }
             )
         }
@@ -251,6 +234,11 @@ fun AllowanceScreenContent(
                 }
                 Box(
                     modifier = Modifier
+                        .animateItem(
+                            fadeInSpec = spring(dampingRatio = 0.8f),
+                            placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                            fadeOutSpec = spring(dampingRatio = 0.8f)
+                        )
                         .fillMaxWidth()
                         .shiftlySheetBodyBand(colors.surface)
                         .padding(horizontal = 20.dp)

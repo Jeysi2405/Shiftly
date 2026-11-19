@@ -1,7 +1,6 @@
 package com.example.shiftly.ui.screens
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,10 +13,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,15 +46,18 @@ import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
 import com.example.shiftly.ui.screens.profile.ManageCategoriesSheetContent
 import com.example.shiftly.ui.screens.profile.SettingsSheetContainer
+import com.example.shiftly.ui.screens.profile.ShiftlySheetActionState
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
 import com.example.shiftly.ui.theme.InterFontFamily
@@ -104,12 +110,16 @@ fun ToolsScreen(
     )
 
     if (showBudgetsSheet) {
+        val budgetsActionState = remember { ShiftlySheetActionState() }
         SettingsSheetContainer(
             title = "Monthly & Category Budgets",
             onDismiss = {
                 showManageCategoriesSheet = false
                 showBudgetsSheet = false
-            }
+            },
+            actionLabel = "Save",
+            actionEnabled = budgetsActionState.enabled,
+            onAction = { budgetsActionState.onSave?.invoke() }
         ) {
             BudgetsEditorSheetContent(
                 currencySymbol = state.currencySymbol,
@@ -122,15 +132,20 @@ fun ToolsScreen(
                     viewModel.updateBudgets(monthly, categoryList)
                     showBudgetsSheet = false
                     onShowMessage("Budgets saved")
-                }
+                },
+                actionState = budgetsActionState
             )
         }
     }
 
     if (showManageCategoriesSheet) {
+        val categoriesActionState = remember { ShiftlySheetActionState() }
         SettingsSheetContainer(
             title = "Manage Categories",
-            onDismiss = { showManageCategoriesSheet = false }
+            onDismiss = { showManageCategoriesSheet = false },
+            actionLabel = "Save",
+            actionEnabled = categoriesActionState.enabled,
+            onAction = { categoriesActionState.onSave?.invoke() }
         ) {
             ManageCategoriesSheetContent(
                 currentCategories = state.settings.managedCategories,
@@ -138,7 +153,8 @@ fun ToolsScreen(
                     viewModel.updateManagedCategories(updated)
                     showManageCategoriesSheet = false
                     onShowMessage("Categories updated")
-                }
+                },
+                actionState = categoriesActionState
             )
         }
     }
@@ -195,143 +211,170 @@ fun ToolsScreenContent(
     onOpenBudgets: () -> Unit = {},
     onOpenSavingsGoals: () -> Unit = {},
     onOpenRecurringBills: () -> Unit = {},
-    onOpenAllowance: () -> Unit = {}
+    onOpenAllowance: () -> Unit = {},
+    listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
     val currencySymbol = state.currencySymbol
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 112.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
-        item(key = "tools_header", contentType = "header") {
-            ShiftlyScreenHeader(
-                title = "Tools",
-                largeTitle = true,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
+    val isTitleCollapsed by remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 70
         }
+    }
+    val headerAlpha by remember(listState) {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                0f
+            } else {
+                (1f - listState.firstVisibleItemScrollOffset / 140f).coerceIn(0f, 1f)
+            }
+        }
+    }
 
-        item(key = "tools_trackers_group", contentType = "tool_group") {
-            Column(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "TRACKERS",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(horizontal = 4.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 112.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            item(key = "tools_header", contentType = "header") {
+                ShiftlyScreenHeader(
+                    title = "Tools",
+                    largeTitle = true,
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .graphicsLayer { alpha = headerAlpha }
                 )
-                ShiftlyGlassCard(
-                    cornerRadius = 18.dp,
-                    contentPadding = PaddingValues(0.dp)
+            }
+
+            item(key = "tools_trackers_group", contentType = "tool_group") {
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    ToolGroupedRow(
-                        title = "Duties & Shifts",
-                        metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthShiftEarnings),
-                        metricSub = "${ShiftlyFormatters.formatHours(state.monthShiftHours, compact = true)} this month • ${state.monthShiftCount} shift(s)",
-                        iconRes = R.drawable.ic_lucide_clock,
-                        iconTileColor = colors.mintBright,
-                        metricColor = colors.mintInk,
-                        onClick = onOpenDuties
+                    Text(
+                        text = "TRACKERS",
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
-                    ShiftlyHairlineDivider(startInset = 66.dp)
-                    ToolGroupedRow(
-                        title = "Expenses & Receipts",
-                        metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthSpent),
-                        metricSub = if (state.monthlyBudget > 0.0) {
-                            "of ${ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget)} monthly budget"
-                        } else {
-                            "${state.monthExpenseCount} expense(s) this month"
-                        },
-                        iconRes = R.drawable.ic_lucide_receipt_text,
-                        iconTileColor = colors.coralBright,
-                        metricColor = colors.coralInk,
-                        onClick = onOpenExpense
+                    ShiftlyGlassCard(
+                        cornerRadius = 18.dp,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        ToolGroupedRow(
+                            title = "Duties & Shifts",
+                            metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthShiftEarnings),
+                            metricSub = "${ShiftlyFormatters.formatHours(state.monthShiftHours, compact = true)} this month • ${state.monthShiftCount} shift(s)",
+                            iconRes = R.drawable.ic_lucide_clock,
+                            iconTileColor = colors.mintBright,
+                            metricColor = colors.mintInk,
+                            onClick = onOpenDuties
+                        )
+                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ToolGroupedRow(
+                            title = "Expenses & Receipts",
+                            metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthSpent),
+                            metricSub = if (state.monthlyBudget > 0.0) {
+                                "of ${ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget)} monthly budget"
+                            } else {
+                                "${state.monthExpenseCount} expense(s) this month"
+                            },
+                            iconRes = R.drawable.ic_lucide_receipt_text,
+                            iconTileColor = colors.coralBright,
+                            metricColor = colors.coralInk,
+                            onClick = onOpenExpense
+                        )
+                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ToolGroupedRow(
+                            title = "Split Bill",
+                            metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.pendingSplitsAmount),
+                            metricSub = if (state.pendingBillsCount > 0) {
+                                "${state.pendingBillsCount} active bill(s) awaiting payment"
+                            } else {
+                                "${state.totalSplitBillsCount} bill(s) • all settled"
+                            },
+                            iconRes = R.drawable.ic_lucide_split,
+                            iconTileColor = colors.azurePrimary,
+                            metricColor = colors.azureInk,
+                            onClick = onOpenSplitBill
+                        )
+                    }
+                }
+            }
+
+            item(key = "tools_planning_group", contentType = "tool_group") {
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "PLANNING & INCOME",
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
-                    ShiftlyHairlineDivider(startInset = 66.dp)
-                    ToolGroupedRow(
-                        title = "Split Bill",
-                        metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.pendingSplitsAmount),
-                        metricSub = if (state.pendingBillsCount > 0) {
-                            "${state.pendingBillsCount} active bill(s) awaiting payment"
-                        } else {
-                            "${state.totalSplitBillsCount} bill(s) • all settled"
-                        },
-                        iconRes = R.drawable.ic_lucide_split,
-                        iconTileColor = colors.azurePrimary,
-                        metricColor = colors.azureInk,
-                        onClick = onOpenSplitBill
-                    )
+                    ShiftlyGlassCard(
+                        cornerRadius = 18.dp,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        ToolGroupedRow(
+                            title = "Monthly & Category Budgets",
+                            metric = if (state.monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget) else "Set Budget",
+                            metricSub = "Monthly spend limit & category targets",
+                            iconRes = R.drawable.ic_lucide_wallet,
+                            iconTileColor = colors.iosOrange,
+                            metricColor = colors.textPrimary,
+                            onClick = onOpenBudgets
+                        )
+                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ToolGroupedRow(
+                            title = "Savings Goals",
+                            metric = state.activeGoalTitle ?: "Add Goal",
+                            metricSub = if (state.activeGoalTitle != null) {
+                                "${ShiftlyFormatters.formatCurrency(currencySymbol, state.activeGoalSaved)} of ${ShiftlyFormatters.formatCurrency(currencySymbol, state.activeGoalTarget)}"
+                            } else {
+                                "Track savings progress"
+                            },
+                            iconRes = R.drawable.ic_lucide_piggy_bank,
+                            iconTileColor = colors.mintBright,
+                            metricColor = colors.mintInk,
+                            onClick = onOpenSavingsGoals
+                        )
+                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ToolGroupedRow(
+                            title = "Recurring Bills",
+                            metric = "${state.enabledRecurringCount} active",
+                            metricSub = "${state.totalRecurringCount} scheduled bill(s)",
+                            iconRes = R.drawable.ic_lucide_repeat,
+                            iconTileColor = colors.nightDiffPurple,
+                            metricColor = colors.textPrimary,
+                            onClick = onOpenRecurringBills
+                        )
+                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ToolGroupedRow(
+                            title = "Allowance",
+                            metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.totalAllowanceAmount),
+                            metricSub = "${state.cutoffScheduleLabel} • ${state.allowanceEntryCount} entry(s)",
+                            iconRes = R.drawable.ic_lucide_wallet,
+                            iconTileColor = colors.azurePrimary,
+                            metricColor = colors.azureInk,
+                            onClick = onOpenAllowance
+                        )
+                    }
                 }
             }
         }
 
-        item(key = "tools_planning_group", contentType = "tool_group") {
-            Column(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "PLANNING & INCOME",
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-                ShiftlyGlassCard(
-                    cornerRadius = 18.dp,
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    ToolGroupedRow(
-                        title = "Monthly & Category Budgets",
-                        metric = if (state.monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget) else "Set Budget",
-                        metricSub = "Monthly spend limit & category targets",
-                        iconRes = R.drawable.ic_lucide_wallet,
-                        iconTileColor = colors.iosOrange,
-                        metricColor = colors.textPrimary,
-                        onClick = onOpenBudgets
-                    )
-                    ShiftlyHairlineDivider(startInset = 66.dp)
-                    ToolGroupedRow(
-                        title = "Savings Goals",
-                        metric = state.activeGoalTitle ?: "Add Goal",
-                        metricSub = if (state.activeGoalTitle != null) {
-                            "${ShiftlyFormatters.formatCurrency(currencySymbol, state.activeGoalSaved)} of ${ShiftlyFormatters.formatCurrency(currencySymbol, state.activeGoalTarget)}"
-                        } else {
-                            "Track savings progress"
-                        },
-                        iconRes = R.drawable.ic_lucide_piggy_bank,
-                        iconTileColor = colors.mintBright,
-                        metricColor = colors.mintInk,
-                        onClick = onOpenSavingsGoals
-                    )
-                    ShiftlyHairlineDivider(startInset = 66.dp)
-                    ToolGroupedRow(
-                        title = "Recurring Bills",
-                        metric = "${state.enabledRecurringCount} active",
-                        metricSub = "${state.totalRecurringCount} scheduled bill(s)",
-                        iconRes = R.drawable.ic_lucide_repeat,
-                        iconTileColor = colors.nightDiffPurple,
-                        metricColor = colors.textPrimary,
-                        onClick = onOpenRecurringBills
-                    )
-                    ShiftlyHairlineDivider(startInset = 66.dp)
-                    ToolGroupedRow(
-                        title = "Allowance",
-                        metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.totalAllowanceAmount),
-                        metricSub = "${state.cutoffScheduleLabel} • ${state.allowanceEntryCount} entry(s)",
-                        iconRes = R.drawable.ic_lucide_wallet,
-                        iconTileColor = colors.azurePrimary,
-                        metricColor = colors.azureInk,
-                        onClick = onOpenAllowance
-                    )
-                }
-            }
-        }
+        ShiftlyCollapsedTopBar(
+            title = "Tools",
+            isCollapsed = isTitleCollapsed,
+            modifier = Modifier.align(Alignment.TopCenter)
+        )
     }
 }
 
@@ -407,7 +450,7 @@ private fun ToolGroupedRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 64.dp)
-            .clickable(onClick = onClick)
+            .shiftlyPressClickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,8 +36,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -81,8 +78,13 @@ import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
+import com.example.shiftly.ui.components.ShiftlyIosSwitch
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
@@ -118,6 +120,11 @@ private val APP_LOCK_METHOD_OPTIONS = listOf(
 
 private val DEFAULT_RECURRING_CATEGORIES = listOf("Food", "Transport", "Bills", "Supplies", "Other")
 
+class ShiftlySheetActionState {
+    var onSave: (() -> Unit)? = null
+    var enabled by mutableStateOf(true)
+}
+
 private fun filterSingleDecimalInput(raw: String, current: String): String {
     val filtered = raw.filter { it.isDigit() || it == '.' }
     return if (filtered.count { it == '.' } <= 1) filtered else current
@@ -126,18 +133,6 @@ private fun filterSingleDecimalInput(raw: String, current: String): String {
 private fun formatEditableNumber(value: Double): String {
     if (!value.isFinite()) return "0"
     return if (value % 1.0 == 0.0) value.toInt().toString() else "%.2f".format(value)
-}
-
-@Composable
-private fun shiftlySwitchColors(): androidx.compose.material3.SwitchColors {
-    val colors = ShiftlyColors.current
-    return SwitchDefaults.colors(
-        checkedThumbColor = PureWhite,
-        checkedTrackColor = colors.mintBright,
-        uncheckedThumbColor = colors.textSecondary,
-        uncheckedTrackColor = colors.surface,
-        uncheckedBorderColor = Color.Transparent
-    )
 }
 
 @Composable
@@ -414,10 +409,9 @@ fun SettingsSwitchRow(
                 )
             }
         }
-        Switch(
+        ShiftlyIosSwitch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = shiftlySwitchColors()
+            onCheckedChange = onCheckedChange
         )
     }
 }
@@ -431,7 +425,9 @@ fun SettingsSwitchRow(
 fun SettingsSheetContainer(
     title: String,
     onDismiss: () -> Unit,
-    showTopClose: Boolean = true,
+    actionLabel: String? = "Done",
+    actionEnabled: Boolean = true,
+    onAction: (() -> Unit)? = onDismiss,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val colors = ShiftlyColors.current
@@ -440,8 +436,10 @@ fun SettingsSheetContainer(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        dragHandle = { ShiftlySheetDragHandle() },
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
     ) {
         Column(
             modifier = Modifier
@@ -450,33 +448,16 @@ fun SettingsSheetContainer(
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 26.dp),
+                .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = colors.textPrimary,
-                    modifier = Modifier.weight(1f)
-                )
-                if (showTopClose) {
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.heightIn(min = 44.dp)
-                    ) {
-                        Text(
-                            text = "Cancel",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textSecondary
-                        )
-                    }
-                }
-            }
+            ShiftlySheetHeader(
+                title = title,
+                onCancel = onDismiss,
+                actionLabel = actionLabel,
+                actionEnabled = actionEnabled,
+                onAction = onAction
+            )
             content()
         }
     }
@@ -553,7 +534,8 @@ fun AccountEditSheetContent(
     currencySymbol: String,
     onChangePhoto: () -> Unit,
     onRemovePhoto: () -> Unit,
-    onSave: (String) -> Unit
+    onSave: (String) -> Unit,
+    actionState: ShiftlySheetActionState? = null
 ) {
     val colors = ShiftlyColors.current
     val context = LocalContext.current
@@ -579,6 +561,13 @@ fun AccountEditSheetContent(
                 .scale(Scale.FILL)
                 .crossfade(true)
                 .build()
+        }
+    }
+    val isValid = nameInput.isNotBlank()
+    LaunchedEffect(isValid, nameInput) {
+        actionState?.enabled = isValid
+        actionState?.onSave = {
+            if (nameInput.isNotBlank()) onSave(nameInput.trim())
         }
     }
 
@@ -614,30 +603,18 @@ fun AccountEditSheetContent(
 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
+                ShiftlySecondaryTextButton(
+                    text = if (hasPhoto) "Change Photo" else "Add Photo",
                     onClick = onChangePhoto,
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.cardElevated,
-                        contentColor = colors.azureAccent
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    modifier = Modifier.heightIn(min = 44.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_camera),
-                        contentDescription = null,
-                        tint = colors.azureAccent,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (hasPhoto) "Change Photo" else "Add Photo",
-                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
-                        color = colors.azureAccent
-                    )
-                }
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_camera),
+                            contentDescription = null,
+                            tint = colors.azureAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
                 if (hasPhoto) {
                     TextButton(
                         onClick = onRemovePhoto,
@@ -674,11 +651,6 @@ fun AccountEditSheetContent(
         text = "Hourly rate: ${ShiftlyFormatters.formatCurrency(currencySymbol, hourlyRate)}/hr (edit in Duties & Shifts settings)",
         style = MaterialTheme.typography.bodySmall.tabular(),
         color = colors.textSecondary
-    )
-    ShiftlyPrimaryPillButton(
-        text = "Save Profile",
-        enabled = nameInput.isNotBlank(),
-        onClick = { onSave(nameInput.trim()) }
     )
 }
 
@@ -777,26 +749,11 @@ fun CurrencyPickerSheetContent(
                 }
             }
 
-            Button(
+            ShiftlySecondaryTextButton(
+                text = "Switch Symbol Only (Keep Numbers)",
                 onClick = { onApplyCurrency(targetSymbol, null) },
-                shape = RoundedCornerShape(50),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.cardElevated,
-                    contentColor = colors.textPrimary
-                ),
-                elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-            ) {
-                Text(
-                    text = "Switch Symbol Only (Keep Numbers)",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                )
-            }
+                modifier = Modifier.fillMaxWidth()
+            )
 
             ShiftlyHairlineDivider()
 
@@ -849,18 +806,11 @@ fun CurrencyPickerSheetContent(
                 }
             )
 
-            TextButton(
+            ShiftlySecondaryTextButton(
+                text = "Back to Currency List",
                 onClick = { pendingTarget = null },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 48.dp)
-            ) {
-                Text(
-                    text = "Back to Currency List",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary
-                )
-            }
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
@@ -876,13 +826,19 @@ fun NotificationsSheetContent(
         billReminderEnabled: Boolean,
         shiftReminderEnabled: Boolean,
         savingsReminderEnabled: Boolean
-    ) -> Unit
+    ) -> Unit,
+    actionState: ShiftlySheetActionState? = null
 ) {
     val colors = ShiftlyColors.current
     var masterEnabled by remember { mutableStateOf(notificationsEnabled) }
     var billRem by remember { mutableStateOf(billReminderEnabled) }
     var shiftRem by remember { mutableStateOf(shiftReminderEnabled) }
     var savingsRem by remember { mutableStateOf(savingsReminderEnabled) }
+
+    LaunchedEffect(masterEnabled, billRem, shiftRem, savingsRem) {
+        actionState?.enabled = true
+        actionState?.onSave = { onSave(masterEnabled, billRem, shiftRem, savingsRem) }
+    }
 
     Surface(
         shape = RoundedCornerShape(18.dp),
@@ -919,11 +875,6 @@ fun NotificationsSheetContent(
             )
         }
     }
-
-    ShiftlyPrimaryPillButton(
-        text = "Save Notifications",
-        onClick = { onSave(masterEnabled, billRem, shiftRem, savingsRem) }
-    )
 }
 
 @Composable
@@ -952,11 +903,10 @@ private fun NotificationToggleRow(
             color = colors.textPrimary,
             modifier = Modifier.weight(1f)
         )
-        Switch(
+        ShiftlyIosSwitch(
             checked = checked,
             enabled = enabled,
-            onCheckedChange = onCheckedChange,
-            colors = shiftlySwitchColors()
+            onCheckedChange = onCheckedChange
         )
     }
 }
@@ -999,7 +949,8 @@ fun BudgetsEditorSheetContent(
     managedCategories: List<ManagedCategorySetting> = emptyList(),
     onManageCategories: (() -> Unit)? = null,
     onDismiss: () -> Unit = {},
-    onSave: (Double, List<CategoryBudgetSetting>) -> Unit
+    onSave: (Double, List<CategoryBudgetSetting>) -> Unit,
+    actionState: ShiftlySheetActionState? = null
 ) {
     val colors = ShiftlyColors.current
     var monthlyInput by remember {
@@ -1060,6 +1011,25 @@ fun BudgetsEditorSheetContent(
             editedBudgets.clear()
             editedBudgets.addAll(rebuilt)
         }
+    }
+
+    val performSave = {
+        val parsedMonthly = monthlyInput.toDoubleOrNull()
+        val monthly = when {
+            monthlyInput.isBlank() -> 0.0
+            parsedMonthly != null && parsedMonthly.isFinite() && parsedMonthly >= 0.0 -> parsedMonthly
+            else -> currentMonthlyBudget
+        }
+        val list = editedBudgets.mapNotNull { (cat, raw) ->
+            val limit = raw.toDoubleOrNull()
+            if (limit != null && limit.isFinite() && limit > 0.0) CategoryBudgetSetting(cat, limit) else null
+        }
+        onSave(monthly, list)
+    }
+
+    LaunchedEffect(monthlyInput, editedBudgets.toList()) {
+        actionState?.enabled = true
+        actionState?.onSave = performSave
     }
 
     Column(
@@ -1208,25 +1178,6 @@ fun BudgetsEditorSheetContent(
                 }
             }
         }
-
-        Spacer(modifier = Modifier.size(2.dp))
-
-        ShiftlyPrimaryPillButton(
-            text = "Save Budgets",
-            onClick = {
-                val parsedMonthly = monthlyInput.toDoubleOrNull()
-                val monthly = when {
-                    monthlyInput.isBlank() -> 0.0
-                    parsedMonthly != null && parsedMonthly.isFinite() && parsedMonthly >= 0.0 -> parsedMonthly
-                    else -> currentMonthlyBudget
-                }
-                val list = editedBudgets.mapNotNull { (cat, raw) ->
-                    val limit = raw.toDoubleOrNull()
-                    if (limit != null && limit.isFinite() && limit > 0.0) CategoryBudgetSetting(cat, limit) else null
-                }
-                onSave(monthly, list)
-            }
-        )
     }
 }
 
@@ -1295,11 +1246,17 @@ private fun CompactBudgetAmountField(
 @Composable
 fun ManageCategoriesSheetContent(
     currentCategories: List<ManagedCategorySetting>,
-    onSave: (List<ManagedCategorySetting>) -> Unit
+    onSave: (List<ManagedCategorySetting>) -> Unit,
+    actionState: ShiftlySheetActionState? = null
 ) {
     val colors = ShiftlyColors.current
     val list = remember { mutableStateListOf<ManagedCategorySetting>().apply { addAll(currentCategories) } }
     var newCategoryName by remember { mutableStateOf("") }
+
+    LaunchedEffect(list.toList()) {
+        actionState?.enabled = true
+        actionState?.onSave = { onSave(list.filter { it.name.isNotBlank() }) }
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -1323,7 +1280,7 @@ fun ManageCategoriesSheetContent(
                     newCategoryName = ""
                 }
             },
-            shape = RoundedCornerShape(50),
+            shape = RoundedCornerShape(14.dp),
             colors = ButtonDefaults.buttonColors(containerColor = colors.azurePrimary, contentColor = PureWhite),
             elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
             modifier = Modifier.heightIn(min = 52.dp)
@@ -1361,18 +1318,12 @@ fun ManageCategoriesSheetContent(
                 ),
                 modifier = Modifier.weight(1f)
             )
-            Switch(
+            ShiftlyIosSwitch(
                 checked = item.isVisible,
-                onCheckedChange = { vis -> list[idx] = item.copy(isVisible = vis) },
-                colors = shiftlySwitchColors()
+                onCheckedChange = { vis -> list[idx] = item.copy(isVisible = vis) }
             )
         }
     }
-
-    ShiftlyPrimaryPillButton(
-        text = "Save Categories",
-        onClick = { onSave(list.filter { it.name.isNotBlank() }) }
-    )
 }
 
 @Composable
@@ -1435,10 +1386,9 @@ fun RecurringEntriesSheetContent(
                     )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Switch(
+                    ShiftlyIosSwitch(
                         checked = entry.isEnabled,
-                        onCheckedChange = { entries[idx] = entry.copy(isEnabled = it) },
-                        colors = shiftlySwitchColors()
+                        onCheckedChange = { entries[idx] = entry.copy(isEnabled = it) }
                     )
                     IconButton(
                         onClick = { entries.removeAt(idx) },
@@ -1572,7 +1522,8 @@ fun RecurringEntriesSheetContent(
         )
     }
 
-    Button(
+    ShiftlySecondaryTextButton(
+        text = "Add to List",
         onClick = {
             val amt = newAmount.toDoubleOrNull() ?: 0.0
             if (newTitle.isNotBlank() && amt.isFinite() && amt > 0.0) {
@@ -1591,22 +1542,8 @@ fun RecurringEntriesSheetContent(
                 newAmount = ""
             }
         },
-        shape = RoundedCornerShape(50),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = colors.cardElevated,
-            contentColor = colors.azureInk
-        ),
-        elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-    ) {
-        Text(
-            text = "Add to List",
-            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-            color = colors.azureInk
-        )
-    }
+        modifier = Modifier.fillMaxWidth()
+    )
 
     ShiftlyPrimaryPillButton(
         text = "Save Rules",
@@ -1619,7 +1556,8 @@ fun AppLockSheetContent(
     currentEnabled: Boolean,
     currentMethod: String,
     hasSavedPin: Boolean,
-    onSave: (Boolean, String, String?) -> Unit
+    onSave: (Boolean, String, String?) -> Unit,
+    actionState: ShiftlySheetActionState? = null
 ) {
     val colors = ShiftlyColors.current
     val context = LocalContext.current
@@ -1629,6 +1567,21 @@ fun AppLockSheetContent(
     var method by remember { mutableStateOf(currentMethod) }
     var newPin by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val submit = {
+        when {
+            !enabled -> onSave(false, method, if (PinSecurity.isValidPinFormat(newPin)) newPin else null)
+            method == "Fingerprint Only" -> onSave(true, method, null)
+            PinSecurity.isValidPinFormat(newPin) -> onSave(true, method, newPin)
+            newPin.isEmpty() && hasSavedPin -> onSave(true, method, null)
+            else -> errorMessage = "Please enter a full 4-digit PIN."
+        }
+    }
+
+    LaunchedEffect(enabled, method, newPin, hasSavedPin) {
+        actionState?.enabled = true
+        actionState?.onSave = submit
+    }
 
     Row(
         modifier = Modifier
@@ -1654,13 +1607,12 @@ fun AppLockSheetContent(
                 color = colors.textSecondary
             )
         }
-        Switch(
+        ShiftlyIosSwitch(
             checked = enabled,
             onCheckedChange = {
                 enabled = it
                 errorMessage = null
-            },
-            colors = shiftlySwitchColors()
+            }
         )
     }
 
@@ -1727,31 +1679,6 @@ fun AppLockSheetContent(
             color = colors.coralTextOnSurface
         )
     }
-
-    ShiftlyPrimaryPillButton(
-        text = "Save Security Lock",
-        onClick = {
-            if (!enabled) {
-                onSave(false, method, if (PinSecurity.isValidPinFormat(newPin)) newPin else null)
-                return@ShiftlyPrimaryPillButton
-            }
-            if (method == "Fingerprint Only") {
-                onSave(true, method, null)
-                return@ShiftlyPrimaryPillButton
-            }
-            when {
-                PinSecurity.isValidPinFormat(newPin) -> {
-                    onSave(true, method, newPin)
-                }
-                newPin.isEmpty() && hasSavedPin -> {
-                    onSave(true, method, null)
-                }
-                else -> {
-                    errorMessage = "Please enter a full 4-digit PIN."
-                }
-            }
-        }
-    )
 }
 
 @Composable
@@ -1767,104 +1694,60 @@ fun BackupAndExportSheetContent(
     var restoreJsonInput by remember { mutableStateOf("") }
     var restoreMode by remember { mutableStateOf(RestoreMode.MERGE) }
 
-    Button(
+    ShiftlySecondaryTextButton(
+        text = "Export Full Backup (.zip + Receipts)",
         onClick = onExportZip,
-        shape = RoundedCornerShape(50),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = colors.cardElevated,
-            contentColor = colors.textPrimary
-        ),
-        elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_lucide_folder_archive),
-            contentDescription = null,
-            tint = colors.azureAccent,
-            modifier = Modifier.size(18.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "Export Full Backup (.zip + Receipts)",
-            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily)
-        )
-    }
+        leadingIcon = {
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_folder_archive),
+                contentDescription = null,
+                tint = colors.azureAccent,
+                modifier = Modifier.size(18.dp)
+            )
+        },
+        modifier = Modifier.fillMaxWidth()
+    )
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(
+        ShiftlySecondaryTextButton(
+            text = "JSON",
             onClick = onExportJson,
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.cardElevated,
-                contentColor = colors.textPrimary
-            ),
-            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 44.dp)
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_cloud_upload),
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = "JSON",
-                style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily)
-            )
-        }
-        Button(
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_cloud_upload),
+                    contentDescription = null,
+                    tint = colors.azureAccent,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            modifier = Modifier.weight(1f)
+        )
+        ShiftlySecondaryTextButton(
+            text = "CSV",
             onClick = onExportCsv,
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.cardElevated,
-                contentColor = colors.textPrimary
-            ),
-            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 44.dp)
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_file_spreadsheet),
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = "CSV",
-                style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily)
-            )
-        }
-        Button(
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_file_spreadsheet),
+                    contentDescription = null,
+                    tint = colors.azureAccent,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            modifier = Modifier.weight(1f)
+        )
+        ShiftlySecondaryTextButton(
+            text = "PDF",
             onClick = onExportPdf,
-            shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = colors.cardElevated,
-                contentColor = colors.textPrimary
-            ),
-            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-            modifier = Modifier
-                .weight(1f)
-                .heightIn(min = 44.dp)
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_file_text),
-                contentDescription = null,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(
-                text = "PDF",
-                style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily)
-            )
-        }
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_file_text),
+                    contentDescription = null,
+                    tint = colors.azureAccent,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            modifier = Modifier.weight(1f)
+        )
     }
 
     ShiftlyHairlineDivider()
@@ -1903,30 +1786,19 @@ fun BackupAndExportSheetContent(
         )
     }
 
-    Button(
+    ShiftlySecondaryTextButton(
+        text = "Choose Backup File (.zip or .json)",
         onClick = { onPickBackupFile(restoreMode) },
-        shape = RoundedCornerShape(50),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = colors.cardElevated,
-            contentColor = colors.textPrimary
-        ),
-        elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 48.dp)
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_lucide_rotate_ccw),
-            contentDescription = null,
-            tint = colors.mintTextOnSurface,
-            modifier = Modifier.size(18.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "Choose Backup File (.zip or .json)",
-            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily)
-        )
-    }
+        leadingIcon = {
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_rotate_ccw),
+                contentDescription = null,
+                tint = colors.azureAccent,
+                modifier = Modifier.size(18.dp)
+            )
+        },
+        modifier = Modifier.fillMaxWidth()
+    )
 
     OutlinedTextField(
         value = restoreJsonInput,

@@ -1,6 +1,9 @@
 package com.example.shiftly.ui.screens.splitbill
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,20 +16,17 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -35,12 +35,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,12 +52,17 @@ import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
+import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
+import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
@@ -151,10 +156,26 @@ fun SplitBillScreen(
 
     pendingDeleteBill?.let { billToDelete ->
         if (billToDelete.isLoggedToExpense) {
-            AlertDialog(
-                onDismissRequest = { pendingDeleteBill = null },
-                containerColor = colors.card,
-                icon = {
+            val deleteBothAction: () -> Unit = {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                viewModel.deleteSplitBill(billToDelete, deleteLinkedExpense = true)
+                pendingDeleteBill = null
+                onShowMessage("Split bill & linked expense deleted")
+            }
+            ShiftlyDialogShell(
+                title = "Delete Split Bill?",
+                onDismiss = { pendingDeleteBill = null },
+                actionLabel = "Done",
+                onAction = deleteBothAction,
+                maxWidth = 380.dp,
+                horizontalOuterPadding = 24.dp,
+                contentHorizontalPadding = 20.dp
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     ShiftlyIosIconTile(
                         iconRes = R.drawable.ic_lucide_trash_2,
                         backgroundColor = colors.coralBright,
@@ -162,93 +183,50 @@ fun SplitBillScreen(
                         cornerRadius = 11.dp,
                         iconSize = 22.dp
                     )
-                },
-                title = {
-                    Text(
-                        text = "Delete Split Bill?",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = colors.textPrimary
-                    )
-                },
-                text = {
                     Text(
                         text = "\"${billToDelete.title}\" also logged your share to Expenses. Delete both entries or keep the logged expense?",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = colors.textSecondary
+                        color = colors.textSecondary,
+                        textAlign = TextAlign.Center
                     )
-                },
-                confirmButton = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    val deleteBothInteraction = remember { MutableInteractionSource() }
+                    Button(
+                        onClick = deleteBothAction,
+                        interactionSource = deleteBothInteraction,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.coralBright,
+                            contentColor = PureWhite
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 50.dp)
+                            .shiftlyPressEffect(deleteBothInteraction)
                     ) {
-                        Button(
-                            onClick = {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                viewModel.deleteSplitBill(billToDelete, deleteLinkedExpense = true)
-                                pendingDeleteBill = null
-                                onShowMessage("Split bill & linked expense deleted")
-                            },
-                            shape = RoundedCornerShape(50),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = colors.coralBright,
-                                contentColor = PureWhite
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 0.dp,
-                                pressedElevation = 0.dp
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Delete Both",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                        Text(
+                            text = "Delete Both",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold
                             )
-                        }
-                        Button(
-                            onClick = {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                viewModel.deleteSplitBill(billToDelete, deleteLinkedExpense = false)
-                                pendingDeleteBill = null
-                                onShowMessage("Split bill deleted; expense kept")
-                            },
-                            shape = RoundedCornerShape(50),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = colors.cardElevated,
-                                contentColor = colors.textPrimary
-                            ),
-                            elevation = ButtonDefaults.buttonElevation(
-                                defaultElevation = 0.dp,
-                                pressedElevation = 0.dp
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Keep Expense",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            )
-                        }
-                        TextButton(
-                            onClick = { pendingDeleteBill = null },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = "Cancel",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = InterFontFamily
-                                ),
-                                color = colors.textSecondary
-                            )
-                        }
+                        )
                     }
+                    ShiftlySecondaryTextButton(
+                        text = "Keep Expense",
+                        onClick = {
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            viewModel.deleteSplitBill(billToDelete, deleteLinkedExpense = false)
+                            pendingDeleteBill = null
+                            onShowMessage("Split bill deleted; expense kept")
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-            )
+            }
         } else {
             ShiftlyConfirmDeleteDialog(
                 title = "Delete Split Bill?",
@@ -327,33 +305,18 @@ fun SplitBillScreenContent(
                     totalParticipantsCount = state.totalParticipantsCount
                 )
 
-                Button(
+                ShiftlyPrimaryPillButton(
+                    text = "New Split",
                     onClick = onOpenNewSplit,
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.azurePrimary,
-                        contentColor = colors.onAzurePrimary
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_plus),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "New Split",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.onAzurePrimary
-                    )
-                }
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_plus),
+                            contentDescription = null,
+                            tint = colors.onAzurePrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                )
             }
         }
 
@@ -402,6 +365,11 @@ fun SplitBillScreenContent(
             ) { idx, billWithParticipants ->
                 Column(
                     modifier = Modifier
+                        .animateItem(
+                            fadeInSpec = spring(dampingRatio = 0.8f),
+                            placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                            fadeOutSpec = spring(dampingRatio = 0.8f)
+                        )
                         .fillMaxWidth()
                         .shiftlySheetBodyBand(colors.surface)
                         .padding(horizontal = 20.dp)
@@ -493,10 +461,10 @@ private fun NewSplitBillSheetPreview() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.65f))
+                        .background(shiftlySheetScrimColor())
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
                         color = colors.surface,
                         shadowElevation = 0.dp,
                         modifier = Modifier

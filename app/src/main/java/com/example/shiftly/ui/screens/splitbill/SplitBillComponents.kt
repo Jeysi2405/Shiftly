@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,7 +32,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -58,11 +56,16 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
+import com.example.shiftly.ui.components.ShiftlyDialogShell
+import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlyIosSwitch
 import com.example.shiftly.ui.components.ShiftlyProgressBar
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
@@ -73,11 +76,11 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
 private val SplitPillShape = RoundedCornerShape(50)
-private val SplitCardShape = RoundedCornerShape(18.dp)
+private val SplitPrimaryButtonShape = RoundedCornerShape(14.dp)
 private val SplitItemShape = RoundedCornerShape(18.dp)
 private val SplitFieldShape = RoundedCornerShape(14.dp)
 private val SplitRowShape = RoundedCornerShape(12.dp)
-private val SplitSheetTopShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+private val SplitSheetTopShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
 
 private data class SplitParticipantSummary(
     val trackedCount: Int,
@@ -200,7 +203,9 @@ fun NewSplitBillBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
+        dragHandle = { ShiftlySheetDragHandle() },
         shape = SplitSheetTopShape
     ) {
         NewSplitBillSheetContent(
@@ -238,6 +243,7 @@ fun NewSplitBillSheetContent(
     var personCount by remember(externalPrefillTrigger) {
         mutableIntStateOf(initialPersonCount.coerceIn(2, 20))
     }
+    var alsoLogAsExpense by remember(externalPrefillTrigger) { mutableStateOf(true) }
 
     val customNames = remember(externalPrefillTrigger) {
         mutableStateListOf<String>().apply {
@@ -296,30 +302,27 @@ fun NewSplitBillSheetContent(
             .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp)
-            .padding(bottom = 24.dp),
+            .padding(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "New Split",
-                style = MaterialTheme.typography.headlineSmall,
-                color = colors.textPrimary
-            )
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier.heightIn(min = 44.dp)
-            ) {
-                Text(
-                    text = "Cancel",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary
-                )
+        ShiftlySheetHeader(
+            title = "New Split",
+            onCancel = onDismiss,
+            actionLabel = "Add",
+            actionEnabled = isValid,
+            onAction = {
+                if (isValid) {
+                    onSaveSplitBill(
+                        titleInput,
+                        totalAmount,
+                        personCount,
+                        customNames.take(personCount),
+                        customPaidStates.take(personCount),
+                        alsoLogAsExpense
+                    )
+                }
             }
-        }
+        )
 
         // Total + Label Fields
         Row(
@@ -555,82 +558,30 @@ fun NewSplitBillSheetContent(
             }
         }
 
-        // Docked Action Buttons: "Save" vs "Split & Log"
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        Surface(
+            shape = SplitFieldShape,
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Button(
-                onClick = {
-                    onSaveSplitBill(
-                        titleInput,
-                        totalAmount,
-                        personCount,
-                        customNames.take(personCount),
-                        customPaidStates.take(personCount),
-                        false
-                    )
-                },
-                enabled = isValid,
-                shape = SplitPillShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.cardElevated,
-                    contentColor = colors.textPrimary,
-                    disabledContainerColor = colors.disabledContainer,
-                    disabledContentColor = colors.disabledContent
-                ),
-                elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 0.dp,
-                    pressedElevation = 0.dp,
-                    disabledElevation = 0.dp
-                ),
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 52.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Save",
-                    style = MaterialTheme.typography.labelLarge.copy(
+                    text = "Also log my share as an expense",
+                    style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = colors.textPrimary
                 )
-            }
-
-            Button(
-                onClick = {
-                    onSaveSplitBill(
-                        titleInput,
-                        totalAmount,
-                        personCount,
-                        customNames.take(personCount),
-                        customPaidStates.take(personCount),
-                        true
-                    )
-                },
-                enabled = isValid,
-                shape = SplitPillShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.azurePrimary,
-                    contentColor = colors.onAzurePrimary,
-                    disabledContainerColor = colors.disabledContainer,
-                    disabledContentColor = colors.disabledContent
-                ),
-                elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 0.dp,
-                    pressedElevation = 0.dp,
-                    disabledElevation = 0.dp
-                ),
-                modifier = Modifier
-                    .weight(1.3f)
-                    .heightIn(min = 52.dp)
-            ) {
-                Text(
-                    text = "Split & Log",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                ShiftlyIosSwitch(
+                    checked = alsoLogAsExpense,
+                    onCheckedChange = { alsoLogAsExpense = it }
                 )
             }
         }
@@ -651,46 +602,19 @@ fun SplitBillEmptyCard(
         selectedMonth?.format(DateTimeFormatter.ofPattern("MMM yyyy", locale))
     }
     val showMonthReset = hasAnyBillsAtAll && monthLabel != null
-    Surface(
-        shape = SplitCardShape,
-        color = colors.cardElevated,
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 26.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            ShiftlyIosIconTile(
-                iconRes = R.drawable.ic_lucide_split,
-                backgroundColor = colors.azurePrimary,
-                size = 48.dp,
-                cornerRadius = 12.dp,
-                iconSize = 24.dp
-            )
-            Text(
-                text = if (showMonthReset) "No split bills in $monthLabel" else "No split bills yet",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
-                color = colors.textPrimary,
-                textAlign = TextAlign.Center
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            if (showMonthReset) {
-                ShiftlyPrimaryPillButton(
-                    text = "Show All Months",
-                    onClick = onShowAllMonths
-                )
-            } else {
-                ShiftlyPrimaryPillButton(
-                    text = "Try ${currencySymbol}1,200 ÷ 4 dinner",
-                    onClick = onTrySampleSplit
-                )
-            }
-        }
-    }
+
+    ShiftlyEmptyState(
+        iconRes = R.drawable.ic_lucide_split,
+        title = if (showMonthReset) "No split bills in $monthLabel" else "No split bills yet",
+        subtitle = if (showMonthReset) {
+            "Switch to all months to view earlier shared bills."
+        } else {
+            "Divide dinner, rent, or group expenses evenly and track who has paid."
+        },
+        actionText = if (showMonthReset) "Show All Months" else "Try ${currencySymbol}1,200 ÷ 4 dinner",
+        onAction = if (showMonthReset) onShowAllMonths else onTrySampleSplit,
+        iconBackgroundColor = colors.azurePrimary
+    )
 }
 
 @Composable
@@ -959,7 +883,7 @@ fun SplitBillLogItemCard(
             } else {
                 Button(
                     onClick = { onLogAsExpense(bill) },
-                    shape = SplitPillShape,
+                    shape = SplitPrimaryButtonShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colors.azurePrimary,
                         contentColor = colors.onAzurePrimary
@@ -970,7 +894,7 @@ fun SplitBillLogItemCard(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 48.dp)
+                        .heightIn(min = 50.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_receipt_text),
@@ -993,69 +917,47 @@ fun SplitBillLogItemCard(
 
     // Payment Status Confirmation Prompt Dialog
     selectedParticipantForPrompt?.let { participant ->
-        val personName = if (participant.isCurrentUser && participant.personLabel.equals("You", ignoreCase = true)) "You" else participant.personLabel
+        val personName = if (participant.isCurrentUser && participant.personLabel.equals("You", ignoreCase = true)) {
+            "You"
+        } else {
+            participant.personLabel
+        }
         val targetStatus = if (participant.hasPaid) "Unpaid" else "Paid"
 
-        AlertDialog(
-            onDismissRequest = { selectedParticipantForPrompt = null },
-            containerColor = colors.card,
-            icon = {
+        ShiftlyDialogShell(
+            title = "Payment Status",
+            onDismiss = { selectedParticipantForPrompt = null },
+            actionLabel = "Done",
+            onAction = {
+                onToggleParticipantPaid(participant)
+                selectedParticipantForPrompt = null
+            },
+            maxWidth = 380.dp,
+            horizontalOuterPadding = 24.dp,
+            contentHorizontalPadding = 20.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp, bottom = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 ShiftlyIosIconTile(
                     iconRes = if (participant.hasPaid) R.drawable.ic_lucide_x else R.drawable.ic_lucide_check,
                     backgroundColor = if (participant.hasPaid) colors.cardElevated else colors.mintBright,
                     size = 44.dp,
                     cornerRadius = 11.dp,
-                    iconSize = 22.dp
+                    iconSize = 22.dp,
+                    iconTint = if (participant.hasPaid) colors.textPrimary else colors.onAzurePrimary
                 )
-            },
-            title = {
-                Text(
-                    text = "Payment Status",
-                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
-                    color = colors.textPrimary
-                )
-            },
-            text = {
                 Text(
                     text = "Confirm marking $personName as $targetStatus for this bill?",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = colors.textSecondary
+                    color = colors.textSecondary,
+                    textAlign = TextAlign.Center
                 )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onToggleParticipantPaid(participant)
-                        selectedParticipantForPrompt = null
-                    },
-                    shape = SplitPillShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (participant.hasPaid) colors.cardElevated else colors.azurePrimary,
-                        contentColor = if (participant.hasPaid) colors.textPrimary else colors.onAzurePrimary
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 0.dp,
-                        pressedElevation = 0.dp
-                    )
-                ) {
-                    Text(
-                        text = "Mark $targetStatus",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    )
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { selectedParticipantForPrompt = null }) {
-                    Text(
-                        text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                }
             }
-        )
+        }
     }
 }

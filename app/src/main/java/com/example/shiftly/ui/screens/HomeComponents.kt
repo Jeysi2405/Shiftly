@@ -3,10 +3,8 @@ package com.example.shiftly.ui.screens
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -40,6 +38,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +51,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -61,7 +60,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -87,6 +85,8 @@ import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.shiftlyPressClickable
+import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.theme.InterFontFamily
@@ -112,7 +112,7 @@ private val HERO_PAGE_LABELS = listOf("Total Balance", "Shift Earnings", "Saving
 private val HomePillShape = RoundedCornerShape(50)
 private val HomeCardShape = RoundedCornerShape(18.dp)
 private val HomeBannerShape = RoundedCornerShape(18.dp)
-private val HomeButtonShape = RoundedCornerShape(12.dp)
+private val HomeButtonShape = RoundedCornerShape(14.dp)
 private val InboxDropdownShape = RoundedCornerShape(20.dp)
 private val HeadsUpBannerShape = RoundedCornerShape(18.dp)
 private const val HEADS_UP_AUTO_DISMISS_MS = 4_200L
@@ -184,8 +184,9 @@ private fun notificationVisualStyle(type: InAppNotificationType): NotificationVi
 
 /**
  * Top header displaying small uppercase date above the Home Large Title,
- * plus notifications and profile avatar.
+ * plus notifications and compact profile avatar aligned neatly at top right.
  */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun HomeGreetingHeader(
     profilePhotoPath: String? = null,
@@ -193,15 +194,14 @@ fun HomeGreetingHeader(
     isInboxOpen: Boolean = false,
     todayOverride: LocalDate? = null,
     onNotificationClick: () -> Unit,
-    onProfileClick: () -> Unit,
+    onProfileClick: () -> Unit = {},
     userName: String = "",
     greetingHourOverride: Int? = null
 ) {
     val colors = ShiftlyColors.current
-    val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
-    val fullDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE, MMM d", locale) }
+    val fullDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy", locale) }
     val formattedDate = remember(today, fullDateFormatter) { today.format(fullDateFormatter).uppercase(locale) }
     val resolvedHour = remember(greetingHourOverride) { greetingHourOverride ?: LocalTime.now().hour }
     val greeting = remember(resolvedHour) { greetingForHour(resolvedHour) }
@@ -215,23 +215,6 @@ fun HomeGreetingHeader(
         }
     }
 
-    val photoFile by produceState<File?>(initialValue = null, profilePhotoPath) {
-        value = withContext(Dispatchers.IO) {
-            profilePhotoPath?.let(::File)?.takeIf { it.exists() && it.isFile }
-        }
-    }
-    val avatarSizePx = with(LocalDensity.current) { 44.dp.roundToPx() }
-    val avatarRequest = remember(photoFile, avatarSizePx, context) {
-        photoFile?.let { file ->
-            ImageRequest.Builder(context)
-                .data(file)
-                .size(avatarSizePx, avatarSizePx)
-                .scale(Scale.FILL)
-                .crossfade(true)
-                .build()
-        }
-    }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -242,22 +225,29 @@ fun HomeGreetingHeader(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(top = 4.dp, end = 12.dp)
+                .padding(end = 12.dp)
         ) {
             Text(
                 text = formattedDate,
-                style = MaterialTheme.typography.labelSmall.copy(
+                style = MaterialTheme.typography.labelMedium.copy(
                     fontFamily = InterFontFamily,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
                     letterSpacing = 0.5.sp
                 ).tabular(),
-                color = colors.textSecondary,
+                color = Color(0xFF8E8E93),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = if (userName.isNotBlank()) "$greeting $display" else greeting.trimEnd(','),
-                style = MaterialTheme.typography.displaySmall.copy(lineHeight = 38.sp),
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 28.sp,
+                    lineHeight = 34.sp
+                ),
                 color = colors.textPrimary,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -265,32 +255,39 @@ fun HomeGreetingHeader(
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(contentAlignment = Alignment.Center) {
+        Box(
+            modifier = Modifier.padding(top = 2.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            val bellInteraction = remember { MutableInteractionSource() }
+            Box(
+                modifier = Modifier.size(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 IconButton(
                     onClick = onNotificationClick,
+                    interactionSource = bellInteraction,
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(if (isInboxOpen) colors.azurePrimary else colors.card)
+                        .size(40.dp)
+                        .shiftlyPressEffect(bellInteraction)
                         .semantics { contentDescription = notificationDescription }
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_bell),
                         contentDescription = null,
-                        tint = if (isInboxOpen) PureWhite else colors.textPrimary,
-                        modifier = Modifier.size(20.dp)
+                        tint = if (isInboxOpen) colors.azureAccent else colors.textPrimary,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
                 if (unreadCount > 0) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 4.dp, end = 4.dp)
-                            .defaultMinSize(minWidth = 17.dp, minHeight = 17.dp)
+                            .padding(top = 2.dp, end = 2.dp)
+                            .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
                             .clip(CircleShape)
                             .background(colors.coralBright)
-                            .padding(horizontal = 4.dp),
+                            .padding(horizontal = 3.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -306,31 +303,6 @@ fun HomeGreetingHeader(
                             softWrap = false
                         )
                     }
-                }
-            }
-            IconButton(
-                onClick = onProfileClick,
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(colors.card)
-            ) {
-                if (avatarRequest != null) {
-                    AsyncImage(
-                        model = avatarRequest,
-                        contentDescription = "Open Profile and Settings",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_user),
-                        contentDescription = "Open Profile and Settings",
-                        tint = colors.azureAccent,
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
             }
         }
@@ -357,8 +329,8 @@ fun NotificationInboxDropdown(
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(animationSpec = tween(180)),
-            exit = fadeOut(animationSpec = tween(160))
+            enter = fadeIn(animationSpec = spring(dampingRatio = 0.8f)),
+            exit = fadeOut(animationSpec = spring(dampingRatio = 0.8f))
         ) {
             Box(
                 modifier = Modifier
@@ -377,20 +349,29 @@ fun NotificationInboxDropdown(
             enter = slideInVertically(
                 initialOffsetY = { -it / 4 },
                 animationSpec = spring(
-                    dampingRatio = 0.88f,
+                    dampingRatio = 0.8f,
                     stiffness = Spring.StiffnessMediumLow
                 )
             ) + expandVertically(
                 expandFrom = Alignment.Top,
-                animationSpec = tween(220, easing = FastOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(180)),
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + fadeIn(animationSpec = spring(dampingRatio = 0.8f)),
             exit = slideOutVertically(
                 targetOffsetY = { -it / 4 },
-                animationSpec = tween(180, easing = FastOutSlowInEasing)
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
+                    stiffness = Spring.StiffnessMedium
+                )
             ) + shrinkVertically(
                 shrinkTowards = Alignment.Top,
-                animationSpec = tween(180, easing = FastOutSlowInEasing)
-            ) + fadeOut(animationSpec = tween(150)),
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
+                    stiffness = Spring.StiffnessMedium
+                )
+            ) + fadeOut(animationSpec = spring(dampingRatio = 0.8f)),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
@@ -449,11 +430,15 @@ fun NotificationInboxDropdown(
                             }
                         }
 
+                        val clearInteraction = remember { MutableInteractionSource() }
                         TextButton(
                             onClick = onClearAll,
                             enabled = notifications.isNotEmpty(),
+                            interactionSource = clearInteraction,
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                            modifier = Modifier.heightIn(min = 36.dp)
+                            modifier = Modifier
+                                .heightIn(min = 36.dp)
+                                .shiftlyPressEffect(clearInteraction, enabled = notifications.isNotEmpty())
                         ) {
                             Text(
                                 text = "Clear all",
@@ -511,14 +496,22 @@ fun NotificationInboxDropdown(
                                 key = { _, item -> item.id },
                                 contentType = { _, _ -> "inbox_notification" }
                             ) { idx, item ->
-                                NotificationInboxRow(
-                                    item = item,
-                                    locale = locale,
-                                    referenceTimeMillis = referenceTimeMillis,
-                                    onClick = { onItemClick(item) }
-                                )
-                                if (idx < notifications.lastIndex) {
-                                    ShiftlyHairlineDivider(startInset = 64.dp)
+                                Column(
+                                    modifier = Modifier.animateItem(
+                                        fadeInSpec = spring(dampingRatio = 0.8f),
+                                        placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                                        fadeOutSpec = spring(dampingRatio = 0.8f)
+                                    )
+                                ) {
+                                    NotificationInboxRow(
+                                        item = item,
+                                        locale = locale,
+                                        referenceTimeMillis = referenceTimeMillis,
+                                        onClick = { onItemClick(item) }
+                                    )
+                                    if (idx < notifications.lastIndex) {
+                                        ShiftlyHairlineDivider(startInset = 64.dp)
+                                    }
                                 }
                             }
                         }
@@ -553,7 +546,7 @@ private fun NotificationInboxRow(
                 if (!item.isRead) colors.azureContainer.copy(alpha = if (colors.isDark) 0.25f else 0.14f)
                 else Color.Transparent
             )
-            .clickable(onClick = onClick)
+            .shiftlyPressClickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
@@ -657,14 +650,17 @@ fun NotificationHeadsUpBanner(
             enter = slideInVertically(
                 initialOffsetY = { -it - 40 },
                 animationSpec = spring(
-                    dampingRatio = 0.85f,
+                    dampingRatio = 0.8f,
                     stiffness = Spring.StiffnessMediumLow
                 )
-            ) + fadeIn(animationSpec = tween(220)),
+            ) + fadeIn(animationSpec = spring(dampingRatio = 0.8f)),
             exit = slideOutVertically(
                 targetOffsetY = { -it - 40 },
-                animationSpec = tween(200, easing = FastOutSlowInEasing)
-            ) + fadeOut(animationSpec = tween(180))
+                animationSpec = spring(
+                    dampingRatio = 0.8f,
+                    stiffness = Spring.StiffnessMedium
+                )
+            ) + fadeOut(animationSpec = spring(dampingRatio = 0.8f))
         ) {
             val item = displayedItem ?: return@AnimatedVisibility
             key(item.id) {
@@ -736,30 +732,30 @@ private fun NotificationHeadsUpCard(
                             dismissedBySwipe = true
                             scope.launch {
                                 if (curY < -54f) {
-                                    offsetY.animateTo(-220f, tween(150))
+                                    offsetY.animateTo(-220f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium))
                                 } else {
                                     val targetX = if (curX > 0f) 600f else -600f
-                                    offsetX.animateTo(targetX, tween(150))
+                                    offsetX.animateTo(targetX, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium))
                                 }
                                 onDismiss()
                             }
                         } else {
                             scope.launch {
-                                launch { offsetX.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
-                                launch { offsetY.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
+                                launch { offsetX.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)) }
+                                launch { offsetY.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)) }
                             }
                         }
                     },
                     onDragCancel = {
                         scope.launch {
-                            launch { offsetX.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
-                            launch { offsetY.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
+                            launch { offsetX.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)) }
+                            launch { offsetY.animateTo(0f, spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)) }
                         }
                     }
                 )
             }
             .clip(HeadsUpBannerShape)
-            .clickable(onClick = onTap)
+            .shiftlyPressClickable(onClick = onTap)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -1046,10 +1042,15 @@ fun HomeHeroPager(
                 Box(
                     modifier = Modifier
                         .clip(HomePillShape)
-                        .clickable(
+                        .shiftlyPressClickable(
                             role = Role.Tab,
                             onClick = {
-                                scope.launch { pagerState.animateScrollToPage(index) }
+                                scope.launch {
+                                    pagerState.animateScrollToPage(
+                                        page = index,
+                                        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
+                                    )
+                                }
                             }
                         )
                         .semantics {
@@ -1137,35 +1138,45 @@ private fun SavingsGoalsHeroCard(
                         text = "Set a target amount and date goal to track daily savings.",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textSecondary,
-                        maxLines = 2
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Surface(
-                    shape = HomePillShape,
-                    color = colors.azurePrimary,
-                    shadowElevation = 0.dp,
+                val addGoalInteraction = remember { MutableInteractionSource() }
+                Button(
+                    onClick = onOpenAddGoal,
+                    interactionSource = addGoalInteraction,
+                    shape = HomeButtonShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.azurePrimary,
+                        contentColor = colors.onAzurePrimary
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp
+                    ),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                     modifier = Modifier
-                        .clip(HomePillShape)
-                        .clickable(onClick = onOpenAddGoal)
+                        .fillMaxWidth()
+                        .heightIn(min = 42.dp)
+                        .shiftlyPressEffect(addGoalInteraction)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_plus),
-                            contentDescription = null,
-                            tint = PureWhite,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Text(
-                            text = "Add Savings Goal",
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
-                            color = PureWhite
-                        )
-                    }
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_plus),
+                        contentDescription = null,
+                        tint = colors.onAzurePrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Add Savings Goal",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.onAzurePrimary
+                    )
                 }
             }
         } else {
@@ -1203,7 +1214,7 @@ private fun SavingsGoalsHeroCard(
                                         .size(24.dp)
                                         .clip(CircleShape)
                                         .background(colors.cardElevated)
-                                        .clickable {
+                                        .shiftlyPressClickable {
                                             val prev = if (safeIdx > 0) safeIdx - 1 else goals.lastIndex
                                             val targetId = goals[prev].goalWithDeposits.goal.id
                                             selectedGoalId = targetId
@@ -1231,7 +1242,7 @@ private fun SavingsGoalsHeroCard(
                                         .size(24.dp)
                                         .clip(CircleShape)
                                         .background(colors.cardElevated)
-                                        .clickable {
+                                        .shiftlyPressClickable {
                                             val next = if (safeIdx < goals.lastIndex) safeIdx + 1 else 0
                                             val targetId = goals[next].goalWithDeposits.goal.id
                                             selectedGoalId = targetId
@@ -1284,7 +1295,7 @@ private fun SavingsGoalsHeroCard(
                     }
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -1311,14 +1322,15 @@ private fun SavingsGoalsHeroCard(
                         )
                     }
 
-                    Surface(
-                        shape = HomeButtonShape,
-                        color = colors.cardElevated,
-                        shadowElevation = 0.dp,
+                    val viewGoalsInteraction = remember { MutableInteractionSource() }
+                    TextButton(
+                        onClick = { onOpenGoalDetail(goal.id) },
+                        interactionSource = viewGoalsInteraction,
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(HomeButtonShape)
-                            .clickable { onOpenGoalDetail(goal.id) }
+                            .heightIn(min = 34.dp)
+                            .shiftlyPressEffect(viewGoalsInteraction)
                     ) {
                         Text(
                             text = "View Goals",
@@ -1326,11 +1338,7 @@ private fun SavingsGoalsHeroCard(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = colors.azureAccent,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp)
+                            color = colors.azureAccent
                         )
                     }
                 }
@@ -1442,7 +1450,7 @@ fun MonthlyTopCategoriesCard(
                     .padding(top = 6.dp, end = 6.dp)
                     .heightIn(min = 40.dp)
                     .clip(HomePillShape)
-                    .clickable(onClick = onViewInsights)
+                    .shiftlyPressClickable(onClick = onViewInsights)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
@@ -1658,7 +1666,7 @@ fun PendingSplitsBanner(
             .fillMaxWidth()
             .heightIn(min = 56.dp)
             .clip(HomeBannerShape)
-            .clickable(onClick = onClick)
+            .shiftlyPressClickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
@@ -1722,7 +1730,7 @@ fun HomeTimelineRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clickable(onClick = onClick)
+            .shiftlyPressClickable(onClick = onClick)
             .semantics(mergeDescendants = true) {}
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
