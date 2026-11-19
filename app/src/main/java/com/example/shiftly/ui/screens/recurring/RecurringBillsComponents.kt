@@ -95,7 +95,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToLong
 
-private val REPEAT_FREQUENCIES = listOf("Monthly", "Weekly")
+private val REPEAT_FREQUENCIES = listOf("Everyday", "Weekly", "Monthly")
 private val FALLBACK_RECURRING_CATEGORIES = listOf("Bills", "Food", "Transport", "Supplies", "Other")
 
 @Composable
@@ -452,7 +452,11 @@ fun AddEditRecurringBillBottomSheet(
     }
     var selectedFrequency by remember(editingBill?.id) {
         mutableStateOf(
-            if (editingBill?.frequency.equals("Weekly", ignoreCase = true)) "Weekly" else "Monthly"
+            when {
+                editingBill?.frequency.equals("Everyday", ignoreCase = true) || editingBill?.frequency.equals("Daily", ignoreCase = true) -> "Everyday"
+                editingBill?.frequency.equals("Weekly", ignoreCase = true) -> "Weekly"
+                else -> "Monthly"
+            }
         )
     }
     var dueDate by remember(editingBill?.id) {
@@ -701,13 +705,11 @@ fun AddEditRecurringBillBottomSheet(
                     }
                     ShiftlyHairlineDivider(startInset = 16.dp)
 
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 50.dp)
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
                             text = "Frequency",
@@ -720,19 +722,21 @@ fun AddEditRecurringBillBottomSheet(
                         )
                         Row(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(9.dp))
                                 .background(colors.surface)
-                                .padding(2.dp),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             REPEAT_FREQUENCIES.forEach { freq ->
-                                val isSelected = selectedFrequency == freq
+                                val isSelected = selectedFrequency.equals(freq, ignoreCase = true)
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(6.dp))
+                                        .weight(1f)
+                                        .height(35.dp)
+                                        .clip(RoundedCornerShape(7.dp))
                                         .background(if (isSelected) colors.azurePrimary else Color.Transparent)
-                                        .clickable { selectedFrequency = freq }
-                                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                                        .clickable { selectedFrequency = freq },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -740,9 +744,11 @@ fun AddEditRecurringBillBottomSheet(
                                         style = MaterialTheme.typography.labelMedium.copy(
                                             fontFamily = InterFontFamily,
                                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
-                                            fontSize = 12.sp
+                                            fontSize = 13.sp
                                         ),
-                                        color = if (isSelected) PureWhite else colors.textSecondary
+                                        color = if (isSelected) PureWhite else colors.textSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }

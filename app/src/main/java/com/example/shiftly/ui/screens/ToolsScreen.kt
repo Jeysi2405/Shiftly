@@ -49,7 +49,6 @@ import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
-import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
@@ -261,6 +260,12 @@ fun ToolsScreen(
     }
 }
 
+private val ToolGreen = Color(0xFF30D158)
+private val ToolRed = Color(0xFFFF453A)
+private val ToolBlue = Color(0xFF0A84FF)
+private val ToolOrange = Color(0xFFFF9F0A)
+private val ToolPurple = Color(0xFFBF5AF2)
+
 @Composable
 fun ToolsScreenContent(
     state: ToolsUiState,
@@ -331,47 +336,35 @@ fun ToolsScreenContent(
                         ToolGroupedRow(
                             title = "Duties & Shifts",
                             metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthShiftEarnings),
-                            metricSub = "${ShiftlyFormatters.formatHours(state.monthShiftHours, compact = true)} this month • ${state.monthShiftCount} shift(s)",
                             iconRes = R.drawable.ic_lucide_clock,
-                            iconTileColor = colors.mintBright,
+                            iconTint = ToolGreen,
                             metricColor = colors.mintInk,
                             onClick = onOpenDuties
                         )
-                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ShiftlyHairlineDivider(startInset = 50.dp)
                         ToolGroupedRow(
                             title = "Expenses & Receipts",
                             metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthSpent),
-                            metricSub = if (state.monthlyBudget > 0.0) {
-                                "of ${ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget)} monthly budget"
-                            } else {
-                                "${state.monthExpenseCount} expense(s) this month"
-                            },
                             iconRes = R.drawable.ic_lucide_receipt_text,
-                            iconTileColor = colors.coralBright,
+                            iconTint = ToolRed,
                             metricColor = colors.coralInk,
                             onClick = onOpenExpense
                         )
-                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ShiftlyHairlineDivider(startInset = 50.dp)
                         ToolGroupedRow(
                             title = "Split Bill",
                             metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.pendingSplitsAmount),
-                            metricSub = if (state.pendingBillsCount > 0) {
-                                "${state.pendingBillsCount} active bill(s) awaiting payment"
-                            } else {
-                                "${state.totalSplitBillsCount} bill(s) • all settled"
-                            },
                             iconRes = R.drawable.ic_lucide_split,
-                            iconTileColor = colors.azurePrimary,
+                            iconTint = ToolBlue,
                             metricColor = colors.azureInk,
                             onClick = onOpenSplitBill
                         )
-                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ShiftlyHairlineDivider(startInset = 50.dp)
                         ToolGroupedRow(
                             title = "IOU & Loans",
                             metric = state.iouSummaryText,
-                            metricSub = "Debt & loan tracker (Lent vs Borrowed)",
                             iconRes = R.drawable.ic_lucide_circle_dollar_sign,
-                            iconTileColor = colors.coralBright,
+                            iconTint = ToolRed,
                             metricColor = if (state.iouSummaryText.contains("you owe", ignoreCase = true)) colors.coralInk else colors.mintInk,
                             onClick = onOpenIouTracker
                         )
@@ -395,55 +388,46 @@ fun ToolsScreenContent(
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         ToolGroupedRow(
-                            title = "Monthly & Category Budgets",
+                            title = "Budgets",
                             metric = if (state.monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget) else "Set Budget",
-                            metricSub = "Monthly spend limit & category targets",
                             iconRes = R.drawable.ic_lucide_wallet,
-                            iconTileColor = colors.iosOrange,
+                            iconTint = ToolOrange,
                             metricColor = colors.textPrimary,
                             onClick = onOpenBudgets
                         )
-                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ShiftlyHairlineDivider(startInset = 50.dp)
                         ToolGroupedRow(
                             title = "Savings Goals",
                             metric = state.activeGoalTitle ?: "Add Goal",
-                            metricSub = if (state.activeGoalTitle != null) {
-                                "${ShiftlyFormatters.formatCurrency(currencySymbol, state.activeGoalSaved)} of ${ShiftlyFormatters.formatCurrency(currencySymbol, state.activeGoalTarget)}"
-                            } else {
-                                "Track savings progress"
-                            },
                             iconRes = R.drawable.ic_lucide_piggy_bank,
-                            iconTileColor = colors.mintBright,
+                            iconTint = ToolGreen,
                             metricColor = colors.mintInk,
                             onClick = onOpenSavingsGoals
                         )
-                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ShiftlyHairlineDivider(startInset = 50.dp)
                         ToolGroupedRow(
                             title = "Recurring Bills",
                             metric = "${state.enabledRecurringCount} active",
-                            metricSub = "${state.totalRecurringCount} scheduled bill(s)",
                             iconRes = R.drawable.ic_lucide_repeat,
-                            iconTileColor = colors.nightDiffPurple,
+                            iconTint = ToolPurple,
                             metricColor = colors.textPrimary,
                             onClick = onOpenRecurringBills
                         )
-                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ShiftlyHairlineDivider(startInset = 50.dp)
                         ToolGroupedRow(
                             title = "Allowance",
                             metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.totalAllowanceAmount),
-                            metricSub = "${state.cutoffScheduleLabel} • ${state.allowanceEntryCount} entry(s)",
                             iconRes = R.drawable.ic_lucide_wallet,
-                            iconTileColor = colors.azurePrimary,
+                            iconTint = ToolBlue,
                             metricColor = colors.azureInk,
                             onClick = onOpenAllowance
                         )
-                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ShiftlyHairlineDivider(startInset = 50.dp)
                         ToolGroupedRow(
                             title = "Paycheck Estimator",
                             metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.netPayTakeHome),
-                            metricSub = "Est. net take-home pay after deductions",
                             iconRes = R.drawable.ic_lucide_receipt_text,
-                            iconTileColor = colors.mintBright,
+                            iconTint = ToolGreen,
                             metricColor = colors.mintInk,
                             onClick = onOpenPaycheckEstimator
                         )
@@ -469,9 +453,8 @@ fun ToolsScreenContent(
                         ToolGroupedRow(
                             title = "Activity Calendar",
                             metric = "Monthly View",
-                            metricSub = "Shift & spend timeline dots",
                             iconRes = R.drawable.ic_lucide_calendar,
-                            iconTileColor = colors.azurePrimary,
+                            iconTint = ToolBlue,
                             metricColor = colors.textPrimary,
                             onClick = onOpenActivityCalendar
                         )
@@ -555,52 +538,39 @@ fun ToolsScreenContent(
 private fun ToolGroupedRow(
     title: String,
     metric: String,
-    metricSub: String,
     @DrawableRes iconRes: Int,
-    iconTileColor: Color,
-    metricColor: Color,
+    iconTint: Color,
+    metricColor: Color = ShiftlyColors.current.textPrimary,
     onClick: () -> Unit
 ) {
     val colors = ShiftlyColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 64.dp)
+            .heightIn(min = 52.dp)
             .shiftlyPressClickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ShiftlyIosIconTile(
-            iconRes = iconRes,
-            backgroundColor = iconTileColor,
-            size = 38.dp,
-            cornerRadius = 9.dp,
-            iconSize = 19.dp
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(22.dp)
         )
 
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.SemiBold
-                ),
-                color = colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = metricSub,
-                style = MaterialTheme.typography.bodySmall.tabular(),
-                color = colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold
+            ),
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
 
         Row(
             verticalAlignment = Alignment.CenterVertically,

@@ -5,6 +5,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +29,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
@@ -79,6 +81,8 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -810,198 +814,274 @@ fun AddExpenseSheetContent(
             }
         )
 
-        OutlinedTextField(
-            value = amountText,
-            onValueChange = { input ->
-                val filtered = input.filter { it.isDigit() || it == '.' }
-                if (filtered.count { it == '.' } <= 1) {
-                    amountText = filtered
-                }
-            },
-            label = { Text("Amount", fontFamily = InterFontFamily) },
-            placeholder = {
-                Text(
-                    text = "0",
-                    style = MaterialTheme.typography.headlineLarge.copy(fontFamily = InterFontFamily).tabular(),
-                    color = colors.textSecondary
-                )
-            },
-            prefix = {
-                Text(
-                    text = "$currencySymbol ",
-                    style = MaterialTheme.typography.headlineLarge.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = colors.coralInk
-                )
-            },
-            textStyle = MaterialTheme.typography.headlineLarge.copy(
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.Bold
-            ).tabular(),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            shape = ExpenseFieldLargeShape,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = colors.coralInk,
-                unfocusedBorderColor = Color.Transparent,
-                focusedLabelColor = colors.coralInk,
-                unfocusedLabelColor = colors.textSecondary,
-                focusedTextColor = colors.textPrimary,
-                unfocusedTextColor = colors.textPrimary,
-                focusedContainerColor = colors.cardElevated,
-                unfocusedContainerColor = colors.cardElevated
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(amountFocusRequester)
-        )
-
-        OutlinedTextField(
-            value = title,
-            onValueChange = { title = it },
-            label = { Text("Title", fontFamily = InterFontFamily) },
-            placeholder = {
-                Text(
-                    text = "e.g., Tapsilog & Iced Coffee",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                    color = colors.textSecondary
-                )
-            },
-            singleLine = true,
-            shape = ExpenseFieldShape,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = colors.azureAccent,
-                unfocusedBorderColor = Color.Transparent,
-                focusedLabelColor = colors.azureAccent,
-                unfocusedLabelColor = colors.textSecondary,
-                focusedTextColor = colors.textPrimary,
-                unfocusedTextColor = colors.textPrimary,
-                focusedContainerColor = colors.cardElevated,
-                unfocusedContainerColor = colors.cardElevated
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // Category selection prompt card
+        // Card 1: Amount & Title
         Surface(
-            shape = ExpenseFieldShape,
+            shape = RoundedCornerShape(16.dp),
             color = colors.cardElevated,
             shadowElevation = 0.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 52.dp)
-                .clip(ExpenseFieldShape)
-                .shiftlyPressClickable { showCategoryPrompt = true }
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Row 1: Amount
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ShiftlyIosIconTile(
-                        iconRes = categoryIcon(selectedCategory),
-                        backgroundColor = colors.coralBright,
-                        size = 34.dp,
-                        cornerRadius = 8.dp,
-                        iconSize = 18.dp,
-                        iconTint = PureWhite
+                    Text(
+                        text = "Amount",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
                     )
-                    Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Text(
-                            text = "Category",
-                            style = MaterialTheme.typography.labelSmall.copy(
+                            text = "$currencySymbol ",
+                            style = MaterialTheme.typography.titleMedium.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium
-                            ),
-                            color = colors.textSecondary
+                                fontWeight = FontWeight.Bold,
+                                color = colors.coralInk
+                            )
+                        )
+                        BasicTextField(
+                            value = amountText,
+                            onValueChange = { input ->
+                                val filtered = input.filter { it.isDigit() || it == '.' }
+                                if (filtered.count { it == '.' } <= 1) amountText = filtered
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            cursorBrush = SolidColor(colors.coralInk),
+                            textStyle = MaterialTheme.typography.titleLarge.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary,
+                                textAlign = TextAlign.End
+                            ).tabular(),
+                            decorationBox = { inner ->
+                                Box(contentAlignment = Alignment.CenterEnd) {
+                                    if (amountText.isEmpty()) {
+                                        Text(
+                                            text = "0.00",
+                                            style = MaterialTheme.typography.titleLarge.copy(
+                                                fontFamily = InterFontFamily,
+                                                color = colors.textSecondary
+                                            ),
+                                            textAlign = TextAlign.End
+                                        )
+                                    }
+                                    inner()
+                                }
+                            },
+                            modifier = Modifier
+                                .width(120.dp)
+                                .focusRequester(amountFocusRequester)
+                        )
+                    }
+                }
+
+                ShiftlyHairlineDivider(startInset = 16.dp)
+
+                // Row 2: Title / Description
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Title",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
+                    BasicTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        singleLine = true,
+                        cursorBrush = SolidColor(colors.azureAccent),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium,
+                            color = colors.textPrimary,
+                            textAlign = TextAlign.End
+                        ),
+                        decorationBox = { inner ->
+                            Box(contentAlignment = Alignment.CenterEnd) {
+                                if (title.isEmpty()) {
+                                    Text(
+                                        text = "e.g., Tapsilog & Coffee",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontFamily = InterFontFamily,
+                                            color = colors.textSecondary
+                                        ),
+                                        textAlign = TextAlign.End
+                                    )
+                                }
+                                inner()
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 16.dp)
+                    )
+                }
+            }
+        }
+
+        // Card 2: Category, Date & Time
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Category Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                        .clickable { showCategoryPrompt = true }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Category",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        ShiftlyIosIconTile(
+                            iconRes = categoryIcon(selectedCategory),
+                            backgroundColor = colors.coralBright,
+                            size = 26.dp,
+                            cornerRadius = 6.dp,
+                            iconSize = 13.dp
                         )
                         Text(
                             text = selectedCategory,
-                            style = MaterialTheme.typography.titleSmall.copy(
+                            style = MaterialTheme.typography.bodyMedium.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Medium
                             ),
+                            color = colors.textPrimary
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            contentDescription = "Select Category",
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                ShiftlyHairlineDivider(startInset = 16.dp)
+
+                // Date Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .clickable { showDatePicker = true }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Date",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_calendar),
+                            contentDescription = null,
+                            tint = colors.azureInk,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Text(
+                            text = selectedDate.format(dateFormatter),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
                             color = colors.textPrimary
                         )
                     }
                 }
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                    contentDescription = "Select Category",
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
 
-        // Date and Time selection row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Surface(
-                shape = ExpenseFieldShape,
-                color = colors.cardElevated,
-                shadowElevation = 0.dp,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
-                    .clip(ExpenseFieldShape)
-                    .shiftlyPressClickable { showDatePicker = true }
-            ) {
+                ShiftlyHairlineDivider(startInset = 16.dp)
+
+                // Time Row
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
+                        .clickable { showTimePicker = true }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_calendar),
-                        contentDescription = null,
-                        tint = colors.azureInk,
-                        modifier = Modifier.size(18.dp)
-                    )
                     Text(
-                        text = selectedDate.format(dateFormatter),
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
+                        text = "Time",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
                         color = colors.textPrimary
                     )
-                }
-            }
-
-            Surface(
-                shape = ExpenseFieldShape,
-                color = colors.cardElevated,
-                shadowElevation = 0.dp,
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
-                    .clip(ExpenseFieldShape)
-                    .shiftlyPressClickable { showTimePicker = true }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_clock),
-                        contentDescription = null,
-                        tint = colors.azureInk,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = selectedTime.format(timeFormatter),
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
-                        color = colors.textPrimary
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_clock),
+                            contentDescription = null,
+                            tint = colors.azureInk,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Text(
+                            text = selectedTime.format(timeFormatter),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
+                            color = colors.textPrimary
+                        )
+                    }
                 }
             }
         }

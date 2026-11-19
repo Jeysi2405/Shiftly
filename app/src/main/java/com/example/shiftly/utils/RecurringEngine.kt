@@ -29,8 +29,11 @@ object RecurringEngine {
     }
 
     fun advanceDate(date: LocalDate, frequency: String): LocalDate {
-        val isWeekly = frequency.equals("Weekly", ignoreCase = true)
-        return if (isWeekly) date.plusDays(7) else date.plusMonths(1)
+        return when {
+            frequency.equals("Everyday", ignoreCase = true) || frequency.equals("Daily", ignoreCase = true) -> date.plusDays(1)
+            frequency.equals("Weekly", ignoreCase = true) -> date.plusDays(7)
+            else -> date.plusMonths(1)
+        }
     }
 
     /**

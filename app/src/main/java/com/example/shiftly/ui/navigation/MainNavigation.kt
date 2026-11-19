@@ -35,10 +35,12 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -104,14 +106,18 @@ import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
+import androidx.compose.ui.graphics.SolidColor
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
+import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
+import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
+import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
 import com.example.shiftly.ui.screens.ToolsScreen
@@ -1192,60 +1198,156 @@ private fun QuickDepositPromptSheet(
                     style = MaterialTheme.typography.bodySmall,
                     color = colors.textSecondary
                 )
+                ShiftlySecondaryTextButton(
+                    text = "Close",
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth()
+                )
             } else {
-                Text(
-                    text = "Target Goal: ${selectedGoal?.title}",
-                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
-                    color = colors.textPrimary
-                )
-
-                val fieldColors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = colors.azureAccent,
-                    unfocusedBorderColor = Color.Transparent,
-                    focusedLabelColor = colors.azureAccent,
-                    unfocusedLabelColor = colors.textSecondary,
-                    focusedTextColor = colors.textPrimary,
-                    unfocusedTextColor = colors.textPrimary,
-                    cursorColor = colors.azureAccent,
-                    focusedContainerColor = colors.cardElevated,
-                    unfocusedContainerColor = colors.cardElevated
-                )
-
-                OutlinedTextField(
-                    value = amountText,
-                    onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Deposit Amount ($currencySymbol)", fontFamily = InterFontFamily) },
-                    placeholder = {
-                        Text(
-                            text = "0.00",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textSecondary
-                        )
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    shape = DepositFieldShape,
-                    colors = fieldColors,
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = colors.cardElevated,
+                    shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
-                )
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        // Row 1: Target Goal
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 50.dp)
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Target Goal",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp
+                                ),
+                                color = colors.textPrimary
+                            )
+                            Text(
+                                text = selectedGoal?.title.orEmpty(),
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.azureAccent,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        ShiftlyHairlineDivider(startInset = 16.dp)
 
-                OutlinedTextField(
-                    value = noteText,
-                    onValueChange = { noteText = it },
-                    label = { Text("Deposit Note (optional)", fontFamily = InterFontFamily) },
-                    placeholder = {
-                        Text(
-                            text = "Add note",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textSecondary
+                        // Row 2: Amount
+                        QuickDepositInsetRow(
+                            label = "Amount ($currencySymbol)",
+                            value = amountText,
+                            onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
+                            placeholder = "0.00",
+                            prefix = currencySymbol,
+                            isNumeric = true
                         )
-                    },
-                    singleLine = true,
-                    shape = DepositFieldShape,
-                    colors = fieldColors,
-                    modifier = Modifier.fillMaxWidth()
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+
+                        // Row 3: Note
+                        QuickDepositInsetRow(
+                            label = "Note (optional)",
+                            value = noteText,
+                            onValueChange = { noteText = it },
+                            placeholder = "Note"
+                        )
+                    }
+                }
+
+                ShiftlySheetBottomButtons(
+                    onCancel = onDismiss,
+                    onAction = submitDeposit,
+                    actionLabel = "Save",
+                    actionEnabled = parsedAmount > 0.0
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun QuickDepositInsetRow(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    prefix: String? = null,
+    isNumeric: Boolean = false
+) {
+    val colors = ShiftlyColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 50.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            ),
+            color = colors.textPrimary,
+            maxLines = 1
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (prefix != null && value.isNotEmpty()) {
+                Text(
+                    text = prefix,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary
+                    )
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = if (isNumeric) KeyboardType.Decimal else KeyboardType.Text
+                ),
+                cursorBrush = SolidColor(colors.azureAccent),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.End
+                ).let { if (isNumeric) it.tabular() else it },
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterEnd) {
+                        if (value.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    color = colors.textSecondary
+                                ),
+                                textAlign = TextAlign.End
+                            )
+                        }
+                        inner()
+                    }
+                },
+                modifier = Modifier.width(150.dp)
+            )
         }
     }
 }
