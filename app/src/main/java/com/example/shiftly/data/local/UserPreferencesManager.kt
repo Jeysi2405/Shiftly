@@ -89,6 +89,41 @@ data class ShiftTimePreset(
 )
 
 @Immutable
+data class PaycheckDeductionsSetting(
+    val sssEnabled: Boolean = false,
+    val sssAmount: Double = 0.0,
+    val philhealthEnabled: Boolean = false,
+    val philhealthAmount: Double = 0.0,
+    val pagibigEnabled: Boolean = false,
+    val pagibigAmount: Double = 0.0,
+    val taxEnabled: Boolean = false,
+    val taxPercent: Double = 0.0,
+    val customEnabled: Boolean = false,
+    val customAmount: Double = 0.0
+) {
+    fun calculateTotalDeductions(grossPay: Double): Double {
+        var total = 0.0
+        if (sssEnabled && sssAmount.isFinite() && sssAmount > 0.0) total += sssAmount
+        if (philhealthEnabled && philhealthAmount.isFinite() && philhealthAmount > 0.0) total += philhealthAmount
+        if (pagibigEnabled && pagibigAmount.isFinite() && pagibigAmount > 0.0) total += pagibigAmount
+        if (taxEnabled && taxPercent.isFinite() && taxPercent > 0.0 && grossPay > 0.0) total += (grossPay * (taxPercent / 100.0))
+        if (customEnabled && customAmount.isFinite() && customAmount > 0.0) total += customAmount
+        return total.coerceAtLeast(0.0)
+    }
+}
+
+@Immutable
+data class IouEntrySetting(
+    val id: String = UUID.randomUUID().toString(),
+    val personName: String,
+    val amount: Double,
+    val isLent: Boolean,
+    val dateEpochDay: Long = java.time.LocalDate.now().toEpochDay(),
+    val note: String = "",
+    val isSettled: Boolean = false
+)
+
+@Immutable
 data class NotificationLastDays(
     val lastBillDay: Long = 0L,
     val lastShiftDay: Long = 0L,
@@ -216,7 +251,11 @@ data class ShiftlySettingsSnapshot(
     val cutoffDay1: Int = 15,
     val cutoffDay2: Int = CutoffScheduleConfig.END_OF_MONTH_DAY,
     val cutoffWeeklyDay: Int = 5,
-    val legacyRecurringMigrated: Boolean = false
+    val legacyRecurringMigrated: Boolean = false,
+    val jobTitle: String = "",
+    val workplace: String = "",
+    val workType: String = "Full-Time",
+    val targetWeeklyHours: Double = 40.0
 ) {
     fun cutoffScheduleConfig(): CutoffScheduleConfig =
         CutoffScheduleConfig(
@@ -509,6 +548,51 @@ object PreferenceJsonCodec {
             }
         }.toString()
 
+    fun encodeIouEntries(items: List<IouEntrySetting>): String =
+        JSONArray().apply {
+            items.forEach { item ->
+                put(
+                    JSONObject().apply {
+                        put("id", item.id)
+                        put("personName", item.personName.trim())
+                        put("amount", item.amount)
+                        put("isLent", item.isLent)
+                        put("dateEpochDay", item.dateEpochDay)
+                        put("note", item.note.trim())
+                        put("isSettled", item.isSettled)
+                    }
+                )
+            }
+        }.toString()
+
+    fun decodeIouEntries(raw: String?): List<IouEntrySetting> {
+        if (raw.isNullOrBlank()) return emptyList()
+        val trimmed = raw.trim()
+        if (!trimmed.startsWith("[")) return emptyList()
+        return runCatching {
+            val array = JSONArray(trimmed)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val personName = obj.optString("personName", "").trim()
+                    if (personName.isNotEmpty()) {
+                        add(
+                            IouEntrySetting(
+                                id = obj.optString("id", UUID.randomUUID().toString()),
+                                personName = personName,
+                                amount = obj.optDouble("amount", 0.0),
+                                isLent = obj.optBoolean("isLent", true),
+                                dateEpochDay = obj.optLong("dateEpochDay", java.time.LocalDate.now().toEpochDay()),
+                                note = obj.optString("note", "").trim(),
+                                isSettled = obj.optBoolean("isSettled", false)
+                            )
+                        )
+                    }
+                }
+            }
+        }.getOrDefault(emptyList())
+    }
+
     fun decodeInAppNotifications(raw: String?): List<InAppNotificationItem> {
         if (raw.isNullOrBlank()) return emptyList()
         cachedInAppNotifications?.takeIf { it.raw == raw }?.let { return it.value }
@@ -591,6 +675,10 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_SAVINGS_BUFFER = doublePreferencesKey("savings_buffer")
 
         // Profile & Settings / Analytics preferences
+        private val KEY_JOB_TITLE = stringPreferencesKey("job_title")
+        private val KEY_WORKPLACE = stringPreferencesKey("workplace")
+        private val KEY_WORK_TYPE = stringPreferencesKey("work_type")
+        private val KEY_TARGET_WEEKLY_HOURS = doublePreferencesKey("target_weekly_hours")
         private val KEY_PAY_CYCLE_SCHEDULE = stringPreferencesKey("pay_cycle_schedule")
         private val KEY_CUTOFF_MODE = stringPreferencesKey("cutoff_mode")
         private val KEY_CUTOFF_DAY_1 = intPreferencesKey("cutoff_day_1")
@@ -622,6 +710,19 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_LAST_SAVINGS_NOTIFIED_DAY = longPreferencesKey("last_savings_notified_day")
         private val KEY_NOTIFICATION_INBOX = stringPreferencesKey("notification_inbox_serialized")
         private val KEY_RECORDED_NOTIFICATION_KEYS = stringPreferencesKey("recorded_notification_keys_serialized")
+        private val KEY_BALANCE_PRIVACY_HIDDEN = booleanPreferencesKey("balance_privacy_hidden")
+
+        private val KEY_DEDUCTION_SSS_ENABLED = booleanPreferencesKey("deduction_sss_enabled")
+        private val KEY_DEDUCTION_SSS_AMOUNT = doublePreferencesKey("deduction_sss_amount")
+        private val KEY_DEDUCTION_PHILHEALTH_ENABLED = booleanPreferencesKey("deduction_philhealth_enabled")
+        private val KEY_DEDUCTION_PHILHEALTH_AMOUNT = doublePreferencesKey("deduction_philhealth_amount")
+        private val KEY_DEDUCTION_PAGIBIG_ENABLED = booleanPreferencesKey("deduction_pagibig_enabled")
+        private val KEY_DEDUCTION_PAGIBIG_AMOUNT = doublePreferencesKey("deduction_pagibig_amount")
+        private val KEY_DEDUCTION_TAX_ENABLED = booleanPreferencesKey("deduction_tax_enabled")
+        private val KEY_DEDUCTION_TAX_PERCENT = doublePreferencesKey("deduction_tax_percent")
+        private val KEY_DEDUCTION_CUSTOM_ENABLED = booleanPreferencesKey("deduction_custom_enabled")
+        private val KEY_DEDUCTION_CUSTOM_AMOUNT = doublePreferencesKey("deduction_custom_amount")
+        private val KEY_IOU_ENTRIES = stringPreferencesKey("iou_entries_serialized")
     }
 
     private fun round2(value: Double): Double =
@@ -647,6 +748,22 @@ class UserPreferencesManager(private val context: Context) {
         prefs[KEY_USER_NAME] ?: ""
     }.distinctUntilChanged()
 
+    val jobTitle: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_JOB_TITLE] ?: ""
+    }.distinctUntilChanged()
+
+    val workplace: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_WORKPLACE] ?: ""
+    }.distinctUntilChanged()
+
+    val workType: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_WORK_TYPE] ?: "Full-Time"
+    }.distinctUntilChanged()
+
+    val targetWeeklyHours: Flow<Double> = context.dataStore.data.map { prefs ->
+        prefs[KEY_TARGET_WEEKLY_HOURS] ?: 40.0
+    }.distinctUntilChanged()
+
     val profilePhotoPath: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[KEY_PROFILE_PHOTO_PATH]?.takeIf { it.isNotBlank() }
     }.distinctUntilChanged()
@@ -662,6 +779,51 @@ class UserPreferencesManager(private val context: Context) {
     val notificationInbox: Flow<List<InAppNotificationItem>> = context.dataStore.data.map { prefs ->
         PreferenceJsonCodec.decodeInAppNotifications(prefs[KEY_NOTIFICATION_INBOX])
     }.distinctUntilChanged()
+
+    val balancePrivacyHidden: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_BALANCE_PRIVACY_HIDDEN] ?: false
+    }.distinctUntilChanged()
+
+    val paycheckDeductions: Flow<PaycheckDeductionsSetting> = context.dataStore.data.map { prefs ->
+        PaycheckDeductionsSetting(
+            sssEnabled = prefs[KEY_DEDUCTION_SSS_ENABLED] ?: false,
+            sssAmount = prefs[KEY_DEDUCTION_SSS_AMOUNT] ?: 0.0,
+            philhealthEnabled = prefs[KEY_DEDUCTION_PHILHEALTH_ENABLED] ?: false,
+            philhealthAmount = prefs[KEY_DEDUCTION_PHILHEALTH_AMOUNT] ?: 0.0,
+            pagibigEnabled = prefs[KEY_DEDUCTION_PAGIBIG_ENABLED] ?: false,
+            pagibigAmount = prefs[KEY_DEDUCTION_PAGIBIG_AMOUNT] ?: 0.0,
+            taxEnabled = prefs[KEY_DEDUCTION_TAX_ENABLED] ?: false,
+            taxPercent = prefs[KEY_DEDUCTION_TAX_PERCENT] ?: 0.0,
+            customEnabled = prefs[KEY_DEDUCTION_CUSTOM_ENABLED] ?: false,
+            customAmount = prefs[KEY_DEDUCTION_CUSTOM_AMOUNT] ?: 0.0
+        )
+    }.distinctUntilChanged()
+
+    suspend fun setPaycheckDeductions(setting: PaycheckDeductionsSetting) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_DEDUCTION_SSS_ENABLED] = setting.sssEnabled
+            prefs[KEY_DEDUCTION_SSS_AMOUNT] = setting.sssAmount
+            prefs[KEY_DEDUCTION_PHILHEALTH_ENABLED] = setting.philhealthEnabled
+            prefs[KEY_DEDUCTION_PHILHEALTH_AMOUNT] = setting.philhealthAmount
+            prefs[KEY_DEDUCTION_PAGIBIG_ENABLED] = setting.pagibigEnabled
+            prefs[KEY_DEDUCTION_PAGIBIG_AMOUNT] = setting.pagibigAmount
+            prefs[KEY_DEDUCTION_TAX_ENABLED] = setting.taxEnabled
+            prefs[KEY_DEDUCTION_TAX_PERCENT] = setting.taxPercent
+            prefs[KEY_DEDUCTION_CUSTOM_ENABLED] = setting.customEnabled
+            prefs[KEY_DEDUCTION_CUSTOM_AMOUNT] = setting.customAmount
+        }
+    }
+
+    val iouEntries: Flow<List<IouEntrySetting>> = context.dataStore.data.map { prefs ->
+        PreferenceJsonCodec.decodeIouEntries(prefs[KEY_IOU_ENTRIES])
+    }.distinctUntilChanged()
+
+    suspend fun setIouEntries(items: List<IouEntrySetting>) {
+        val serialized = PreferenceJsonCodec.encodeIouEntries(items)
+        context.dataStore.edit { prefs ->
+            prefs[KEY_IOU_ENTRIES] = serialized
+        }
+    }
 
     val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = context.dataStore.data.map { prefs ->
         val pinHash = prefs[KEY_APP_LOCK_PIN_HASH].orEmpty().ifBlank {
@@ -706,7 +868,11 @@ class UserPreferencesManager(private val context: Context) {
             cutoffDay1 = normalizedCutoff.day1,
             cutoffDay2 = normalizedCutoff.day2,
             cutoffWeeklyDay = normalizedCutoff.weeklyDayOfWeek,
-            legacyRecurringMigrated = prefs[KEY_LEGACY_RECURRING_MIGRATED] ?: false
+            legacyRecurringMigrated = prefs[KEY_LEGACY_RECURRING_MIGRATED] ?: false,
+            jobTitle = prefs[KEY_JOB_TITLE] ?: "",
+            workplace = prefs[KEY_WORKPLACE] ?: "",
+            workType = prefs[KEY_WORK_TYPE] ?: "Full-Time",
+            targetWeeklyHours = prefs[KEY_TARGET_WEEKLY_HOURS] ?: 40.0
         )
     }.distinctUntilChanged()
 
@@ -931,6 +1097,24 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
+    suspend fun setProfileDetails(
+        userName: String,
+        jobTitle: String,
+        workplace: String,
+        workType: String,
+        targetWeeklyHours: Double
+    ) {
+        context.dataStore.edit { prefs ->
+            if (userName.trim().isNotEmpty()) {
+                prefs[KEY_USER_NAME] = userName.trim()
+            }
+            prefs[KEY_JOB_TITLE] = jobTitle.trim()
+            prefs[KEY_WORKPLACE] = workplace.trim()
+            prefs[KEY_WORK_TYPE] = workType.trim().ifEmpty { "Full-Time" }
+            prefs[KEY_TARGET_WEEKLY_HOURS] = if (targetWeeklyHours.isFinite() && targetWeeklyHours >= 0.0) targetWeeklyHours else 0.0
+        }
+    }
+
     suspend fun setProfilePhotoPath(path: String?) {
         context.dataStore.edit { prefs ->
             if (path.isNullOrBlank()) {
@@ -1118,6 +1302,12 @@ class UserPreferencesManager(private val context: Context) {
             prefs.remove(KEY_ACTIVE_TIMER_START)
             prefs.remove(KEY_ACTIVE_TIMER_DATE)
             prefs.remove(KEY_ACTIVE_TIMER_RATE)
+        }
+    }
+
+    suspend fun setBalancePrivacyHidden(hidden: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_BALANCE_PRIVACY_HIDDEN] = hidden
         }
     }
 }

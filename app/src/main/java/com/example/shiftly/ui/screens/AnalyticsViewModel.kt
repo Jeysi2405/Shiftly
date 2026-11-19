@@ -92,7 +92,15 @@ data class AnalyticsUiState(
     val plainLanguageTips: List<String> = emptyList(),
     val unsettledSplitsAmount: Double = 0.0,
     val totalSplitsAmount: Double = 0.0,
-    val unsettledFriendsCount: Int = 0
+    val unsettledFriendsCount: Int = 0,
+    val netSavingsRate: Int = 0,
+    val netSavingsAmount: Double = 0.0,
+    val netSavingsFraction: Float = 0f,
+    val topEarningDayLabel: String = "No data yet",
+    val highestSpendDayLabel: String = "No data yet",
+    val projectedMonthlySpend: Double = 0.0,
+    val dailyAveragePace: Double = 0.0,
+    val isProjectedWithinBudget: Boolean? = null
 )
 
 class AnalyticsViewModel(
@@ -269,6 +277,66 @@ class AnalyticsViewModel(
             bill.participants.count { !it.isCurrentUser && !it.hasPaid }
         }
 
+        // 1. Net Savings Rate Calculation
+        val netSavingsAmount = totalIncome - totalExpense
+        val netSavingsRate = if (totalIncome > 0.0) {
+            ((netSavingsAmount / totalIncome) * 100.0).roundToInt().coerceIn(-999, 100)
+        } else {
+            0
+        }
+        val netSavingsFraction = if (totalIncome > 0.0) {
+            (netSavingsAmount / totalIncome).toFloat().coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+
+        // 2. Peak Shift & Spending Pattern Calculation
+        val dayOfWeekNames = mapOf(
+            DayOfWeek.MONDAY to "Monday",
+            DayOfWeek.TUESDAY to "Tuesday",
+            DayOfWeek.WEDNESDAY to "Wednesday",
+            DayOfWeek.THURSDAY to "Thursday",
+            DayOfWeek.FRIDAY to "Friday",
+            DayOfWeek.SATURDAY to "Saturday",
+            DayOfWeek.SUNDAY to "Sunday"
+        )
+        val topEarningEntry = periodShifts
+            .groupBy { LocalDate.ofEpochDay(it.dateEpochDay).dayOfWeek }
+            .mapValues { (_, list) -> list.sumOf { it.totalEarned } }
+            .filterValues { it > 0.0 }
+            .maxByOrNull { it.value }
+        val topEarningDayLabel = if (topEarningEntry != null) {
+            val dayName = dayOfWeekNames[topEarningEntry.key] ?: topEarningEntry.key.name
+            "$dayName • ${ShiftlyFormatters.formatCurrency(currency, topEarningEntry.value)}"
+        } else {
+            "No data yet"
+        }
+
+        val highestSpendEntry = periodExpenses
+            .groupBy { LocalDate.ofEpochDay(it.dateEpochDay).dayOfWeek }
+            .mapValues { (_, list) -> list.sumOf { it.amount } }
+            .filterValues { it > 0.0 }
+            .maxByOrNull { it.value }
+        val highestSpendDayLabel = if (highestSpendEntry != null) {
+            val dayName = dayOfWeekNames[highestSpendEntry.key] ?: highestSpendEntry.key.name
+            "$dayName • ${ShiftlyFormatters.formatCurrency(currency, highestSpendEntry.value)}"
+        } else {
+            "No data yet"
+        }
+
+        // 3. Projected End-of-Month Spend Calculation
+        val daysInMonth = currentMonthYm.lengthOfMonth()
+        val daysElapsed = today.dayOfMonth.coerceAtLeast(1)
+        val currentMonthExpensesList = expenses.filter { it.dateEpochDay in monthStartEp..today.toEpochDay() }
+        val currentMonthSpentSoFar = currentMonthExpensesList.sumOf { it.amount }
+        val dailyAveragePace = currentMonthSpentSoFar / daysElapsed.toDouble()
+        val projectedMonthlySpend = dailyAveragePace * daysInMonth
+        val isProjectedWithinBudget = if (monthlyBudget > 0.0) {
+            projectedMonthlySpend <= monthlyBudget
+        } else {
+            null
+        }
+
         AnalyticsUiState(
             selectedRange = range,
             currencySymbol = currency,
@@ -296,7 +364,15 @@ class AnalyticsViewModel(
             plainLanguageTips = tips,
             unsettledSplitsAmount = splitSummary.pendingFriendsAmount,
             totalSplitsAmount = splitSummary.pendingFriendsAmount + splitSummary.collectedFriendsAmount,
-            unsettledFriendsCount = unsettledFriendsCount
+            unsettledFriendsCount = unsettledFriendsCount,
+            netSavingsRate = netSavingsRate,
+            netSavingsAmount = netSavingsAmount,
+            netSavingsFraction = netSavingsFraction,
+            topEarningDayLabel = topEarningDayLabel,
+            highestSpendDayLabel = highestSpendDayLabel,
+            projectedMonthlySpend = projectedMonthlySpend,
+            dailyAveragePace = dailyAveragePace,
+            isProjectedWithinBudget = isProjectedWithinBudget
         )
     }
         .flowOn(Dispatchers.IO)

@@ -536,23 +536,37 @@ fun ThemeSelectorSheetContent(
     }
 }
 
+private val WORK_TYPE_OPTIONS = listOf("Full-Time", "Part-Time", "Freelance")
+
 @Suppress("UNUSED_PARAMETER")
 @Composable
 fun AccountEditSheetContent(
     currentName: String,
+    jobTitle: String = "",
+    workplace: String = "",
+    workType: String = "Full-Time",
+    targetWeeklyHours: Double = 40.0,
     profilePhotoPath: String?,
-    hourlyRate: Double,
-    currencySymbol: String,
+    hourlyRate: Double = 0.0,
+    currencySymbol: String = "₱",
     onChangePhoto: () -> Unit,
     onRemovePhoto: () -> Unit,
-    onSave: (String) -> Unit,
+    onSave: (name: String, jobTitle: String, workplace: String, workType: String, targetWeeklyHours: Double) -> Unit,
     actionState: ShiftlySheetActionState? = null
 ) {
     val colors = ShiftlyColors.current
     val context = LocalContext.current
     val density = LocalDensity.current
     val avatarSizePx = remember(density) { with(density) { 64.dp.roundToPx() } }
+
     var nameInput by remember { mutableStateOf(currentName) }
+    var jobTitleInput by remember { mutableStateOf(jobTitle) }
+    var workplaceInput by remember { mutableStateOf(workplace) }
+    var selectedWorkType by remember { mutableStateOf(if (workType.isBlank()) "Full-Time" else workType) }
+    var hoursInput by remember {
+        mutableStateOf(if (targetWeeklyHours > 0.0) formatEditableNumber(targetWeeklyHours) else "40")
+    }
+
     val photoFile by produceState<File?>(initialValue = null, key1 = profilePhotoPath) {
         value = if (profilePhotoPath.isNullOrBlank()) {
             null
@@ -574,11 +588,22 @@ fun AccountEditSheetContent(
                 .build()
         }
     }
+
     val isValid = nameInput.isNotBlank()
-    LaunchedEffect(isValid, nameInput) {
+    val parsedHours = remember(hoursInput) { hoursInput.toDoubleOrNull() ?: 40.0 }
+
+    LaunchedEffect(isValid, nameInput, jobTitleInput, workplaceInput, selectedWorkType, parsedHours) {
         actionState?.enabled = isValid
         actionState?.onSave = {
-            if (nameInput.isNotBlank()) onSave(nameInput.trim())
+            if (nameInput.isNotBlank()) {
+                onSave(
+                    nameInput.trim(),
+                    jobTitleInput.trim(),
+                    workplaceInput.trim(),
+                    selectedWorkType,
+                    parsedHours
+                )
+            }
         }
     }
 
@@ -642,51 +667,239 @@ fun AccountEditSheetContent(
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = colors.cardElevated,
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Text(
-            text = "Display Name",
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.Medium
-            ),
-            color = colors.textSecondary
-        )
-        BasicTextField(
-            value = nameInput,
-            onValueChange = { nameInput = it },
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.Medium,
-                color = colors.textPrimary
-            ),
-            cursorBrush = SolidColor(colors.azureAccent),
-            decorationBox = { innerTextField ->
-                Box(
+        Column(modifier = Modifier.fillMaxWidth()) {
+            ProfileInsetRow(
+                label = "Display Name",
+                value = nameInput,
+                onValueChange = { nameInput = it },
+                placeholder = "Your name"
+            )
+            ShiftlyHairlineDivider(startInset = 16.dp)
+
+            ProfileInsetRow(
+                label = "Job Title",
+                value = jobTitleInput,
+                onValueChange = { jobTitleInput = it },
+                placeholder = "Role / Job Title"
+            )
+            ShiftlyHairlineDivider(startInset = 16.dp)
+
+            ProfileInsetRow(
+                label = "Workplace",
+                value = workplaceInput,
+                onValueChange = { workplaceInput = it },
+                placeholder = "Company / Workplace"
+            )
+            ShiftlyHairlineDivider(startInset = 16.dp)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Work Type",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    ),
+                    color = colors.textPrimary
+                )
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(colors.cardElevated)
-                        .padding(horizontal = 16.dp, vertical = 13.dp),
-                    contentAlignment = Alignment.CenterStart
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(colors.surface)
+                        .padding(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    if (nameInput.isEmpty()) {
+                    WORK_TYPE_OPTIONS.forEach { option ->
+                        val isSelected = selectedWorkType.equals(option, ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(35.dp)
+                                .clip(RoundedCornerShape(7.dp))
+                                .background(if (isSelected) colors.azurePrimary else Color.Transparent)
+                                .clickable { selectedWorkType = option },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = option,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                                    fontSize = 13.sp
+                                ),
+                                color = if (isSelected) PureWhite else colors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+            ShiftlyHairlineDivider(startInset = 16.dp)
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 50.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Target Hours",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    ),
+                    color = colors.textPrimary
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    BasicTextField(
+                        value = hoursInput,
+                        onValueChange = { input ->
+                            val filtered = input.filter { it.isDigit() || it == '.' }
+                            if (filtered.count { it == '.' } <= 1) hoursInput = filtered
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        cursorBrush = SolidColor(colors.azureAccent),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textPrimary,
+                            textAlign = TextAlign.End
+                        ).tabular(),
+                        decorationBox = { inner ->
+                            Box(contentAlignment = Alignment.CenterEnd) {
+                                if (hoursInput.isEmpty()) {
+                                    Text(
+                                        text = "40",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontFamily = InterFontFamily,
+                                            color = colors.textSecondary
+                                        ),
+                                        textAlign = TextAlign.End
+                                    )
+                                }
+                                inner()
+                            }
+                        },
+                        modifier = Modifier.width(54.dp)
+                    )
+                    Text(
+                        text = "hrs/wk",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = colors.textSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileInsetRow(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String
+) {
+    val colors = ShiftlyColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 50.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            ),
+            color = colors.textPrimary
+        )
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            cursorBrush = SolidColor(colors.azureAccent),
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Medium,
+                color = colors.textPrimary,
+                textAlign = TextAlign.End
+            ),
+            decorationBox = { innerTextField ->
+                Box(contentAlignment = Alignment.CenterEnd) {
+                    if (value.isEmpty()) {
                         Text(
-                            text = "What I gonna call you?",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                            color = colors.textSecondary
+                            text = placeholder,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = InterFontFamily,
+                                color = colors.textSecondary
+                            ),
+                            textAlign = TextAlign.End
                         )
                     }
                     innerTextField()
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 16.dp)
         )
     }
+}
+
+@Suppress("UNUSED_PARAMETER")
+@Composable
+fun AccountEditSheetContent(
+    currentName: String,
+    profilePhotoPath: String?,
+    hourlyRate: Double,
+    currencySymbol: String,
+    onChangePhoto: () -> Unit,
+    onRemovePhoto: () -> Unit,
+    onSave: (String) -> Unit,
+    actionState: ShiftlySheetActionState? = null
+) {
+    AccountEditSheetContent(
+        currentName = currentName,
+        jobTitle = "",
+        workplace = "",
+        workType = "Full-Time",
+        targetWeeklyHours = 40.0,
+        profilePhotoPath = profilePhotoPath,
+        hourlyRate = hourlyRate,
+        currencySymbol = currencySymbol,
+        onChangePhoto = onChangePhoto,
+        onRemovePhoto = onRemovePhoto,
+        onSave = { name, _, _, _, _ -> onSave(name) },
+        actionState = actionState
+    )
 }
 
 @Composable

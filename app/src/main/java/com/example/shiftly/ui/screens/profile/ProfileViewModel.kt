@@ -26,6 +26,10 @@ import kotlinx.coroutines.launch
 @Immutable
 data class ProfileUiState(
     val userName: String = "",
+    val jobTitle: String = "",
+    val workplace: String = "",
+    val workType: String = "Full-Time",
+    val targetWeeklyHours: Double = 40.0,
     val profilePhotoPath: String? = null,
     val defaultHourlyRate: Double = 0.0,
     val currencySymbol: String = "₱",
@@ -125,6 +129,10 @@ class ProfileViewModel(
     ) { core, totals, goals, settings ->
         ProfileUiState(
             userName = core.userName,
+            jobTitle = settings.jobTitle,
+            workplace = settings.workplace,
+            workType = settings.workType,
+            targetWeeklyHours = settings.targetWeeklyHours,
             profilePhotoPath = core.profilePhotoPath,
             defaultHourlyRate = core.defaultHourlyRate,
             currencySymbol = core.currencySymbol,
@@ -147,6 +155,24 @@ class ProfileViewModel(
 
     fun updateUserName(name: String) {
         viewModelScope.launch { repository.updateUserName(name) }
+    }
+
+    fun updateProfileDetails(
+        userName: String,
+        jobTitle: String,
+        workplace: String,
+        workType: String,
+        targetWeeklyHours: Double
+    ) {
+        viewModelScope.launch {
+            repository.updateProfileDetails(
+                userName = userName,
+                jobTitle = jobTitle,
+                workplace = workplace,
+                workType = workType,
+                targetWeeklyHours = targetWeeklyHours
+            )
+        }
     }
 
     fun updateProfilePhotoPath(path: String?) {

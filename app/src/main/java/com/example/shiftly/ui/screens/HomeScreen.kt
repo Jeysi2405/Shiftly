@@ -48,7 +48,6 @@ import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyProgressBar
-import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetTopBand
@@ -141,6 +140,10 @@ fun HomeScreen(
         onProfileClick = onNavigateToProfile,
         onOpenPendingSplits = onNavigateToSplitBill,
         onViewInsights = onNavigateToAnalytics,
+        onToggleBalancePrivacy = { viewModel.toggleBalancePrivacy() },
+        onNavigateToRecurringBills = onNavigateToRecurringBills,
+        onNavigateToAllowance = onNavigateToAllowance,
+        onNavigateToDuties = onNavigateToDuties,
         onOpenGoalDetail = { goalId ->
             viewingGoalId = goalId
             showGoalDetailSheet = true
@@ -214,6 +217,10 @@ fun HomeScreenContent(
     onOpenAddGoal: () -> Unit = {},
     onSelectActiveGoal: (Long) -> Unit = {},
     onTimelineItemClick: (TimelineActivityItem) -> Unit = {},
+    onToggleBalancePrivacy: () -> Unit = {},
+    onNavigateToRecurringBills: () -> Unit = {},
+    onNavigateToAllowance: () -> Unit = {},
+    onNavigateToDuties: () -> Unit = {},
     todayOverride: LocalDate? = null,
     greetingHourOverride: Int? = null,
     notificationReferenceTimeMillis: Long? = null,
@@ -230,6 +237,21 @@ fun HomeScreenContent(
     }
     val nearLimit = budgetRatio >= 0.80f
     val budgetPct = (budgetRatio * 100).toInt()
+
+    var selectedActivityFilter by remember { mutableStateOf(ActivityFilter.ALL) }
+    var isActivityExpanded by remember { mutableStateOf(false) }
+
+    val filteredTimeline = remember(state.timelineItems, selectedActivityFilter) {
+        when (selectedActivityFilter) {
+            ActivityFilter.ALL -> state.timelineItems
+            ActivityFilter.SHIFTS -> state.timelineItems.filterIsInstance<TimelineActivityItem.ShiftActivity>()
+            ActivityFilter.EXPENSES -> state.timelineItems.filterIsInstance<TimelineActivityItem.ExpenseActivity>()
+        }
+    }
+
+    val displayedTimeline = remember(filteredTimeline, isActivityExpanded) {
+        if (isActivityExpanded) filteredTimeline else filteredTimeline.take(5)
+    }
 
     val isTitleCollapsed by remember(listState) {
         derivedStateOf {
@@ -280,7 +302,8 @@ fun HomeScreenContent(
                         state = state,
                         onOpenGoalDetail = onOpenGoalDetail,
                         onOpenAddGoal = onOpenAddGoal,
-                        onSelectActiveGoal = onSelectActiveGoal
+                        onSelectActiveGoal = onSelectActiveGoal,
+                        onToggleBalancePrivacy = onToggleBalancePrivacy
                     )
                 }
             }
@@ -334,6 +357,25 @@ fun HomeScreenContent(
                         )
                     }
 
+                    state.upcomingBillBanner?.let { billBanner ->
+                        UpcomingBillSmartBanner(
+                            title = billBanner.title,
+                            amount = billBanner.amount,
+                            dueDateLabel = billBanner.dueDateLabel,
+                            currencySymbol = currency,
+                            onClick = onNavigateToRecurringBills
+                        )
+                    }
+
+                    state.paydayCutoffBanner?.let { paydayBanner ->
+                        PaydayCutoffSmartBanner(
+                            cutoffDayOfMonth = paydayBanner.cutoffDayOfMonth,
+                            estimatedEarnings = paydayBanner.estimatedEarnings,
+                            currencySymbol = currency,
+                            onClick = onNavigateToAllowance
+                        )
+                    }
+
                     MonthlyTopCategoriesCard(
                         monthName = state.currentMonthName,
                         monthlyTotalSpent = state.mtdExpenses,
@@ -347,15 +389,17 @@ fun HomeScreenContent(
                         summary = state.monthlyHoursSummary
                     )
 
-                    ShiftlySectionHeader(
-                        title = "Recent Activity",
-                        count = state.timelineItems.size,
-                        onLightSurface = true
+                    HomeRecentActivityHeader(
+                        totalCount = filteredTimeline.size,
+                        selectedFilter = selectedActivityFilter,
+                        onFilterSelected = { selectedActivityFilter = it },
+                        isExpanded = isActivityExpanded,
+                        onToggleExpand = { isActivityExpanded = !isActivityExpanded }
                     )
                 }
             }
 
-            if (state.timelineItems.isEmpty()) {
+            if (displayedTimeline.isEmpty()) {
                 item(key = "timeline_empty", contentType = "timeline_empty") {
                     Box(
                         modifier = Modifier
@@ -371,7 +415,11 @@ fun HomeScreenContent(
                                 .padding(16.dp)
                         ) {
                             Text(
-                                text = "No activity logged yet. Start a shift in Duties or log an expense.",
+                                text = if (selectedActivityFilter != ActivityFilter.ALL) {
+                                    "No ${selectedActivityFilter.label.lowercase()} logged yet."
+                                } else {
+                                    "No activity logged yet. Start a shift in Duties or log an expense."
+                                },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = colors.textSecondary
                             )
@@ -380,7 +428,7 @@ fun HomeScreenContent(
                 }
             } else {
                 itemsIndexed(
-                    items = state.timelineItems,
+                    items = displayedTimeline,
                     key = { _, item ->
                         when (item) {
                             is TimelineActivityItem.ShiftActivity -> "shift_${item.id}"
@@ -398,9 +446,9 @@ fun HomeScreenContent(
                     }
                 ) { idx, item ->
                     val rowShape = when {
-                        state.timelineItems.size == 1 -> RoundedCornerShape(18.dp)
+                        displayedTimeline.size == 1 -> RoundedCornerShape(18.dp)
                         idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-                        idx == state.timelineItems.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+                        idx == displayedTimeline.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
                         else -> RectangleShape
                     }
                     Box(
@@ -427,7 +475,7 @@ fun HomeScreenContent(
                                 item = item,
                                 currencySymbol = currency
                             ) { onTimelineItemClick(item) }
-                            if (idx < state.timelineItems.lastIndex) {
+                            if (idx < displayedTimeline.lastIndex) {
                                 ShiftlyHairlineDivider(startInset = 66.dp)
                             }
                         }

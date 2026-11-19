@@ -201,6 +201,25 @@ fun AnalyticsScreenContent(
                             currencySymbol = state.currencySymbol
                         )
 
+                        NetSavingsRateCard(
+                            ratePercentage = state.netSavingsRate,
+                            netAmount = state.netSavingsAmount,
+                            progressFraction = state.netSavingsFraction,
+                            currencySymbol = state.currencySymbol
+                        )
+
+                        PeakShiftSpendPatternCard(
+                            topEarningDayLabel = state.topEarningDayLabel,
+                            highestSpendDayLabel = state.highestSpendDayLabel
+                        )
+
+                        ProjectedMonthlySpendCard(
+                            projectedSpend = state.projectedMonthlySpend,
+                            dailyPace = state.dailyAveragePace,
+                            isWithinBudget = state.isProjectedWithinBudget,
+                            currencySymbol = state.currencySymbol
+                        )
+
                         TopSpendingCategoriesCard(
                             categories = state.categoryInsights,
                             currencySymbol = state.currencySymbol

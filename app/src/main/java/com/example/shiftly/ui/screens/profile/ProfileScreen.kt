@@ -392,6 +392,10 @@ fun ProfileScreen(
             ) {
                 AccountEditSheetContent(
                     currentName = state.userName,
+                    jobTitle = state.jobTitle,
+                    workplace = state.workplace,
+                    workType = state.workType,
+                    targetWeeklyHours = state.targetWeeklyHours,
                     profilePhotoPath = state.profilePhotoPath,
                     hourlyRate = state.defaultHourlyRate,
                     currencySymbol = state.currencySymbol,
@@ -400,8 +404,14 @@ fun ProfileScreen(
                         viewModel.updateProfilePhotoPath(null)
                         onShowMessage("Profile photo removed")
                     },
-                    onSave = { newName ->
-                        viewModel.updateUserName(newName)
+                    onSave = { newName, newJobTitle, newWorkplace, newWorkType, newTargetHours ->
+                        viewModel.updateProfileDetails(
+                            userName = newName,
+                            jobTitle = newJobTitle,
+                            workplace = newWorkplace,
+                            workType = newWorkType,
+                            targetWeeklyHours = newTargetHours
+                        )
                         activeSheet = null
                         onShowMessage("Profile updated")
                     },

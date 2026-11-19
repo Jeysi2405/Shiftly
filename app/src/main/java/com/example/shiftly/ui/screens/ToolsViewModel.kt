@@ -7,7 +7,9 @@ import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
+import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.ManagedCategorySetting
+import com.example.shiftly.data.local.PaycheckDeductionsSetting
 import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
@@ -16,6 +18,7 @@ import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.repository.ShiftlyRepository
+import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.YearMonth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -44,6 +47,13 @@ data class ToolsUiState(
     val totalAllowanceAmount: Double = 0.0,
     val allowanceEntryCount: Int = 0,
     val cutoffScheduleLabel: String = CutoffScheduleConfig().displayLabel(),
+    val paycheckDeductions: PaycheckDeductionsSetting = PaycheckDeductionsSetting(),
+    val iouEntries: List<IouEntrySetting> = emptyList(),
+    val netPayTakeHome: Double = 0.0,
+    val totalDeductions: Double = 0.0,
+    val iouSummaryText: String = "All settled",
+    val shifts: List<ShiftEntity> = emptyList(),
+    val expenses: List<ExpenseEntity> = emptyList(),
     val savingsGoals: List<SavingsGoalWithDeposits> = emptyList(),
     val settings: ShiftlySettingsSnapshot = ShiftlySettingsSnapshot()
 )
@@ -67,7 +77,9 @@ class ToolsViewModel(
         repository.allSplitBills,
         repository.allSavingsGoals,
         repository.allRecurringBills,
-        repository.allAllowanceEntries
+        repository.allAllowanceEntries,
+        repository.paycheckDeductions,
+        repository.iouEntries
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val prefs = values[0] as Triple<String, Double, ShiftlySettingsSnapshot>
@@ -83,6 +95,9 @@ class ToolsViewModel(
         val recurringBills = values[5] as List<RecurringBillEntity>
         @Suppress("UNCHECKED_CAST")
         val allowanceEntries = values[6] as List<AllowanceEntryEntity>
+        val deductions = values[7] as PaycheckDeductionsSetting
+        @Suppress("UNCHECKED_CAST")
+        val iouItems = values[8] as List<IouEntrySetting>
 
         computeToolsUiState(
             currencySymbol = prefs.first,
@@ -93,7 +108,9 @@ class ToolsViewModel(
             splitBills = splitBills,
             savingsGoals = savingsGoals,
             recurringBills = recurringBills,
-            allowanceEntries = allowanceEntries
+            allowanceEntries = allowanceEntries,
+            paycheckDeductions = deductions,
+            iouEntries = iouItems
         )
     }
         .flowOn(Dispatchers.IO)
@@ -113,6 +130,18 @@ class ToolsViewModel(
     fun updateManagedCategories(categories: List<ManagedCategorySetting>) {
         viewModelScope.launch {
             repository.updateManagedCategories(categories)
+        }
+    }
+
+    fun updatePaycheckDeductions(setting: PaycheckDeductionsSetting) {
+        viewModelScope.launch {
+            repository.updatePaycheckDeductions(setting)
+        }
+    }
+
+    fun updateIouEntries(items: List<IouEntrySetting>) {
+        viewModelScope.launch {
+            repository.updateIouEntries(items)
         }
     }
 
@@ -157,6 +186,8 @@ class ToolsViewModel(
             savingsGoals: List<SavingsGoalWithDeposits>,
             recurringBills: List<RecurringBillEntity>,
             allowanceEntries: List<AllowanceEntryEntity>,
+            paycheckDeductions: PaycheckDeductionsSetting = PaycheckDeductionsSetting(),
+            iouEntries: List<IouEntrySetting> = emptyList(),
             currentMonth: YearMonth = YearMonth.now()
         ): ToolsUiState {
             val monthStartEpoch = currentMonth.atDay(1).toEpochDay()
@@ -200,6 +231,18 @@ class ToolsViewModel(
             val enabledRecurringCount = recurringBills.count { it.isEnabled }
             val totalAllowanceAmount = allowanceEntries.sumOf { it.amount }
 
+            val totalDeductions = paycheckDeductions.calculateTotalDeductions(monthShiftEarnings)
+            val netPayTakeHome = (monthShiftEarnings - totalDeductions).coerceAtLeast(0.0)
+
+            val unsettledIou = iouEntries.filter { !it.isSettled }
+            val netIou = unsettledIou.sumOf { if (it.isLent) it.amount else -it.amount }
+            val iouSummaryText = when {
+                unsettledIou.isEmpty() -> "All settled"
+                netIou > 0.0 -> "${ShiftlyFormatters.formatCurrency(currencySymbol, netIou)} owed to you"
+                netIou < 0.0 -> "${ShiftlyFormatters.formatCurrency(currencySymbol, -netIou)} you owe"
+                else -> "Balanced debts"
+            }
+
             return ToolsUiState(
                 currencySymbol = currencySymbol,
                 monthlyBudget = monthlyBudget,
@@ -219,6 +262,13 @@ class ToolsViewModel(
                 totalAllowanceAmount = totalAllowanceAmount,
                 allowanceEntryCount = allowanceEntries.size,
                 cutoffScheduleLabel = settings.cutoffScheduleConfig().displayLabel(),
+                paycheckDeductions = paycheckDeductions,
+                iouEntries = iouEntries,
+                netPayTakeHome = netPayTakeHome,
+                totalDeductions = totalDeductions,
+                iouSummaryText = iouSummaryText,
+                shifts = shifts,
+                expenses = expenses,
                 savingsGoals = savingsGoals,
                 settings = settings
             )

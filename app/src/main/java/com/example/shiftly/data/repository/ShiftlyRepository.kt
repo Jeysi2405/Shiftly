@@ -21,8 +21,10 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.InAppNotificationType
+import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.NotificationLastDays
+import com.example.shiftly.data.local.PaycheckDeductionsSetting
 import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.data.local.RecurringBillEntity
@@ -85,11 +87,22 @@ class ShiftlyRepository(context: Context) {
     val activeTimerState: Flow<ActiveTimerState> = prefs.activeTimerState
     val hasCompletedOnboarding: Flow<Boolean> = prefs.hasCompletedOnboarding
     val userName: Flow<String> = prefs.userName
+    val jobTitle: Flow<String> = prefs.jobTitle
+    val workplace: Flow<String> = prefs.workplace
+    val workType: Flow<String> = prefs.workType
+    val targetWeeklyHours: Flow<Double> = prefs.targetWeeklyHours
     val profilePhotoPath: Flow<String?> = prefs.profilePhotoPath
     val monthlyBudget: Flow<Double> = prefs.monthlyBudget
     val savingsBuffer: Flow<Double> = prefs.savingsBuffer
     val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = prefs.settingsSnapshot
     val notificationInbox: Flow<List<InAppNotificationItem>> = prefs.notificationInbox
+    val balancePrivacyHidden: Flow<Boolean> = prefs.balancePrivacyHidden
+    val paycheckDeductions: Flow<PaycheckDeductionsSetting> = prefs.paycheckDeductions
+    val iouEntries: Flow<List<IouEntrySetting>> = prefs.iouEntries
+
+    suspend fun setBalancePrivacyHidden(hidden: Boolean) = withContext(Dispatchers.IO) {
+        prefs.setBalancePrivacyHidden(hidden)
+    }
 
     suspend fun recordInAppNotification(
         eventKey: String,
@@ -233,6 +246,24 @@ class ShiftlyRepository(context: Context) {
 
     suspend fun updateUserName(name: String) = withContext(Dispatchers.IO) {
         prefs.setUserName(name)
+    }
+
+    suspend fun updateProfileDetails(
+        userName: String,
+        jobTitle: String,
+        workplace: String,
+        workType: String,
+        targetWeeklyHours: Double
+    ) = withContext(Dispatchers.IO) {
+        prefs.setProfileDetails(userName, jobTitle, workplace, workType, targetWeeklyHours)
+    }
+
+    suspend fun updatePaycheckDeductions(setting: PaycheckDeductionsSetting) = withContext(Dispatchers.IO) {
+        prefs.setPaycheckDeductions(setting)
+    }
+
+    suspend fun updateIouEntries(items: List<IouEntrySetting>) = withContext(Dispatchers.IO) {
+        prefs.setIouEntries(items)
     }
 
     suspend fun updateProfilePhotoPath(path: String?) = withContext(Dispatchers.IO) {

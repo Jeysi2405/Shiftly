@@ -992,3 +992,210 @@ fun UnsettledSplitsTrackerCard(
         )
     }
 }
+
+@Composable
+fun NetSavingsRateCard(
+    ratePercentage: Int,
+    netAmount: Double,
+    progressFraction: Float,
+    currencySymbol: String
+) {
+    val colors = ShiftlyColors.current
+    val isPositive = netAmount >= 0.0
+
+    InsightCardContainer(title = "Net Savings Rate") {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = "$ratePercentage% Saved",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = colors.textPrimary
+                )
+                Text(
+                    text = "Income retained this period",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(50),
+                color = if (isPositive) colors.mintContainer else colors.coralContainer,
+                shadowElevation = 0.dp
+            ) {
+                Text(
+                    text = if (isPositive) {
+                        "Net +${ShiftlyFormatters.formatCurrency(currencySymbol, netAmount)}"
+                    } else {
+                        "Deficit -${ShiftlyFormatters.formatCurrency(currencySymbol, -netAmount)}"
+                    },
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = if (isPositive) colors.mintInk else colors.coralInk,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                )
+            }
+        }
+
+        ShiftlyProgressBar(
+            progress = progressFraction.coerceIn(0.02f, 1f),
+            color = if (isPositive) colors.mintBright else colors.coralBright,
+            trackColor = colors.separator,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(5.dp)
+                .semantics {
+                    contentDescription = "Net savings rate $ratePercentage percent"
+                }
+        )
+    }
+}
+
+@Composable
+fun PeakShiftSpendPatternCard(
+    topEarningDayLabel: String,
+    highestSpendDayLabel: String
+) {
+    val colors = ShiftlyColors.current
+
+    InsightCardContainer(title = "Shift & Spending Patterns") {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // Row 1: Best Earning Day
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ShiftlyIosIconTile(
+                        iconRes = R.drawable.ic_lucide_trending_up,
+                        backgroundColor = colors.mintBright,
+                        size = 32.dp,
+                        cornerRadius = 8.dp,
+                        iconSize = 16.dp
+                    )
+                    Text(
+                        text = "Best Earning Day",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = colors.textPrimary
+                    )
+                }
+
+                Text(
+                    text = topEarningDayLabel,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold
+                    ).tabular(),
+                    color = colors.mintInk
+                )
+            }
+
+            ShiftlyHairlineDivider(startInset = 42.dp)
+
+            // Row 2: Peak Spend Day
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    ShiftlyIosIconTile(
+                        iconRes = R.drawable.ic_lucide_receipt,
+                        backgroundColor = colors.coralBright,
+                        size = 32.dp,
+                        cornerRadius = 8.dp,
+                        iconSize = 16.dp
+                    )
+                    Text(
+                        text = "Peak Spend Day",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = colors.textPrimary
+                    )
+                }
+
+                Text(
+                    text = highestSpendDayLabel,
+                    style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold
+                    ).tabular(),
+                    color = colors.coralInk
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ProjectedMonthlySpendCard(
+    projectedSpend: Double,
+    dailyPace: Double,
+    isWithinBudget: Boolean?,
+    currencySymbol: String
+) {
+    val colors = ShiftlyColors.current
+
+    InsightCardContainer(title = "Projected End-of-Month Spend") {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = ShiftlyFormatters.formatCurrency(currencySymbol, projectedSpend),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = colors.textPrimary
+                )
+                Text(
+                    text = "${ShiftlyFormatters.formatCurrency(currencySymbol, dailyPace)}/day pace",
+                    style = MaterialTheme.typography.bodySmall.tabular(),
+                    color = colors.textSecondary
+                )
+            }
+
+            if (isWithinBudget != null) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (isWithinBudget) colors.mintContainer else colors.coralContainer,
+                    shadowElevation = 0.dp
+                ) {
+                    Text(
+                        text = if (isWithinBudget) "Within Budget" else "Over Budget",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = if (isWithinBudget) colors.mintInk else colors.coralInk,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+            }
+        }
+    }
+}

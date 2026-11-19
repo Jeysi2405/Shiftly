@@ -9,6 +9,7 @@ import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.InAppNotificationItem
+import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
@@ -110,6 +111,22 @@ sealed class TimelineActivityItem {
 }
 
 @Immutable
+data class UpcomingBillBannerInfo(
+    val billId: Long,
+    val title: String,
+    val amount: Double,
+    val dueEpochDay: Long,
+    val dueDateLabel: String
+)
+
+@Immutable
+data class PaydayCutoffBannerInfo(
+    val cutoffDayOfMonth: Int,
+    val daysRemaining: Int,
+    val estimatedEarnings: Double
+)
+
+@Immutable
 data class HomeUiState(
     val userName: String = "",
     val profilePhotoPath: String? = null,
@@ -126,6 +143,9 @@ data class HomeUiState(
     val notifications: List<InAppNotificationItem> = emptyList(),
     val unreadNotificationCount: Int = 0,
     val pendingHeadsUpNotification: InAppNotificationItem? = null,
+    val isBalanceHidden: Boolean = false,
+    val upcomingBillBanner: UpcomingBillBannerInfo? = null,
+    val paydayCutoffBanner: PaydayCutoffBannerInfo? = null,
     val cutoffSummary: CutoffShiftSummary = CutoffShiftSummary(
         window = CutoffWindow(
             startDate = LocalDate.now(),
@@ -219,7 +239,9 @@ class HomeViewModel(
         repository.allSplitBills,
         repository.allSavingsGoals,
         repository.allAllowanceEntries,
-        settingsAndInboxFlow
+        settingsAndInboxFlow,
+        repository.allRecurringBills,
+        repository.balancePrivacyHidden
     ) { values ->
         val prefs = values[0] as CorePrefs
         @Suppress("UNCHECKED_CAST")
@@ -236,6 +258,9 @@ class HomeViewModel(
         val allowanceEntries = values[6] as List<AllowanceEntryEntity>
         @Suppress("UNCHECKED_CAST")
         val settingsAndInbox = values[7] as Pair<ShiftlySettingsSnapshot, List<InAppNotificationItem>>
+        @Suppress("UNCHECKED_CAST")
+        val recurringBills = values[8] as List<RecurringBillEntity>
+        val isBalanceHidden = values[9] as Boolean
         val settings = settingsAndInbox.first
         val inboxItems = settingsAndInbox.second
 
@@ -293,6 +318,43 @@ class HomeViewModel(
             config = settings.cutoffScheduleConfig()
         )
 
+        val formatters = formattersFor(Locale.getDefault())
+        val timeFormatter = formatters.timeFormatter
+        val monthDayFormatter = formatters.monthDayFormatter
+
+        // Upcoming Recurring Bill smart banner
+        val dueSoonBill = recurringBills
+            .filter { it.isEnabled && it.dueEpochDay >= today.toEpochDay() && it.dueEpochDay <= today.toEpochDay() + 7 }
+            .minByOrNull { it.dueEpochDay }
+        val upcomingBillBanner = dueSoonBill?.let { bill ->
+            val dueDays = (bill.dueEpochDay - today.toEpochDay()).toInt()
+            val dueLabel = when (dueDays) {
+                0 -> "Today"
+                1 -> "Tomorrow"
+                else -> LocalDate.ofEpochDay(bill.dueEpochDay).format(monthDayFormatter)
+            }
+            UpcomingBillBannerInfo(
+                billId = bill.id,
+                title = bill.title,
+                amount = bill.amount,
+                dueEpochDay = bill.dueEpochDay,
+                dueDateLabel = dueLabel
+            )
+        }
+
+        // Payday / Cutoff Countdown smart banner
+        val cutoffEndDate = cutoffSummary.window.endDate
+        val daysUntilCutoff = (cutoffEndDate.toEpochDay() - today.toEpochDay()).toInt()
+        val paydayCutoffBanner = if (daysUntilCutoff in 0..5) {
+            PaydayCutoffBannerInfo(
+                cutoffDayOfMonth = cutoffEndDate.dayOfMonth,
+                daysRemaining = daysUntilCutoff,
+                estimatedEarnings = cutoffSummary.totalEarnings
+            )
+        } else {
+            null
+        }
+
         val savingsGoalItems = rawGoals.map { goalWithDeps ->
             SavingsGoalCardItem(
                 goalWithDeposits = goalWithDeps,
@@ -314,11 +376,7 @@ class HomeViewModel(
             }
             .sortedByDescending { it.totalAmount }
 
-        val formatters = formattersFor(Locale.getDefault())
-        val timeFormatter = formatters.timeFormatter
-        val monthDayFormatter = formatters.monthDayFormatter
-
-        val shiftItems = shifts.take(6).map { shift ->
+        val shiftItems = shifts.take(15).map { shift ->
             val startStr = Instant.ofEpochMilli(shift.timeInMillis).atZone(zone).toLocalTime().format(timeFormatter)
             val endStr = Instant.ofEpochMilli(shift.timeOutMillis).atZone(zone).toLocalTime().format(timeFormatter)
             val hrs = shift.durationMinutes / 60
@@ -335,7 +393,7 @@ class HomeViewModel(
             )
         }
 
-        val extraItems = extraIncomes.take(4).map { inc ->
+        val extraItems = extraIncomes.take(10).map { inc ->
             val dateLabel = LocalDate.ofEpochDay(inc.dateEpochDay).format(monthDayFormatter)
             TimelineActivityItem.ExtraIncomeActivity(
                 id = inc.id,
@@ -348,7 +406,7 @@ class HomeViewModel(
             )
         }
 
-        val manualAllowanceItems = manualAllowances.take(4).map { entry ->
+        val manualAllowanceItems = manualAllowances.take(10).map { entry ->
             val dateLabel = LocalDate.ofEpochDay(entry.dateEpochDay).format(monthDayFormatter)
             TimelineActivityItem.ExtraIncomeActivity(
                 id = entry.id,
@@ -361,7 +419,7 @@ class HomeViewModel(
             )
         }
 
-        val expenseItems = expenses.take(6).map { exp ->
+        val expenseItems = expenses.take(15).map { exp ->
             val dateLabel = LocalDate.ofEpochDay(exp.dateEpochDay).format(monthDayFormatter)
             TimelineActivityItem.ExpenseActivity(
                 id = exp.id,
@@ -400,6 +458,9 @@ class HomeViewModel(
             notifications = inboxItems,
             unreadNotificationCount = unreadCount,
             pendingHeadsUpNotification = pendingToast,
+            isBalanceHidden = isBalanceHidden,
+            upcomingBillBanner = upcomingBillBanner,
+            paydayCutoffBanner = paydayCutoffBanner,
             cutoffSummary = cutoffSummary,
             savingsGoals = savingsGoalItems,
             currentMonthName = today.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
@@ -415,6 +476,12 @@ class HomeViewModel(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = HomeUiState()
         )
+
+    fun toggleBalancePrivacy() {
+        viewModelScope.launch {
+            repository.setBalancePrivacyHidden(!uiState.value.isBalanceHidden)
+        }
+    }
 
     fun markNotificationRead(id: String) {
         viewModelScope.launch {

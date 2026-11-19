@@ -86,6 +86,9 @@ fun ToolsScreen(
     var showManageCategoriesSheet by remember { mutableStateOf(false) }
     var showAddSavingsGoalSheet by remember { mutableStateOf(false) }
     var showSavingsGoalDetailSheet by remember { mutableStateOf(false) }
+    var showPaycheckEstimatorSheet by remember { mutableStateOf(false) }
+    var showIouSheet by remember { mutableStateOf(false) }
+    var showActivityCalendarSheet by remember { mutableStateOf(false) }
 
     val onOpenBudgets = remember { { showBudgetsSheet = true } }
     val onOpenSavingsGoals = remember(state.savingsGoals.isEmpty()) {
@@ -97,6 +100,9 @@ fun ToolsScreen(
             }
         }
     }
+    val onOpenPaycheckEstimator = remember { { showPaycheckEstimatorSheet = true } }
+    val onOpenIouTracker = remember { { showIouSheet = true } }
+    val onOpenActivityCalendar = remember { { showActivityCalendarSheet = true } }
 
     ToolsScreenContent(
         state = state,
@@ -106,7 +112,10 @@ fun ToolsScreen(
         onOpenBudgets = onOpenBudgets,
         onOpenSavingsGoals = onOpenSavingsGoals,
         onOpenRecurringBills = onOpenRecurringBills,
-        onOpenAllowance = onOpenAllowance
+        onOpenAllowance = onOpenAllowance,
+        onOpenPaycheckEstimator = onOpenPaycheckEstimator,
+        onOpenIouTracker = onOpenIouTracker,
+        onOpenActivityCalendar = onOpenActivityCalendar
     )
 
     if (showBudgetsSheet) {
@@ -200,6 +209,56 @@ fun ToolsScreen(
             }
         )
     }
+
+    if (showPaycheckEstimatorSheet) {
+        SettingsSheetContainer(
+            title = "Paycheck Estimator",
+            onDismiss = { showPaycheckEstimatorSheet = false },
+            actionLabel = "Done",
+            onAction = { showPaycheckEstimatorSheet = false }
+        ) {
+            PaycheckEstimatorSheetContent(
+                currencySymbol = state.currencySymbol,
+                grossPay = state.monthShiftEarnings,
+                deductions = state.paycheckDeductions,
+                onSaveDeductions = { updated ->
+                    viewModel.updatePaycheckDeductions(updated)
+                }
+            )
+        }
+    }
+
+    if (showIouSheet) {
+        SettingsSheetContainer(
+            title = "IOU & Loans",
+            onDismiss = { showIouSheet = false },
+            actionLabel = "Done",
+            onAction = { showIouSheet = false }
+        ) {
+            IouTrackerSheetContent(
+                currencySymbol = state.currencySymbol,
+                entries = state.iouEntries,
+                onSaveEntries = { updated ->
+                    viewModel.updateIouEntries(updated)
+                }
+            )
+        }
+    }
+
+    if (showActivityCalendarSheet) {
+        SettingsSheetContainer(
+            title = "Activity Calendar",
+            onDismiss = { showActivityCalendarSheet = false },
+            actionLabel = "Done",
+            onAction = { showActivityCalendarSheet = false }
+        ) {
+            ActivityCalendarSheetContent(
+                currencySymbol = state.currencySymbol,
+                shifts = state.shifts,
+                expenses = state.expenses
+            )
+        }
+    }
 }
 
 @Composable
@@ -212,6 +271,9 @@ fun ToolsScreenContent(
     onOpenSavingsGoals: () -> Unit = {},
     onOpenRecurringBills: () -> Unit = {},
     onOpenAllowance: () -> Unit = {},
+    onOpenPaycheckEstimator: () -> Unit = {},
+    onOpenIouTracker: () -> Unit = {},
+    onOpenActivityCalendar: () -> Unit = {},
     listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
@@ -303,6 +365,16 @@ fun ToolsScreenContent(
                             metricColor = colors.azureInk,
                             onClick = onOpenSplitBill
                         )
+                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ToolGroupedRow(
+                            title = "IOU & Loans",
+                            metric = state.iouSummaryText,
+                            metricSub = "Debt & loan tracker (Lent vs Borrowed)",
+                            iconRes = R.drawable.ic_lucide_circle_dollar_sign,
+                            iconTileColor = colors.coralBright,
+                            metricColor = if (state.iouSummaryText.contains("you owe", ignoreCase = true)) colors.coralInk else colors.mintInk,
+                            onClick = onOpenIouTracker
+                        )
                     }
                 }
             }
@@ -365,6 +437,44 @@ fun ToolsScreenContent(
                             metricColor = colors.azureInk,
                             onClick = onOpenAllowance
                         )
+                        ShiftlyHairlineDivider(startInset = 66.dp)
+                        ToolGroupedRow(
+                            title = "Paycheck Estimator",
+                            metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.netPayTakeHome),
+                            metricSub = "Est. net take-home pay after deductions",
+                            iconRes = R.drawable.ic_lucide_receipt_text,
+                            iconTileColor = colors.mintBright,
+                            metricColor = colors.mintInk,
+                            onClick = onOpenPaycheckEstimator
+                        )
+                    }
+                }
+            }
+
+            item(key = "tools_calendar_group", contentType = "tool_group") {
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "CALENDAR & UTILITIES",
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                    ShiftlyGlassCard(
+                        cornerRadius = 18.dp,
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        ToolGroupedRow(
+                            title = "Activity Calendar",
+                            metric = "Monthly View",
+                            metricSub = "Shift & spend timeline dots",
+                            iconRes = R.drawable.ic_lucide_calendar,
+                            iconTileColor = colors.azurePrimary,
+                            metricColor = colors.textPrimary,
+                            onClick = onOpenActivityCalendar
+                        )
                     }
                 }
             }
@@ -397,7 +507,10 @@ fun ToolsScreenContent(
     onOpenBudgets: () -> Unit = {},
     onOpenSavingsGoals: () -> Unit = {},
     onOpenRecurringBills: () -> Unit = {},
-    onOpenAllowance: () -> Unit = {}
+    onOpenAllowance: () -> Unit = {},
+    onOpenPaycheckEstimator: () -> Unit = {},
+    onOpenIouTracker: () -> Unit = {},
+    onOpenActivityCalendar: () -> Unit = {}
 ) {
     val state = remember(
         currencySymbol,
@@ -431,7 +544,10 @@ fun ToolsScreenContent(
         onOpenBudgets = onOpenBudgets,
         onOpenSavingsGoals = onOpenSavingsGoals,
         onOpenRecurringBills = onOpenRecurringBills,
-        onOpenAllowance = onOpenAllowance
+        onOpenAllowance = onOpenAllowance,
+        onOpenPaycheckEstimator = onOpenPaycheckEstimator,
+        onOpenIouTracker = onOpenIouTracker,
+        onOpenActivityCalendar = onOpenActivityCalendar
     )
 }
 
