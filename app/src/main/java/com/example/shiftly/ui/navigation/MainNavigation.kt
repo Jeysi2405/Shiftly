@@ -15,7 +15,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -103,6 +102,7 @@ import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
@@ -123,7 +123,8 @@ import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.splitbill.NewSplitBillBottomSheet
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
 import com.example.shiftly.ui.screens.splitbill.SplitBillViewModel
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.DayType
@@ -140,7 +141,7 @@ import kotlinx.coroutines.withContext
 
 private val NavBarPillShape = RoundedCornerShape(50)
 private val SheetTopRoundedShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-private val QuickAddOptionShape = RoundedCornerShape(18.dp)
+private val QuickAddOptionShape = RoundedCornerShape(16.dp)
 private val DepositFieldShape = RoundedCornerShape(14.dp)
 
 @Composable
@@ -394,8 +395,7 @@ private fun MainDashboardShell(
                 ) { data ->
                     Surface(
                         shape = NavBarPillShape,
-                        color = colors.card,
-                        border = BorderStroke(1.dp, colors.border),
+                        color = colors.cardElevated,
                         shadowElevation = 0.dp,
                         tonalElevation = 0.dp,
                         modifier = Modifier.widthIn(max = 420.dp)
@@ -410,24 +410,17 @@ private fun MainDashboardShell(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.mintContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_circle_check),
-                                    contentDescription = null,
-                                    tint = colors.mintInk,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
+                            ShiftlyIosIconTile(
+                                iconRes = R.drawable.ic_lucide_circle_check,
+                                backgroundColor = colors.mintBright,
+                                size = 24.dp,
+                                cornerRadius = 7.dp,
+                                iconSize = 14.dp
+                            )
                             Text(
                                 text = data.visuals.message,
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Medium
                                 ),
                                 color = colors.textPrimary,
@@ -443,7 +436,7 @@ private fun MainDashboardShell(
                                     Text(
                                         text = actionLabel,
                                         style = MaterialTheme.typography.labelMedium.copy(
-                                            fontFamily = PlusJakartaSans,
+                                            fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.SemiBold
                                         ),
                                         color = colors.azureAccent
@@ -901,7 +894,7 @@ private fun QuickAddActionSheet(
                 ) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -914,24 +907,21 @@ private fun QuickAddActionSheet(
                 QuickAddOptionBox(
                     title = "Shift",
                     iconRes = R.drawable.ic_lucide_clock,
-                    iconBg = colors.mintContainer,
-                    iconTint = colors.mintInk,
+                    iconBg = colors.mintBright,
                     onClick = onLogShift,
                     modifier = Modifier.weight(1f)
                 )
                 QuickAddOptionBox(
                     title = "Expense",
                     iconRes = R.drawable.ic_lucide_receipt_text,
-                    iconBg = colors.coralContainer,
-                    iconTint = colors.coralInk,
+                    iconBg = colors.coralBright,
                     onClick = onAddExpense,
                     modifier = Modifier.weight(1f)
                 )
                 QuickAddOptionBox(
                     title = "Split",
                     iconRes = R.drawable.ic_lucide_split,
-                    iconBg = colors.azureContainer,
-                    iconTint = colors.azureInk,
+                    iconBg = colors.azurePrimary,
                     onClick = onSplitBill,
                     modifier = Modifier.weight(1f)
                 )
@@ -944,16 +934,14 @@ private fun QuickAddActionSheet(
                 QuickAddOptionBox(
                     title = "Savings",
                     iconRes = R.drawable.ic_lucide_piggy_bank,
-                    iconBg = colors.mintContainer,
-                    iconTint = colors.mintInk,
+                    iconBg = colors.iosOrange,
                     onClick = onAddSavingsGoal,
                     modifier = Modifier.weight(1f)
                 )
                 QuickAddOptionBox(
                     title = "Deposit",
                     iconRes = R.drawable.ic_lucide_wallet,
-                    iconBg = colors.azureContainer,
-                    iconTint = colors.azureInk,
+                    iconBg = colors.nightDiffPurple,
                     onClick = onAddDeposit,
                     modifier = Modifier.weight(1f)
                 )
@@ -967,15 +955,13 @@ private fun QuickAddOptionBox(
     title: String,
     @DrawableRes iconRes: Int,
     iconBg: Color,
-    iconTint: Color,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
     Surface(
         shape = QuickAddOptionShape,
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.border),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = modifier
             .clip(QuickAddOptionShape)
@@ -988,24 +974,17 @@ private fun QuickAddOptionBox(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(iconBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(iconRes),
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            ShiftlyIosIconTile(
+                iconRes = iconRes,
+                backgroundColor = iconBg,
+                size = 44.dp,
+                cornerRadius = 11.dp,
+                iconSize = 21.dp
+            )
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium.copy(
-                    fontFamily = PlusJakartaSans,
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = colors.textPrimary,
@@ -1065,7 +1044,7 @@ private fun QuickDepositPromptSheet(
                 ) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -1080,31 +1059,31 @@ private fun QuickDepositPromptSheet(
             } else {
                 Text(
                     text = "Target Goal: ${selectedGoal?.title}",
-                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
                     color = colors.textPrimary
                 )
 
                 val fieldColors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = colors.azureAccent,
-                    unfocusedBorderColor = colors.border,
+                    unfocusedBorderColor = Color.Transparent,
                     focusedLabelColor = colors.azureAccent,
                     unfocusedLabelColor = colors.textSecondary,
                     focusedTextColor = colors.textPrimary,
                     unfocusedTextColor = colors.textPrimary,
                     cursorColor = colors.azureAccent,
-                    focusedContainerColor = colors.card,
-                    unfocusedContainerColor = colors.card
+                    focusedContainerColor = colors.cardElevated,
+                    unfocusedContainerColor = colors.cardElevated
                 )
 
                 OutlinedTextField(
                     value = amountText,
                     onValueChange = { amountText = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("Deposit Amount ($currencySymbol)", fontFamily = PlusJakartaSans) },
+                    label = { Text("Deposit Amount ($currencySymbol)", fontFamily = InterFontFamily) },
                     placeholder = {
                         Text(
                             text = "0.00",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                            color = colors.textMuted
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                            color = colors.textSecondary
                         )
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -1117,12 +1096,12 @@ private fun QuickDepositPromptSheet(
                 OutlinedTextField(
                     value = noteText,
                     onValueChange = { noteText = it },
-                    label = { Text("Deposit Note (optional)", fontFamily = PlusJakartaSans) },
+                    label = { Text("Deposit Note (optional)", fontFamily = InterFontFamily) },
                     placeholder = {
                         Text(
                             text = "Add note",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                            color = colors.textMuted
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                            color = colors.textSecondary
                         )
                     },
                     singleLine = true,
@@ -1185,7 +1164,6 @@ fun FloatingPillBottomBar(
                 .height(68.dp),
             shape = NavBarPillShape,
             color = colors.surface,
-            border = BorderStroke(1.dp, colors.border),
             shadowElevation = 0.dp
         ) {
             Row(
@@ -1216,7 +1194,6 @@ fun FloatingPillBottomBar(
                     Surface(
                         shape = CircleShape,
                         color = colors.azurePrimary,
-                        border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.65f)),
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .size(50.dp)
@@ -1230,7 +1207,7 @@ fun FloatingPillBottomBar(
                             Icon(
                                 painter = painterResource(R.drawable.ic_lucide_plus),
                                 contentDescription = null,
-                                tint = colors.onAzurePrimary,
+                                tint = PureWhite,
                                 modifier = Modifier
                                     .size(26.dp)
                                     .graphicsLayer { rotationZ = fabRotationState.value }
@@ -1312,7 +1289,7 @@ private fun BottomNavItemSlot(
             Text(
                 text = screen.label,
                 style = MaterialTheme.typography.labelSmall.copy(
-                    fontFamily = PlusJakartaSans,
+                    fontFamily = InterFontFamily,
                     fontSize = 10.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                 ),

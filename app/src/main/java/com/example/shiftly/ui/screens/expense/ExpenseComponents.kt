@@ -4,9 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -42,7 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -71,6 +68,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -96,9 +94,13 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -114,13 +116,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val ExpensePillShape = RoundedCornerShape(50)
-private val ExpenseCardShape = RoundedCornerShape(22.dp)
-private val ExpenseItemShape = RoundedCornerShape(20.dp)
-private val ExpenseFieldLargeShape = RoundedCornerShape(18.dp)
-private val ExpenseFieldShape = RoundedCornerShape(16.dp)
-private val ExpenseChipShape = RoundedCornerShape(14.dp)
+private val ExpenseCardShape = RoundedCornerShape(18.dp)
+private val ExpenseItemShape = RoundedCornerShape(18.dp)
+private val ExpenseFieldLargeShape = RoundedCornerShape(14.dp)
+private val ExpenseFieldShape = RoundedCornerShape(12.dp)
+private val ExpenseChipShape = RoundedCornerShape(10.dp)
 private val ExpenseThumbShape = RoundedCornerShape(10.dp)
-private val ExpenseSheetTopShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+private val ExpenseSheetTopShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 private val ExpenseCategorySheetTopShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 
 @DrawableRes
@@ -164,14 +166,14 @@ fun ExpenseSummaryCard(
         colors.azureAccent,
         colors.mintBright,
         colors.nightDiffPurple,
-        colors.coralTextOnSurface
+        colors.iosOrange
     ) {
         listOf(
             colors.coralBright,
             colors.azureAccent,
             colors.mintBright,
             colors.nightDiffPurple,
-            colors.coralTextOnSurface
+            colors.iosOrange
         )
     }
 
@@ -186,7 +188,7 @@ fun ExpenseSummaryCard(
                     Text(
                         text = periodLabel,
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.8.sp
                         ),
@@ -196,7 +198,7 @@ fun ExpenseSummaryCard(
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotal),
                         style = MaterialTheme.typography.displaySmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 34.sp
                         ).tabular(),
@@ -210,14 +212,13 @@ fun ExpenseSummaryCard(
                 ) {
                     Surface(
                         shape = ExpensePillShape,
-                        color = colors.card,
-                        border = BorderStroke(1.dp, colors.cardBorder),
+                        color = colors.cardElevated,
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "All-time: ${ShiftlyFormatters.formatCurrency(currencySymbol, allTimeTotal)}",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ).tabular(),
                             color = colors.textPrimary,
@@ -228,7 +229,7 @@ fun ExpenseSummaryCard(
                         Text(
                             text = "$totalReceiptCount receipt(s) saved",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ),
                             color = colors.textSecondary
@@ -252,7 +253,7 @@ fun ExpenseSummaryCard(
                         Text(
                             text = "Monthly Budget",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ).tabular(),
                             color = colors.textSecondary
@@ -264,29 +265,17 @@ fun ExpenseSummaryCard(
                                 "${ShiftlyFormatters.formatCurrency(currencySymbol, remaining)} left"
                             },
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ).tabular(),
                             color = if (isNear) colors.coralTextOnSurface else colors.mintTextOnSurface
                         )
                     }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(6.dp)
-                            .clip(ExpensePillShape)
-                            .background(colors.border)
-                    ) {
-                        if (budgetUsed > 0f) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(budgetUsed)
-                                    .fillMaxHeight()
-                                    .clip(ExpensePillShape)
-                                    .background(if (isNear) colors.coralBright else colors.mintBright)
-                            )
-                        }
-                    }
+                    ShiftlyProgressBar(
+                        progress = budgetUsed,
+                        color = if (isNear) colors.coralBright else colors.mintBright,
+                        trackColor = colors.cardElevated
+                    )
                 }
             }
 
@@ -294,9 +283,9 @@ fun ExpenseSummaryCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(10.dp)
+                        .height(6.dp)
                         .clip(ExpensePillShape)
-                        .background(colors.border),
+                        .background(colors.cardElevated),
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     categoryBreakdown.forEachIndexed { index, item ->
@@ -330,7 +319,7 @@ fun ExpenseSummaryCard(
                             Text(
                                 text = "${item.category} (${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)})",
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Medium
                                 ).tabular(),
                                 color = colors.textSecondary
@@ -355,7 +344,7 @@ fun ExpenseSummaryCard(
                                     Text(
                                         text = item.category,
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = PlusJakartaSans,
+                                            fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.Medium
                                         ),
                                         color = colors.textPrimary
@@ -367,29 +356,17 @@ fun ExpenseSummaryCard(
                                             "${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)} / ${ShiftlyFormatters.formatCurrency(currencySymbol, limit)}"
                                         },
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = PlusJakartaSans,
+                                            fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.Medium
                                         ).tabular(),
                                         color = if (isNearOrOver) colors.coralTextOnSurface else colors.mintTextOnSurface
                                     )
                                 }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp)
-                                        .clip(ExpensePillShape)
-                                        .background(colors.border)
-                                ) {
-                                    if (usedFraction > 0f) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth(usedFraction)
-                                                .fillMaxHeight()
-                                                .clip(ExpensePillShape)
-                                                .background(if (isNearOrOver) colors.coralBright else colors.mintBright)
-                                        )
-                                    }
-                                }
+                                ShiftlyProgressBar(
+                                    progress = usedFraction,
+                                    color = if (isNearOrOver) colors.coralBright else colors.mintBright,
+                                    trackColor = colors.cardElevated
+                                )
                             }
                         }
                     }
@@ -433,26 +410,21 @@ fun ExpenseCategoryFilterRow(
             val isSelected = selectedCategory == category
             Box(
                 modifier = Modifier
-                    .heightIn(min = 48.dp)
+                    .heightIn(min = 42.dp)
                     .clip(ExpensePillShape)
-                    .background(if (isSelected) colors.azurePrimary else colors.surface)
-                    .border(
-                        width = 1.dp,
-                        color = if (isSelected) colors.azureAccent else colors.cardBorder,
-                        shape = ExpensePillShape
-                    )
+                    .background(if (isSelected) colors.azurePrimary else colors.card)
                     .clickable(role = Role.Tab) { onSelectCategory(category) }
                     .semantics(mergeDescendants = true) {
                         selected = isSelected
                         contentDescription = "$category expenses filter"
                     }
-                    .padding(horizontal = 18.dp),
+                    .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = category,
                     style = MaterialTheme.typography.labelMedium.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
                     ),
                     color = if (isSelected) colors.onAzurePrimary else colors.textSecondary
@@ -490,8 +462,7 @@ fun ExpenseEmptyCard(
     }
     Surface(
         shape = ExpenseCardShape,
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -502,23 +473,17 @@ fun ExpenseEmptyCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(colors.coralContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_receipt_text),
-                    contentDescription = null,
-                    tint = colors.coralInk,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
+            ShiftlyIosIconTile(
+                iconRes = R.drawable.ic_lucide_receipt_text,
+                backgroundColor = colors.coralBright,
+                size = 48.dp,
+                cornerRadius = 12.dp,
+                iconSize = 24.dp,
+                iconTint = PureWhite
+            )
             Text(
                 text = emptyTitle,
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
@@ -532,7 +497,7 @@ fun ExpenseEmptyCard(
                     Text(
                         text = "Log Expense",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.azureInk
@@ -549,7 +514,9 @@ fun ExpenseItemCard(
     currencySymbol: String,
     onViewReceipt: (ExpenseEntity) -> Unit,
     onDelete: () -> Unit,
-    dateFormatter: DateTimeFormatter? = null
+    dateFormatter: DateTimeFormatter? = null,
+    containerColor: Color = ShiftlyColors.current.cardElevated,
+    shape: Shape = ExpenseItemShape
 ) {
     val colors = ShiftlyColors.current
     val resolvedFormatter = dateFormatter ?: run {
@@ -569,9 +536,8 @@ fun ExpenseItemCard(
     val isSavingsItem = expense.category.equals("Savings", ignoreCase = true)
 
     Surface(
-        shape = ExpenseItemShape,
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        shape = shape,
+        color = containerColor,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -582,36 +548,25 @@ fun ExpenseItemCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(
-                        when {
-                            isSavingsItem -> colors.mintContainer
-                            isSplitItem -> colors.azureContainer
-                            else -> colors.coralContainer
-                        }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(categoryIcon(expense.category)),
-                    contentDescription = expense.category,
-                    tint = when {
-                        isSavingsItem -> colors.mintInk
-                        isSplitItem -> colors.azureInk
-                        else -> colors.coralInk
-                    },
-                    modifier = Modifier.size(21.dp)
-                )
-            }
+            ShiftlyIosIconTile(
+                iconRes = categoryIcon(expense.category),
+                backgroundColor = when {
+                    isSavingsItem -> colors.mintBright
+                    isSplitItem -> colors.azurePrimary
+                    else -> colors.coralBright
+                },
+                size = 38.dp,
+                cornerRadius = 9.dp,
+                iconSize = 19.dp,
+                iconTint = PureWhite,
+                contentDescription = expense.category
+            )
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = expense.title,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary,
@@ -621,14 +576,14 @@ fun ExpenseItemCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "${expense.category}  •  $dateLabel",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
 
                 if (hasReceipt) {
                     Box(
                         modifier = Modifier
-                            .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                            .defaultMinSize(minWidth = 48.dp, minHeight = 40.dp)
                             .clip(ExpenseChipShape)
                             .clickable(onClickLabel = "View receipt for ${expense.title}") {
                                 onViewReceipt(expense)
@@ -657,7 +612,7 @@ fun ExpenseItemCard(
                                 Text(
                                     text = "Receipt",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFamily = PlusJakartaSans,
+                                        fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.SemiBold
                                     ),
                                     color = colors.azureInk
@@ -675,20 +630,20 @@ fun ExpenseItemCard(
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, expense.amount, showMinus = true),
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.coralInk
                 )
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_trash_2),
                         contentDescription = "Delete Expense ${expense.title}",
                         tint = colors.coralInk.copy(alpha = 0.85f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(19.dp)
                     )
                 }
             }
@@ -870,7 +825,7 @@ fun AddExpenseSheetContent(
         ) {
             Text(
                 text = "Add Expense",
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
                 color = colors.textPrimary
             )
             TextButton(
@@ -879,7 +834,7 @@ fun AddExpenseSheetContent(
             ) {
                 Text(
                     text = "Cancel",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
             }
@@ -893,26 +848,26 @@ fun AddExpenseSheetContent(
                     amountText = filtered
                 }
             },
-            label = { Text("Amount", fontFamily = PlusJakartaSans) },
+            label = { Text("Amount", fontFamily = InterFontFamily) },
             placeholder = {
                 Text(
                     text = "0",
-                    style = MaterialTheme.typography.headlineLarge.tabular(),
-                    color = colors.textMuted
+                    style = MaterialTheme.typography.headlineLarge.copy(fontFamily = InterFontFamily).tabular(),
+                    color = colors.textSecondary
                 )
             },
             prefix = {
                 Text(
                     text = "$currencySymbol ",
                     style = MaterialTheme.typography.headlineLarge.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold
                     ),
                     color = colors.coralInk
                 )
             },
             textStyle = MaterialTheme.typography.headlineLarge.copy(
-                fontFamily = PlusJakartaSans,
+                fontFamily = InterFontFamily,
                 fontWeight = FontWeight.Bold
             ).tabular(),
             singleLine = true,
@@ -920,11 +875,13 @@ fun AddExpenseSheetContent(
             shape = ExpenseFieldLargeShape,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = colors.coralInk,
-                unfocusedBorderColor = colors.border,
+                unfocusedBorderColor = Color.Transparent,
                 focusedLabelColor = colors.coralInk,
                 unfocusedLabelColor = colors.textSecondary,
                 focusedTextColor = colors.textPrimary,
-                unfocusedTextColor = colors.textPrimary
+                unfocusedTextColor = colors.textPrimary,
+                focusedContainerColor = colors.cardElevated,
+                unfocusedContainerColor = colors.cardElevated
             ),
             modifier = Modifier
                 .fillMaxWidth()
@@ -934,22 +891,25 @@ fun AddExpenseSheetContent(
         OutlinedTextField(
             value = title,
             onValueChange = { title = it },
-            label = { Text("Title", fontFamily = PlusJakartaSans) },
+            label = { Text("Title", fontFamily = InterFontFamily) },
             placeholder = {
                 Text(
                     text = "e.g., Tapsilog & Iced Coffee",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans)
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                    color = colors.textSecondary
                 )
             },
             singleLine = true,
             shape = ExpenseFieldShape,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = colors.azureAccent,
-                unfocusedBorderColor = colors.border,
+                unfocusedBorderColor = Color.Transparent,
                 focusedLabelColor = colors.azureAccent,
                 unfocusedLabelColor = colors.textSecondary,
                 focusedTextColor = colors.textPrimary,
-                unfocusedTextColor = colors.textPrimary
+                unfocusedTextColor = colors.textPrimary,
+                focusedContainerColor = colors.cardElevated,
+                unfocusedContainerColor = colors.cardElevated
             ),
             modifier = Modifier.fillMaxWidth()
         )
@@ -957,8 +917,7 @@ fun AddExpenseSheetContent(
         // Category selection prompt card
         Surface(
             shape = ExpenseFieldShape,
-            color = colors.card,
-            border = BorderStroke(1.dp, colors.cardBorder),
+            color = colors.cardElevated,
             shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -977,25 +936,19 @@ fun AddExpenseSheetContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(colors.coralContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(categoryIcon(selectedCategory)),
-                            contentDescription = null,
-                            tint = colors.coralInk,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    ShiftlyIosIconTile(
+                        iconRes = categoryIcon(selectedCategory),
+                        backgroundColor = colors.coralBright,
+                        size = 34.dp,
+                        cornerRadius = 8.dp,
+                        iconSize = 18.dp,
+                        iconTint = PureWhite
+                    )
                     Column {
                         Text(
                             text = "Category",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ),
                             color = colors.textSecondary
@@ -1003,7 +956,7 @@ fun AddExpenseSheetContent(
                         Text(
                             text = selectedCategory,
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary
@@ -1026,8 +979,7 @@ fun AddExpenseSheetContent(
         ) {
             Surface(
                 shape = ExpenseFieldShape,
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .weight(1f)
@@ -1048,7 +1000,7 @@ fun AddExpenseSheetContent(
                     )
                     Text(
                         text = selectedDate.format(dateFormatter),
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                         color = colors.textPrimary
                     )
                 }
@@ -1056,8 +1008,7 @@ fun AddExpenseSheetContent(
 
             Surface(
                 shape = ExpenseFieldShape,
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .weight(1f)
@@ -1078,7 +1029,7 @@ fun AddExpenseSheetContent(
                     )
                     Text(
                         text = selectedTime.format(timeFormatter),
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                         color = colors.textPrimary
                     )
                 }
@@ -1088,15 +1039,14 @@ fun AddExpenseSheetContent(
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(
                 text = "Receipt (optional)",
-                style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                 color = colors.textSecondary
             )
 
             if (receiptThumbRequest != null) {
                 Surface(
                     shape = ExpenseFieldShape,
-                    color = colors.card,
-                    border = BorderStroke(1.dp, colors.azureAccent),
+                    color = colors.cardElevated,
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -1117,7 +1067,7 @@ fun AddExpenseSheetContent(
                         )
                         Text(
                             text = "Receipt attached",
-                            style = MaterialTheme.typography.titleSmall,
+                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                             color = colors.textPrimary,
                             modifier = Modifier.weight(1f)
                         )
@@ -1145,7 +1095,7 @@ fun AddExpenseSheetContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    OutlinedButton(
+                    Button(
                         onClick = {
                             suppressNextRelock()
                             galleryLauncher.launch(
@@ -1154,7 +1104,14 @@ fun AddExpenseSheetContent(
                         },
                         enabled = !isProcessingCameraPhoto,
                         shape = ExpensePillShape,
-                        border = BorderStroke(1.dp, colors.border),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.cardElevated,
+                            contentColor = colors.textPrimary
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp
+                        ),
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 48.dp)
@@ -1168,12 +1125,12 @@ fun AddExpenseSheetContent(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Gallery",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                             color = colors.textPrimary
                         )
                     }
 
-                    OutlinedButton(
+                    Button(
                         onClick = {
                             suppressNextRelock()
                             coroutineScope.launch {
@@ -1194,7 +1151,14 @@ fun AddExpenseSheetContent(
                         },
                         enabled = !isProcessingCameraPhoto,
                         shape = ExpensePillShape,
-                        border = BorderStroke(1.dp, colors.border),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.cardElevated,
+                            contentColor = colors.textPrimary
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 0.dp,
+                            pressedElevation = 0.dp
+                        ),
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 48.dp)
@@ -1208,7 +1172,7 @@ fun AddExpenseSheetContent(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = if (isProcessingCameraPhoto) "Saving..." else "Camera",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                             color = colors.textPrimary
                         )
                     }
@@ -1239,7 +1203,7 @@ fun AddExpenseSheetContent(
             Text(
                 text = "Add Expense",
                 style = MaterialTheme.typography.labelLarge.copy(
-                    fontFamily = PlusJakartaSans,
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.SemiBold
                 )
             )
@@ -1275,7 +1239,7 @@ fun AddExpenseSheetContent(
                     Text(
                         text = "OK",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.azureAccent
@@ -1286,7 +1250,7 @@ fun AddExpenseSheetContent(
                 TextButton(onClick = { showTimePicker = false }) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -1301,18 +1265,18 @@ fun AddExpenseSheetContent(
                 TimePicker(
                     state = timePickerState,
                     colors = TimePickerDefaults.colors(
-                        clockDialColor = colors.card,
+                        clockDialColor = colors.cardElevated,
                         clockDialSelectedContentColor = colors.onAzurePrimary,
                         clockDialUnselectedContentColor = colors.textSecondary,
                         selectorColor = colors.azurePrimary,
                         containerColor = colors.surface,
-                        periodSelectorBorderColor = colors.border,
+                        periodSelectorBorderColor = colors.separator,
                         periodSelectorSelectedContainerColor = colors.azurePrimary,
-                        periodSelectorUnselectedContainerColor = colors.surface,
+                        periodSelectorUnselectedContainerColor = colors.cardElevated,
                         periodSelectorSelectedContentColor = colors.onAzurePrimary,
                         periodSelectorUnselectedContentColor = colors.textSecondary,
                         timeSelectorSelectedContainerColor = colors.cardElevated,
-                        timeSelectorUnselectedContainerColor = colors.surface,
+                        timeSelectorUnselectedContainerColor = colors.cardElevated,
                         timeSelectorSelectedContentColor = colors.textPrimary,
                         timeSelectorUnselectedContentColor = colors.textSecondary
                     )
@@ -1343,7 +1307,7 @@ fun AddExpenseSheetContent(
                     Text(
                         text = "Select",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.azureAccent
@@ -1354,7 +1318,7 @@ fun AddExpenseSheetContent(
                 TextButton(onClick = { showDatePicker = false }) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -1373,7 +1337,7 @@ fun AddExpenseSheetContent(
                     selectedYearContentColor = colors.onAzurePrimary,
                     selectedYearContainerColor = colors.azurePrimary,
                     dayContentColor = colors.textPrimary,
-                    disabledDayContentColor = colors.textMuted,
+                    disabledDayContentColor = colors.textSecondary.copy(alpha = 0.45f),
                     selectedDayContentColor = colors.onAzurePrimary,
                     selectedDayContainerColor = colors.azurePrimary,
                     todayContentColor = colors.azureAccent,
@@ -1408,7 +1372,7 @@ fun CategoryPromptSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1417,7 +1381,7 @@ fun CategoryPromptSheet(
             ) {
                 Text(
                     text = "Select Category",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
                     color = colors.textPrimary
                 )
                 TextButton(
@@ -1426,62 +1390,51 @@ fun CategoryPromptSheet(
                 ) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
             }
 
-            categoryOptions.forEach { category ->
-                val isSelected = category.equals(selectedCategory, ignoreCase = true)
-                Surface(
-                    shape = ExpenseFieldShape,
-                    color = if (isSelected) colors.coralContainer else colors.card,
-                    border = BorderStroke(
-                        width = if (isSelected) 1.5.dp else 1.dp,
-                        color = if (isSelected) colors.coralInk else colors.cardBorder
-                    ),
-                    shadowElevation = 0.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(ExpenseFieldShape)
-                        .clickable(role = Role.RadioButton) {
-                            onSelectCategory(category)
-                            onDismiss()
-                        }
-                        .semantics(mergeDescendants = true) {
-                            this.selected = isSelected
-                        }
-                ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(colors.cardElevated)
+            ) {
+                categoryOptions.forEachIndexed { idx, category ->
+                    val isSelected = category.equals(selectedCategory, ignoreCase = true)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .background(if (isSelected) colors.coralContainer else Color.Transparent)
+                            .clickable(role = Role.RadioButton) {
+                                onSelectCategory(category)
+                                onDismiss()
+                            }
+                            .semantics(mergeDescendants = true) {
+                                this.selected = isSelected
+                            }
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isSelected) colors.coralInk.copy(alpha = 0.2f) else colors.surface),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(categoryIcon(category)),
-                                    contentDescription = null,
-                                    tint = if (isSelected) colors.coralInk else colors.textSecondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            ShiftlyIosIconTile(
+                                iconRes = categoryIcon(category),
+                                backgroundColor = if (isSelected) colors.coralBright else colors.surface,
+                                size = 32.dp,
+                                cornerRadius = 8.dp,
+                                iconSize = 17.dp,
+                                iconTint = PureWhite
+                            )
                             Text(
                                 text = category,
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = colors.textPrimary
@@ -1492,17 +1445,20 @@ fun CategoryPromptSheet(
                                 modifier = Modifier
                                     .size(24.dp)
                                     .clip(CircleShape)
-                                    .background(colors.coralInk),
+                                    .background(colors.coralBright),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     painter = painterResource(R.drawable.ic_lucide_check),
                                     contentDescription = "Selected",
-                                    tint = colors.onAccentDark,
+                                    tint = PureWhite,
                                     modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
+                    }
+                    if (idx < categoryOptions.lastIndex) {
+                        ShiftlyHairlineDivider(startInset = 60.dp)
                     }
                 }
             }
@@ -1555,12 +1511,12 @@ fun ReceiptViewerDialog(
                     Column {
                         Text(
                             text = expense.title,
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
                             color = colors.textPrimary
                         )
                         Text(
                             text = "${ShiftlyFormatters.formatCurrency(currencySymbol, expense.amount)}  •  $dateLabel",
-                            style = MaterialTheme.typography.bodySmall.tabular(),
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily).tabular(),
                             color = colors.coralTextOnSurface
                         )
                     }
@@ -1571,7 +1527,7 @@ fun ReceiptViewerDialog(
                     ) {
                         Text(
                             text = "Cancel",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                             color = colors.textSecondary
                         )
                     }

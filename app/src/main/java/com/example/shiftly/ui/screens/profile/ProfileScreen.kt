@@ -8,15 +8,12 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -28,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -67,6 +63,7 @@ import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
@@ -75,6 +72,7 @@ import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -86,7 +84,7 @@ import java.io.File
 import java.time.LocalDate
 
 private val BACKUP_PICKER_MIME_TYPES = arrayOf("application/zip", "application/json", "text/plain", "*/*")
-private val ProfileSettingsSheetTopShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+private val ProfileSettingsSheetTopShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 
 private enum class ActiveSettingsSheet {
     ACCOUNT,
@@ -567,7 +565,7 @@ private fun ProfileScreenContent(
 ) {
     val colors = ShiftlyColors.current
     val context = LocalContext.current
-    val avatarSizePx = with(LocalDensity.current) { 56.dp.roundToPx() }
+    val avatarSizePx = with(LocalDensity.current) { 52.dp.roundToPx() }
     val currency = state.currencySymbol
 
     val hasPhoto by produceState(initialValue = false, state.profilePhotoPath) {
@@ -598,68 +596,61 @@ private fun ProfileScreenContent(
             .fillMaxSize()
             .statusBarsPadding(),
         contentPadding = PaddingValues(top = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item(key = "profile_header", contentType = "header") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clickable(onClick = onAvatarClick)
-                ) {
+            ShiftlyScreenHeader(
+                title = "Profile",
+                largeTitle = true,
+                subtitle = state.userName.takeIf { it.isNotBlank() },
+                modifier = Modifier.padding(horizontal = 20.dp),
+                trailing = {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(colors.card)
-                            .border(1.5.dp, colors.azureAccent.copy(alpha = 0.7f), CircleShape),
-                        contentAlignment = Alignment.Center
+                            .size(52.dp)
+                            .clickable(onClick = onAvatarClick)
                     ) {
-                        if (avatarRequest != null) {
-                            AsyncImage(
-                                model = avatarRequest,
-                                contentDescription = "Profile photo",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.size(56.dp)
-                            )
-                        } else {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(colors.card),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (avatarRequest != null) {
+                                AsyncImage(
+                                    model = avatarRequest,
+                                    contentDescription = "Profile photo",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.size(52.dp)
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_lucide_user),
+                                    contentDescription = "Add profile photo",
+                                    tint = colors.textSecondary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .align(Alignment.BottomEnd)
+                                .clip(CircleShape)
+                                .background(colors.azurePrimary),
+                            contentAlignment = Alignment.Center
+                        ) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_lucide_user),
-                                contentDescription = "Add profile photo",
-                                tint = colors.textSecondary,
-                                modifier = Modifier.size(26.dp)
+                                painter = painterResource(R.drawable.ic_lucide_camera),
+                                contentDescription = null,
+                                tint = PureWhite,
+                                modifier = Modifier.size(11.dp)
                             )
                         }
                     }
-                    Box(
-                        modifier = Modifier
-                            .size(22.dp)
-                            .align(Alignment.BottomEnd)
-                            .clip(CircleShape)
-                            .background(colors.azureAccent)
-                            .border(1.5.dp, colors.surface, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_camera),
-                            contentDescription = null,
-                            tint = colors.onAzurePrimary,
-                            modifier = Modifier.size(12.dp)
-                        )
-                    }
                 }
-
-                ShiftlyScreenHeader(
-                    title = "Profile & Settings",
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            )
         }
 
         item(key = "profile_snapshot", contentType = "snapshot") {
@@ -681,14 +672,13 @@ private fun ProfileScreenContent(
                     .heightIn(min = 520.dp),
                 shape = ProfileSettingsSheetTopShape,
                 color = colors.surface,
-                border = BorderStroke(1.dp, colors.cardBorder),
                 shadowElevation = 0.dp
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     ShiftlySheetDragHandle()
 
@@ -702,25 +692,29 @@ private fun ProfileScreenContent(
                         SettingsChevronRow(
                             iconRes = R.drawable.ic_lucide_user,
                             title = "Account",
+                            iconBg = colors.azurePrimary,
+                            iconTint = PureWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
                         )
-                        HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
+                        ShiftlyHairlineDivider(startInset = 62.dp)
                         SettingsChevronRow(
                             iconRes = R.drawable.ic_lucide_circle_dollar_sign,
                             title = "Currency",
-                            iconBg = colors.mintContainer,
-                            iconTint = colors.mintInk,
+                            iconBg = colors.mintBright,
+                            iconTint = PureWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.CURRENCY) }
                         )
-                        HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
+                        ShiftlyHairlineDivider(startInset = 62.dp)
                         SettingsSwitchRow(
                             iconRes = R.drawable.ic_lucide_bell,
                             title = "Notifications",
                             checked = state.settings.notificationsEnabled,
                             onCheckedChange = onToggleNotifications,
-                            onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) }
+                            onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) },
+                            iconBg = colors.iosOrange,
+                            iconTint = PureWhite
                         )
-                        HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
+                        ShiftlyHairlineDivider(startInset = 62.dp)
                         SettingsChevronRow(
                             iconRes = R.drawable.ic_lucide_palette,
                             title = "App Theme",
@@ -729,8 +723,8 @@ private fun ProfileScreenContent(
                                 "DARK" -> "Dark Mode"
                                 else -> "System Default"
                             },
-                            iconBg = colors.coralContainer,
-                            iconTint = colors.coralInk,
+                            iconBg = colors.coralBright,
+                            iconTint = PureWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.THEME) }
                         )
                     }
@@ -742,13 +736,15 @@ private fun ProfileScreenContent(
                             checked = state.settings.appLockEnabled,
                             onCheckedChange = onToggleAppLock,
                             onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },
-                            iconBg = colors.azureContainer,
-                            iconTint = colors.azureInk
+                            iconBg = colors.nightDiffPurple,
+                            iconTint = PureWhite
                         )
-                        HorizontalDivider(color = colors.border, modifier = Modifier.padding(start = 66.dp))
+                        ShiftlyHairlineDivider(startInset = 62.dp)
                         SettingsChevronRow(
                             iconRes = R.drawable.ic_lucide_cloud_upload,
                             title = "Data Export & Restore",
+                            iconBg = colors.azurePrimary,
+                            iconTint = PureWhite,
                             onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }
                         )
                     }

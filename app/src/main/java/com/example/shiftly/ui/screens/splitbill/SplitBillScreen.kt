@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens.splitbill
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,14 +18,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,7 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -55,6 +52,7 @@ import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
@@ -63,8 +61,8 @@ import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
@@ -157,20 +155,13 @@ fun SplitBillScreen(
                 onDismissRequest = { pendingDeleteBill = null },
                 containerColor = colors.card,
                 icon = {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(colors.coralContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_trash_2),
-                            contentDescription = null,
-                            tint = colors.coralInk,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
+                    ShiftlyIosIconTile(
+                        iconRes = R.drawable.ic_lucide_trash_2,
+                        backgroundColor = colors.coralBright,
+                        size = 44.dp,
+                        cornerRadius = 11.dp,
+                        iconSize = 22.dp
+                    )
                 },
                 title = {
                     Text(
@@ -201,7 +192,7 @@ fun SplitBillScreen(
                             shape = RoundedCornerShape(50),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = colors.coralBright,
-                                contentColor = colors.onAccentDark
+                                contentColor = PureWhite
                             ),
                             elevation = ButtonDefaults.buttonElevation(
                                 defaultElevation = 0.dp,
@@ -212,12 +203,12 @@ fun SplitBillScreen(
                             Text(
                                 text = "Delete Both",
                                 style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             )
                         }
-                        OutlinedButton(
+                        Button(
                             onClick = {
                                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                                 viewModel.deleteSplitBill(billToDelete, deleteLinkedExpense = false)
@@ -225,14 +216,20 @@ fun SplitBillScreen(
                                 onShowMessage("Split bill deleted; expense kept")
                             },
                             shape = RoundedCornerShape(50),
-                            border = BorderStroke(1.dp, colors.border),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colors.cardElevated,
+                                contentColor = colors.textPrimary
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 0.dp,
+                                pressedElevation = 0.dp
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
                                 text = "Keep Expense",
                                 style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             )
@@ -244,7 +241,7 @@ fun SplitBillScreen(
                             Text(
                                 text = "Cancel",
                                 style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = PlusJakartaSans
+                                    fontFamily = InterFontFamily
                                 ),
                                 color = colors.textSecondary
                             )
@@ -340,7 +337,7 @@ fun SplitBillScreenContent(
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 46.dp)
+                        .heightIn(min = 48.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_plus),
@@ -351,7 +348,7 @@ fun SplitBillScreenContent(
                     Text(
                         text = "New Split",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.onAzurePrimary
@@ -365,7 +362,7 @@ fun SplitBillScreenContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .shiftlySheetTopBand(colors.surface)
                     .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -385,7 +382,7 @@ fun SplitBillScreenContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 500.dp)
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
                 ) {
                     SplitBillEmptyCard(
@@ -406,7 +403,7 @@ fun SplitBillScreenContent(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .padding(horizontal = 20.dp)
                 ) {
                     SplitBillLogItemCard(
@@ -418,7 +415,7 @@ fun SplitBillScreenContent(
                         dateFormatter = itemDateFormatter
                     )
                     if (idx < state.billsWithParticipants.lastIndex) {
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
             }
@@ -427,7 +424,7 @@ fun SplitBillScreenContent(
                 Spacer(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .height(if (state.billsWithParticipants.size <= 1) 260.dp else 104.dp)
                 )
             }
@@ -496,12 +493,11 @@ private fun NewSplitBillSheetPreview() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(InkBlack.copy(alpha = 0.65f))
+                        .background(Color.Black.copy(alpha = 0.65f))
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()

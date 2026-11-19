@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.allowance
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -43,12 +47,13 @@ import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetTopBand
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
@@ -156,7 +161,7 @@ fun AllowanceScreenContent(
                             pressedElevation = 0.dp
                         ),
                         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-                        modifier = Modifier.heightIn(min = 48.dp)
+                        modifier = Modifier.heightIn(min = 44.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_plus),
@@ -167,7 +172,7 @@ fun AllowanceScreenContent(
                         Text(
                             text = "Add",
                             style = MaterialTheme.typography.labelLarge.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.onAzurePrimary
@@ -206,7 +211,7 @@ fun AllowanceScreenContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .shiftlySheetTopBand(colors.surface)
                     .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -226,7 +231,7 @@ fun AllowanceScreenContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 440.dp)
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
                 ) {
                     AllowanceEmptyCard(onAddAllowance = onOpenAddAllowance)
@@ -238,20 +243,35 @@ fun AllowanceScreenContent(
                 key = { _, entry -> "allowance_${entry.id}" },
                 contentType = { _, _ -> "allowance_item" }
             ) { idx, entry ->
-                Column(
+                val rowShape = when {
+                    state.entries.size == 1 -> RoundedCornerShape(18.dp)
+                    idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                    idx == state.entries.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+                    else -> RectangleShape
+                }
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .padding(horizontal = 20.dp)
                 ) {
-                    AllowanceHistoryItemCard(
-                        entry = entry,
-                        currencySymbol = state.currencySymbol,
-                        onDelete = { onDeleteEntry(entry) },
-                        dateFormatter = itemDateFormatter
-                    )
-                    if (idx < state.entries.lastIndex) {
-                        Spacer(modifier = Modifier.height(14.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(rowShape)
+                            .background(colors.cardElevated)
+                    ) {
+                        AllowanceHistoryItemCard(
+                            entry = entry,
+                            currencySymbol = state.currencySymbol,
+                            onDelete = { onDeleteEntry(entry) },
+                            dateFormatter = itemDateFormatter,
+                            containerColor = Color.Transparent,
+                            shape = RectangleShape
+                        )
+                        if (idx < state.entries.lastIndex) {
+                            ShiftlyHairlineDivider(startInset = 64.dp)
+                        }
                     }
                 }
             }
@@ -260,7 +280,7 @@ fun AllowanceScreenContent(
                 Spacer(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .height(
                             when {
                                 state.entries.size <= 2 -> 220.dp

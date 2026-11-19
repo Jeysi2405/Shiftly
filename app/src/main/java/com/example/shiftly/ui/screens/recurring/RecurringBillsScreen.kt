@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.recurring
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -43,12 +47,13 @@ import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetTopBand
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.RecurringEngine
@@ -218,7 +223,7 @@ fun RecurringBillsScreenContent(
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 46.dp)
+                            .heightIn(min = 48.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_plus),
@@ -229,7 +234,7 @@ fun RecurringBillsScreenContent(
                         Text(
                             text = "Add Recurring Bill",
                             style = MaterialTheme.typography.labelLarge.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.onAzurePrimary
@@ -243,7 +248,7 @@ fun RecurringBillsScreenContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .shiftlySheetTopBand(colors.surface)
                     .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -263,7 +268,7 @@ fun RecurringBillsScreenContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 540.dp)
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
                 ) {
                     RecurringBillsEmptyCard(onAddBill = onOpenAddSheet)
@@ -275,23 +280,38 @@ fun RecurringBillsScreenContent(
                 key = { _, bill -> "recurring_${bill.id}" },
                 contentType = { _, _ -> "recurring_bill_item" }
             ) { idx, bill ->
-                Column(
+                val rowShape = when {
+                    state.bills.size == 1 -> RoundedCornerShape(18.dp)
+                    idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                    idx == state.bills.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+                    else -> RectangleShape
+                }
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .padding(horizontal = 20.dp)
                 ) {
-                    RecurringBillItemCard(
-                        bill = bill,
-                        currencySymbol = state.currencySymbol,
-                        onToggleEnabled = { enabled -> onToggleEnabled(bill, enabled) },
-                        onEdit = { onEditBill(bill) },
-                        onDelete = { onDeleteBill(bill) },
-                        dateTimeFormatter = itemDateTimeFormatter,
-                        now = now
-                    )
-                    if (idx < state.bills.lastIndex) {
-                        Spacer(modifier = Modifier.height(14.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(rowShape)
+                            .background(colors.cardElevated)
+                    ) {
+                        RecurringBillItemCard(
+                            bill = bill,
+                            currencySymbol = state.currencySymbol,
+                            onToggleEnabled = { enabled -> onToggleEnabled(bill, enabled) },
+                            onEdit = { onEditBill(bill) },
+                            onDelete = { onDeleteBill(bill) },
+                            dateTimeFormatter = itemDateTimeFormatter,
+                            now = now,
+                            containerColor = Color.Transparent,
+                            shape = RectangleShape
+                        )
+                        if (idx < state.bills.lastIndex) {
+                            ShiftlyHairlineDivider(startInset = 64.dp)
+                        }
                     }
                 }
             }
@@ -300,7 +320,7 @@ fun RecurringBillsScreenContent(
                 Spacer(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .height(if (state.bills.size <= 2) 260.dp else 104.dp)
                 )
             }

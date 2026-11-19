@@ -1,18 +1,19 @@
 package com.example.shiftly.ui.screens.profile
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -29,12 +30,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -54,7 +53,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
@@ -81,11 +79,15 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
 import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.PinSecurity
@@ -130,11 +132,11 @@ private fun formatEditableNumber(value: Double): String {
 private fun shiftlySwitchColors(): androidx.compose.material3.SwitchColors {
     val colors = ShiftlyColors.current
     return SwitchDefaults.colors(
-        checkedThumbColor = colors.onAccentDark,
+        checkedThumbColor = PureWhite,
         checkedTrackColor = colors.mintBright,
         uncheckedThumbColor = colors.textSecondary,
         uncheckedTrackColor = colors.surface,
-        uncheckedBorderColor = colors.border
+        uncheckedBorderColor = Color.Transparent
     )
 }
 
@@ -143,14 +145,14 @@ private fun shiftlySheetFieldColors(): androidx.compose.material3.TextFieldColor
     val colors = ShiftlyColors.current
     return OutlinedTextFieldDefaults.colors(
         focusedBorderColor = colors.azureAccent,
-        unfocusedBorderColor = colors.border,
+        unfocusedBorderColor = Color.Transparent,
         focusedLabelColor = colors.azureAccent,
         unfocusedLabelColor = colors.textSecondary,
         focusedTextColor = colors.textPrimary,
         unfocusedTextColor = colors.textPrimary,
         cursorColor = colors.azureAccent,
-        focusedContainerColor = colors.card,
-        unfocusedContainerColor = colors.card
+        focusedContainerColor = colors.cardElevated,
+        unfocusedContainerColor = colors.cardElevated
     )
 }
 
@@ -163,51 +165,65 @@ fun ProfileSnapshotGlassCard(
     totalExpenses: Double
 ) {
     val colors = ShiftlyColors.current
-    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+    ShiftlyGlassCard(cornerRadius = 18.dp, contentPadding = PaddingValues(18.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 text = "SNAPSHOT",
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontFamily = PlusJakartaSans,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.8.sp
+                    letterSpacing = 0.7.sp
                 ),
                 color = colors.textSecondary
             )
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
             ) {
-                GlassSnapshotTile(
+                SnapshotStatColumn(
                     label = "Shifts",
                     value = totalShifts.toString(),
                     valueColor = colors.textPrimary,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 12.dp)
                 )
-                GlassSnapshotTile(
+                ShiftlyVerticalHairlineDivider(modifier = Modifier.fillMaxHeight())
+                SnapshotStatColumn(
                     label = "Hours",
                     value = ShiftlyFormatters.formatHours(totalHoursWorked, compact = true),
                     valueColor = colors.textPrimary,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp)
                 )
             }
 
+            ShiftlyHairlineDivider()
+
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
             ) {
-                GlassSnapshotTile(
+                SnapshotStatColumn(
                     label = "Earnings",
                     value = ShiftlyFormatters.formatCurrency(currencySymbol, totalEarnings),
                     valueColor = colors.mintTextOnSurface,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 12.dp)
                 )
-                GlassSnapshotTile(
+                ShiftlyVerticalHairlineDivider(modifier = Modifier.fillMaxHeight())
+                SnapshotStatColumn(
                     label = "Expenses",
                     value = ShiftlyFormatters.formatCurrency(currencySymbol, totalExpenses),
                     valueColor = colors.coralTextOnSurface,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp)
                 )
             }
         }
@@ -215,44 +231,33 @@ fun ProfileSnapshotGlassCard(
 }
 
 @Composable
-private fun GlassSnapshotTile(
+private fun SnapshotStatColumn(
     label: String,
     value: String,
     valueColor: Color,
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
-        shadowElevation = 0.dp
+    Column(
+        modifier = modifier.padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = colors.textSecondary
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 19.sp
-                ).tabular(),
-                color = valueColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = colors.textSecondary
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 19.sp
+            ).tabular(),
+            color = valueColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -266,7 +271,7 @@ fun SettingsGroupCard(
         Text(
             text = groupTitle,
             style = MaterialTheme.typography.labelMedium.copy(
-                fontFamily = PlusJakartaSans,
+                fontFamily = InterFontFamily,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.6.sp
             ),
@@ -274,9 +279,8 @@ fun SettingsGroupCard(
             modifier = Modifier.padding(horizontal = 4.dp)
         )
         Surface(
-            shape = RoundedCornerShape(22.dp),
-            color = colors.card,
-            border = BorderStroke(1.dp, colors.cardBorder),
+            shape = RoundedCornerShape(18.dp),
+            color = colors.cardElevated,
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -291,40 +295,35 @@ fun SettingsChevronRow(
     title: String,
     onClick: () -> Unit,
     subtitle: String? = null,
-    iconBg: Color = ShiftlyColors.current.azureContainer,
-    iconTint: Color = ShiftlyColors.current.azureInk,
+    iconBg: Color = ShiftlyColors.current.azurePrimary,
+    iconTint: Color = PureWhite,
     trailingBadge: String? = null
 ) {
     val colors = ShiftlyColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 60.dp)
+            .heightIn(min = 58.dp)
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(horizontal = 14.dp, vertical = 11.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(iconBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        ShiftlyIosIconTile(
+            iconRes = iconRes,
+            backgroundColor = iconBg,
+            size = 36.dp,
+            cornerRadius = 9.dp,
+            iconSize = 18.dp,
+            iconTint = iconTint
+        )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
                 ),
                 color = colors.textPrimary
             )
@@ -341,14 +340,13 @@ fun SettingsChevronRow(
         if (trailingBadge != null) {
             Surface(
                 shape = RoundedCornerShape(50),
-                color = colors.cardElevated,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                color = colors.surface,
                 shadowElevation = 0.dp
             ) {
                 Text(
                     text = trailingBadge,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.textPrimary,
@@ -360,7 +358,7 @@ fun SettingsChevronRow(
             painter = painterResource(R.drawable.ic_lucide_chevron_right),
             contentDescription = null,
             tint = colors.textSecondary,
-            modifier = Modifier.size(20.dp)
+            modifier = Modifier.size(18.dp)
         )
     }
 }
@@ -373,14 +371,14 @@ fun SettingsSwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     subtitle: String? = null,
     onRowClick: (() -> Unit)? = null,
-    iconBg: Color = ShiftlyColors.current.mintContainer,
-    iconTint: Color = ShiftlyColors.current.mintInk
+    iconBg: Color = ShiftlyColors.current.mintBright,
+    iconTint: Color = PureWhite
 ) {
     val colors = ShiftlyColors.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 60.dp)
+            .heightIn(min = 58.dp)
             .let { mod ->
                 if (onRowClick != null) mod.clickable(onClick = onRowClick) else mod
             }
@@ -388,26 +386,21 @@ fun SettingsSwitchRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(iconBg),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
-                tint = iconTint,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        ShiftlyIosIconTile(
+            iconRes = iconRes,
+            backgroundColor = iconBg,
+            size = 36.dp,
+            cornerRadius = 9.dp,
+            iconSize = 18.dp,
+            iconTint = iconTint
+        )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
                 ),
                 color = colors.textPrimary
             )
@@ -448,7 +441,7 @@ fun SettingsSheetContainer(
         sheetState = sheetState,
         containerColor = colors.surface,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
@@ -478,7 +471,7 @@ fun SettingsSheetContainer(
                     ) {
                         Text(
                             text = "Cancel",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                             color = colors.textSecondary
                         )
                     }
@@ -496,44 +489,39 @@ fun ThemeSelectorSheetContent(
 ) {
     val colors = ShiftlyColors.current
 
-    Column(
-        modifier = Modifier.selectableGroup(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = colors.cardElevated,
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        THEME_MODE_OPTIONS.forEach { (modeKey, modeLabel) ->
-            val isSelected = currentThemeMode.equals(modeKey, ignoreCase = true)
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (isSelected) colors.azureContainer else colors.card,
-                border = BorderStroke(
-                    width = if (isSelected) 1.5.dp else 1.dp,
-                    color = if (isSelected) colors.azureAccent else colors.cardBorder
-                ),
-                shadowElevation = 0.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable(role = Role.RadioButton) {
-                        onSave(modeKey)
-                    }
-                    .semantics(mergeDescendants = true) {
-                        this.selected = isSelected
-                    }
-            ) {
+        Column(modifier = Modifier.selectableGroup()) {
+            THEME_MODE_OPTIONS.forEachIndexed { index, (modeKey, modeLabel) ->
+                if (index > 0) {
+                    ShiftlyHairlineDivider(startInset = 16.dp)
+                }
+                val isSelected = currentThemeMode.equals(modeKey, ignoreCase = true)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 54.dp)
+                        .clickable(role = Role.RadioButton) {
+                            onSave(modeKey)
+                        }
+                        .semantics(mergeDescendants = true) {
+                            this.selected = isSelected
+                        }
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = modeLabel,
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                         ),
-                        color = if (isSelected) colors.azureInk else colors.textPrimary
+                        color = if (isSelected) colors.azureAccent else colors.textPrimary
                     )
                     if (isSelected) {
                         Box(
@@ -546,7 +534,7 @@ fun ThemeSelectorSheetContent(
                             Icon(
                                 painter = painterResource(R.drawable.ic_lucide_check),
                                 contentDescription = "Selected",
-                                tint = colors.onAzurePrimary,
+                                tint = PureWhite,
                                 modifier = Modifier.size(14.dp)
                             )
                         }
@@ -603,8 +591,7 @@ fun AccountEditSheetContent(
             modifier = Modifier
                 .size(64.dp)
                 .clip(CircleShape)
-                .background(colors.card)
-                .border(1.5.dp, colors.azureAccent.copy(alpha = 0.7f), CircleShape)
+                .background(colors.cardElevated)
                 .clickable(onClick = onChangePhoto),
             contentAlignment = Alignment.Center
         ) {
@@ -627,10 +614,14 @@ fun AccountEditSheetContent(
 
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(
+                Button(
                     onClick = onChangePhoto,
                     shape = RoundedCornerShape(50),
-                    border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.6f)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.cardElevated,
+                        contentColor = colors.azureAccent
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     modifier = Modifier.heightIn(min = 44.dp)
                 ) {
@@ -643,7 +634,7 @@ fun AccountEditSheetContent(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (hasPhoto) "Change Photo" else "Add Photo",
-                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                         color = colors.azureAccent
                     )
                 }
@@ -654,7 +645,7 @@ fun AccountEditSheetContent(
                     ) {
                         Text(
                             text = "Remove",
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                             color = colors.coralTextOnSurface
                         )
                     }
@@ -666,16 +657,16 @@ fun AccountEditSheetContent(
     OutlinedTextField(
         value = nameInput,
         onValueChange = { nameInput = it },
-        label = { Text("Display Name", fontFamily = PlusJakartaSans) },
+        label = { Text("Display Name", fontFamily = InterFontFamily) },
         placeholder = {
             Text(
                 text = "What I gonna call you?",
-                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                color = colors.textMuted
+                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                color = colors.textSecondary
             )
         },
         singleLine = true,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = shiftlySheetFieldColors(),
         modifier = Modifier.fillMaxWidth()
     )
@@ -702,50 +693,52 @@ fun CurrencyPickerSheetContent(
 
     val target = pendingTarget
     if (target == null) {
-        Column(
-            modifier = Modifier.selectableGroup(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            CURRENCY_OPTIONS.forEach { (symbol, label) ->
-                val isSelected = symbol == currentCurrency
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (isSelected) colors.azureContainer else colors.card,
-                    border = BorderStroke(1.dp, if (isSelected) colors.azureInk else colors.cardBorder),
-                    shadowElevation = 0.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 52.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable(role = Role.Tab) {
-                            if (!isSelected) {
-                                pendingTarget = symbol to label
-                                rateInput = ""
-                            }
-                        }
-                        .semantics(mergeDescendants = true) {
-                            selected = isSelected
-                            contentDescription = "$label${if (isSelected) ", active" else ""}"
-                        }
-                ) {
+            Column(modifier = Modifier.selectableGroup()) {
+                CURRENCY_OPTIONS.forEachIndexed { index, (symbol, label) ->
+                    if (index > 0) {
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+                    }
+                    val isSelected = symbol == currentCurrency
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 52.dp)
+                            .clickable(role = Role.Tab) {
+                                if (!isSelected) {
+                                    pendingTarget = symbol to label
+                                    rateInput = ""
+                                }
+                            }
+                            .semantics(mergeDescendants = true) {
+                                selected = isSelected
+                                contentDescription = "$label${if (isSelected) ", active" else ""}"
+                            }
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = "$symbol  $label",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = if (isSelected) colors.azureInk else colors.textPrimary
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                            ),
+                            color = if (isSelected) colors.azureAccent else colors.textPrimary
                         )
                         if (isSelected) {
                             Text(
                                 text = "Active",
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = colors.azureInk
+                                color = colors.azureAccent
                             )
                         }
                     }
@@ -761,7 +754,6 @@ fun CurrencyPickerSheetContent(
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = colors.azureContainer,
-                border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.45f)),
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -771,7 +763,10 @@ fun CurrencyPickerSheetContent(
                 ) {
                     Text(
                         text = "Switch $currentCurrency -> $targetSymbol ($targetLabel)",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontSize = 15.sp
+                        ),
                         color = colors.textPrimary
                     )
                     Text(
@@ -782,11 +777,14 @@ fun CurrencyPickerSheetContent(
                 }
             }
 
-            OutlinedButton(
+            Button(
                 onClick = { onApplyCurrency(targetSymbol, null) },
                 shape = RoundedCornerShape(50),
-                border = BorderStroke(1.dp, colors.border),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.cardElevated,
+                    contentColor = colors.textPrimary
+                ),
+                elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
@@ -794,17 +792,20 @@ fun CurrencyPickerSheetContent(
                 Text(
                     text = "Switch Symbol Only (Keep Numbers)",
                     style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     )
                 )
             }
 
-            HorizontalDivider(color = colors.border)
+            ShiftlyHairlineDivider()
 
             Text(
                 text = "Or Convert All Saved Amounts",
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontSize = 15.sp
+                ),
                 color = colors.textPrimary
             )
             OutlinedTextField(
@@ -813,19 +814,19 @@ fun CurrencyPickerSheetContent(
                 label = {
                     Text(
                         "Exchange Rate (1 $currentCurrency = ? $targetSymbol)",
-                        fontFamily = PlusJakartaSans
+                        fontFamily = InterFontFamily
                     )
                 },
                 placeholder = {
                     Text(
                         text = "e.g. 0.018 or 56.0",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                        color = colors.textMuted
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary
                     )
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = shiftlySheetFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -856,7 +857,7 @@ fun CurrencyPickerSheetContent(
             ) {
                 Text(
                     text = "Back to Currency List",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
             }
@@ -885,8 +886,7 @@ fun NotificationsSheetContent(
 
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        color = colors.cardElevated,
         shadowElevation = 0.dp
     ) {
         Column {
@@ -896,21 +896,21 @@ fun NotificationsSheetContent(
                 enabled = true,
                 onCheckedChange = { masterEnabled = it }
             )
-            HorizontalDivider(color = colors.border)
+            ShiftlyHairlineDivider(startInset = 14.dp)
             NotificationToggleRow(
                 title = "Recurring Bills Due",
                 checked = masterEnabled && billRem,
                 enabled = masterEnabled,
                 onCheckedChange = { billRem = it }
             )
-            HorizontalDivider(color = colors.border)
+            ShiftlyHairlineDivider(startInset = 14.dp)
             NotificationToggleRow(
                 title = "Log Shift Reminder",
                 checked = masterEnabled && shiftRem,
                 enabled = masterEnabled,
                 onCheckedChange = { shiftRem = it }
             )
-            HorizontalDivider(color = colors.border)
+            ShiftlyHairlineDivider(startInset = 14.dp)
             NotificationToggleRow(
                 title = "Savings & Deposit",
                 checked = masterEnabled && savingsRem,
@@ -944,9 +944,10 @@ private fun NotificationToggleRow(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleSmall.copy(
-                fontFamily = PlusJakartaSans,
-                fontWeight = FontWeight.SemiBold
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
             ),
             color = colors.textPrimary,
             modifier = Modifier.weight(1f)
@@ -970,10 +971,9 @@ private fun SelectableRulePill(
     val colors = ShiftlyColors.current
     Box(
         modifier = modifier
-            .heightIn(min = 48.dp)
+            .heightIn(min = 46.dp)
             .clip(RoundedCornerShape(50))
-            .background(if (selected) colors.azurePrimary else colors.card)
-            .border(1.dp, if (selected) colors.azureAccent else colors.cardBorder, RoundedCornerShape(50))
+            .background(if (selected) colors.azurePrimary else colors.cardElevated)
             .clickable(role = Role.Tab, onClick = onClick)
             .semantics(mergeDescendants = true) {
                 this.selected = selected
@@ -983,10 +983,10 @@ private fun SelectableRulePill(
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium.copy(
-                fontFamily = PlusJakartaSans,
-                fontWeight = FontWeight.Bold
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold
             ).tabular(),
-            color = if (selected) colors.onAzurePrimary else colors.textPrimary
+            color = if (selected) PureWhite else colors.textPrimary
         )
     }
 }
@@ -1067,9 +1067,8 @@ fun BudgetsEditorSheetContent(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = colors.card,
-            border = BorderStroke(1.dp, colors.cardBorder),
+            shape = RoundedCornerShape(18.dp),
+            color = colors.cardElevated,
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -1083,9 +1082,10 @@ fun BudgetsEditorSheetContent(
             ) {
                 Text(
                     text = "Monthly Budget",
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.SemiBold
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
                     ),
                     color = colors.textPrimary,
                     modifier = Modifier.weight(1f)
@@ -1103,55 +1103,45 @@ fun BudgetsEditorSheetContent(
         if (editedBudgets.isNotEmpty()) {
             Text(
                 text = "Per-Category Limits",
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.SemiBold
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
                 ),
                 color = colors.textPrimary,
                 modifier = Modifier.padding(top = 2.dp)
             )
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                shape = RoundedCornerShape(18.dp),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     editedBudgets.forEachIndexed { idx, (cat, limitStr) ->
                         if (idx > 0) {
-                            HorizontalDivider(
-                                color = colors.border,
-                                modifier = Modifier.padding(start = 50.dp)
-                            )
+                            ShiftlyHairlineDivider(startInset = 52.dp)
                         }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 46.dp)
+                                .heightIn(min = 48.dp)
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.coralContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(categoryIcon(cat)),
-                                    contentDescription = null,
-                                    tint = colors.coralInk,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                            }
+                            ShiftlyIosIconTile(
+                                iconRes = categoryIcon(cat),
+                                backgroundColor = colors.coralBright,
+                                size = 30.dp,
+                                cornerRadius = 8.dp,
+                                iconSize = 15.dp
+                            )
                             Text(
                                 text = cat,
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Medium
                                 ),
                                 color = colors.textPrimary,
@@ -1176,13 +1166,12 @@ fun BudgetsEditorSheetContent(
 
         if (onManageCategories != null) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                shape = RoundedCornerShape(18.dp),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(18.dp))
                     .clickable(onClick = onManageCategories)
             ) {
                 Row(
@@ -1193,25 +1182,19 @@ fun BudgetsEditorSheetContent(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(colors.azureContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_tags),
-                            contentDescription = null,
-                            tint = colors.azureInk,
-                            modifier = Modifier.size(15.dp)
-                        )
-                    }
+                    ShiftlyIosIconTile(
+                        iconRes = R.drawable.ic_lucide_tags,
+                        backgroundColor = colors.azurePrimary,
+                        size = 30.dp,
+                        cornerRadius = 8.dp,
+                        iconSize = 15.dp
+                    )
                     Text(
                         text = "Manage Categories",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
                         ),
                         color = colors.textPrimary,
                         modifier = Modifier.weight(1f)
@@ -1256,18 +1239,11 @@ private fun CompactBudgetAmountField(
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    var isFocused by remember { mutableStateOf(false) }
-
     Row(
         modifier = modifier
             .heightIn(min = 36.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(colors.surface)
-            .border(
-                width = 1.dp,
-                color = if (isFocused) colors.azureAccent else colors.border,
-                shape = RoundedCornerShape(10.dp)
-            )
             .padding(horizontal = 10.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -1275,7 +1251,7 @@ private fun CompactBudgetAmountField(
         Text(
             text = currencySymbol,
             style = MaterialTheme.typography.bodySmall.copy(
-                fontFamily = PlusJakartaSans,
+                fontFamily = InterFontFamily,
                 fontWeight = FontWeight.SemiBold
             ),
             color = colors.textSecondary
@@ -1288,10 +1264,10 @@ private fun CompactBudgetAmountField(
                 Text(
                     text = placeholder,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Medium
                     ),
-                    color = colors.textMuted,
+                    color = colors.textSecondary,
                     textAlign = TextAlign.End,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1304,15 +1280,13 @@ private fun CompactBudgetAmountField(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 cursorBrush = SolidColor(colors.azureAccent),
-                textStyle = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = PlusJakartaSans,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.SemiBold,
                     color = colors.textPrimary,
                     textAlign = TextAlign.End
                 ).tabular(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { isFocused = it.isFocused }
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
@@ -1335,7 +1309,7 @@ fun ManageCategoriesSheetContent(
         OutlinedTextField(
             value = newCategoryName,
             onValueChange = { newCategoryName = it },
-            label = { Text("Add Category", fontFamily = PlusJakartaSans) },
+            label = { Text("Add Category", fontFamily = InterFontFamily) },
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             colors = shiftlySheetFieldColors(),
@@ -1350,7 +1324,8 @@ fun ManageCategoriesSheetContent(
                 }
             },
             shape = RoundedCornerShape(50),
-            colors = ButtonDefaults.buttonColors(containerColor = colors.azurePrimary, contentColor = colors.onAzurePrimary),
+            colors = ButtonDefaults.buttonColors(containerColor = colors.azurePrimary, contentColor = PureWhite),
+            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
             modifier = Modifier.heightIn(min = 52.dp)
         ) {
             Icon(
@@ -1365,9 +1340,8 @@ fun ManageCategoriesSheetContent(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
-                .background(colors.card)
-                .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(16.dp))
+                .background(colors.cardElevated)
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -1378,8 +1352,8 @@ fun ManageCategoriesSheetContent(
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = colors.border,
-                    focusedBorderColor = colors.azureInk,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedBorderColor = colors.azureAccent,
                     focusedTextColor = colors.textPrimary,
                     unfocusedTextColor = colors.textPrimary,
                     focusedContainerColor = colors.surface,
@@ -1426,22 +1400,29 @@ fun RecurringEntriesSheetContent(
             Text(
                 text = "No recurring entries",
                 style = MaterialTheme.typography.bodySmall,
-                color = colors.textMuted
+                color = colors.textSecondary
             )
         }
         entries.forEachIndexed { idx, entry ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(colors.card)
-                    .border(1.dp, colors.cardBorder, RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(colors.cardElevated)
                     .padding(horizontal = 12.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(entry.title, style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
+                    Text(
+                        entry.title,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
                     val subtitle = if (entry.isIncome) {
                         "${entry.frequency} • ${ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount, showPlus = true)}"
                     } else {
@@ -1475,13 +1456,20 @@ fun RecurringEntriesSheetContent(
         }
     }
 
-    HorizontalDivider(color = colors.border)
-    Text("Add Entry", style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
+    ShiftlyHairlineDivider()
+    Text(
+        "Add Entry",
+        style = MaterialTheme.typography.titleMedium.copy(
+            fontFamily = InterFontFamily,
+            fontSize = 15.sp
+        ),
+        color = colors.textPrimary
+    )
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = newTitle,
             onValueChange = { newTitle = it },
-            label = { Text("Label", fontFamily = PlusJakartaSans) },
+            label = { Text("Label", fontFamily = InterFontFamily) },
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             colors = shiftlySheetFieldColors(),
@@ -1490,7 +1478,7 @@ fun RecurringEntriesSheetContent(
         OutlinedTextField(
             value = newAmount,
             onValueChange = { newAmount = filterSingleDecimalInput(it, newAmount) },
-            label = { Text(currencySymbol, fontFamily = PlusJakartaSans) },
+            label = { Text(currencySymbol, fontFamily = InterFontFamily) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             shape = RoundedCornerShape(14.dp),
@@ -1522,8 +1510,7 @@ fun RecurringEntriesSheetContent(
     if (!isIncome) {
         Surface(
             shape = RoundedCornerShape(16.dp),
-            color = colors.card,
-            border = BorderStroke(1.dp, colors.cardBorder),
+            color = colors.cardElevated,
             shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
@@ -1542,34 +1529,25 @@ fun RecurringEntriesSheetContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(colors.coralContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(categoryIcon(newCategory)),
-                            contentDescription = null,
-                            tint = colors.coralInk,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    ShiftlyIosIconTile(
+                        iconRes = categoryIcon(newCategory),
+                        backgroundColor = colors.coralBright,
+                        size = 32.dp,
+                        cornerRadius = 8.dp,
+                        iconSize = 16.dp
+                    )
                     Column {
                         Text(
                             text = "Expense Category",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
-                                fontWeight = FontWeight.Medium
-                            ),
+                            style = MaterialTheme.typography.labelSmall,
                             color = colors.textSecondary
                         )
                         Text(
                             text = newCategory,
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = PlusJakartaSans,
-                                fontWeight = FontWeight.SemiBold
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp
                             ),
                             color = colors.textPrimary
                         )
@@ -1579,7 +1557,7 @@ fun RecurringEntriesSheetContent(
                     painter = painterResource(R.drawable.ic_lucide_chevron_right),
                     contentDescription = "Select Category",
                     tint = colors.textSecondary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -1594,7 +1572,7 @@ fun RecurringEntriesSheetContent(
         )
     }
 
-    OutlinedButton(
+    Button(
         onClick = {
             val amt = newAmount.toDoubleOrNull() ?: 0.0
             if (newTitle.isNotBlank() && amt.isFinite() && amt > 0.0) {
@@ -1614,14 +1592,18 @@ fun RecurringEntriesSheetContent(
             }
         },
         shape = RoundedCornerShape(50),
-        border = BorderStroke(1.dp, colors.border),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = colors.cardElevated,
+            contentColor = colors.azureInk
+        ),
+        elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
     ) {
         Text(
             text = "Add to List",
-            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
             color = colors.azureInk
         )
     }
@@ -1652,14 +1634,20 @@ fun AppLockSheetContent(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(colors.card)
-            .border(1.dp, colors.cardBorder, RoundedCornerShape(16.dp))
+            .background(colors.cardElevated)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text("Enable App Lock", style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
+            Text(
+                "Enable App Lock",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontSize = 15.sp
+                ),
+                color = colors.textPrimary
+            )
             Text(
                 "Lock balances on launch and when backgrounded",
                 style = MaterialTheme.typography.bodySmall,
@@ -1713,20 +1701,20 @@ fun AppLockSheetContent(
             label = {
                 Text(
                     if (hasSavedPin) "New 4-Digit PIN (leave blank to keep current)" else "Set 4-Digit PIN",
-                    fontFamily = PlusJakartaSans
+                    fontFamily = InterFontFamily
                 )
             },
             placeholder = {
                 Text(
                     text = if (hasSavedPin) "••••" else "Enter 4 digits",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                    color = colors.textMuted
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                    color = colors.textSecondary
                 )
             },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(14.dp),
             colors = shiftlySheetFieldColors(),
             modifier = Modifier.fillMaxWidth()
         )
@@ -1779,11 +1767,14 @@ fun BackupAndExportSheetContent(
     var restoreJsonInput by remember { mutableStateOf("") }
     var restoreMode by remember { mutableStateOf(RestoreMode.MERGE) }
 
-    OutlinedButton(
+    Button(
         onClick = onExportZip,
         shape = RoundedCornerShape(50),
-        border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.5f)),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = colors.cardElevated,
+            contentColor = colors.textPrimary
+        ),
+        elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
@@ -1797,16 +1788,19 @@ fun BackupAndExportSheetContent(
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Export Full Backup (.zip + Receipts)",
-            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
+            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily)
         )
     }
 
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(
+        Button(
             onClick = onExportJson,
             shape = RoundedCornerShape(50),
-            border = BorderStroke(1.dp, colors.border),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colors.cardElevated,
+                contentColor = colors.textPrimary
+            ),
+            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
             modifier = Modifier
                 .weight(1f)
@@ -1820,14 +1814,17 @@ fun BackupAndExportSheetContent(
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "JSON",
-                style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
+                style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily)
             )
         }
-        OutlinedButton(
+        Button(
             onClick = onExportCsv,
             shape = RoundedCornerShape(50),
-            border = BorderStroke(1.dp, colors.border),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colors.cardElevated,
+                contentColor = colors.textPrimary
+            ),
+            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
             modifier = Modifier
                 .weight(1f)
@@ -1841,14 +1838,17 @@ fun BackupAndExportSheetContent(
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "CSV",
-                style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
+                style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily)
             )
         }
-        OutlinedButton(
+        Button(
             onClick = onExportPdf,
             shape = RoundedCornerShape(50),
-            border = BorderStroke(1.dp, colors.border),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = colors.cardElevated,
+                contentColor = colors.textPrimary
+            ),
+            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
             modifier = Modifier
                 .weight(1f)
@@ -1862,13 +1862,20 @@ fun BackupAndExportSheetContent(
             Spacer(modifier = Modifier.width(4.dp))
             Text(
                 text = "PDF",
-                style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
+                style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily)
             )
         }
     }
 
-    HorizontalDivider(color = colors.border)
-    Text("Restore Mode", style = MaterialTheme.typography.titleSmall, color = colors.textPrimary)
+    ShiftlyHairlineDivider()
+    Text(
+        "Restore Mode",
+        style = MaterialTheme.typography.titleMedium.copy(
+            fontFamily = InterFontFamily,
+            fontSize = 15.sp
+        ),
+        color = colors.textPrimary
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1896,11 +1903,14 @@ fun BackupAndExportSheetContent(
         )
     }
 
-    OutlinedButton(
+    Button(
         onClick = { onPickBackupFile(restoreMode) },
         shape = RoundedCornerShape(50),
-        border = BorderStroke(1.dp, colors.border),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = colors.textPrimary),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = colors.cardElevated,
+            contentColor = colors.textPrimary
+        ),
+        elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
@@ -1914,17 +1924,17 @@ fun BackupAndExportSheetContent(
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Choose Backup File (.zip or .json)",
-            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans)
+            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily)
         )
     }
 
     OutlinedTextField(
         value = restoreJsonInput,
         onValueChange = { restoreJsonInput = it },
-        label = { Text("Or paste exported JSON backup", fontFamily = PlusJakartaSans) },
+        label = { Text("Or paste exported JSON backup", fontFamily = InterFontFamily) },
         minLines = 3,
         maxLines = 5,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = shiftlySheetFieldColors(),
         modifier = Modifier.fillMaxWidth()
     )

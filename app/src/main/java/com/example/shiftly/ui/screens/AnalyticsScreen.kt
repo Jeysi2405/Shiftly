@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -127,7 +126,7 @@ fun AnalyticsScreenContent(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding(),
-        contentPadding = PaddingValues(top = 10.dp),
+        contentPadding = PaddingValues(top = 12.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item(key = "analytics_top_bar", contentType = "top_bar") {
@@ -155,9 +154,8 @@ fun AnalyticsScreenContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 520.dp),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                 color = colors.surface,
-                border = BorderStroke(1.dp, colors.cardBorder),
                 shadowElevation = 0.dp
             ) {
                 Column(

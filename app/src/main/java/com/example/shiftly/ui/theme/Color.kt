@@ -6,49 +6,54 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-// Core Dark Surfaces & Borders
-val DarkBackground = Color(0xFF121212)       // Main screen background
-val DarkSurface = Color(0xFF1E1E1E)          // Secondary background, sheets, cards
-val DarkCard = Color(0xFF252525)             // Elevated cards, tiles, chips
-val DarkCardElevated = Color(0xFF2C2C2C)     // Nested elevated rows / hover-like containers
-val DarkBorder = Color(0xFF333333)           // Subtle dark gray borders and dividers
-val DarkDisabledContainer = Color(0xFF2C2F36)
-val DarkDisabledContent = Color(0xFF8A909A)
+// Core iOS Dark Surfaces & Separators
+val DarkBackground = Color(0xFF000000)       // Pure black primary canvas
+val DarkSurface = Color(0xFF1C1C1E)          // Grouped cards, secondary surfaces, sheets
+val DarkCard = Color(0xFF1C1C1E)             // Top-level cards on #000000
+val DarkCardElevated = Color(0xFF2C2C2E)     // Nested / elevated elements & cards inside sheets
+val DarkSeparator = Color(0xFF38383A)        // 0.5dp hairline dividers
+val DarkBorder = DarkSeparator
+val DarkDisabledContainer = Color(0xFF2C2C2E)
+val DarkDisabledContent = Color(0xFF8E8E93)
 
-// Dark Mode Text Hierarchy
-val TextLightPrimary = Color(0xFFF5F5F5)     // Soft white primary text
-val TextLightSecondary = Color(0xFFA0A0A0)   // Muted gray secondary text
-val TextLightMuted = Color(0xFF9399A2)       // Subtle captions & placeholders (WCAG AA >= 4.5:1 on DarkCard)
+// Dark Mode Text Hierarchy (Strict 2-tone: Primary #FFFFFF, Secondary #8E8E93)
+val TextLightPrimary = Color(0xFFFFFFFF)     // Primary text
+val TextLightSecondary = Color(0xFF8E8E93)   // Secondary text
+val TextLightMuted = Color(0xFF8E8E93)       // Captions & placeholders (same secondary tone)
 
-// Brand Azure Accents (Preserved & Adapted for Dark Mode)
-val AzurePrimaryButton = Color(0xFF126BE0)   // Primary pill CTA button fill
-val AzureAccent = Color(0xFF3895FF)          // High-contrast azure text/icons/borders on dark
-val AzureDarkContainer = Color(0xFF142B4A)   // Dark tinted azure container
-val OrbSkyLight = Color(0xFF54B6FF)
+// iOS Dark System Accents
+val AzurePrimaryButton = Color(0xFF0A84FF)   // Interactive blue
+val AzureAccent = Color(0xFF0A84FF)          // Interactive blue
+val AzureDarkContainer = Color(0xFF14273D)   // Subtle tinted blue container
+val OrbSkyLight = Color(0xFF0A84FF)
 
-// Core Neutrals (Kept for explicit semantic/foreground or contrast usage)
+// Core Neutrals
 val PureWhite = Color(0xFFFFFFFF)
-val InkBlack = Color(0xFF0B0D12)
+val InkBlack = Color(0xFF000000)
 
-// Dark Frosted Bottom Bar Surfaces
-val GlassNavTop = Color(0xE024272E)
-val GlassNavBottom = Color(0xEB17191E)
+// Frosted / Grouped Bottom Bar Surfaces
+val GlassNavTop = Color(0xF01C1C1E)
+val GlassNavBottom = Color(0xFA1C1C1E)
 
-// Mint / Aqua Green — Charts, Progress, Income, Success ONLY
-val MintBright = Color(0xFF18DEAC)           // Bars, dots, selected nav indicator, progress safe
-val MintTextOnBlue = Color(0xFF66F5D0)       // High-contrast mint on dark
-val MintInkOnWhite = Color(0xFF18DEAC)       // High-contrast mint on dark cards
-val MintSoftContainer = Color(0xFF0E2F26)    // Dark tinted mint pill/icon well
+// Green — Income, Positive, Safe Progress
+val MintBright = Color(0xFF30D158)
+val MintTextOnBlue = Color(0xFF30D158)
+val MintInkOnWhite = Color(0xFF30D158)
+val MintSoftContainer = Color(0xFF14301D)
 
 // Purple — Night Differential Pay & Hours
-val NightDiffPurple = Color(0xFFB870FF)      // High-contrast violet/purple for Night Diff on dark
-val NightDiffPurpleContainer = Color(0xFF2D1C47)
+val NightDiffPurple = Color(0xFFBF5AF2)
+val NightDiffPurpleContainer = Color(0xFF2D1B3B)
 
-// Soft Coral / Red — Expenses, Overtime Pay/Hours & Near-Limit Budget
-val CoralBright = Color(0xFFFF5B5B)          // Bars, dots, warning progress, Overtime red
-val CoralTextOnBlue = Color(0xFFFF8C82)      // High-contrast coral on dark
-val CoralInkOnWhite = Color(0xFFFF6666)      // High-contrast coral on dark cards
-val CoralSoftContainer = Color(0xFF3B191C)   // Dark tinted coral pill/icon well
+// Red — Expenses, Overtime, Destructive
+val CoralBright = Color(0xFFFF453A)
+val CoralTextOnBlue = Color(0xFFFF453A)
+val CoralInkOnWhite = Color(0xFFFF453A)
+val CoralSoftContainer = Color(0xFF3A1816)
+
+// Orange — Highlights, Warnings, Secondary Categories
+val IosOrange = Color(0xFFFF9F0A)
+val IosOrangeContainer = Color(0xFF38260B)
 
 // Azure Accent for Neutral / Split Bill Chips
 val AzureInkOnWhite = AzureAccent
@@ -60,36 +65,38 @@ val AzureSoftContainer = AzureDarkContainer
 val SlateSurface = DarkCard
 val TextPrimary = TextLightPrimary
 val TextSecondary = TextLightSecondary
-val BorderSubtle = DarkBorder
+val BorderSubtle = DarkSeparator
 val RoseAlert = CoralInkOnWhite
 val RoseContainer = CoralSoftContainer
 
 // =============================================================================
 // Shiftly Light Mode Tokens
 // =============================================================================
-val LightBackground = Color(0xFFF8F9FA)
+val LightBackground = Color(0xFFF2F2F7)
 val LightSurface = Color(0xFFFFFFFF)
 val LightCard = Color(0xFFFFFFFF)
-val LightCardElevated = Color(0xFFF1F3F5)
-val LightBorder = Color(0xFFE2E8F0)
-val LightDisabledContainer = Color(0xFFE5E7EB)
-val LightDisabledContent = Color(0xFF6B7280)
+val LightCardElevated = Color(0xFFE5E5EA)
+val LightBorder = Color(0xFFC6C6C8)
+val LightDisabledContainer = Color(0xFFE5E5EA)
+val LightDisabledContent = Color(0xFF8E8E93)
 
-val TextDarkPrimary = Color(0xFF111827)
-val TextDarkSecondary = Color(0xFF4B5563)
-val TextDarkMuted = Color(0xFF6B7280)
+val TextDarkPrimary = Color(0xFF000000)
+val TextDarkSecondary = Color(0xFF8E8E93)
+val TextDarkMuted = Color(0xFF8E8E93)
 
-val AzureAccentLight = Color(0xFF1D63C4)
-val MintBrightLight = Color(0xFF059669)
-val MintInkLight = Color(0xFF047857)
-val NightDiffPurpleLight = Color(0xFF7E22CE)
-val CoralBrightLight = Color(0xFFDC2626)
-val CoralInkLight = Color(0xFFB91C1C)
+val AzureAccentLight = Color(0xFF007AFF)
+val MintBrightLight = Color(0xFF34C759)
+val MintInkLight = Color(0xFF248A3D)
+val NightDiffPurpleLight = Color(0xFFAF52DE)
+val CoralBrightLight = Color(0xFFFF3B30)
+val CoralInkLight = Color(0xFFD70015)
+val IosOrangeLight = Color(0xFFFF9500)
 
-val MintSoftContainerLight = Color(0xFFE6F4EA)
-val CoralSoftContainerLight = Color(0xFFFCE8E6)
-val AzureSoftContainerLight = Color(0xFFE8F0FE)
-val NightDiffPurpleContainerLight = Color(0xFFF3E8FF)
+val MintSoftContainerLight = Color(0xFFE5F7EA)
+val CoralSoftContainerLight = Color(0xFFFFEBEA)
+val AzureSoftContainerLight = Color(0xFFE5F1FF)
+val NightDiffPurpleContainerLight = Color(0xFFF5E8FD)
+val IosOrangeContainerLight = Color(0xFFFFF3E0)
 
 // =============================================================================
 // Theme-Reactive Palette
@@ -102,6 +109,7 @@ data class ShiftlyColors(
     val card: Color,
     val cardElevated: Color,
     val border: Color,
+    val separator: Color,
     val cardBorder: Color,
     val disabledContainer: Color,
     val disabledContent: Color,
@@ -122,9 +130,11 @@ data class ShiftlyColors(
     val coralInk: Color,
     val coralTextOnSurface: Color,
     val coralContainer: Color,
+    val iosOrange: Color,
+    val orangeContainer: Color,
     val navIndicator: Color,
     val onAzurePrimary: Color = PureWhite,
-    val onAccentDark: Color
+    val onAccentDark: Color = PureWhite
 ) {
     companion object {
         val current: ShiftlyColors
@@ -140,8 +150,9 @@ val DarkShiftlyColors = ShiftlyColors(
     surface = DarkSurface,
     card = DarkCard,
     cardElevated = DarkCardElevated,
-    border = DarkBorder,
-    cardBorder = Color.White.copy(alpha = 0.06f),
+    border = DarkSeparator,
+    separator = DarkSeparator,
+    cardBorder = Color.Transparent,
     disabledContainer = DarkDisabledContainer,
     disabledContent = DarkDisabledContent,
     textPrimary = TextLightPrimary,
@@ -161,9 +172,11 @@ val DarkShiftlyColors = ShiftlyColors(
     coralInk = CoralInkOnWhite,
     coralTextOnSurface = CoralTextOnBlue,
     coralContainer = CoralSoftContainer,
-    navIndicator = MintBright,
+    iosOrange = IosOrange,
+    orangeContainer = IosOrangeContainer,
+    navIndicator = AzureAccent,
     onAzurePrimary = PureWhite,
-    onAccentDark = InkBlack
+    onAccentDark = PureWhite
 )
 
 val LightShiftlyColors = ShiftlyColors(
@@ -173,13 +186,14 @@ val LightShiftlyColors = ShiftlyColors(
     card = LightCard,
     cardElevated = LightCardElevated,
     border = LightBorder,
-    cardBorder = LightBorder,
+    separator = LightBorder,
+    cardBorder = Color.Transparent,
     disabledContainer = LightDisabledContainer,
     disabledContent = LightDisabledContent,
     textPrimary = TextDarkPrimary,
     textSecondary = TextDarkSecondary,
     textMuted = TextDarkMuted,
-    azurePrimary = AzurePrimaryButton,
+    azurePrimary = AzureAccentLight,
     azureAccent = AzureAccentLight,
     azureInk = AzureAccentLight,
     azureContainer = AzureSoftContainerLight,
@@ -193,7 +207,9 @@ val LightShiftlyColors = ShiftlyColors(
     coralInk = CoralInkLight,
     coralTextOnSurface = CoralInkLight,
     coralContainer = CoralSoftContainerLight,
-    navIndicator = AzurePrimaryButton,
+    iosOrange = IosOrangeLight,
+    orangeContainer = IosOrangeContainerLight,
+    navIndicator = AzureAccentLight,
     onAzurePrimary = PureWhite,
     onAccentDark = PureWhite
 )

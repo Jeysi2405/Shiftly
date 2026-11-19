@@ -4,7 +4,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -62,7 +62,7 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.io.File
@@ -109,14 +109,14 @@ fun WelcomeScreen(
                 Box(
                     modifier = Modifier
                         .size(38.dp)
-                        .clip(CircleShape)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(colors.azurePrimary),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "₱",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold
                         ),
                         color = colors.onAzurePrimary
@@ -125,7 +125,7 @@ fun WelcomeScreen(
                 Text(
                     text = "Shiftly",
                     style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary
@@ -138,7 +138,7 @@ fun WelcomeScreen(
                         append("Track every ")
                         withStyle(
                             SpanStyle(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontStyle = FontStyle.Italic,
                                 fontWeight = FontWeight.Medium,
                                 color = colors.azureAccent
@@ -149,7 +149,7 @@ fun WelcomeScreen(
                         append("\npeso between classes.")
                     },
                     style = MaterialTheme.typography.displayMedium.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 36.sp,
                         lineHeight = 43.sp
@@ -223,13 +223,13 @@ fun WelcomeScreen(
 
         val fieldColors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = colors.azureAccent,
-            unfocusedBorderColor = colors.border,
+            unfocusedBorderColor = Color.Transparent,
             focusedLabelColor = colors.azureAccent,
             unfocusedLabelColor = colors.textSecondary,
             focusedTextColor = colors.textPrimary,
             unfocusedTextColor = colors.textPrimary,
-            focusedContainerColor = colors.card,
-            unfocusedContainerColor = colors.card
+            focusedContainerColor = colors.cardElevated,
+            unfocusedContainerColor = colors.cardElevated
         )
 
         ModalBottomSheet(
@@ -237,7 +237,7 @@ fun WelcomeScreen(
             sheetState = sheetState,
             containerColor = colors.surface,
             tonalElevation = 0.dp,
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -270,8 +270,7 @@ fun WelcomeScreen(
                         modifier = Modifier
                             .size(68.dp)
                             .clip(CircleShape)
-                            .background(colors.card)
-                            .border(1.5.dp, colors.azureAccent.copy(alpha = 0.6f), CircleShape)
+                            .background(colors.cardElevated)
                             .clickable {
                                 suppressNextRelock()
                                 photoPicker.launch(
@@ -315,7 +314,7 @@ fun WelcomeScreen(
                                 Text(
                                     text = if (photoPath != null) "Change photo" else "Choose photo",
                                     style = MaterialTheme.typography.labelLarge.copy(
-                                        fontFamily = PlusJakartaSans
+                                        fontFamily = InterFontFamily
                                     ),
                                     color = colors.azureAccent
                                 )
@@ -340,7 +339,7 @@ fun WelcomeScreen(
                                     Text(
                                         text = "Remove",
                                         style = MaterialTheme.typography.labelLarge.copy(
-                                            fontFamily = PlusJakartaSans
+                                            fontFamily = InterFontFamily
                                         ),
                                         color = colors.coralTextOnSurface
                                     )
@@ -356,16 +355,16 @@ fun WelcomeScreen(
                         nameInput = it
                         validationError = null
                     },
-                    label = { Text("Display Name", fontFamily = PlusJakartaSans) },
+                    label = { Text("Display Name", fontFamily = InterFontFamily) },
                     placeholder = {
                         Text(
                             text = "What I gonna call you?",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                            color = colors.textMuted
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                            color = colors.textSecondary
                         )
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -376,19 +375,19 @@ fun WelcomeScreen(
                         rateInput = filterDecimal(it, rateInput)
                         validationError = null
                     },
-                    label = { Text("Hourly Rate (₱)", fontFamily = PlusJakartaSans) },
+                    label = { Text("Hourly Rate (₱)", fontFamily = InterFontFamily) },
                     placeholder = {
                         Text(
                             text = "What is your hourly rate?",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                            color = colors.textMuted
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                            color = colors.textSecondary
                         )
                     },
                     prefix = {
                         Text(
                             text = "₱",
                             style = MaterialTheme.typography.bodyLarge.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold
                             ),
                             color = colors.textPrimary
@@ -396,7 +395,7 @@ fun WelcomeScreen(
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -407,19 +406,19 @@ fun WelcomeScreen(
                         budgetInput = filterDecimal(it, budgetInput)
                         validationError = null
                     },
-                    label = { Text("Monthly Budget (₱)", fontFamily = PlusJakartaSans) },
+                    label = { Text("Monthly Budget (₱)", fontFamily = InterFontFamily) },
                     placeholder = {
                         Text(
                             text = "What is your monthly budget?",
-                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                            color = colors.textMuted
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                            color = colors.textSecondary
                         )
                     },
                     prefix = {
                         Text(
                             text = "₱",
                             style = MaterialTheme.typography.bodyLarge.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold
                             ),
                             color = colors.textPrimary
@@ -427,7 +426,7 @@ fun WelcomeScreen(
                     },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )

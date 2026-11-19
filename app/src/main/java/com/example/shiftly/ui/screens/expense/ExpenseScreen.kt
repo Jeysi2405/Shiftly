@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens.expense
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +30,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -45,6 +47,7 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
@@ -53,8 +56,7 @@ import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
@@ -185,7 +187,7 @@ fun ExpenseScreenContent(
                         Text(
                             text = "Add",
                             style = MaterialTheme.typography.labelLarge.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.onAzurePrimary
@@ -233,7 +235,7 @@ fun ExpenseScreenContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .shiftlySheetTopBand(colors.surface)
                     .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -253,7 +255,7 @@ fun ExpenseScreenContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 530.dp)
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
                 ) {
                     ExpenseEmptyCard(
@@ -270,21 +272,36 @@ fun ExpenseScreenContent(
                 key = { _, expense -> "expense_${expense.id}" },
                 contentType = { _, _ -> "expense_item" }
             ) { idx, expense ->
-                Column(
+                val rowShape = when {
+                    state.filteredExpenses.size == 1 -> RoundedCornerShape(18.dp)
+                    idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                    idx == state.filteredExpenses.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+                    else -> RectangleShape
+                }
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .padding(horizontal = 20.dp)
                 ) {
-                    ExpenseItemCard(
-                        expense = expense,
-                        currencySymbol = state.currencySymbol,
-                        onViewReceipt = onViewReceipt,
-                        onDelete = { onDeleteExpense(expense) },
-                        dateFormatter = itemDateFormatter
-                    )
-                    if (idx < state.filteredExpenses.lastIndex) {
-                        Spacer(modifier = Modifier.height(14.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(rowShape)
+                            .background(colors.cardElevated)
+                    ) {
+                        ExpenseItemCard(
+                            expense = expense,
+                            currencySymbol = state.currencySymbol,
+                            onViewReceipt = onViewReceipt,
+                            onDelete = { onDeleteExpense(expense) },
+                            dateFormatter = itemDateFormatter,
+                            containerColor = Color.Transparent,
+                            shape = RectangleShape
+                        )
+                        if (idx < state.filteredExpenses.lastIndex) {
+                            ShiftlyHairlineDivider(startInset = 64.dp)
+                        }
                     }
                 }
             }
@@ -293,7 +310,7 @@ fun ExpenseScreenContent(
                 Spacer(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .height(if (state.filteredExpenses.size <= 2) 280.dp else 104.dp)
                 )
             }
@@ -404,12 +421,11 @@ private fun AddExpenseSheetPreview() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(InkBlack.copy(alpha = 0.65f))
+                        .background(Color.Black.copy(alpha = 0.65f))
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()

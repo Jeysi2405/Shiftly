@@ -1,6 +1,6 @@
 package com.example.shiftly.ui.screens.duties
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -22,7 +22,6 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
@@ -58,8 +58,9 @@ import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.DayType
@@ -123,14 +124,13 @@ private fun CompactShiftScheduleGrid(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                shape = RoundedCornerShape(12.dp),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 52.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { showDatePicker = true }
             ) {
                 Row(
@@ -148,7 +148,7 @@ private fun CompactShiftScheduleGrid(
                         Text(
                             text = "Date",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ),
                             color = colors.textSecondary,
@@ -157,7 +157,7 @@ private fun CompactShiftScheduleGrid(
                         Text(
                             text = date.format(dateFormatter),
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ).tabular(),
                             color = colors.textPrimary,
@@ -169,14 +169,13 @@ private fun CompactShiftScheduleGrid(
             }
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                shape = RoundedCornerShape(12.dp),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 52.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable(onClick = onDayTypeClick)
             ) {
                 Row(
@@ -195,7 +194,7 @@ private fun CompactShiftScheduleGrid(
                             Text(
                                 text = "Day Type",
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Medium
                                 ),
                                 color = colors.textSecondary,
@@ -205,13 +204,12 @@ private fun CompactShiftScheduleGrid(
                                 Surface(
                                     shape = RoundedCornerShape(50),
                                     color = colors.coralContainer,
-                                    border = BorderStroke(1.dp, colors.coralBright.copy(alpha = 0.45f)),
                                     shadowElevation = 0.dp
                                 ) {
                                     Text(
                                         text = badge,
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = PlusJakartaSans,
+                                            fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 9.sp
                                         ),
@@ -224,7 +222,7 @@ private fun CompactShiftScheduleGrid(
                         Text(
                             text = selectedDayType.label,
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary,
@@ -248,14 +246,13 @@ private fun CompactShiftScheduleGrid(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                shape = RoundedCornerShape(12.dp),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 52.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { showStartTimePicker = true }
             ) {
                 Row(
@@ -273,7 +270,7 @@ private fun CompactShiftScheduleGrid(
                         Text(
                             text = "Start time",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ),
                             color = colors.textSecondary,
@@ -282,7 +279,7 @@ private fun CompactShiftScheduleGrid(
                         Text(
                             text = format12HourTime(startLocal),
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.textPrimary,
@@ -293,14 +290,13 @@ private fun CompactShiftScheduleGrid(
             }
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                shape = RoundedCornerShape(12.dp),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 52.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { showEndTimePicker = true }
             ) {
                 Row(
@@ -318,7 +314,7 @@ private fun CompactShiftScheduleGrid(
                         Text(
                             text = if (endsNextDay) "End (+1 day)" else "End time",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ),
                             color = if (endsNextDay) colors.azureAccent else colors.textSecondary,
@@ -327,7 +323,7 @@ private fun CompactShiftScheduleGrid(
                         Text(
                             text = format12HourTime(endLocal),
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.textPrimary,
@@ -363,7 +359,7 @@ private fun CompactShiftScheduleGrid(
                     Text(
                         text = "Select",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.azureAccent
@@ -374,7 +370,7 @@ private fun CompactShiftScheduleGrid(
                 TextButton(onClick = { showDatePicker = false }) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -393,7 +389,7 @@ private fun CompactShiftScheduleGrid(
                     selectedYearContentColor = colors.onAzurePrimary,
                     selectedYearContainerColor = colors.azurePrimary,
                     dayContentColor = colors.textPrimary,
-                    disabledDayContentColor = colors.textMuted,
+                    disabledDayContentColor = colors.textSecondary.copy(alpha = 0.45f),
                     selectedDayContentColor = colors.onAzurePrimary,
                     selectedDayContainerColor = colors.azurePrimary,
                     todayContentColor = colors.azureAccent,
@@ -453,7 +449,7 @@ private fun ShiftTimePickerDialog(
                 Text(
                     text = "OK",
                     style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.azureAccent
@@ -464,7 +460,7 @@ private fun ShiftTimePickerDialog(
             TextButton(onClick = onDismiss) {
                 Text(
                     text = "Cancel",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
             }
@@ -479,18 +475,18 @@ private fun ShiftTimePickerDialog(
             TimePicker(
                 state = timePickerState,
                 colors = TimePickerDefaults.colors(
-                    clockDialColor = colors.card,
+                    clockDialColor = colors.cardElevated,
                     clockDialSelectedContentColor = colors.onAzurePrimary,
                     clockDialUnselectedContentColor = colors.textSecondary,
                     selectorColor = colors.azurePrimary,
                     containerColor = colors.surface,
-                    periodSelectorBorderColor = colors.border,
+                    periodSelectorBorderColor = colors.separator,
                     periodSelectorSelectedContainerColor = colors.azurePrimary,
-                    periodSelectorUnselectedContainerColor = colors.surface,
+                    periodSelectorUnselectedContainerColor = colors.cardElevated,
                     periodSelectorSelectedContentColor = colors.onAzurePrimary,
                     periodSelectorUnselectedContentColor = colors.textSecondary,
                     timeSelectorSelectedContainerColor = colors.cardElevated,
-                    timeSelectorUnselectedContainerColor = colors.surface,
+                    timeSelectorUnselectedContainerColor = colors.cardElevated,
                     timeSelectorSelectedContentColor = colors.textPrimary,
                     timeSelectorUnselectedContentColor = colors.textSecondary
                 )
@@ -534,7 +530,7 @@ private fun ShiftTimePresetsStrip(
             Text(
                 text = "Presets",
                 style = MaterialTheme.typography.labelMedium.copy(
-                    fontFamily = PlusJakartaSans,
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Medium
                 ),
                 color = colors.textSecondary
@@ -542,11 +538,7 @@ private fun ShiftTimePresetsStrip(
 
             Surface(
                 shape = RoundedCornerShape(50),
-                color = if (alreadyExists) colors.card else colors.azureContainer,
-                border = BorderStroke(
-                    1.dp,
-                    if (alreadyExists) colors.cardBorder else colors.azureAccent.copy(alpha = 0.50f)
-                ),
+                color = if (alreadyExists) colors.cardElevated else colors.azureContainer,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
@@ -568,7 +560,7 @@ private fun ShiftTimePresetsStrip(
                     Text(
                         text = if (alreadyExists) "Saved" else "Save Time",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = if (alreadyExists) colors.mintTextOnSurface else colors.azureAccent
@@ -592,11 +584,7 @@ private fun ShiftTimePresetsStrip(
 
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = if (isActive) colors.azureContainer else colors.card,
-                        border = BorderStroke(
-                            width = 1.dp,
-                            color = if (isActive) colors.azureAccent else colors.cardBorder
-                        ),
+                        color = if (isActive) colors.azurePrimary else colors.cardElevated,
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
@@ -609,10 +597,10 @@ private fun ShiftTimePresetsStrip(
                         Text(
                             text = preset.label,
                             style = MaterialTheme.typography.labelMedium.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
                             ).tabular(),
-                            color = if (isActive) colors.textPrimary else colors.textSecondary,
+                            color = if (isActive) colors.onAzurePrimary else colors.textSecondary,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
                         )
                     }
@@ -631,16 +619,15 @@ private fun LogShiftReceiptPreviewCard(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        shape = RoundedCornerShape(16.dp),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Row(
@@ -655,7 +642,7 @@ private fun LogShiftReceiptPreviewCard(
                     Text(
                         text = "Est. Earnings",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
@@ -663,13 +650,12 @@ private fun LogShiftReceiptPreviewCard(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = formatDurationCompact(totalMinutes),
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.textSecondary,
@@ -681,7 +667,7 @@ private fun LogShiftReceiptPreviewCard(
                 Text(
                     text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.totalEarned)}",
                     style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 22.sp
                     ).tabular(),
@@ -697,13 +683,12 @@ private fun LogShiftReceiptPreviewCard(
                 Surface(
                     shape = RoundedCornerShape(50),
                     color = colors.surface,
-                    border = BorderStroke(1.dp, colors.cardBorder),
                     shadowElevation = 0.dp
                 ) {
                     Text(
                         text = "Reg ${formatDurationCompact(wageDetails.regularBaseMinutes)} • ${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.regularPay)}",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Medium
                         ).tabular(),
                         color = colors.textPrimary,
@@ -715,13 +700,12 @@ private fun LogShiftReceiptPreviewCard(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.nightDiffPurpleContainer,
-                        border = BorderStroke(1.dp, colors.nightDiffPurple.copy(alpha = 0.45f)),
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "ND ${formatDurationCompact(wageDetails.nightDiffMinutes)} • +${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.nightDiffPay)}",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ).tabular(),
                             color = colors.nightDiffPurple,
@@ -734,13 +718,12 @@ private fun LogShiftReceiptPreviewCard(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.coralContainer,
-                        border = BorderStroke(1.dp, colors.coralBright.copy(alpha = 0.45f)),
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "OT ${formatDurationCompact(wageDetails.overtimeMinutes)} • +${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.overtimePay)}",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ).tabular(),
                             color = colors.coralBright,
@@ -791,7 +774,7 @@ fun ManualShiftBottomSheet(
         sheetState = sheetState,
         containerColor = colors.surface,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         ManualShiftSheetContent(
             selectedDate = selectedDate,
@@ -860,14 +843,14 @@ fun ManualShiftSheetContent(
 
     val sheetFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = colors.azureAccent,
-        unfocusedBorderColor = colors.border,
+        unfocusedBorderColor = Color.Transparent,
         focusedLabelColor = colors.azureAccent,
         unfocusedLabelColor = colors.textSecondary,
         focusedTextColor = colors.textPrimary,
         unfocusedTextColor = colors.textPrimary,
         cursorColor = colors.azureAccent,
-        focusedContainerColor = colors.card,
-        unfocusedContainerColor = colors.card
+        focusedContainerColor = colors.cardElevated,
+        unfocusedContainerColor = colors.cardElevated
     )
 
     val zone = remember { ZoneId.systemDefault() }
@@ -920,7 +903,7 @@ fun ManualShiftSheetContent(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
                 color = colors.textPrimary
             )
             TextButton(
@@ -929,7 +912,7 @@ fun ManualShiftSheetContent(
             ) {
                 Text(
                     text = "Cancel",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
             }
@@ -975,9 +958,8 @@ fun ManualShiftSheetContent(
 
         if (isDateAlreadyLogged) {
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = colors.coralContainer,
-                border = BorderStroke(1.dp, colors.coralBright.copy(alpha = 0.45f)),
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -991,7 +973,7 @@ fun ManualShiftSheetContent(
                     Text(
                         text = "A shift is already logged for this date.",
                         style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Medium
                         ),
                         color = colors.coralInk,
@@ -1001,7 +983,6 @@ fun ManualShiftSheetContent(
                         Surface(
                             shape = RoundedCornerShape(50),
                             color = colors.surface,
-                            border = BorderStroke(1.dp, colors.coralBright.copy(alpha = 0.45f)),
                             shadowElevation = 0.dp,
                             modifier = Modifier
                                 .padding(start = 8.dp)
@@ -1011,7 +992,7 @@ fun ManualShiftSheetContent(
                             Text(
                                 text = "Edit Existing",
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = colors.coralInk,
@@ -1026,16 +1007,16 @@ fun ManualShiftSheetContent(
         OutlinedTextField(
             value = manualNote,
             onValueChange = { manualNote = it },
-            label = { Text("Shift Note (optional)", fontFamily = PlusJakartaSans) },
+            label = { Text("Shift Note (optional)", fontFamily = InterFontFamily) },
             placeholder = {
                 Text(
                     text = "e.g., Campus Café Shift",
-                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                    color = colors.textMuted
+                    style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                    color = colors.textSecondary
                 )
             },
             singleLine = true,
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(14.dp),
             colors = sheetFieldColors,
             modifier = Modifier.fillMaxWidth()
         )
@@ -1116,7 +1097,7 @@ fun DutiesSettingsSheet(
             ) {
                 Text(
                     text = "Duties Settings",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
                     color = colors.textPrimary
                 )
                 TextButton(
@@ -1125,7 +1106,7 @@ fun DutiesSettingsSheet(
                 ) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -1139,73 +1120,73 @@ fun DutiesSettingsSheet(
                 onShowMessage = onShowMessage
             )
 
-            HorizontalDivider(color = colors.border)
+            ShiftlyHairlineDivider()
 
             Text(
                 text = "Shift Time Presets",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
                 color = colors.textPrimary
             )
 
             Text(
                 text = "Saved Presets",
-                style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                 color = colors.textSecondary
             )
 
             if (presets.isEmpty()) {
                 Text(
                     text = "No saved shift presets.",
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    presets.forEach { preset ->
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = colors.card,
-                            border = BorderStroke(1.dp, colors.cardBorder),
-                            shadowElevation = 0.dp,
-                            modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(colors.cardElevated)
+                ) {
+                    presets.forEachIndexed { idx, preset ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Text(
+                                text = preset.label,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Bold
+                                ).tabular(),
+                                color = colors.textPrimary
+                            )
+                            IconButton(
+                                onClick = { onDeletePreset(preset.id) },
+                                modifier = Modifier.size(36.dp)
                             ) {
-                                Text(
-                                    text = preset.label,
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontFamily = PlusJakartaSans,
-                                        fontWeight = FontWeight.Bold
-                                    ).tabular(),
-                                    color = colors.textPrimary
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_lucide_trash_2),
+                                    contentDescription = "Delete preset",
+                                    tint = colors.coralBright,
+                                    modifier = Modifier.size(19.dp)
                                 )
-                                IconButton(
-                                    onClick = { onDeletePreset(preset.id) },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_lucide_trash_2),
-                                        contentDescription = "Delete preset",
-                                        tint = colors.coralBright,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
                             }
+                        }
+                        if (idx < presets.lastIndex) {
+                            ShiftlyHairlineDivider(startInset = 14.dp)
                         }
                     }
                 }
             }
 
-            HorizontalDivider(color = colors.border)
+            ShiftlyHairlineDivider()
 
             Text(
                 text = "Add New Preset",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
                 color = colors.textPrimary
             )
 
@@ -1257,14 +1238,13 @@ private fun BasicPresetTimeSelectorCard(
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = colors.card,
-            border = BorderStroke(1.dp, colors.cardBorder),
+            shape = RoundedCornerShape(12.dp),
+            color = colors.cardElevated,
             shadowElevation = 0.dp,
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 56.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .clickable { showStartTimePicker = true }
         ) {
             Row(
@@ -1282,7 +1262,7 @@ private fun BasicPresetTimeSelectorCard(
                     Text(
                         text = "Start time",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Medium
                         ),
                         color = colors.textSecondary,
@@ -1291,7 +1271,7 @@ private fun BasicPresetTimeSelectorCard(
                     Text(
                         text = format12HourTime(startLocal),
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.textPrimary,
@@ -1302,14 +1282,13 @@ private fun BasicPresetTimeSelectorCard(
         }
 
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = colors.card,
-            border = BorderStroke(1.dp, colors.cardBorder),
+            shape = RoundedCornerShape(12.dp),
+            color = colors.cardElevated,
             shadowElevation = 0.dp,
             modifier = Modifier
                 .weight(1f)
                 .heightIn(min = 56.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(12.dp))
                 .clickable { showEndTimePicker = true }
         ) {
             Row(
@@ -1327,7 +1306,7 @@ private fun BasicPresetTimeSelectorCard(
                     Text(
                         text = if (endsNextDay) "End (+1 day)" else "End time",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Medium
                         ),
                         color = if (endsNextDay) colors.azureAccent else colors.textSecondary,
@@ -1336,7 +1315,7 @@ private fun BasicPresetTimeSelectorCard(
                     Text(
                         text = format12HourTime(endLocal),
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.textPrimary,

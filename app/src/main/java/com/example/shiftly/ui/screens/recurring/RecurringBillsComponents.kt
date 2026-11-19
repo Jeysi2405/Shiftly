@@ -1,22 +1,22 @@
 package com.example.shiftly.ui.screens.recurring
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -52,6 +52,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -64,10 +66,14 @@ import androidx.compose.ui.unit.dp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
+import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
 import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
 import com.example.shiftly.ui.screens.expense.categoryIcon
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.RecurringEngine
@@ -94,10 +100,10 @@ fun RecurringBillsSummaryCard(
 ) {
     val colors = ShiftlyColors.current
     ShiftlyGlassCard(
-        cornerRadius = 26.dp,
+        cornerRadius = 18.dp,
         contentPadding = PaddingValues(18.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -109,7 +115,7 @@ fun RecurringBillsSummaryCard(
                 ) {
                     Text(
                         text = "Estimated Monthly Bills",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                     Text(
@@ -119,36 +125,42 @@ fun RecurringBillsSummaryCard(
                     )
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(colors.azureContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_repeat),
-                        contentDescription = null,
-                        tint = colors.azureInk,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                ShiftlyIosIconTile(
+                    iconRes = R.drawable.ic_lucide_repeat,
+                    backgroundColor = colors.azurePrimary,
+                    size = 40.dp,
+                    cornerRadius = 10.dp,
+                    iconSize = 20.dp
+                )
             }
 
+            ShiftlyHairlineDivider()
+
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                RecurringStatPill(
+                RecurringStatColumn(
                     label = "Active Rules",
                     value = "$activeCount / $totalCount",
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 12.dp)
                 )
-                RecurringStatPill(
+                ShiftlyVerticalHairlineDivider(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(vertical = 2.dp)
+                )
+                RecurringStatColumn(
                     label = "Due < 24h",
                     value = dueSoonCount.toString(),
                     highlight = dueSoonCount > 0,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp)
                 )
             }
         }
@@ -156,38 +168,30 @@ fun RecurringBillsSummaryCard(
 }
 
 @Composable
-private fun RecurringStatPill(
+private fun RecurringStatColumn(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
     highlight: Boolean = false
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = if (highlight) colors.coralContainer else colors.card,
-        border = BorderStroke(1.dp, if (highlight) colors.coralInk.copy(alpha = 0.4f) else colors.cardBorder),
-        shadowElevation = 0.dp,
-        modifier = modifier
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
-                color = colors.textSecondary
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Bold
-                ).tabular(),
-                color = if (highlight) colors.coralInk else colors.textPrimary
-            )
-        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+            color = colors.textSecondary
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleSmall.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold
+            ).tabular(),
+            color = if (highlight) colors.coralInk else colors.textPrimary
+        )
     }
 }
 
@@ -199,7 +203,9 @@ fun RecurringBillItemCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     dateTimeFormatter: DateTimeFormatter? = null,
-    now: LocalDateTime? = null
+    now: LocalDateTime? = null,
+    containerColor: Color = ShiftlyColors.current.cardElevated,
+    shape: Shape = RoundedCornerShape(18.dp)
 ) {
     val colors = ShiftlyColors.current
     val resolvedFormatter = dateTimeFormatter ?: run {
@@ -220,16 +226,12 @@ fun RecurringBillItemCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(22.dp),
-        color = colors.card,
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (isDueSoon) colors.coralInk.copy(alpha = 0.55f) else colors.cardBorder
-        ),
+        shape = shape,
+        color = containerColor,
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
+            .clip(shape)
             .clickable(onClick = onEdit)
     ) {
         Column(
@@ -241,20 +243,14 @@ fun RecurringBillItemCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(if (bill.isEnabled) colors.coralContainer else colors.disabledContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(categoryIcon(bill.category)),
-                        contentDescription = null,
-                        tint = if (bill.isEnabled) colors.coralInk else colors.disabledContent,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                ShiftlyIosIconTile(
+                    iconRes = categoryIcon(bill.category),
+                    backgroundColor = if (bill.isEnabled) colors.coralBright else colors.disabledContainer,
+                    size = 38.dp,
+                    cornerRadius = 9.dp,
+                    iconSize = 18.dp,
+                    iconTint = if (bill.isEnabled) PureWhite else colors.disabledContent
+                )
 
                 Column(
                     modifier = Modifier.weight(1f),
@@ -263,7 +259,7 @@ fun RecurringBillItemCard(
                     Text(
                         text = bill.title,
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = if (bill.isEnabled) colors.textPrimary else colors.textSecondary,
@@ -282,7 +278,7 @@ fun RecurringBillItemCard(
                             Text(
                                 text = bill.frequency,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = colors.azureInk,
@@ -291,7 +287,7 @@ fun RecurringBillItemCard(
                         }
                         Text(
                             text = bill.category,
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
                             color = colors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -305,7 +301,7 @@ fun RecurringBillItemCard(
                                 Text(
                                     text = "Due soon",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFamily = PlusJakartaSans,
+                                        fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.SemiBold
                                     ),
                                     color = colors.coralInk,
@@ -319,7 +315,7 @@ fun RecurringBillItemCard(
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, bill.amount),
                     style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = if (bill.isEnabled) colors.coralInk else colors.textSecondary
@@ -363,7 +359,7 @@ fun RecurringBillItemCard(
                             checkedTrackColor = colors.azurePrimary,
                             uncheckedThumbColor = colors.textSecondary,
                             uncheckedTrackColor = colors.surface,
-                            uncheckedBorderColor = colors.border
+                            uncheckedBorderColor = Color.Transparent
                         )
                     )
                     IconButton(
@@ -400,35 +396,27 @@ fun RecurringBillsEmptyCard(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        shape = RoundedCornerShape(18.dp),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(colors.azureContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_repeat),
-                    contentDescription = null,
-                    tint = colors.azureInk,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
+            ShiftlyIosIconTile(
+                iconRes = R.drawable.ic_lucide_repeat,
+                backgroundColor = colors.azurePrimary,
+                size = 48.dp,
+                cornerRadius = 12.dp,
+                iconSize = 24.dp
+            )
             Text(
                 text = "No recurring bills yet",
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = PlusJakartaSans,
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = colors.textPrimary
@@ -527,7 +515,7 @@ fun AddEditRecurringBillBottomSheet(
         sheetState = sheetState,
         containerColor = colors.surface,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
@@ -551,11 +539,11 @@ fun AddEditRecurringBillBottomSheet(
                 )
                 TextButton(
                     onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 48.dp)
+                    modifier = Modifier.heightIn(min = 44.dp)
                 ) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -569,38 +557,40 @@ fun AddEditRecurringBillBottomSheet(
                         amountText = filtered
                     }
                 },
-                label = { Text("Bill Amount", fontFamily = PlusJakartaSans) },
+                label = { Text("Bill Amount", fontFamily = InterFontFamily) },
                 placeholder = {
                     Text(
                         text = "0",
                         style = MaterialTheme.typography.headlineLarge.tabular(),
-                        color = colors.textMuted
+                        color = colors.textSecondary
                     )
                 },
                 prefix = {
                     Text(
                         text = "$currencySymbol ",
                         style = MaterialTheme.typography.headlineLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold
                         ),
                         color = colors.coralInk
                     )
                 },
                 textStyle = MaterialTheme.typography.headlineLarge.copy(
-                    fontFamily = PlusJakartaSans,
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Bold
                 ).tabular(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = colors.coralInk,
-                    unfocusedBorderColor = colors.border,
+                    unfocusedBorderColor = Color.Transparent,
                     focusedLabelColor = colors.coralInk,
                     unfocusedLabelColor = colors.textSecondary,
                     focusedTextColor = colors.textPrimary,
-                    unfocusedTextColor = colors.textPrimary
+                    unfocusedTextColor = colors.textPrimary,
+                    focusedContainerColor = colors.cardElevated,
+                    unfocusedContainerColor = colors.cardElevated
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -610,35 +600,37 @@ fun AddEditRecurringBillBottomSheet(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Bill Title", fontFamily = PlusJakartaSans) },
+                label = { Text("Bill Title", fontFamily = InterFontFamily) },
                 placeholder = {
                     Text(
                         text = "e.g., Dorm Rent, Fiber Wi-Fi",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans)
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = colors.azureAccent,
-                    unfocusedBorderColor = colors.border,
+                    unfocusedBorderColor = Color.Transparent,
                     focusedLabelColor = colors.azureAccent,
                     unfocusedLabelColor = colors.textSecondary,
                     focusedTextColor = colors.textPrimary,
-                    unfocusedTextColor = colors.textPrimary
+                    unfocusedTextColor = colors.textPrimary,
+                    focusedContainerColor = colors.cardElevated,
+                    unfocusedContainerColor = colors.cardElevated
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                shape = RoundedCornerShape(12.dp),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 52.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { showCategoryPrompt = true }
             ) {
                 Row(
@@ -652,30 +644,23 @@ fun AddEditRecurringBillBottomSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(colors.coralContainer),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(categoryIcon(selectedCategory)),
-                                contentDescription = null,
-                                tint = colors.coralInk,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                        ShiftlyIosIconTile(
+                            iconRes = categoryIcon(selectedCategory),
+                            backgroundColor = colors.coralBright,
+                            size = 32.dp,
+                            cornerRadius = 8.dp,
+                            iconSize = 16.dp
+                        )
                         Column {
                             Text(
                                 text = "Category",
-                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
                                 color = colors.textSecondary
                             )
                             Text(
                                 text = selectedCategory,
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = colors.textPrimary
@@ -694,7 +679,7 @@ fun AddEditRecurringBillBottomSheet(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = "Repeat Frequency",
-                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
                 Row(
@@ -706,14 +691,9 @@ fun AddEditRecurringBillBottomSheet(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .heightIn(min = 48.dp)
+                                .heightIn(min = 44.dp)
                                 .clip(RoundedCornerShape(50))
-                                .background(if (isSelected) colors.azurePrimary else colors.card)
-                                .border(
-                                    width = 1.dp,
-                                    color = if (isSelected) colors.azureAccent else colors.cardBorder,
-                                    shape = RoundedCornerShape(50)
-                                )
+                                .background(if (isSelected) colors.azurePrimary else colors.cardElevated)
                                 .clickable(role = Role.Tab) { selectedFrequency = freq }
                                 .semantics { selected = isSelected },
                             contentAlignment = Alignment.Center
@@ -721,7 +701,7 @@ fun AddEditRecurringBillBottomSheet(
                             Text(
                                 text = freq,
                                 style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = if (isSelected) colors.onAzurePrimary else colors.textPrimary
@@ -734,7 +714,7 @@ fun AddEditRecurringBillBottomSheet(
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
                     text = "Next Due Date & Time",
-                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
                 Row(
@@ -742,14 +722,13 @@ fun AddEditRecurringBillBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = colors.card,
-                        border = BorderStroke(1.dp, colors.cardBorder),
+                        shape = RoundedCornerShape(12.dp),
+                        color = colors.cardElevated,
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1.3f)
                             .heightIn(min = 48.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .clickable { showDatePicker = true }
                     ) {
                         Row(
@@ -774,14 +753,13 @@ fun AddEditRecurringBillBottomSheet(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = colors.card,
-                        border = BorderStroke(1.dp, colors.cardBorder),
+                        shape = RoundedCornerShape(12.dp),
+                        color = colors.cardElevated,
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 48.dp)
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(12.dp))
                             .clickable { showTimePicker = true }
                     ) {
                         Row(
@@ -808,9 +786,8 @@ fun AddEditRecurringBillBottomSheet(
 
             if (editingBill != null) {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = colors.card,
-                    border = BorderStroke(1.dp, colors.cardBorder),
+                    shape = RoundedCornerShape(12.dp),
+                    color = colors.cardElevated,
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -824,7 +801,7 @@ fun AddEditRecurringBillBottomSheet(
                         Text(
                             text = "Auto-log bill when due",
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary
@@ -837,7 +814,7 @@ fun AddEditRecurringBillBottomSheet(
                                 checkedTrackColor = colors.azurePrimary,
                                 uncheckedThumbColor = colors.textSecondary,
                                 uncheckedTrackColor = colors.surface,
-                                uncheckedBorderColor = colors.border
+                                uncheckedBorderColor = Color.Transparent
                             )
                         )
                     }
@@ -891,7 +868,7 @@ fun AddEditRecurringBillBottomSheet(
                     Text(
                         text = "Select",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.azureAccent
@@ -902,7 +879,7 @@ fun AddEditRecurringBillBottomSheet(
                 TextButton(onClick = { showDatePicker = false }) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -921,7 +898,7 @@ fun AddEditRecurringBillBottomSheet(
                     selectedYearContentColor = colors.onAzurePrimary,
                     selectedYearContainerColor = colors.azurePrimary,
                     dayContentColor = colors.textPrimary,
-                    disabledDayContentColor = colors.textMuted,
+                    disabledDayContentColor = colors.textSecondary.copy(alpha = 0.45f),
                     selectedDayContentColor = colors.onAzurePrimary,
                     selectedDayContainerColor = colors.azurePrimary,
                     todayContentColor = colors.azureAccent,
@@ -952,7 +929,7 @@ fun AddEditRecurringBillBottomSheet(
                     Text(
                         text = "OK",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.azureAccent
@@ -963,7 +940,7 @@ fun AddEditRecurringBillBottomSheet(
                 TextButton(onClick = { showTimePicker = false }) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -978,18 +955,18 @@ fun AddEditRecurringBillBottomSheet(
                 TimePicker(
                     state = timePickerState,
                     colors = TimePickerDefaults.colors(
-                        clockDialColor = colors.card,
+                        clockDialColor = colors.cardElevated,
                         clockDialSelectedContentColor = colors.onAzurePrimary,
                         clockDialUnselectedContentColor = colors.textSecondary,
                         selectorColor = colors.azurePrimary,
                         containerColor = colors.surface,
-                        periodSelectorBorderColor = colors.border,
+                        periodSelectorBorderColor = Color.Transparent,
                         periodSelectorSelectedContainerColor = colors.azurePrimary,
-                        periodSelectorUnselectedContainerColor = colors.surface,
+                        periodSelectorUnselectedContainerColor = colors.cardElevated,
                         periodSelectorSelectedContentColor = colors.onAzurePrimary,
                         periodSelectorUnselectedContentColor = colors.textSecondary,
                         timeSelectorSelectedContainerColor = colors.cardElevated,
-                        timeSelectorUnselectedContainerColor = colors.surface,
+                        timeSelectorUnselectedContainerColor = colors.cardElevated,
                         timeSelectorSelectedContentColor = colors.textPrimary,
                         timeSelectorUnselectedContentColor = colors.textSecondary
                     )

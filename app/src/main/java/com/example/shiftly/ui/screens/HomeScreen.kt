@@ -1,6 +1,7 @@
 package com.example.shiftly.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,8 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,7 +25,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,6 +39,8 @@ import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
@@ -47,7 +50,7 @@ import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.tabular
@@ -225,21 +228,14 @@ fun HomeScreenContent(
             item(key = "greeting_header", contentType = "greeting_header") {
                 Box(modifier = Modifier.padding(bottom = 14.dp)) {
                     HomeGreetingHeader(
+                        userName = state.userName,
                         profilePhotoPath = state.profilePhotoPath,
                         unreadCount = state.unreadNotificationCount,
                         isInboxOpen = isInboxOpen,
                         todayOverride = todayOverride,
+                        greetingHourOverride = greetingHourOverride,
                         onNotificationClick = onNotificationClick,
                         onProfileClick = onProfileClick
-                    )
-                }
-            }
-
-            item(key = "greeting_banner", contentType = "greeting_banner") {
-                Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
-                    DashboardGreetingBanner(
-                        userName = state.userName,
-                        greetingHour = greetingHourOverride
                     )
                 }
             }
@@ -259,7 +255,7 @@ fun HomeScreenContent(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetTopBand(colors.surface)
                         .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
@@ -272,7 +268,7 @@ fun HomeScreenContent(
                         ) {
                             Text(
                                 text = "Monthly Budget",
-                                style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                                style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                                 color = colors.textPrimary
                             )
                             Text(
@@ -285,17 +281,13 @@ fun HomeScreenContent(
                                 color = if (nearLimit && state.monthlyBudget > 0.0) colors.coralInk else colors.mintInk
                             )
                         }
-                        LinearProgressIndicator(
-                            progress = { budgetRatio },
+                        ShiftlyProgressBar(
+                            progress = budgetRatio,
                             color = if (nearLimit) colors.coralBright else colors.mintBright,
                             trackColor = colors.cardElevated,
-                            strokeCap = StrokeCap.Round,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .semantics {
-                                    contentDescription = "Monthly budget $budgetPct percent used"
-                                }
+                            modifier = Modifier.semantics {
+                                contentDescription = "Monthly budget $budgetPct percent used"
+                            }
                         )
                     }
 
@@ -334,14 +326,22 @@ fun HomeScreenContent(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
-                            .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 112.dp)
+                            .shiftlySheetBodyBand(colors.surface)
+                            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 112.dp)
                     ) {
-                        Text(
-                            text = "No activity logged yet. Start a shift in Duties or log an expense.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textSecondary
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(colors.cardElevated)
+                                .padding(16.dp)
+                        ) {
+                            Text(
+                                text = "No activity logged yet. Start a shift in Duties or log an expense.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary
+                            )
+                        }
                     }
                 }
             } else {
@@ -363,18 +363,31 @@ fun HomeScreenContent(
                         }
                     }
                 ) { idx, item ->
-                    Column(
+                    val rowShape = when {
+                        state.timelineItems.size == 1 -> RoundedCornerShape(18.dp)
+                        idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                        idx == state.timelineItems.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+                        else -> RectangleShape
+                    }
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                            .shiftlySheetBodyBand(colors.surface)
                             .padding(horizontal = 20.dp)
                     ) {
-                        HomeTimelineRow(
-                            item = item,
-                            currencySymbol = currency
-                        ) { onTimelineItemClick(item) }
-                        if (idx < state.timelineItems.lastIndex) {
-                            HorizontalDivider(color = colors.border)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(rowShape)
+                                .background(colors.cardElevated)
+                        ) {
+                            HomeTimelineRow(
+                                item = item,
+                                currencySymbol = currency
+                            ) { onTimelineItemClick(item) }
+                            if (idx < state.timelineItems.lastIndex) {
+                                ShiftlyHairlineDivider(startInset = 66.dp)
+                            }
                         }
                     }
                 }
@@ -383,7 +396,7 @@ fun HomeScreenContent(
                     Spacer(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                            .shiftlySheetBodyBand(colors.surface)
                             .height(104.dp)
                     )
                 }

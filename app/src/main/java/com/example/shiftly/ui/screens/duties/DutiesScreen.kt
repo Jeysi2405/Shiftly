@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens.duties
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,12 +18,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +36,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -53,6 +52,8 @@ import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
@@ -60,8 +61,8 @@ import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
-import com.example.shiftly.ui.theme.InkBlack
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.DayType
@@ -191,34 +192,29 @@ fun DutiesScreen(
         val colors = ShiftlyColors.current
         AlertDialog(
             onDismissRequest = { pendingConfirmEditShift = null },
-            containerColor = colors.card,
+            containerColor = colors.surface,
+            shape = RoundedCornerShape(22.dp),
             icon = {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(colors.azureContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_square_pen),
-                        contentDescription = null,
-                        tint = colors.azureInk,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                ShiftlyIosIconTile(
+                    iconRes = R.drawable.ic_lucide_square_pen,
+                    backgroundColor = colors.azurePrimary,
+                    size = 44.dp,
+                    cornerRadius = 11.dp,
+                    iconSize = 22.dp,
+                    iconTint = PureWhite
+                )
             },
             title = {
                 Text(
                     text = "Edit Shift",
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
                     color = colors.textPrimary
                 )
             },
             text = {
                 Text(
                     text = "Are you sure you want to edit the shift for this day?",
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
             },
@@ -241,7 +237,7 @@ fun DutiesScreen(
                     Text(
                         text = "Edit Shift",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         )
                     )
@@ -252,7 +248,7 @@ fun DutiesScreen(
                     Text(
                         text = "Cancel",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans
+                            fontFamily = InterFontFamily
                         ),
                         color = colors.textSecondary
                     )
@@ -381,7 +377,7 @@ fun DutiesScreenContent(
                     }
                     Text(
                         text = "Duties",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
                         color = colors.textPrimary
                     )
                 }
@@ -400,7 +396,7 @@ fun DutiesScreenContent(
             }
         }
 
-        // 1. Monthly Earnings & Time Breakdown Card (Regular=White, ND=Purple, OT=Red)
+        // 1. Monthly Earnings & Time Breakdown Card
         item(key = "time_breakdown", contentType = "summary") {
             Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
                 TimeBreakdownCard(
@@ -452,7 +448,7 @@ fun DutiesScreenContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .shiftlySheetTopBand(colors.surface)
                     .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
@@ -472,7 +468,7 @@ fun DutiesScreenContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 380.dp)
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
                 ) {
                     ShiftHistoryEmptyCard(
@@ -486,25 +482,35 @@ fun DutiesScreenContent(
                 key = { _, shift -> "shift_${shift.id}" },
                 contentType = { _, _ -> "shift_item" }
             ) { idx, shift ->
-                Column(
+                val rowShape = when {
+                    state.displayedShifts.size == 1 -> RoundedCornerShape(18.dp)
+                    idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                    idx == state.displayedShifts.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+                    else -> RectangleShape
+                }
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .padding(horizontal = 20.dp)
                 ) {
-                    ShiftHistoryItemCard(
-                        shift = shift,
-                        currencySymbol = state.currencySymbol,
-                        onEditNote = { onEditShift(shift) },
-                        onDelete = { onDeleteShift(shift) }
-                    )
-                    if (idx < state.displayedShifts.lastIndex) {
-                        Spacer(modifier = Modifier.height(14.dp))
-                        HorizontalDivider(
-                            color = colors.border.copy(alpha = 0.6f),
-                            modifier = Modifier.padding(horizontal = 4.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(rowShape)
+                            .background(colors.cardElevated)
+                    ) {
+                        ShiftHistoryItemCard(
+                            shift = shift,
+                            currencySymbol = state.currencySymbol,
+                            onEditNote = { onEditShift(shift) },
+                            onDelete = { onDeleteShift(shift) },
+                            containerColor = Color.Transparent,
+                            shape = RectangleShape
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
+                        if (idx < state.displayedShifts.lastIndex) {
+                            ShiftlyHairlineDivider(startInset = 64.dp)
+                        }
                     }
                 }
             }
@@ -513,7 +519,7 @@ fun DutiesScreenContent(
                 Spacer(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .shiftlySheetBodyBand(colors.surface)
                         .height(if (state.displayedShifts.size <= 1) 220.dp else 104.dp)
                 )
             }
@@ -590,12 +596,11 @@ private fun DutiesLogShiftSheetPreview() {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(InkBlack.copy(alpha = 0.65f))
+                        .background(Color.Black.copy(alpha = 0.65f))
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()

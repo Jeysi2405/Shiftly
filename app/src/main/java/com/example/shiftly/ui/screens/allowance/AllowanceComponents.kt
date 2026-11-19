@@ -1,17 +1,18 @@
 package com.example.shiftly.ui.screens.allowance
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -23,6 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
@@ -31,7 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -52,6 +54,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -66,8 +69,12 @@ import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.AllowanceSource
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.CutoffCalculator
@@ -109,10 +116,10 @@ fun AllowanceHeroCard(
 ) {
     val colors = ShiftlyColors.current
     ShiftlyGlassCard(
-        cornerRadius = 26.dp,
+        cornerRadius = 18.dp,
         contentPadding = PaddingValues(18.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -124,7 +131,7 @@ fun AllowanceHeroCard(
                 ) {
                     Text(
                         text = "Total Allowance Logged",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                     Text(
@@ -133,43 +140,56 @@ fun AllowanceHeroCard(
                         color = colors.mintInk
                     )
                 }
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(colors.mintContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_wallet),
-                        contentDescription = null,
-                        tint = colors.mintInk,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                ShiftlyIosIconTile(
+                    iconRes = R.drawable.ic_lucide_wallet,
+                    backgroundColor = colors.mintBright,
+                    size = 40.dp,
+                    cornerRadius = 10.dp,
+                    iconSize = 20.dp
+                )
             }
 
+            ShiftlyHairlineDivider()
+
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                AllowanceSourceStatTile(
+                AllowanceSourceStatColumn(
                     label = "Salary",
                     amount = ShiftlyFormatters.formatCurrency(currencySymbol, salaryTotal),
                     accentColor = colors.mintInk,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 8.dp)
                 )
-                AllowanceSourceStatTile(
+                ShiftlyVerticalHairlineDivider(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(vertical = 2.dp)
+                )
+                AllowanceSourceStatColumn(
                     label = "Business",
                     amount = ShiftlyFormatters.formatCurrency(currencySymbol, businessTotal),
                     accentColor = colors.azureInk,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 10.dp)
                 )
-                AllowanceSourceStatTile(
+                ShiftlyVerticalHairlineDivider(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(vertical = 2.dp)
+                )
+                AllowanceSourceStatColumn(
                     label = "Others",
                     amount = ShiftlyFormatters.formatCurrency(currencySymbol, othersTotal),
                     accentColor = colors.textPrimary,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 10.dp)
                 )
             }
         }
@@ -177,41 +197,33 @@ fun AllowanceHeroCard(
 }
 
 @Composable
-private fun AllowanceSourceStatTile(
+private fun AllowanceSourceStatColumn(
     label: String,
     amount: String,
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
-        shadowElevation = 0.dp,
-        modifier = modifier
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
-                color = colors.textSecondary,
-                maxLines = 1
-            )
-            Text(
-                text = amount,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Bold
-                ).tabular(),
-                color = accentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+            color = colors.textSecondary,
+            maxLines = 1
+        )
+        Text(
+            text = amount,
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold
+            ).tabular(),
+            color = accentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -233,10 +245,10 @@ fun AllowanceCutoffScheduleCard(
     }
 
     ShiftlyGlassCard(
-        cornerRadius = 24.dp,
-        contentPadding = PaddingValues(16.dp)
+        cornerRadius = 18.dp,
+        contentPadding = PaddingValues(18.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -248,30 +260,37 @@ fun AllowanceCutoffScheduleCard(
                 ) {
                     Text(
                         text = "Payday Cutoff Schedule",
-                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                     Text(
                         text = cutoffDisplayLabel,
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.Bold
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
                     )
                 }
 
-                OutlinedButton(
+                Button(
                     onClick = onChangeCutoff,
                     shape = RoundedCornerShape(50),
-                    border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.55f)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.azureContainer,
+                        contentColor = colors.azureInk
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 0.dp
+                    ),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    modifier = Modifier.heightIn(min = 42.dp)
+                    modifier = Modifier.heightIn(min = 38.dp)
                 ) {
                     Text(
                         text = "Change Cutoff",
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.azureInk
@@ -279,51 +298,43 @@ fun AllowanceCutoffScheduleCard(
                 }
             }
 
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
-                shadowElevation = 0.dp,
-                modifier = Modifier.fillMaxWidth()
+            ShiftlyHairlineDivider()
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = "Pending Duties Earnings",
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
-                            color = colors.textSecondary
-                        )
-                        Text(
-                            text = if (pendingShiftCount > 0) {
-                                "$pendingShiftCount shift(s) • credits $formattedEndDate"
-                            } else {
-                                "Current cycle: ${activeWindow.label}"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = ShiftlyFormatters.formatCurrency(currencySymbol, pendingDutiesEarnings),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.Bold
-                        ).tabular(),
-                        color = colors.azureInk
+                        text = "Pending Duties Earnings",
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary
+                    )
+                    Text(
+                        text = if (pendingShiftCount > 0) {
+                            "$pendingShiftCount shift(s) • credits $formattedEndDate"
+                        } else {
+                            "Current cycle: ${activeWindow.label}"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = ShiftlyFormatters.formatCurrency(currencySymbol, pendingDutiesEarnings),
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = colors.azureInk
+                )
             }
         }
     }
@@ -334,7 +345,9 @@ fun AllowanceHistoryItemCard(
     entry: AllowanceEntryEntity,
     currencySymbol: String,
     onDelete: () -> Unit,
-    dateFormatter: DateTimeFormatter? = null
+    dateFormatter: DateTimeFormatter? = null,
+    containerColor: Color = ShiftlyColors.current.cardElevated,
+    shape: Shape = RoundedCornerShape(18.dp)
 ) {
     val colors = ShiftlyColors.current
     val resolvedFormatter = dateFormatter ?: run {
@@ -346,21 +359,25 @@ fun AllowanceHistoryItemCard(
     }
     val isAutoFromDuties = !entry.cutoffKey.isNullOrBlank()
     val iconRes = allowanceSourceIcon(entry.source)
-    val badgeBg = when (entry.source) {
+    val tileBg = when (entry.source) {
+        AllowanceSource.SALARY -> colors.mintBright
+        AllowanceSource.BUSINESS -> colors.azurePrimary
+        else -> colors.surface
+    }
+    val chipBg = when (entry.source) {
         AllowanceSource.SALARY -> colors.mintContainer
         AllowanceSource.BUSINESS -> colors.azureContainer
         else -> colors.surface
     }
-    val badgeTint = when (entry.source) {
+    val chipTint = when (entry.source) {
         AllowanceSource.SALARY -> colors.mintInk
         AllowanceSource.BUSINESS -> colors.azureInk
         else -> colors.textSecondary
     }
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        shape = shape,
+        color = containerColor,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -371,20 +388,14 @@ fun AllowanceHistoryItemCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(badgeBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(iconRes),
-                    contentDescription = null,
-                    tint = badgeTint,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            ShiftlyIosIconTile(
+                iconRes = iconRes,
+                backgroundColor = tileBg,
+                size = 38.dp,
+                cornerRadius = 9.dp,
+                iconSize = 18.dp,
+                iconTint = PureWhite
+            )
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -393,7 +404,7 @@ fun AllowanceHistoryItemCard(
                 Text(
                     text = entry.title,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary,
@@ -406,21 +417,16 @@ fun AllowanceHistoryItemCard(
                 ) {
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = badgeBg,
-                        border = if (entry.source == AllowanceSource.OTHERS) {
-                            BorderStroke(1.dp, colors.cardBorder)
-                        } else {
-                            null
-                        },
+                        color = chipBg,
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = if (isAutoFromDuties) "Auto from Duties" else shortSourceLabel(entry.source),
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = badgeTint,
+                            color = chipTint,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                         )
                     }
@@ -440,7 +446,7 @@ fun AllowanceHistoryItemCard(
                 Text(
                     text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount)}",
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.mintInk
@@ -460,8 +466,8 @@ fun AllowanceHistoryItemCard(
                 } else {
                     Text(
                         text = "Synced",
-                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
-                        color = colors.textMuted
+                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary
                     )
                 }
             }
@@ -475,9 +481,8 @@ fun AllowanceEmptyCard(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(24.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        shape = RoundedCornerShape(18.dp),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -486,24 +491,17 @@ fun AllowanceEmptyCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(colors.mintContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_wallet),
-                    contentDescription = null,
-                    tint = colors.mintInk,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
+            ShiftlyIosIconTile(
+                iconRes = R.drawable.ic_lucide_wallet,
+                backgroundColor = colors.mintBright,
+                size = 48.dp,
+                cornerRadius = 12.dp,
+                iconSize = 24.dp
+            )
             Text(
                 text = "No allowance entries yet",
                 style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = PlusJakartaSans,
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.SemiBold
                 ),
                 color = colors.textPrimary
@@ -555,7 +553,7 @@ fun AddAllowanceBottomSheet(
         sheetState = sheetState,
         containerColor = colors.surface,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
@@ -579,11 +577,11 @@ fun AddAllowanceBottomSheet(
                 )
                 TextButton(
                     onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 48.dp)
+                    modifier = Modifier.heightIn(min = 44.dp)
                 ) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -597,38 +595,40 @@ fun AddAllowanceBottomSheet(
                         amountText = filtered
                     }
                 },
-                label = { Text("Amount", fontFamily = PlusJakartaSans) },
+                label = { Text("Amount", fontFamily = InterFontFamily) },
                 placeholder = {
                     Text(
                         text = "0",
                         style = MaterialTheme.typography.headlineLarge.tabular(),
-                        color = colors.textMuted
+                        color = colors.textSecondary
                     )
                 },
                 prefix = {
                     Text(
                         text = "$currencySymbol ",
                         style = MaterialTheme.typography.headlineLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold
                         ),
                         color = colors.mintInk
                     )
                 },
                 textStyle = MaterialTheme.typography.headlineLarge.copy(
-                    fontFamily = PlusJakartaSans,
+                    fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Bold
                 ).tabular(),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                shape = RoundedCornerShape(18.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = colors.mintInk,
-                    unfocusedBorderColor = colors.border,
+                    unfocusedBorderColor = Color.Transparent,
                     focusedLabelColor = colors.mintInk,
                     unfocusedLabelColor = colors.textSecondary,
                     focusedTextColor = colors.textPrimary,
-                    unfocusedTextColor = colors.textPrimary
+                    unfocusedTextColor = colors.textPrimary,
+                    focusedContainerColor = colors.cardElevated,
+                    unfocusedContainerColor = colors.cardElevated
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -638,22 +638,25 @@ fun AddAllowanceBottomSheet(
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Description", fontFamily = PlusJakartaSans) },
+                label = { Text("Description", fontFamily = InterFontFamily) },
                 placeholder = {
                     Text(
                         text = "e.g., Freelance project, Weekly allowance",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans)
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = colors.azureAccent,
-                    unfocusedBorderColor = colors.border,
+                    unfocusedBorderColor = Color.Transparent,
                     focusedLabelColor = colors.azureAccent,
                     unfocusedLabelColor = colors.textSecondary,
                     focusedTextColor = colors.textPrimary,
-                    unfocusedTextColor = colors.textPrimary
+                    unfocusedTextColor = colors.textPrimary,
+                    focusedContainerColor = colors.cardElevated,
+                    unfocusedContainerColor = colors.cardElevated
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -661,28 +664,23 @@ fun AddAllowanceBottomSheet(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "Source",
-                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
-                AllowanceSource.ALL.forEach { source ->
-                    val isSelected = selectedSource == source
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (isSelected) colors.mintContainer else colors.card,
-                        border = BorderStroke(
-                            width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) colors.mintInk else colors.cardBorder
-                        ),
-                        shadowElevation = 0.dp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable(role = Role.RadioButton) { selectedSource = source }
-                            .semantics(mergeDescendants = true) { selected = isSelected }
-                    ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(colors.cardElevated)
+                ) {
+                    AllowanceSource.ALL.forEachIndexed { idx, source ->
+                        val isSelected = selectedSource == source
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .background(if (isSelected) colors.mintContainer else Color.Transparent)
+                                .clickable(role = Role.RadioButton) { selectedSource = source }
+                                .semantics(mergeDescendants = true) { selected = isSelected }
                                 .padding(horizontal = 14.dp, vertical = 12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -700,7 +698,7 @@ fun AddAllowanceBottomSheet(
                                 Text(
                                     text = source,
                                     style = MaterialTheme.typography.titleSmall.copy(
-                                        fontFamily = PlusJakartaSans,
+                                        fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.SemiBold
                                     ),
                                     color = colors.textPrimary
@@ -717,25 +715,27 @@ fun AddAllowanceBottomSheet(
                                     Icon(
                                         painter = painterResource(R.drawable.ic_lucide_check),
                                         contentDescription = "Selected",
-                                        tint = colors.onAccentDark,
+                                        tint = PureWhite,
                                         modifier = Modifier.size(13.dp)
                                     )
                                 }
                             }
+                        }
+                        if (idx < AllowanceSource.ALL.lastIndex) {
+                            ShiftlyHairlineDivider(startInset = 42.dp)
                         }
                     }
                 }
             }
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                shape = RoundedCornerShape(12.dp),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { showDatePicker = true }
             ) {
                 Row(
@@ -786,7 +786,7 @@ fun AddAllowanceBottomSheet(
                     Text(
                         text = "Select",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.azureAccent
@@ -797,7 +797,7 @@ fun AddAllowanceBottomSheet(
                 TextButton(onClick = { showDatePicker = false }) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -816,7 +816,7 @@ fun AddAllowanceBottomSheet(
                     selectedYearContentColor = colors.onAzurePrimary,
                     selectedYearContainerColor = colors.azurePrimary,
                     dayContentColor = colors.textPrimary,
-                    disabledDayContentColor = colors.textMuted,
+                    disabledDayContentColor = colors.textSecondary.copy(alpha = 0.45f),
                     selectedDayContentColor = colors.onAzurePrimary,
                     selectedDayContainerColor = colors.azurePrimary,
                     todayContentColor = colors.azureAccent,
@@ -865,7 +865,7 @@ fun ChangeCutoffScheduleSheet(
         sheetState = sheetState,
         containerColor = colors.surface,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
@@ -889,11 +889,11 @@ fun ChangeCutoffScheduleSheet(
                 )
                 TextButton(
                     onClick = onDismiss,
-                    modifier = Modifier.heightIn(min = 48.dp)
+                    modifier = Modifier.heightIn(min = 44.dp)
                 ) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
@@ -908,14 +908,9 @@ fun ChangeCutoffScheduleSheet(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 48.dp)
+                            .heightIn(min = 44.dp)
                             .clip(RoundedCornerShape(50))
-                            .background(if (isSelected) colors.azurePrimary else colors.card)
-                            .border(
-                                width = 1.dp,
-                                color = if (isSelected) colors.azureAccent else colors.cardBorder,
-                                shape = RoundedCornerShape(50)
-                            )
+                            .background(if (isSelected) colors.azurePrimary else colors.cardElevated)
                             .clickable(role = Role.Tab) {
                                 mode = optionMode
                                 if (optionMode == CutoffScheduleConfig.MODE_SEMI_MONTHLY && day1 >= day2) {
@@ -929,7 +924,7 @@ fun ChangeCutoffScheduleSheet(
                         Text(
                             text = label,
                             style = MaterialTheme.typography.labelMedium.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = if (isSelected) colors.onAzurePrimary else colors.textPrimary,
@@ -944,7 +939,7 @@ fun ChangeCutoffScheduleSheet(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             text = "Quick Presets",
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                             color = colors.textSecondary
                         )
                         Row(
@@ -989,7 +984,7 @@ fun ChangeCutoffScheduleSheet(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             text = "Quick Presets",
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                             color = colors.textSecondary
                         )
                         Row(
@@ -1021,7 +1016,7 @@ fun ChangeCutoffScheduleSheet(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             text = "Weekly Payday",
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                             color = colors.textSecondary
                         )
                         Row(
@@ -1034,13 +1029,8 @@ fun ChangeCutoffScheduleSheet(
                                     modifier = Modifier
                                         .weight(1f)
                                         .heightIn(min = 44.dp)
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(if (isSelected) colors.azurePrimary else colors.card)
-                                        .border(
-                                            width = 1.dp,
-                                            color = if (isSelected) colors.azureAccent else colors.cardBorder,
-                                            shape = RoundedCornerShape(14.dp)
-                                        )
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(if (isSelected) colors.azurePrimary else colors.cardElevated)
                                         .clickable(role = Role.Tab) { weeklyDay = dow.value }
                                         .semantics { selected = isSelected },
                                     contentAlignment = Alignment.Center
@@ -1048,7 +1038,7 @@ fun ChangeCutoffScheduleSheet(
                                     Text(
                                         text = dow.getDisplayName(TextStyle.NARROW, locale),
                                         style = MaterialTheme.typography.labelLarge.copy(
-                                            fontFamily = PlusJakartaSans,
+                                            fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.Bold
                                         ),
                                         color = if (isSelected) colors.onAzurePrimary else colors.textPrimary
@@ -1061,20 +1051,19 @@ fun ChangeCutoffScheduleSheet(
             }
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.card,
-                border = BorderStroke(1.dp, colors.cardBorder),
+                shape = RoundedCornerShape(14.dp),
+                color = colors.cardElevated,
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
                         text = "Active Rule: $previewDisplayLabel",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
@@ -1107,12 +1096,7 @@ private fun PresetChip(
         modifier = modifier
             .heightIn(min = 40.dp)
             .clip(RoundedCornerShape(50))
-            .background(if (selected) colors.mintContainer else colors.card)
-            .border(
-                width = 1.dp,
-                color = if (selected) colors.mintInk else colors.cardBorder,
-                shape = RoundedCornerShape(50)
-            )
+            .background(if (selected) colors.mintContainer else colors.cardElevated)
             .clickable(role = Role.Tab, onClick = onClick)
             .semantics { this.selected = selected },
         contentAlignment = Alignment.Center
@@ -1120,7 +1104,7 @@ private fun PresetChip(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontFamily = PlusJakartaSans,
+                fontFamily = InterFontFamily,
                 fontWeight = FontWeight.SemiBold
             ).tabular(),
             color = if (selected) colors.mintInk else colors.textPrimary,
@@ -1141,29 +1125,28 @@ private fun DayStepperRow(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        shape = RoundedCornerShape(14.dp),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
                 Text(
                     text = valueLabel,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
                     color = colors.textPrimary
@@ -1176,11 +1159,10 @@ private fun DayStepperRow(
             ) {
                 Surface(
                     shape = CircleShape,
-                    color = if (canDecrease) colors.surface else colors.disabledContainer,
-                    border = BorderStroke(1.dp, colors.cardBorder),
+                    color = if (canDecrease) colors.surface else colors.surface.copy(alpha = 0.45f),
                     shadowElevation = 0.dp,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .clickable(enabled = canDecrease, onClick = onDecrease)
                 ) {
@@ -1188,17 +1170,16 @@ private fun DayStepperRow(
                         Text(
                             text = "−",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (canDecrease) colors.textPrimary else colors.disabledContent
+                            color = if (canDecrease) colors.textPrimary else colors.textSecondary
                         )
                     }
                 }
                 Surface(
                     shape = CircleShape,
-                    color = if (canIncrease) colors.surface else colors.disabledContainer,
-                    border = BorderStroke(1.dp, colors.cardBorder),
+                    color = if (canIncrease) colors.surface else colors.surface.copy(alpha = 0.45f),
                     shadowElevation = 0.dp,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .clickable(enabled = canIncrease, onClick = onIncrease)
                 ) {
@@ -1206,7 +1187,7 @@ private fun DayStepperRow(
                         Text(
                             text = "+",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (canIncrease) colors.textPrimary else colors.disabledContent
+                            color = if (canIncrease) colors.textPrimary else colors.textSecondary
                         )
                     }
                 }

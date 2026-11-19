@@ -13,9 +13,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -42,10 +40,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -63,7 +59,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -88,9 +83,14 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.InAppNotificationType
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyIosIconTile
+import com.example.shiftly.ui.components.ShiftlyProgressBar
+import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
 import com.example.shiftly.ui.screens.expense.categoryIcon
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -110,13 +110,11 @@ import kotlinx.coroutines.withContext
 
 private val HERO_PAGE_LABELS = listOf("Total Balance", "Shift Earnings", "Savings Goals")
 private val HomePillShape = RoundedCornerShape(50)
-private val HomeCardShape = RoundedCornerShape(22.dp)
-private val HomeBannerShape = RoundedCornerShape(20.dp)
-private val HomeMetricTileShape = RoundedCornerShape(18.dp)
-private val HomeCompactTileShape = RoundedCornerShape(16.dp)
-private val HomeTimelineRowShape = RoundedCornerShape(14.dp)
-private val InboxDropdownShape = RoundedCornerShape(24.dp)
-private val HeadsUpBannerShape = RoundedCornerShape(22.dp)
+private val HomeCardShape = RoundedCornerShape(18.dp)
+private val HomeBannerShape = RoundedCornerShape(18.dp)
+private val HomeButtonShape = RoundedCornerShape(12.dp)
+private val InboxDropdownShape = RoundedCornerShape(20.dp)
+private val HeadsUpBannerShape = RoundedCornerShape(18.dp)
 private const val HEADS_UP_AUTO_DISMISS_MS = 4_200L
 
 internal fun formatNotificationTime(
@@ -150,8 +148,7 @@ internal fun formatNotificationTime(
 
 private data class NotificationVisualStyle(
     @DrawableRes val iconRes: Int,
-    val containerColor: Color,
-    val accentColor: Color
+    val tileColor: Color
 )
 
 @Composable
@@ -160,39 +157,33 @@ private fun notificationVisualStyle(type: InAppNotificationType): NotificationVi
     return when (type) {
         InAppNotificationType.BILL_DUE -> NotificationVisualStyle(
             iconRes = R.drawable.ic_lucide_repeat,
-            containerColor = colors.coralContainer,
-            accentColor = colors.coralInk
+            tileColor = colors.iosOrange
         )
         InAppNotificationType.BILL_POSTED -> NotificationVisualStyle(
             iconRes = R.drawable.ic_lucide_receipt_text,
-            containerColor = colors.coralContainer,
-            accentColor = colors.coralInk
+            tileColor = colors.coralBright
         )
         InAppNotificationType.SHIFT_REMINDER -> NotificationVisualStyle(
             iconRes = R.drawable.ic_lucide_clock,
-            containerColor = colors.azureContainer,
-            accentColor = colors.azureAccent
+            tileColor = colors.azurePrimary
         )
         InAppNotificationType.SAVINGS_REMINDER -> NotificationVisualStyle(
             iconRes = R.drawable.ic_lucide_piggy_bank,
-            containerColor = colors.mintContainer,
-            accentColor = colors.mintInk
+            tileColor = colors.mintBright
         )
         InAppNotificationType.PAYDAY_CUTOFF -> NotificationVisualStyle(
             iconRes = R.drawable.ic_lucide_wallet,
-            containerColor = colors.mintContainer,
-            accentColor = colors.mintInk
+            tileColor = colors.mintBright
         )
         InAppNotificationType.SPLIT_BILL -> NotificationVisualStyle(
             iconRes = R.drawable.ic_lucide_split,
-            containerColor = colors.azureContainer,
-            accentColor = colors.azureAccent
+            tileColor = colors.azurePrimary
         )
     }
 }
 
 /**
- * Top header displaying a refined muted date subtitle (e.g. "Wednesday, Nov 18, 2026"),
+ * Top header displaying small uppercase date above the Home Large Title,
  * plus notifications and profile avatar.
  */
 @Composable
@@ -202,14 +193,19 @@ fun HomeGreetingHeader(
     isInboxOpen: Boolean = false,
     todayOverride: LocalDate? = null,
     onNotificationClick: () -> Unit,
-    onProfileClick: () -> Unit
+    onProfileClick: () -> Unit,
+    userName: String = "",
+    greetingHourOverride: Int? = null
 ) {
     val colors = ShiftlyColors.current
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
-    val fullDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy", locale) }
-    val formattedDate = remember(today, fullDateFormatter) { today.format(fullDateFormatter) }
+    val fullDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE, MMM d", locale) }
+    val formattedDate = remember(today, fullDateFormatter) { today.format(fullDateFormatter).uppercase(locale) }
+    val resolvedHour = remember(greetingHourOverride) { greetingHourOverride ?: LocalTime.now().hour }
+    val greeting = remember(resolvedHour) { greetingForHour(resolvedHour) }
+    val display = remember(userName) { userName.trim().ifEmpty { "Shiftly" } }
 
     val notificationDescription = remember(unreadCount, isInboxOpen) {
         when {
@@ -224,7 +220,7 @@ fun HomeGreetingHeader(
             profilePhotoPath?.let(::File)?.takeIf { it.exists() && it.isFile }
         }
     }
-    val avatarSizePx = with(LocalDensity.current) { 48.dp.roundToPx() }
+    val avatarSizePx = with(LocalDensity.current) { 44.dp.roundToPx() }
     val avatarRequest = remember(photoFile, avatarSizePx, context) {
         photoFile?.let { file ->
             ImageRequest.Builder(context)
@@ -241,60 +237,71 @@ fun HomeGreetingHeader(
             .fillMaxWidth()
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.Top
     ) {
-        Text(
-            text = formattedDate,
-            style = MaterialTheme.typography.titleSmall.copy(
-                fontFamily = PlusJakartaSans,
-                fontWeight = FontWeight.Medium
-            ).tabular(),
-            color = colors.textMuted,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(end = 12.dp)
-        )
+                .padding(top = 4.dp, end = 12.dp)
+        ) {
+            Text(
+                text = formattedDate,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = InterFontFamily,
+                    letterSpacing = 0.5.sp
+                ).tabular(),
+                color = colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = if (userName.isNotBlank()) "$greeting $display" else greeting.trimEnd(','),
+                style = MaterialTheme.typography.displaySmall.copy(lineHeight = 38.sp),
+                color = colors.textPrimary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.semantics { heading() }
+            )
+        }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Box(contentAlignment = Alignment.Center) {
                 IconButton(
                     onClick = onNotificationClick,
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(if (isInboxOpen) colors.azureContainer else Color.Transparent)
+                        .background(if (isInboxOpen) colors.azurePrimary else colors.card)
                         .semantics { contentDescription = notificationDescription }
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_bell),
                         contentDescription = null,
-                        tint = if (isInboxOpen) colors.azureAccent else colors.textPrimary,
-                        modifier = Modifier.size(22.dp)
+                        tint = if (isInboxOpen) PureWhite else colors.textPrimary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 if (unreadCount > 0) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 6.dp, end = 6.dp)
+                            .padding(top = 4.dp, end = 4.dp)
                             .defaultMinSize(minWidth = 17.dp, minHeight = 17.dp)
                             .clip(CircleShape)
                             .background(colors.coralBright)
-                            .border(1.5.dp, colors.background, CircleShape)
                             .padding(horizontal = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = if (unreadCount > 9) "9+" else unreadCount.toString(),
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontSize = 9.sp,
                                 lineHeight = 10.sp,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
-                            color = colors.onAccentDark,
+                            color = PureWhite,
                             maxLines = 1,
                             softWrap = false
                         )
@@ -304,9 +311,9 @@ fun HomeGreetingHeader(
             IconButton(
                 onClick = onProfileClick,
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .background(colors.azureContainer)
+                    .background(colors.card)
             ) {
                 if (avatarRequest != null) {
                     AsyncImage(
@@ -322,7 +329,7 @@ fun HomeGreetingHeader(
                         painter = painterResource(R.drawable.ic_lucide_user),
                         contentDescription = "Open Profile and Settings",
                         tint = colors.azureAccent,
-                        modifier = Modifier.size(21.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -392,7 +399,6 @@ fun NotificationInboxDropdown(
             Surface(
                 shape = InboxDropdownShape,
                 color = colors.surface,
-                border = BorderStroke(1.dp, colors.border),
                 shadowElevation = 12.dp,
                 tonalElevation = 0.dp,
                 modifier = Modifier
@@ -419,8 +425,8 @@ fun NotificationInboxDropdown(
                             Text(
                                 text = "Notifications",
                                 style = MaterialTheme.typography.titleMedium.copy(
-                                    fontFamily = PlusJakartaSans,
-                                    fontWeight = FontWeight.Bold
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold
                                 ),
                                 color = colors.textPrimary
                             )
@@ -434,7 +440,7 @@ fun NotificationInboxDropdown(
                                     Text(
                                         text = "$unreadCount new",
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = PlusJakartaSans,
+                                            fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.Bold
                                         ).tabular(),
                                         color = colors.coralInk
@@ -452,7 +458,7 @@ fun NotificationInboxDropdown(
                             Text(
                                 text = "Clear all",
                                 style = MaterialTheme.typography.labelMedium.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = if (notifications.isNotEmpty()) colors.azureAccent else colors.disabledContent
@@ -460,7 +466,7 @@ fun NotificationInboxDropdown(
                         }
                     }
 
-                    HorizontalDivider(color = colors.border)
+                    ShiftlyHairlineDivider()
 
                     if (notifications.isEmpty()) {
                         Column(
@@ -470,25 +476,18 @@ fun NotificationInboxDropdown(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(colors.card)
-                                    .border(1.dp, colors.cardBorder, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_bell),
-                                    contentDescription = null,
-                                    tint = colors.textMuted,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            ShiftlyIosIconTile(
+                                iconRes = R.drawable.ic_lucide_bell,
+                                backgroundColor = colors.cardElevated,
+                                size = 44.dp,
+                                cornerRadius = 11.dp,
+                                iconSize = 20.dp,
+                                iconTint = colors.textSecondary
+                            )
                             Text(
                                 text = "All caught up",
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = colors.textPrimary
@@ -519,10 +518,7 @@ fun NotificationInboxDropdown(
                                     onClick = { onItemClick(item) }
                                 )
                                 if (idx < notifications.lastIndex) {
-                                    HorizontalDivider(
-                                        color = colors.border.copy(alpha = 0.65f),
-                                        modifier = Modifier.padding(horizontal = 16.dp)
-                                    )
+                                    ShiftlyHairlineDivider(startInset = 64.dp)
                                 }
                             }
                         }
@@ -554,7 +550,7 @@ private fun NotificationInboxRow(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                if (!item.isRead) colors.azureContainer.copy(alpha = if (colors.isDark) 0.18f else 0.12f)
+                if (!item.isRead) colors.azureContainer.copy(alpha = if (colors.isDark) 0.25f else 0.14f)
                 else Color.Transparent
             )
             .clickable(onClick = onClick)
@@ -562,20 +558,13 @@ private fun NotificationInboxRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
     ) {
-        Box(
-            modifier = Modifier
-                .size(38.dp)
-                .clip(CircleShape)
-                .background(visual.containerColor),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(visual.iconRes),
-                contentDescription = null,
-                tint = visual.accentColor,
-                modifier = Modifier.size(18.dp)
-            )
-        }
+        ShiftlyIosIconTile(
+            iconRes = visual.iconRes,
+            backgroundColor = visual.tileColor,
+            size = 36.dp,
+            cornerRadius = 9.dp,
+            iconSize = 18.dp
+        )
 
         Column(
             modifier = Modifier.weight(1f),
@@ -589,7 +578,7 @@ private fun NotificationInboxRow(
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = if (!item.isRead) FontWeight.Bold else FontWeight.SemiBold
                     ),
                     color = colors.textPrimary,
@@ -606,10 +595,10 @@ private fun NotificationInboxRow(
                         Text(
                             text = timeLabel,
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ).tabular(),
-                            color = colors.textMuted
+                            color = colors.textSecondary
                         )
                     }
                     if (!item.isRead) {
@@ -617,7 +606,7 @@ private fun NotificationInboxRow(
                             modifier = Modifier
                                 .size(7.dp)
                                 .clip(CircleShape)
-                                .background(colors.coralBright)
+                                .background(colors.azureAccent)
                         )
                     }
                 }
@@ -715,8 +704,7 @@ private fun NotificationHeadsUpCard(
 
     Surface(
         shape = HeadsUpBannerShape,
-        color = colors.card,
-        border = BorderStroke(1.dp, visual.accentColor.copy(alpha = 0.45f)),
+        color = colors.cardElevated,
         shadowElevation = 12.dp,
         tonalElevation = 0.dp,
         modifier = Modifier
@@ -781,20 +769,13 @@ private fun NotificationHeadsUpCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(visual.containerColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(visual.iconRes),
-                        contentDescription = null,
-                        tint = visual.accentColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                ShiftlyIosIconTile(
+                    iconRes = visual.iconRes,
+                    backgroundColor = visual.tileColor,
+                    size = 36.dp,
+                    cornerRadius = 9.dp,
+                    iconSize = 18.dp
+                )
 
                 Column(
                     modifier = Modifier.weight(1f),
@@ -808,8 +789,8 @@ private fun NotificationHeadsUpCard(
                         Text(
                             text = item.title,
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = PlusJakartaSans,
-                                fontWeight = FontWeight.Bold
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary,
                             maxLines = 1,
@@ -821,10 +802,10 @@ private fun NotificationHeadsUpCard(
                             Text(
                                 text = timeLabel,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Medium
                                 ).tabular(),
-                                color = colors.textMuted
+                                color = colors.textSecondary
                             )
                         }
                     }
@@ -848,7 +829,7 @@ private fun NotificationHeadsUpCard(
                     modifier = Modifier
                         .size(width = 28.dp, height = 3.dp)
                         .clip(HomePillShape)
-                        .background(colors.border)
+                        .background(colors.separator)
                 )
             }
         }
@@ -868,15 +849,12 @@ fun DashboardGreetingBanner(
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = greeting,
-            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
             color = colors.textSecondary
         )
         Text(
             text = display,
-            style = MaterialTheme.typography.headlineSmall.copy(
-                fontFamily = PlusJakartaSans,
-                fontWeight = FontWeight.Bold
-            ),
+            style = MaterialTheme.typography.displaySmall,
             color = colors.textPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -896,7 +874,7 @@ fun HomeHeroPager(
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val currency = state.currencySymbol
-    val uniformHeroHeight = 204.dp
+    val uniformHeroHeight = 196.dp
 
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -911,10 +889,11 @@ fun HomeHeroPager(
             when (page) {
                 0 -> {
                     ShiftlyGlassCard(
+                        cornerRadius = 18.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(uniformHeroHeight),
-                        contentPadding = PaddingValues(16.dp)
+                        contentPadding = PaddingValues(18.dp)
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -923,14 +902,14 @@ fun HomeHeroPager(
                             Column {
                                 Text(
                                     text = "Total Balance",
-                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                                     color = colors.textSecondary
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = ShiftlyFormatters.formatCurrency(currency, state.totalBalance),
                                     style = MaterialTheme.typography.displayMedium.copy(
-                                        fontFamily = PlusJakartaSans,
+                                        fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
                                     ).tabular(),
@@ -938,22 +917,30 @@ fun HomeHeroPager(
                                 )
                             }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                HeroMetricPill(
-                                    label = "Income",
-                                    amount = ShiftlyFormatters.formatCurrency(currency, state.totalIncome, showPlus = true),
-                                    isIncome = true,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                HeroMetricPill(
-                                    label = "Expenses",
-                                    amount = ShiftlyFormatters.formatCurrency(currency, state.totalExpenses, showMinus = true),
-                                    isIncome = false,
-                                    modifier = Modifier.weight(1f)
-                                )
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                ShiftlyHairlineDivider()
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    HeroMetricColumn(
+                                        label = "Income",
+                                        amount = ShiftlyFormatters.formatCurrency(currency, state.totalIncome, showPlus = true),
+                                        isIncome = true,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ShiftlyVerticalHairlineDivider(
+                                        modifier = Modifier
+                                            .padding(horizontal = 12.dp)
+                                            .height(34.dp)
+                                    )
+                                    HeroMetricColumn(
+                                        label = "Expenses",
+                                        amount = ShiftlyFormatters.formatCurrency(currency, state.totalExpenses, showMinus = true),
+                                        isIncome = false,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                         }
                     }
@@ -962,10 +949,11 @@ fun HomeHeroPager(
                 1 -> {
                     val cutoff = state.cutoffSummary
                     ShiftlyGlassCard(
+                        cornerRadius = 18.dp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(uniformHeroHeight),
-                        contentPadding = PaddingValues(16.dp)
+                        contentPadding = PaddingValues(18.dp)
                     ) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
@@ -979,13 +967,13 @@ fun HomeHeroPager(
                                 ) {
                                     Text(
                                         text = "Shift Earnings",
-                                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                                         color = colors.textSecondary
                                     )
                                     Text(
                                         text = cutoff.window.label,
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = PlusJakartaSans,
+                                            fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.Medium
                                         ).tabular(),
                                         color = colors.mintTextOnSurface
@@ -995,7 +983,7 @@ fun HomeHeroPager(
                                 Text(
                                     text = ShiftlyFormatters.formatCurrency(currency, cutoff.totalEarnings),
                                     style = MaterialTheme.typography.displayMedium.copy(
-                                        fontFamily = PlusJakartaSans,
+                                        fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
                                     ).tabular(),
@@ -1003,21 +991,29 @@ fun HomeHeroPager(
                                 )
                             }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                val daysLabel = if (cutoff.shiftDaysCount == 1) "1 day" else "${cutoff.shiftDaysCount} days"
-                                GlassSubStatPill(
-                                    label = "Shift Days",
-                                    value = daysLabel,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                GlassSubStatPill(
-                                    label = "Shift Hours",
-                                    value = ShiftlyFormatters.formatHours(cutoff.totalHours),
-                                    modifier = Modifier.weight(1f)
-                                )
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                ShiftlyHairlineDivider()
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val daysLabel = if (cutoff.shiftDaysCount == 1) "1 day" else "${cutoff.shiftDaysCount} days"
+                                    FlatSubStatColumn(
+                                        label = "Shift Days",
+                                        value = daysLabel,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ShiftlyVerticalHairlineDivider(
+                                        modifier = Modifier
+                                            .padding(horizontal = 12.dp)
+                                            .height(34.dp)
+                                    )
+                                    FlatSubStatColumn(
+                                        label = "Shift Hours",
+                                        value = ShiftlyFormatters.formatHours(cutoff.totalHours),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                         }
                     }
@@ -1067,7 +1063,7 @@ fun HomeHeroPager(
                         modifier = Modifier
                             .size(width = if (active) 20.dp else 7.dp, height = 7.dp)
                             .clip(CircleShape)
-                            .background(if (active) colors.azureAccent else colors.border)
+                            .background(if (active) colors.azureAccent else colors.separator)
                     )
                 }
             }
@@ -1101,8 +1097,9 @@ private fun SavingsGoalsHeroCard(
     val current = resolved.second
 
     ShiftlyGlassCard(
+        cornerRadius = 18.dp,
         modifier = modifier,
-        contentPadding = PaddingValues(16.dp)
+        contentPadding = PaddingValues(18.dp)
     ) {
         if (current == null) {
             Column(
@@ -1117,7 +1114,7 @@ private fun SavingsGoalsHeroCard(
                     ) {
                         Text(
                             text = "Savings Goals",
-                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                             color = colors.textSecondary
                         )
                         Icon(
@@ -1130,7 +1127,7 @@ private fun SavingsGoalsHeroCard(
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, 0.0),
                         style = MaterialTheme.typography.displayMedium.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 30.sp
                         ).tabular(),
@@ -1160,13 +1157,13 @@ private fun SavingsGoalsHeroCard(
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_plus),
                             contentDescription = null,
-                            tint = colors.onAzurePrimary,
+                            tint = PureWhite,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = "Add Savings Goal",
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
-                            color = colors.onAzurePrimary
+                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
+                            color = PureWhite
                         )
                     }
                 }
@@ -1190,7 +1187,7 @@ private fun SavingsGoalsHeroCard(
                     ) {
                         Text(
                             text = goal.title,
-                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                             color = colors.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -1198,15 +1195,14 @@ private fun SavingsGoalsHeroCard(
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             if (goals.size > 1) {
                                 Box(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(colors.card)
-                                        .border(1.dp, colors.cardBorder, CircleShape)
+                                        .background(colors.cardElevated)
                                         .clickable {
                                             val prev = if (safeIdx > 0) safeIdx - 1 else goals.lastIndex
                                             val targetId = goals[prev].goalWithDeposits.goal.id
@@ -1219,13 +1215,13 @@ private fun SavingsGoalsHeroCard(
                                         painter = painterResource(R.drawable.ic_lucide_chevron_left),
                                         contentDescription = "Previous goal",
                                         tint = colors.textPrimary,
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 }
                                 Text(
                                     text = "${safeIdx + 1}/${goals.size}",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFamily = PlusJakartaSans,
+                                        fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.Medium
                                     ).tabular(),
                                     color = colors.textSecondary
@@ -1234,8 +1230,7 @@ private fun SavingsGoalsHeroCard(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(colors.card)
-                                        .border(1.dp, colors.cardBorder, CircleShape)
+                                        .background(colors.cardElevated)
                                         .clickable {
                                             val next = if (safeIdx < goals.lastIndex) safeIdx + 1 else 0
                                             val targetId = goals[next].goalWithDeposits.goal.id
@@ -1248,14 +1243,14 @@ private fun SavingsGoalsHeroCard(
                                         painter = painterResource(R.drawable.ic_lucide_chevron_right),
                                         contentDescription = "Next goal",
                                         tint = colors.textPrimary,
-                                        modifier = Modifier.size(15.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                 }
                             } else {
                                 Text(
                                     text = "Goal • $targetDateLabel",
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFamily = PlusJakartaSans,
+                                        fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.Medium
                                     ).tabular(),
                                     color = colors.mintTextOnSurface
@@ -1272,7 +1267,7 @@ private fun SavingsGoalsHeroCard(
                         Text(
                             text = ShiftlyFormatters.formatCurrency(currencySymbol, progress.savedAmount),
                             style = MaterialTheme.typography.displayMedium.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 26.sp
                             ).tabular(),
@@ -1280,59 +1275,58 @@ private fun SavingsGoalsHeroCard(
                             maxLines = 1,
                             softWrap = false
                         )
-                        LinearProgressIndicator(
-                            progress = { progress.progressFraction },
+                        ShiftlyProgressBar(
+                            progress = progress.progressFraction,
                             color = colors.mintBright,
-                            trackColor = colors.border,
-                            strokeCap = StrokeCap.Round,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(8.dp)
+                            trackColor = colors.cardElevated,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        GlassSubStatPill(
+                        FlatSubStatColumn(
                             label = "Left to Save",
                             value = ShiftlyFormatters.formatCurrency(currencySymbol, progress.leftToSave),
-                            modifier = Modifier.weight(1f),
-                            compact = true
+                            modifier = Modifier.weight(1f)
+                        )
+                        ShiftlyVerticalHairlineDivider(
+                            modifier = Modifier
+                                .padding(horizontal = 12.dp)
+                                .height(30.dp)
                         )
                         val perDayValue = if (progress.isCompleted) {
                             "Goal reached"
                         } else {
                             ShiftlyFormatters.formatCurrency(currencySymbol, progress.neededPerDay)
                         }
-                        GlassSubStatPill(
+                        FlatSubStatColumn(
                             label = "Per Day",
                             value = perDayValue,
-                            modifier = Modifier.weight(1f),
-                            compact = true
+                            modifier = Modifier.weight(1f)
                         )
                     }
 
                     Surface(
-                        shape = HomePillShape,
-                        color = colors.card,
-                        border = BorderStroke(1.dp, colors.cardBorder),
+                        shape = HomeButtonShape,
+                        color = colors.cardElevated,
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(HomePillShape)
+                            .clip(HomeButtonShape)
                             .clickable { onOpenGoalDetail(goal.id) }
                     ) {
                         Text(
                             text = "View Goals",
                             style = MaterialTheme.typography.labelMedium.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
-                            color = colors.textPrimary,
+                            color = colors.azureAccent,
                             textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1346,101 +1340,79 @@ private fun SavingsGoalsHeroCard(
 }
 
 @Composable
-private fun HeroMetricPill(
+private fun HeroMetricColumn(
     label: String,
     amount: String,
     isIncome: Boolean,
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        modifier = modifier.heightIn(min = 82.dp),
-        shape = HomeMetricTileShape,
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
-        shadowElevation = 0.dp
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                painter = painterResource(
-                    if (isIncome) R.drawable.ic_lucide_trending_up else R.drawable.ic_lucide_trending_down
+        Icon(
+            painter = painterResource(
+                if (isIncome) R.drawable.ic_lucide_trending_up else R.drawable.ic_lucide_trending_down
+            ),
+            contentDescription = null,
+            tint = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface,
+            modifier = Modifier.size(18.dp)
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Medium
                 ),
-                contentDescription = null,
-                tint = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface,
-                modifier = Modifier.size(20.dp)
+                color = colors.textSecondary
             )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = colors.textSecondary
-                )
-                Text(
-                    text = amount,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    ).tabular(),
-                    color = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Text(
+                text = amount,
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Bold
+                ).tabular(),
+                color = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
 
 @Composable
-private fun GlassSubStatPill(
+private fun FlatSubStatColumn(
     label: String,
     value: String,
-    modifier: Modifier = Modifier,
-    compact: Boolean = false
+    modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        modifier = modifier.heightIn(min = if (compact) 60.dp else 82.dp),
-        shape = if (compact) HomeCompactTileShape else HomeMetricTileShape,
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
-        shadowElevation = 0.dp
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            modifier = Modifier.padding(
-                horizontal = if (compact) 13.dp else 14.dp,
-                vertical = if (compact) 10.dp else 16.dp
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Medium
             ),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = colors.textSecondary
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = if (compact) 15.sp else 16.sp
-                ).tabular(),
-                color = colors.textPrimary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+            color = colors.textSecondary
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold
+            ).tabular(),
+            color = colors.textPrimary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -1459,8 +1431,7 @@ fun MonthlyTopCategoriesCard(
     val topThree = remember(topCategories) { topCategories.take(3) }
     Surface(
         shape = HomeCardShape,
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1484,7 +1455,7 @@ fun MonthlyTopCategoriesCard(
                 )
                 Text(
                     text = "View insights",
-                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
                     color = colors.azureInk
                 )
             }
@@ -1498,13 +1469,13 @@ fun MonthlyTopCategoriesCard(
                 Column(modifier = Modifier.padding(end = 118.dp)) {
                     Text(
                         text = "Top Spending • $monthName",
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotalSpent),
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.textPrimary
@@ -1521,7 +1492,7 @@ fun MonthlyTopCategoriesCard(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         topThree.forEach { item ->
                             val pct = (item.fraction * 100f).roundToInt()
-                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1529,22 +1500,15 @@ fun MonthlyTopCategoriesCard(
                                 ) {
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(28.dp)
-                                                .clip(CircleShape)
-                                                .background(colors.coralContainer),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(categoryIcon(item.category)),
-                                                contentDescription = null,
-                                                tint = colors.coralInk,
-                                                modifier = Modifier.size(15.dp)
-                                            )
-                                        }
+                                        ShiftlyIosIconTile(
+                                            iconRes = categoryIcon(item.category),
+                                            backgroundColor = colors.coralBright,
+                                            size = 28.dp,
+                                            cornerRadius = 8.dp,
+                                            iconSize = 14.dp
+                                        )
                                         Text(
                                             text = item.category,
                                             style = MaterialTheme.typography.titleSmall,
@@ -1554,20 +1518,16 @@ fun MonthlyTopCategoriesCard(
                                     Text(
                                         text = "$pct% • ${ShiftlyFormatters.formatCurrency(currencySymbol, item.totalAmount)}",
                                         style = MaterialTheme.typography.labelMedium.copy(
-                                            fontFamily = PlusJakartaSans,
-                                            fontWeight = FontWeight.Bold
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.SemiBold
                                         ).tabular(),
                                         color = colors.textPrimary
                                     )
                                 }
-                                LinearProgressIndicator(
-                                    progress = { item.fraction.coerceIn(0.05f, 1f) },
+                                ShiftlyProgressBar(
+                                    progress = item.fraction.coerceIn(0.05f, 1f),
                                     color = colors.coralBright,
-                                    trackColor = colors.cardElevated,
-                                    strokeCap = StrokeCap.Round,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(6.dp)
+                                    trackColor = colors.separator
                                 )
                             }
                         }
@@ -1589,8 +1549,7 @@ fun MonthlyHoursIndicatorCard(
     val colors = ShiftlyColors.current
     Surface(
         shape = HomeCardShape,
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1605,36 +1564,40 @@ fun MonthlyHoursIndicatorCard(
             ) {
                 Text(
                     text = "Shift Hours • $monthName",
-                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
                 Text(
                     text = "Full month",
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Medium
                     ),
                     color = colors.textSecondary
                 )
             }
 
+            ShiftlyHairlineDivider()
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                MonthlyHoursMetricTile(
+                MonthlyHoursMetricColumn(
                     label = "Total Hours",
                     hours = summary.totalHours,
                     valueColor = colors.textPrimary,
                     modifier = Modifier.weight(1f)
                 )
-                MonthlyHoursMetricTile(
+                ShiftlyVerticalHairlineDivider(modifier = Modifier.height(34.dp))
+                MonthlyHoursMetricColumn(
                     label = "Night Diff",
                     hours = summary.nightDiffHours,
                     valueColor = colors.nightDiffPurple,
                     modifier = Modifier.weight(1f)
                 )
-                MonthlyHoursMetricTile(
+                ShiftlyVerticalHairlineDivider(modifier = Modifier.height(34.dp))
+                MonthlyHoursMetricColumn(
                     label = "Overtime",
                     hours = summary.overtimeHours,
                     valueColor = colors.coralBright,
@@ -1646,44 +1609,36 @@ fun MonthlyHoursIndicatorCard(
 }
 
 @Composable
-private fun MonthlyHoursMetricTile(
+private fun MonthlyHoursMetricColumn(
     label: String,
     hours: Double,
     valueColor: Color,
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        modifier = modifier,
-        shape = HomeCompactTileShape,
-        color = colors.surface,
-        border = BorderStroke(1.dp, colors.cardBorder),
-        shadowElevation = 0.dp
+    Column(
+        modifier = modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            Text(
-                text = ShiftlyFormatters.formatHours(hours, compact = true),
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Bold
-                ).tabular(),
-                color = valueColor
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = colors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+        Text(
+            text = ShiftlyFormatters.formatHours(hours, compact = true),
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold
+            ).tabular(),
+            color = valueColor
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Medium
+            ),
+            color = colors.textSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -1697,8 +1652,7 @@ fun PendingSplitsBanner(
     val colors = ShiftlyColors.current
     Surface(
         shape = HomeBannerShape,
-        color = colors.azureContainer,
-        border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.35f)),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
@@ -1715,21 +1669,22 @@ fun PendingSplitsBanner(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_split),
-                    contentDescription = null,
-                    tint = colors.azureInk,
-                    modifier = Modifier.size(21.dp)
+                ShiftlyIosIconTile(
+                    iconRes = R.drawable.ic_lucide_split,
+                    backgroundColor = colors.azurePrimary,
+                    size = 36.dp,
+                    cornerRadius = 9.dp,
+                    iconSize = 18.dp
                 )
                 Column {
                     Text(
                         text = "${ShiftlyFormatters.formatCurrency(currencySymbol, pendingAmount)} owed to you",
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.Bold
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold
                         ).tabular(),
                         color = colors.textPrimary
                     )
@@ -1741,10 +1696,10 @@ fun PendingSplitsBanner(
                 }
             }
             Icon(
-                painter = painterResource(R.drawable.ic_lucide_arrow_right),
+                painter = painterResource(R.drawable.ic_lucide_chevron_right),
                 contentDescription = "Open Split Bill",
-                tint = colors.azureInk,
-                modifier = Modifier.size(20.dp)
+                tint = colors.textSecondary,
+                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -1767,27 +1722,19 @@ fun HomeTimelineRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clip(HomeTimelineRowShape)
             .clickable(onClick = onClick)
             .semantics(mergeDescendants = true) {}
-            .padding(horizontal = 4.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(if (isIncome) colors.mintContainer else colors.coralContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(iconRes),
-                contentDescription = null,
-                tint = if (isIncome) colors.mintInk else colors.coralInk,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        ShiftlyIosIconTile(
+            iconRes = iconRes,
+            backgroundColor = if (isIncome) colors.mintBright else colors.coralBright,
+            size = 38.dp,
+            cornerRadius = 9.dp,
+            iconSize = 18.dp
+        )
 
         Column(modifier = Modifier.weight(1f)) {
             when (item) {
@@ -1843,8 +1790,8 @@ fun HomeTimelineRow(
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, item.amount, showPlus = true),
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.Bold
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold
                     ).tabular(),
                     color = colors.mintInk
                 )
@@ -1854,8 +1801,8 @@ fun HomeTimelineRow(
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, item.amount, showPlus = true),
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.Bold
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold
                     ).tabular(),
                     color = colors.mintInk
                 )
@@ -1865,8 +1812,8 @@ fun HomeTimelineRow(
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, item.amount, showMinus = true),
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.Bold
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold
                     ).tabular(),
                     color = colors.coralInk
                 )

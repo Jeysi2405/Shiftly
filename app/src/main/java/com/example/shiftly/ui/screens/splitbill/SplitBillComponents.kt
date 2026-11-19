@@ -1,11 +1,6 @@
 package com.example.shiftly.ui.screens.splitbill
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,12 +25,10 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -52,9 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,8 +59,11 @@ import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.components.ShiftlyProgressBar
+import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -79,11 +73,11 @@ import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
 private val SplitPillShape = RoundedCornerShape(50)
-private val SplitCardShape = RoundedCornerShape(22.dp)
-private val SplitItemShape = RoundedCornerShape(20.dp)
-private val SplitFieldShape = RoundedCornerShape(16.dp)
-private val SplitRowShape = RoundedCornerShape(14.dp)
-private val SplitSheetTopShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+private val SplitCardShape = RoundedCornerShape(18.dp)
+private val SplitItemShape = RoundedCornerShape(18.dp)
+private val SplitFieldShape = RoundedCornerShape(14.dp)
+private val SplitRowShape = RoundedCornerShape(12.dp)
+private val SplitSheetTopShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 
 private data class SplitParticipantSummary(
     val trackedCount: Int,
@@ -108,7 +102,10 @@ fun SplitBillSummaryCard(
         }
     }
 
-    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+    ShiftlyGlassCard(
+        cornerRadius = 18.dp,
+        contentPadding = PaddingValues(18.dp)
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -119,7 +116,7 @@ fun SplitBillSummaryCard(
                     Text(
                         text = "PENDING",
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.8.sp
                         ),
@@ -129,7 +126,7 @@ fun SplitBillSummaryCard(
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, totalPendingAmount),
                         style = MaterialTheme.typography.displaySmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 32.sp
                         ).tabular(),
@@ -144,13 +141,12 @@ fun SplitBillSummaryCard(
                     Surface(
                         shape = SplitPillShape,
                         color = colors.mintContainer,
-                        border = BorderStroke(1.dp, colors.mintBright.copy(alpha = 0.45f)),
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "Paid: ${ShiftlyFormatters.formatCurrency(currencySymbol, totalCollectedAmount)}",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold
                             ).tabular(),
                             color = colors.mintTextOnSurface,
@@ -161,7 +157,7 @@ fun SplitBillSummaryCard(
                         Text(
                             text = "$paidParticipantsCount of $totalParticipantsCount friend shares settled",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ).tabular(),
                             color = colors.textSecondary
@@ -170,31 +166,11 @@ fun SplitBillSummaryCard(
                 }
             }
 
-            val animatedPaidFractionState = animateFloatAsState(
-                targetValue = paidFraction.coerceIn(0f, 1f),
-                animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
-                label = "paidFractionAnim"
-            )
-            val mintBarColor = colors.mintBright
-
-            // Paid vs Unpaid Mint Progress Bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(SplitPillShape)
-                    .background(colors.border)
-                    .drawBehind {
-                        val fraction = animatedPaidFractionState.value
-                        if (fraction > 0f) {
-                            val cornerRadius = size.height / 2f
-                            drawRoundRect(
-                                color = mintBarColor,
-                                size = Size(size.width * fraction, size.height),
-                                cornerRadius = CornerRadius(cornerRadius, cornerRadius)
-                            )
-                        }
-                    }
+            ShiftlyProgressBar(
+                progress = paidFraction,
+                color = colors.mintBright,
+                trackColor = colors.cardElevated,
+                height = 5.dp
             )
         }
     }
@@ -303,14 +279,14 @@ fun NewSplitBillSheetContent(
 
     val sheetFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = colors.azureAccent,
-        unfocusedBorderColor = colors.border,
+        unfocusedBorderColor = Color.Transparent,
         focusedLabelColor = colors.azureAccent,
         unfocusedLabelColor = colors.textSecondary,
         focusedTextColor = colors.textPrimary,
         unfocusedTextColor = colors.textPrimary,
         cursorColor = colors.azureAccent,
-        focusedContainerColor = colors.card,
-        unfocusedContainerColor = colors.card
+        focusedContainerColor = colors.cardElevated,
+        unfocusedContainerColor = colors.cardElevated
     )
 
     Column(
@@ -339,7 +315,7 @@ fun NewSplitBillSheetContent(
             ) {
                 Text(
                     text = "Cancel",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
             }
@@ -358,19 +334,19 @@ fun NewSplitBillSheetContent(
                         amountInput = filtered
                     }
                 },
-                label = { Text("Total", fontFamily = PlusJakartaSans) },
+                label = { Text("Total", fontFamily = InterFontFamily) },
                 placeholder = {
                     Text(
                         text = "0",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                        color = colors.textMuted
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary
                     )
                 },
                 prefix = {
                     Text(
                         text = "$currencySymbol ",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold
                         ),
                         color = colors.azureAccent
@@ -386,12 +362,12 @@ fun NewSplitBillSheetContent(
             OutlinedTextField(
                 value = titleInput,
                 onValueChange = { titleInput = it },
-                label = { Text("Label", fontFamily = PlusJakartaSans) },
+                label = { Text("Label", fontFamily = InterFontFamily) },
                 placeholder = {
                     Text(
                         text = "Dinner",
-                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                        color = colors.textMuted
+                        style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                        color = colors.textSecondary
                     )
                 },
                 singleLine = true,
@@ -411,7 +387,7 @@ fun NewSplitBillSheetContent(
                 Text(
                     text = "Persons",
                     style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary
@@ -426,14 +402,8 @@ fun NewSplitBillSheetContent(
                             .size(40.dp)
                             .clip(CircleShape)
                             .background(
-                                if (personCount > 2) colors.card
-                                else colors.surface
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (personCount > 2) colors.border
-                                else colors.border.copy(alpha = 0.60f),
-                                shape = CircleShape
+                                if (personCount > 2) colors.cardElevated
+                                else colors.cardElevated.copy(alpha = 0.45f)
                             )
                             .clickable(enabled = personCount > 2) {
                                 if (personCount > 2) personCount--
@@ -443,7 +413,7 @@ fun NewSplitBillSheetContent(
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_minus),
                             contentDescription = "Decrease persons",
-                            tint = if (personCount > 2) colors.textPrimary else colors.textMuted,
+                            tint = if (personCount > 2) colors.textPrimary else colors.textSecondary,
                             modifier = Modifier.size(17.dp)
                         )
                     }
@@ -451,7 +421,7 @@ fun NewSplitBillSheetContent(
                     Text(
                         text = personCount.toString(),
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.mintTextOnSurface,
@@ -505,7 +475,7 @@ fun NewSplitBillSheetContent(
                             label = {
                                 Text(
                                     text = if (isSelf) "You" else "Person ${index + 1}",
-                                    fontFamily = PlusJakartaSans
+                                    fontFamily = InterFontFamily
                                 )
                             },
                             singleLine = true,
@@ -516,11 +486,7 @@ fun NewSplitBillSheetContent(
 
                         Surface(
                             shape = SplitPillShape,
-                            color = if (isPaid) colors.mintContainer else colors.card,
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (isPaid) colors.mintBright else colors.border
-                            ),
+                            color = if (isPaid) colors.mintContainer else colors.cardElevated,
                             shadowElevation = 0.dp,
                             modifier = Modifier
                                 .heightIn(min = 44.dp)
@@ -546,7 +512,7 @@ fun NewSplitBillSheetContent(
                                 Text(
                                     text = if (isPaid) "Paid" else "Unpaid",
                                     style = MaterialTheme.typography.labelMedium.copy(
-                                        fontFamily = PlusJakartaSans,
+                                        fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.SemiBold
                                     ),
                                     color = if (isPaid) colors.mintInk else colors.textSecondary
@@ -562,7 +528,6 @@ fun NewSplitBillSheetContent(
         Surface(
             shape = SplitFieldShape,
             color = colors.mintContainer,
-            border = BorderStroke(1.dp, colors.mintBright.copy(alpha = 0.40f)),
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -575,13 +540,13 @@ fun NewSplitBillSheetContent(
             ) {
                 Text(
                     text = "Per Person",
-                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                     color = colors.textPrimary
                 )
                 Text(
                     text = ShiftlyFormatters.formatCurrency(currencySymbol, perPersonShare),
                     style = MaterialTheme.typography.headlineSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 24.sp
                     ).tabular(),
@@ -595,7 +560,7 @@ fun NewSplitBillSheetContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            OutlinedButton(
+            Button(
                 onClick = {
                     onSaveSplitBill(
                         titleInput,
@@ -608,13 +573,16 @@ fun NewSplitBillSheetContent(
                 },
                 enabled = isValid,
                 shape = SplitPillShape,
-                border = BorderStroke(
-                    width = 1.4.dp,
-                    color = if (isValid) colors.azureAccent else colors.border
-                ),
-                colors = ButtonDefaults.outlinedButtonColors(
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = colors.cardElevated,
                     contentColor = colors.textPrimary,
+                    disabledContainerColor = colors.disabledContainer,
                     disabledContentColor = colors.disabledContent
+                ),
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 0.dp,
+                    disabledElevation = 0.dp
                 ),
                 modifier = Modifier
                     .weight(1f)
@@ -623,7 +591,7 @@ fun NewSplitBillSheetContent(
                 Text(
                     text = "Save",
                     style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     )
                 )
@@ -660,7 +628,7 @@ fun NewSplitBillSheetContent(
                 Text(
                     text = "Split & Log",
                     style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     )
                 )
@@ -685,8 +653,7 @@ fun SplitBillEmptyCard(
     val showMonthReset = hasAnyBillsAtAll && monthLabel != null
     Surface(
         shape = SplitCardShape,
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -697,23 +664,16 @@ fun SplitBillEmptyCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(colors.azureContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_split),
-                    contentDescription = null,
-                    tint = colors.azureInk,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
+            ShiftlyIosIconTile(
+                iconRes = R.drawable.ic_lucide_split,
+                backgroundColor = colors.azurePrimary,
+                size = 48.dp,
+                cornerRadius = 12.dp,
+                iconSize = 24.dp
+            )
             Text(
                 text = if (showMonthReset) "No split bills in $monthLabel" else "No split bills yet",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
@@ -770,11 +730,7 @@ fun SplitBillLogItemCard(
 
     Surface(
         shape = SplitItemShape,
-        color = colors.card,
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (allPaid) colors.mintBright.copy(alpha = 0.45f) else colors.cardBorder
-        ),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -796,7 +752,7 @@ fun SplitBillLogItemCard(
                         Text(
                             text = bill.title,
                             style = MaterialTheme.typography.titleMedium.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary,
@@ -812,7 +768,7 @@ fun SplitBillLogItemCard(
                             Text(
                                 text = if (allPaid) "Paid" else "Pending ($paidCount/${summary.trackedCount})",
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ).tabular(),
                                 color = if (allPaid) colors.mintInk else colors.azureInk,
@@ -831,7 +787,7 @@ fun SplitBillLogItemCard(
 
                 IconButton(
                     onClick = { onDeleteBill(bill) },
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_trash_2),
@@ -842,11 +798,14 @@ fun SplitBillLogItemCard(
                 }
             }
 
-            HorizontalDivider(thickness = 1.dp, color = colors.border)
-
-            // Participant Rows with Payment Prompt Action for all participants (including yourself)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                participants.forEach { participant ->
+            // Inset-grouped Participant Rows
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(SplitRowShape)
+                    .background(colors.surface)
+            ) {
+                participants.forEachIndexed { idx, participant ->
                     val displayLabel = if (
                         participant.isCurrentUser &&
                         !participant.personLabel.equals("You", ignoreCase = true)
@@ -861,9 +820,7 @@ fun SplitBillLogItemCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(SplitRowShape)
-                            .background(colors.surface)
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -871,26 +828,19 @@ fun SplitBillLogItemCard(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .clip(CircleShape)
-                                    .background(if (participant.hasPaid) colors.mintContainer else colors.azureContainer),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_user),
-                                    contentDescription = null,
-                                    tint = if (participant.hasPaid) colors.mintInk else colors.azureInk,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            ShiftlyIosIconTile(
+                                iconRes = R.drawable.ic_lucide_user,
+                                backgroundColor = if (participant.hasPaid) colors.mintBright else colors.azurePrimary,
+                                size = 34.dp,
+                                cornerRadius = 8.dp,
+                                iconSize = 16.dp
+                            )
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
                                 Text(
                                     text = displayLabel,
                                     style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = PlusJakartaSans,
+                                        fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.SemiBold
                                     ),
                                     color = colors.textPrimary
@@ -898,7 +848,7 @@ fun SplitBillLogItemCard(
                                 Text(
                                     text = ShiftlyFormatters.formatCurrency(currencySymbol, participant.amountOwed),
                                     style = MaterialTheme.typography.labelSmall.copy(
-                                        fontFamily = PlusJakartaSans,
+                                        fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.Medium
                                     ).tabular(),
                                     color = if (participant.hasPaid) colors.mintInk else colors.textSecondary
@@ -912,14 +862,14 @@ fun SplitBillLogItemCard(
                                 color = colors.mintContainer,
                                 shadowElevation = 0.dp,
                                 modifier = Modifier
-                                    .heightIn(min = 44.dp)
+                                    .heightIn(min = 38.dp)
                                     .clip(SplitPillShape)
                                     .clickable(onClickLabel = "Change payment status for $displayLabel") {
                                         selectedParticipantForPrompt = participant
                                     }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
@@ -927,12 +877,12 @@ fun SplitBillLogItemCard(
                                         painter = painterResource(R.drawable.ic_lucide_check),
                                         contentDescription = null,
                                         tint = colors.mintInk,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(15.dp)
                                     )
                                     Text(
                                         text = "Paid",
                                         style = MaterialTheme.typography.labelMedium.copy(
-                                            fontFamily = PlusJakartaSans,
+                                            fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.SemiBold
                                         ),
                                         color = colors.mintInk
@@ -940,23 +890,36 @@ fun SplitBillLogItemCard(
                                 }
                             }
                         } else {
-                            OutlinedButton(
-                                onClick = { selectedParticipantForPrompt = participant },
+                            Surface(
                                 shape = SplitPillShape,
-                                border = BorderStroke(1.dp, colors.azureInk),
-                                contentPadding = PaddingValues(horizontal = 14.dp),
-                                modifier = Modifier.heightIn(min = 44.dp)
+                                color = colors.azureContainer,
+                                shadowElevation = 0.dp,
+                                modifier = Modifier
+                                    .heightIn(min = 38.dp)
+                                    .clip(SplitPillShape)
+                                    .clickable(onClickLabel = "Mark $displayLabel as paid") {
+                                        selectedParticipantForPrompt = participant
+                                    }
                             ) {
-                                Text(
-                                    text = "Mark Paid",
-                                    style = MaterialTheme.typography.labelMedium.copy(
-                                        fontFamily = PlusJakartaSans,
-                                        fontWeight = FontWeight.SemiBold
-                                    ),
-                                    color = colors.azureInk
-                                )
+                                Box(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "Mark Paid",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = colors.azureInk
+                                    )
+                                }
                             }
                         }
+                    }
+
+                    if (idx < participants.lastIndex) {
+                        ShiftlyHairlineDivider(startInset = 56.dp)
                     }
                 }
             }
@@ -986,7 +949,7 @@ fun SplitBillLogItemCard(
                         Text(
                             text = "Logged to Expenses (${ShiftlyFormatters.formatCurrency(currencySymbol, bill.perPersonAmount)})",
                             style = MaterialTheme.typography.labelMedium.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ).tabular(),
                             color = colors.mintInk
@@ -1018,7 +981,7 @@ fun SplitBillLogItemCard(
                     Text(
                         text = "Log Share to Expenses (${ShiftlyFormatters.formatCurrency(currencySymbol, bill.perPersonAmount)})",
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ).tabular(),
                         color = colors.onAzurePrimary
@@ -1037,27 +1000,18 @@ fun SplitBillLogItemCard(
             onDismissRequest = { selectedParticipantForPrompt = null },
             containerColor = colors.card,
             icon = {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(if (participant.hasPaid) colors.surface else colors.mintContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            if (participant.hasPaid) R.drawable.ic_lucide_x else R.drawable.ic_lucide_check
-                        ),
-                        contentDescription = null,
-                        tint = if (participant.hasPaid) colors.textSecondary else colors.mintInk,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                ShiftlyIosIconTile(
+                    iconRes = if (participant.hasPaid) R.drawable.ic_lucide_x else R.drawable.ic_lucide_check,
+                    backgroundColor = if (participant.hasPaid) colors.cardElevated else colors.mintBright,
+                    size = 44.dp,
+                    cornerRadius = 11.dp,
+                    iconSize = 22.dp
+                )
             },
             title = {
                 Text(
                     text = "Payment Status",
-                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
                     color = colors.textPrimary
                 )
             },
@@ -1076,7 +1030,7 @@ fun SplitBillLogItemCard(
                     },
                     shape = SplitPillShape,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (participant.hasPaid) colors.surface else colors.azurePrimary,
+                        containerColor = if (participant.hasPaid) colors.cardElevated else colors.azurePrimary,
                         contentColor = if (participant.hasPaid) colors.textPrimary else colors.onAzurePrimary
                     ),
                     elevation = ButtonDefaults.buttonElevation(
@@ -1087,7 +1041,7 @@ fun SplitBillLogItemCard(
                     Text(
                         text = "Mark $targetStatus",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         )
                     )
@@ -1097,7 +1051,7 @@ fun SplitBillLogItemCard(
                 TextButton(onClick = { selectedParticipantForPrompt = null }) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }

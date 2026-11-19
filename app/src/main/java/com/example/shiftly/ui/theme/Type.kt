@@ -17,60 +17,60 @@ private val googleFontProvider = GoogleFont.Provider(
     certificates = R.array.com_google_android_gms_fonts_certs
 )
 
-private val plusJakartaSansGoogleFont = GoogleFont("Plus Jakarta Sans")
+private val interGoogleFont = GoogleFont("Inter")
 
 /**
- * Plus Jakarta Sans via Google Fonts downloadable fonts provider with local Inter fallback
+ * Inter via Google Fonts downloadable fonts provider with local Inter fallback
  * for offline/preview resilience across all weights and italic styles.
  */
-val PlusJakartaSans = FontFamily(
+val InterFontFamily = FontFamily(
     GoogleFontResource(
-        googleFont = plusJakartaSansGoogleFont,
+        googleFont = interGoogleFont,
         fontProvider = googleFontProvider,
         weight = FontWeight.Normal
     ),
     Font(resId = R.font.inter, weight = FontWeight.Normal),
     GoogleFontResource(
-        googleFont = plusJakartaSansGoogleFont,
+        googleFont = interGoogleFont,
         fontProvider = googleFontProvider,
         weight = FontWeight.Medium
     ),
     Font(resId = R.font.inter, weight = FontWeight.Medium),
     GoogleFontResource(
-        googleFont = plusJakartaSansGoogleFont,
+        googleFont = interGoogleFont,
         fontProvider = googleFontProvider,
         weight = FontWeight.SemiBold
     ),
     Font(resId = R.font.inter, weight = FontWeight.SemiBold),
     GoogleFontResource(
-        googleFont = plusJakartaSansGoogleFont,
+        googleFont = interGoogleFont,
         fontProvider = googleFontProvider,
         weight = FontWeight.Bold
     ),
     Font(resId = R.font.inter, weight = FontWeight.Bold),
     GoogleFontResource(
-        googleFont = plusJakartaSansGoogleFont,
+        googleFont = interGoogleFont,
         fontProvider = googleFontProvider,
         weight = FontWeight.Normal,
         style = FontStyle.Italic
     ),
     Font(resId = R.font.inter, weight = FontWeight.Normal, style = FontStyle.Italic),
     GoogleFontResource(
-        googleFont = plusJakartaSansGoogleFont,
+        googleFont = interGoogleFont,
         fontProvider = googleFontProvider,
         weight = FontWeight.Medium,
         style = FontStyle.Italic
     ),
     Font(resId = R.font.inter, weight = FontWeight.Medium, style = FontStyle.Italic),
     GoogleFontResource(
-        googleFont = plusJakartaSansGoogleFont,
+        googleFont = interGoogleFont,
         fontProvider = googleFontProvider,
         weight = FontWeight.SemiBold,
         style = FontStyle.Italic
     ),
     Font(resId = R.font.inter, weight = FontWeight.SemiBold, style = FontStyle.Italic),
     GoogleFontResource(
-        googleFont = plusJakartaSansGoogleFont,
+        googleFont = interGoogleFont,
         fontProvider = googleFontProvider,
         weight = FontWeight.Bold,
         style = FontStyle.Italic
@@ -80,109 +80,113 @@ val PlusJakartaSans = FontFamily(
 
 val AppTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = PlusJakartaSans,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 48.sp,
-        lineHeight = 54.sp,
-        letterSpacing = (-1.2).sp
+        fontSize = 44.sp,
+        lineHeight = 50.sp,
+        letterSpacing = (-0.8).sp
     ),
     displayMedium = TextStyle(
-        fontFamily = PlusJakartaSans,
-        fontWeight = FontWeight.Bold,
-        fontSize = 38.sp,
-        lineHeight = 44.sp,
-        letterSpacing = (-1.0).sp
-    ),
-    displaySmall = TextStyle(
-        fontFamily = PlusJakartaSans,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 34.sp,
         lineHeight = 40.sp,
-        letterSpacing = (-0.8).sp
-    ),
-    headlineLarge = TextStyle(
-        fontFamily = PlusJakartaSans,
-        fontWeight = FontWeight.Bold,
-        fontSize = 30.sp,
-        lineHeight = 36.sp,
-        letterSpacing = (-0.6).sp
-    ),
-    headlineMedium = TextStyle(
-        fontFamily = PlusJakartaSans,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 26.sp,
-        lineHeight = 32.sp,
         letterSpacing = (-0.4).sp
     ),
-    headlineSmall = TextStyle(
-        fontFamily = PlusJakartaSans,
+    // iOS Large Title: 34sp Bold, -0.4sp tracking
+    displaySmall = TextStyle(
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.Bold,
+        fontSize = 34.sp,
+        lineHeight = 40.sp,
+        letterSpacing = (-0.4).sp
+    ),
+    headlineLarge = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 28.sp,
+        lineHeight = 34.sp,
+        letterSpacing = (-0.4).sp
+    ),
+    headlineMedium = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
         lineHeight = 30.sp,
         letterSpacing = (-0.3).sp
     ),
+    headlineSmall = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Bold,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = (-0.3).sp
+    ),
     titleLarge = TextStyle(
-        fontFamily = PlusJakartaSans,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 20.sp,
-        lineHeight = 26.sp,
+        lineHeight = 25.sp,
         letterSpacing = (-0.2).sp
     ),
+    // iOS Headline: 17sp SemiBold
     titleMedium = TextStyle(
-        fontFamily = PlusJakartaSans,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 17.sp,
-        lineHeight = 23.sp,
-        letterSpacing = (-0.1).sp
+        lineHeight = 22.sp,
+        letterSpacing = (-0.2).sp
     ),
     titleSmall = TextStyle(
-        fontFamily = PlusJakartaSans,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.sp
-    ),
-    bodyLarge = TextStyle(
-        fontFamily = PlusJakartaSans,
-        fontWeight = FontWeight.Normal,
-        fontSize = 16.sp,
-        lineHeight = 23.sp,
-        letterSpacing = 0.1.sp
-    ),
-    bodyMedium = TextStyle(
-        fontFamily = PlusJakartaSans,
-        fontWeight = FontWeight.Normal,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.15.sp
-    ),
-    bodySmall = TextStyle(
-        fontFamily = PlusJakartaSans,
-        fontWeight = FontWeight.Medium,
-        fontSize = 12.sp,
-        lineHeight = 17.sp,
-        letterSpacing = 0.2.sp
-    ),
-    labelLarge = TextStyle(
-        fontFamily = PlusJakartaSans,
+        fontFamily = InterFontFamily,
         fontWeight = FontWeight.SemiBold,
         fontSize = 15.sp,
         lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
+        letterSpacing = (-0.1).sp
+    ),
+    // iOS Body: 15-17sp Regular
+    bodyLarge = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 17.sp,
+        lineHeight = 22.sp,
+        letterSpacing = 0.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Normal,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.sp
+    ),
+    // iOS Caption: 12-13sp Medium
+    bodySmall = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.sp
     ),
     labelMedium = TextStyle(
-        fontFamily = PlusJakartaSans,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        letterSpacing = 0.2.sp
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.sp
     ),
     labelSmall = TextStyle(
-        fontFamily = PlusJakartaSans,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 11.sp,
-        lineHeight = 14.sp,
-        letterSpacing = 0.3.sp
+        fontFamily = InterFontFamily,
+        fontWeight = FontWeight.Medium,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.sp
     )
 )
 

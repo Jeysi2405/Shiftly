@@ -1,15 +1,15 @@
 package com.example.shiftly.ui.screens.duties
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -62,8 +63,12 @@ import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
-import com.example.shiftly.ui.theme.PlusJakartaSans
+import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.theme.InterFontFamily
+import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.DayType
@@ -77,7 +82,7 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 
 private val WEEK_HEADERS = listOf("M", "T", "W", "T", "F", "S", "S")
-private val CalendarCellShape = RoundedCornerShape(14.dp)
+private val CalendarCellShape = RoundedCornerShape(10.dp)
 
 private data class CalendarMonthLayout(
     val startOffset: Int,
@@ -150,7 +155,7 @@ fun DutiesWageRateCard(
 
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = colors.azureAccent,
-        unfocusedBorderColor = colors.border,
+        unfocusedBorderColor = Color.Transparent,
         focusedLabelColor = colors.azureAccent,
         unfocusedLabelColor = colors.textSecondary,
         focusedTextColor = colors.textPrimary,
@@ -160,7 +165,10 @@ fun DutiesWageRateCard(
         unfocusedContainerColor = colors.surface
     )
 
-    ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
+    ShiftlyGlassCard(
+        contentPadding = PaddingValues(18.dp),
+        containerColor = colors.cardElevated
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -172,24 +180,18 @@ fun DutiesWageRateCard(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(colors.mintContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_banknote),
-                            contentDescription = null,
-                            tint = colors.mintTextOnSurface,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    ShiftlyIosIconTile(
+                        iconRes = R.drawable.ic_lucide_banknote,
+                        backgroundColor = colors.mintBright,
+                        size = 34.dp,
+                        cornerRadius = 9.dp,
+                        iconSize = 18.dp,
+                        iconTint = PureWhite
+                    )
                     Text(
                         text = "WAGE & RATE SETTINGS",
                         style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold,
                             letterSpacing = 0.8.sp
                         ),
@@ -205,16 +207,15 @@ fun DutiesWageRateCard(
                             isEditing = true
                         },
                         modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(colors.cardElevated)
-                            .border(1.dp, colors.border, CircleShape)
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors.surface)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_pencil),
                             contentDescription = "Edit wage rates",
                             tint = colors.azureAccent,
-                            modifier = Modifier.size(19.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 } else if (defaultHourlyRate > 0.0) {
@@ -228,7 +229,7 @@ fun DutiesWageRateCard(
                     ) {
                         Text(
                             text = "Cancel",
-                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                             color = colors.textSecondary
                         )
                     }
@@ -237,14 +238,23 @@ fun DutiesWageRateCard(
 
             if (!isEditing) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     WageRateDisplayTile(
                         label = "Hourly Rate",
                         value = "${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr",
                         valueColor = colors.mintTextOnSurface,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 12.dp)
+                    )
+                    ShiftlyVerticalHairlineDivider(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .padding(vertical = 2.dp)
                     )
                     WageRateDisplayTile(
                         label = "Min Wage / Day",
@@ -253,8 +263,10 @@ fun DutiesWageRateCard(
                         } else {
                             "Not set"
                         },
-                        valueColor = if (minimumWagePerDay > 0.0) colors.textPrimary else colors.textMuted,
-                        modifier = Modifier.weight(1f)
+                        valueColor = if (minimumWagePerDay > 0.0) colors.textPrimary else colors.textSecondary,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 14.dp)
                     )
                 }
             } else {
@@ -265,19 +277,19 @@ fun DutiesWageRateCard(
                     OutlinedTextField(
                         value = hourlyInput,
                         onValueChange = { hourlyInput = filterWageDecimalInput(it, hourlyInput) },
-                        label = { Text("Hourly ($currencySymbol/hr)", fontFamily = PlusJakartaSans) },
+                        label = { Text("Hourly ($currencySymbol/hr)", fontFamily = InterFontFamily) },
                         placeholder = {
                             Text(
                                 text = "0",
-                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                                color = colors.textMuted
+                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                                color = colors.textSecondary
                             )
                         },
                         prefix = {
                             Text(
                                 text = currencySymbol,
                                 style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Bold
                                 ),
                                 color = colors.textPrimary
@@ -285,7 +297,7 @@ fun DutiesWageRateCard(
                         },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = fieldColors,
                         modifier = Modifier.weight(1f)
                     )
@@ -293,19 +305,19 @@ fun DutiesWageRateCard(
                     OutlinedTextField(
                         value = minWageInput,
                         onValueChange = { minWageInput = filterWageDecimalInput(it, minWageInput) },
-                        label = { Text("Min Wage/Day", fontFamily = PlusJakartaSans) },
+                        label = { Text("Min Wage/Day", fontFamily = InterFontFamily) },
                         placeholder = {
                             Text(
                                 text = "0",
-                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = PlusJakartaSans),
-                                color = colors.textMuted
+                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                                color = colors.textSecondary
                             )
                         },
                         prefix = {
                             Text(
                                 text = currencySymbol,
                                 style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Bold
                                 ),
                                 color = colors.textPrimary
@@ -313,7 +325,7 @@ fun DutiesWageRateCard(
                         },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = fieldColors,
                         modifier = Modifier.weight(1f)
                     )
@@ -362,7 +374,7 @@ fun DutiesWageRateCard(
                     Text(
                         text = "Save",
                         style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.onAzurePrimary
@@ -381,37 +393,29 @@ private fun WageRateDisplayTile(
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        color = colors.surface,
-        border = BorderStroke(1.dp, colors.cardBorder),
-        shadowElevation = 0.dp
+    Column(
+        modifier = modifier.padding(vertical = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Medium
-                ),
-                color = colors.textSecondary
-            )
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 19.sp
-                ).tabular(),
-                color = valueColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Medium
+            ),
+            color = colors.textSecondary
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold,
+                fontSize = 19.sp
+            ).tabular(),
+            color = valueColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -423,14 +427,13 @@ fun DayTypeSelectorRow(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        shape = RoundedCornerShape(14.dp),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 58.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
     ) {
         Row(
@@ -444,7 +447,7 @@ fun DayTypeSelectorRow(
                 Text(
                     text = "Day Type",
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Medium
                     ),
                     color = colors.textSecondary
@@ -456,7 +459,7 @@ fun DayTypeSelectorRow(
                     Text(
                         text = selectedDayType.label,
                         style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
@@ -465,13 +468,12 @@ fun DayTypeSelectorRow(
                         Surface(
                             shape = RoundedCornerShape(50),
                             color = colors.coralContainer,
-                            border = BorderStroke(1.dp, colors.coralBright.copy(alpha = 0.45f)),
                             shadowElevation = 0.dp
                         ) {
                             Text(
                                 text = badge,
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Bold
                                 ),
                                 color = colors.coralInk,
@@ -514,7 +516,7 @@ fun DayTypePromptSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -523,7 +525,7 @@ fun DayTypePromptSheet(
             ) {
                 Text(
                     text = "Select Day Type",
-                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = PlusJakartaSans),
+                    style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
                     color = colors.textPrimary
                 )
                 TextButton(
@@ -532,36 +534,32 @@ fun DayTypePromptSheet(
                 ) {
                     Text(
                         text = "Cancel",
-                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                 }
             }
 
-            DayType.orderedForSelection.forEach { dayType ->
-                val isSelected = dayType == selectedDayType
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (isSelected) colors.azureContainer else colors.card,
-                    border = BorderStroke(
-                        width = if (isSelected) 1.5.dp else 1.dp,
-                        color = if (isSelected) colors.azureAccent else colors.cardBorder
-                    ),
-                    shadowElevation = 0.dp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable(role = Role.RadioButton) {
-                            onSelect(dayType)
-                            onDismiss()
-                        }
-                        .semantics(mergeDescendants = true) {
-                            selected = isSelected
-                        }
-                ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(colors.cardElevated)
+            ) {
+                val options = DayType.orderedForSelection
+                options.forEachIndexed { idx, dayType ->
+                    val isSelected = dayType == selectedDayType
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .background(if (isSelected) colors.azureContainer else Color.Transparent)
+                            .clickable(role = Role.RadioButton) {
+                                onSelect(dayType)
+                                onDismiss()
+                            }
+                            .semantics(mergeDescendants = true) {
+                                selected = isSelected
+                            }
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -574,7 +572,7 @@ fun DayTypePromptSheet(
                             Text(
                                 text = dayType.label,
                                 style = MaterialTheme.typography.titleSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ),
                                 color = colors.textPrimary
@@ -583,13 +581,12 @@ fun DayTypePromptSheet(
                                 Surface(
                                     shape = RoundedCornerShape(50),
                                     color = colors.coralContainer,
-                                    border = BorderStroke(1.dp, colors.coralBright.copy(alpha = 0.45f)),
                                     shadowElevation = 0.dp
                                 ) {
                                     Text(
                                         text = badge,
                                         style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = PlusJakartaSans,
+                                            fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.Bold
                                         ),
                                         color = colors.coralInk,
@@ -601,7 +598,7 @@ fun DayTypePromptSheet(
                         if (isSelected) {
                             Box(
                                 modifier = Modifier
-                                    .size(26.dp)
+                                    .size(24.dp)
                                     .clip(CircleShape)
                                     .background(colors.azurePrimary),
                                 contentAlignment = Alignment.Center
@@ -609,11 +606,14 @@ fun DayTypePromptSheet(
                                 Icon(
                                     painter = painterResource(R.drawable.ic_lucide_check),
                                     contentDescription = "Selected",
-                                    tint = colors.onAzurePrimary,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = PureWhite,
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
+                    }
+                    if (idx < options.lastIndex) {
+                        ShiftlyHairlineDivider(startInset = 16.dp)
                     }
                 }
             }
@@ -648,14 +648,14 @@ fun TimeBreakdownCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = headerTitle,
-                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                        style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = ShiftlyFormatters.formatCurrency(currencySymbol, monthlyTotalEarnings),
                         style = MaterialTheme.typography.displaySmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 32.sp
                         ).tabular(),
@@ -667,11 +667,7 @@ fun TimeBreakdownCard(
                     val hasRate = defaultHourlyRate > 0.0
                     Surface(
                         shape = RoundedCornerShape(50),
-                        color = if (hasRate) colors.card else colors.azureContainer,
-                        border = BorderStroke(
-                            1.dp,
-                            if (hasRate) colors.cardBorder else colors.azureAccent.copy(alpha = 0.45f)
-                        ),
+                        color = if (hasRate) colors.cardElevated else colors.azureContainer,
                         shadowElevation = 0.dp,
                         modifier = if (onOpenSettings != null) {
                             Modifier
@@ -699,7 +695,7 @@ fun TimeBreakdownCard(
                                     "Set rate"
                                 },
                                 style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = PlusJakartaSans,
+                                    fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ).tabular(),
                                 color = if (hasRate) colors.textPrimary else colors.azureInk
@@ -709,10 +705,14 @@ fun TimeBreakdownCard(
                 }
             }
 
-            // Regular = Primary, Night Diff = Purple, Overtime = Red
+            ShiftlyHairlineDivider()
+
+            // Flattened Regular / Night Diff / Overtime metrics with hairline dividers
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 TimeBreakdownTile(
                     label = "Regular",
@@ -720,11 +720,21 @@ fun TimeBreakdownCard(
                     valueColor = colors.textPrimary,
                     modifier = Modifier.weight(1f)
                 )
+                ShiftlyVerticalHairlineDivider(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(vertical = 2.dp)
+                )
                 TimeBreakdownTile(
                     label = "Night Diff",
                     hours = timeBreakdown.nightDiffHours,
                     valueColor = colors.nightDiffPurple,
                     modifier = Modifier.weight(1f)
+                )
+                ShiftlyVerticalHairlineDivider(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .padding(vertical = 2.dp)
                 )
                 TimeBreakdownTile(
                     label = "Overtime",
@@ -746,18 +756,14 @@ private fun TimeBreakdownTile(
 ) {
     val colors = ShiftlyColors.current
     Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
-            .background(colors.card)
-            .border(1.dp, colors.cardBorder, RoundedCornerShape(18.dp))
-            .padding(horizontal = 10.dp, vertical = 12.dp),
+        modifier = modifier.padding(horizontal = 6.dp, vertical = 2.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
         Text(
             text = ShiftlyFormatters.formatHours(hours, compact = true),
             style = MaterialTheme.typography.titleMedium.copy(
-                fontFamily = PlusJakartaSans,
+                fontFamily = InterFontFamily,
                 fontWeight = FontWeight.Bold
             ).tabular(),
             color = valueColor
@@ -765,7 +771,7 @@ private fun TimeBreakdownTile(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontFamily = PlusJakartaSans,
+                fontFamily = InterFontFamily,
                 fontWeight = FontWeight.Medium
             ),
             color = colors.textSecondary,
@@ -832,7 +838,7 @@ fun ShiftCalendarCard(
                 Text(
                     text = monthTitle,
                     style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = PlusJakartaSans,
+                        fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
                     ),
                     color = colors.textPrimary,
@@ -878,7 +884,7 @@ fun ShiftCalendarCard(
                         text = day,
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textSecondary,
@@ -909,31 +915,26 @@ fun ShiftCalendarCard(
 
                                 val isFirstCutoff = dayNumber in 1..15
                                 val cutoffBg = if (isFirstCutoff) colors.coralContainer else colors.azureContainer
-                                val cutoffBorder = if (isFirstCutoff) colors.coralBright.copy(alpha = 0.55f) else colors.azureAccent.copy(alpha = 0.55f)
                                 val cutoffText = if (isFirstCutoff) colors.coralInk else colors.azureInk
                                 val cutoffDot = if (isFirstCutoff) colors.coralBright else colors.azureAccent
+
+                                val cellBg = when {
+                                    hasLoggedShift -> cutoffBg
+                                    isToday -> colors.azurePrimary
+                                    else -> colors.cardElevated
+                                }
+                                val dayTextColor = when {
+                                    hasLoggedShift -> cutoffText
+                                    isToday -> PureWhite
+                                    else -> colors.textPrimary
+                                }
 
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
                                         .heightIn(min = 48.dp)
                                         .clip(CalendarCellShape)
-                                        .background(if (hasLoggedShift) cutoffBg else colors.card)
-                                        .then(
-                                            when {
-                                                isToday -> Modifier.border(
-                                                    width = 1.6.dp,
-                                                    color = colors.azureAccent,
-                                                    shape = CalendarCellShape
-                                                )
-                                                hasLoggedShift -> Modifier.border(
-                                                    width = 1.dp,
-                                                    color = cutoffBorder,
-                                                    shape = CalendarCellShape
-                                                )
-                                                else -> Modifier
-                                            }
-                                        )
+                                        .background(cellBg)
                                         .clickable { onSelectDate(cellDate) }
                                         .semantics(mergeDescendants = true) {
                                             contentDescription = cellDescription
@@ -944,14 +945,14 @@ fun ShiftCalendarCard(
                                         Text(
                                             text = dayNumber.toString(),
                                             style = MaterialTheme.typography.labelLarge.copy(
-                                                fontFamily = PlusJakartaSans,
+                                                fontFamily = InterFontFamily,
                                                 fontWeight = if (hasLoggedShift || isToday) {
                                                     FontWeight.Bold
                                                 } else {
                                                     FontWeight.Medium
                                                 }
                                             ).tabular(),
-                                            color = if (hasLoggedShift) cutoffText else colors.textPrimary
+                                            color = dayTextColor
                                         )
                                         if (hasLoggedShift) {
                                             Spacer(modifier = Modifier.height(2.dp))
@@ -959,7 +960,7 @@ fun ShiftCalendarCard(
                                                 modifier = Modifier
                                                     .size(5.dp)
                                                     .clip(CircleShape)
-                                                    .background(cutoffDot)
+                                                    .background(if (isToday) colors.azureAccent else cutoffDot)
                                             )
                                         }
                                     }
@@ -985,9 +986,8 @@ fun ShiftHistoryEmptyCard(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(22.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        shape = RoundedCornerShape(18.dp),
+        color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -998,29 +998,23 @@ fun ShiftHistoryEmptyCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .clip(CircleShape)
-                    .background(colors.mintContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_briefcase),
-                    contentDescription = null,
-                    tint = colors.mintInk,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
+            ShiftlyIosIconTile(
+                iconRes = R.drawable.ic_lucide_briefcase,
+                backgroundColor = colors.mintBright,
+                size = 48.dp,
+                cornerRadius = 12.dp,
+                iconSize = 24.dp,
+                iconTint = PureWhite
+            )
             Text(
                 text = "No shifts logged this month",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = PlusJakartaSans),
+                style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = "Tap Log Shift above or choose any calendar day to record your hours.",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily),
                 color = colors.textSecondary,
                 textAlign = TextAlign.Center
             )
@@ -1038,7 +1032,9 @@ fun ShiftHistoryItemCard(
     shift: ShiftEntity,
     currencySymbol: String,
     onEditNote: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    containerColor: Color = ShiftlyColors.current.cardElevated,
+    shape: Shape = RoundedCornerShape(18.dp)
 ) {
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
@@ -1073,17 +1069,16 @@ fun ShiftHistoryItemCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = colors.card,
-        border = BorderStroke(1.dp, colors.cardBorder),
+        shape = shape,
+        color = containerColor,
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(shape)
             .clickable(onClick = onEditNote)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
@@ -1094,35 +1089,29 @@ fun ShiftHistoryItemCard(
                 Row(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(colors.mintContainer),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_clock),
-                            contentDescription = null,
-                            tint = colors.mintInk,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    ShiftlyIosIconTile(
+                        iconRes = R.drawable.ic_lucide_clock,
+                        backgroundColor = colors.mintBright,
+                        size = 38.dp,
+                        cornerRadius = 9.dp,
+                        iconSize = 19.dp,
+                        iconTint = PureWhite
+                    )
 
                     Column {
                         Text(
                             text = shiftDateText,
                             style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ),
                             color = colors.textPrimary
                         )
                         Text(
                             text = timeRangeText,
-                            style = MaterialTheme.typography.bodySmall.tabular(),
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily).tabular(),
                             color = colors.textSecondary
                         )
                     }
@@ -1132,7 +1121,7 @@ fun ShiftHistoryItemCard(
                     Text(
                         text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, shift.totalEarned)}",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold
                         ).tabular(),
                         color = colors.mintInk
@@ -1140,7 +1129,7 @@ fun ShiftHistoryItemCard(
                     Text(
                         text = dayTypeLabel,
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Medium
                         ),
                         color = colors.textSecondary
@@ -1148,7 +1137,7 @@ fun ShiftHistoryItemCard(
                 }
             }
 
-            // Color-coded breakdown chips: Regular = Primary, Night Diff = Purple, Overtime = Red
+            // Color-coded breakdown pills (zero border strokes)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1158,13 +1147,12 @@ fun ShiftHistoryItemCard(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "Reg ${formatPillDuration(wageDetails.regularBaseMinutes)}",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ).tabular(),
                             color = colors.textPrimary,
@@ -1176,13 +1164,12 @@ fun ShiftHistoryItemCard(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.nightDiffPurpleContainer,
-                        border = BorderStroke(1.dp, colors.nightDiffPurple.copy(alpha = 0.45f)),
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "ND ${formatPillDuration(wageDetails.nightDiffMinutes)}",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ).tabular(),
                             color = colors.nightDiffPurple,
@@ -1194,13 +1181,12 @@ fun ShiftHistoryItemCard(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.coralContainer,
-                        border = BorderStroke(1.dp, colors.coralBright.copy(alpha = 0.45f)),
                         shadowElevation = 0.dp
                     ) {
                         Text(
                             text = "OT ${formatPillDuration(wageDetails.overtimeMinutes)}",
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ).tabular(),
                             color = colors.coralBright,
@@ -1219,14 +1205,13 @@ fun ShiftHistoryItemCard(
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = colors.surface,
-                        border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp,
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Text(
                             text = shift.overtimeNote,
                             style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = PlusJakartaSans,
+                                fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ),
                             color = colors.textPrimary,
@@ -1239,28 +1224,28 @@ fun ShiftHistoryItemCard(
                     Text(
                         text = "${ShiftlyFormatters.formatCurrency(currencySymbol, shift.lockedHourlyRate)}/hr",
                         style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = PlusJakartaSans,
+                            fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Medium
                         ).tabular(),
                         color = colors.textSecondary
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(onClick = onEditNote, modifier = Modifier.size(48.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    IconButton(onClick = onEditNote, modifier = Modifier.size(44.dp)) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_square_pen),
                             contentDescription = "Edit Shift",
                             tint = colors.azureInk,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
+                    IconButton(onClick = onDelete, modifier = Modifier.size(44.dp)) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_trash_2),
                             contentDescription = "Delete Shift",
                             tint = colors.coralInk,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
                 }
