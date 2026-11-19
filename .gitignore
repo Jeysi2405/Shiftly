@@ -12,4 +12,9 @@
 /captures
 .externalNativeBuild
 .cxx
+.kotlin/
+.kilo/
 local.properties
+*.jks
+*.keystore
+!release/*.apk
