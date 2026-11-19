@@ -112,8 +112,8 @@ private fun CompactShiftScheduleGrid(
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
 
-    val startLocal = LocalTime.of(startHour24, startMinute)
-    val endLocal = LocalTime.of(endHour24, endMinute)
+    val startLocal = remember(startHour24, startMinute) { LocalTime.of(startHour24, startMinute) }
+    val endLocal = remember(endHour24, endMinute) { LocalTime.of(endHour24, endMinute) }
     val endsNextDay = !endLocal.isAfter(startLocal)
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -510,11 +510,19 @@ private fun ShiftTimePresetsStrip(
     onSaveCurrentAsPreset: () -> Unit
 ) {
     val colors = ShiftlyColors.current
-    val alreadyExists = presets.any {
-        it.startHour24 == currentStartHour24 &&
-            it.startMinute == currentStartMinute &&
-            it.endHour24 == currentEndHour24 &&
-            it.endMinute == currentEndMinute
+    val alreadyExists = remember(
+        presets,
+        currentStartHour24,
+        currentStartMinute,
+        currentEndHour24,
+        currentEndMinute
+    ) {
+        presets.any {
+            it.startHour24 == currentStartHour24 &&
+                it.startMinute == currentStartMinute &&
+                it.endHour24 == currentEndHour24 &&
+                it.endMinute == currentEndMinute
+        }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -863,21 +871,37 @@ fun ManualShiftSheetContent(
     )
 
     val zone = remember { ZoneId.systemDefault() }
-    val startDateTime = pickedDate.atTime(LocalTime.of(startHour24, startMin))
-    var endDateTime = pickedDate.atTime(LocalTime.of(endHour24, endMin))
-    if (!endDateTime.isAfter(startDateTime)) {
-        endDateTime = endDateTime.plusDays(1)
+    val computedShiftPreview = remember(
+        pickedDate,
+        startHour24,
+        startMin,
+        endHour24,
+        endMin,
+        hourlyRate,
+        selectedDayType,
+        zone
+    ) {
+        val startDateTime = pickedDate.atTime(LocalTime.of(startHour24, startMin))
+        var endDateTime = pickedDate.atTime(LocalTime.of(endHour24, endMin))
+        if (!endDateTime.isAfter(startDateTime)) {
+            endDateTime = endDateTime.plusDays(1)
+        }
+        val startMillis = startDateTime.atZone(zone).toInstant().toEpochMilli()
+        val endMillis = endDateTime.atZone(zone).toInstant().toEpochMilli()
+        val totalMinutes = ((endMillis - startMillis) / 60_000L).coerceAtLeast(0L)
+        val wageDetails = WageCalculator.calculateTotalEarned(
+            startMillis = startMillis,
+            endMillis = endMillis,
+            hourlyRate = hourlyRate,
+            dayTypeStr = selectedDayType.name
+        )
+        totalMinutes to wageDetails
     }
-    val startMillis = startDateTime.atZone(zone).toInstant().toEpochMilli()
-    val endMillis = endDateTime.atZone(zone).toInstant().toEpochMilli()
-    val totalMinutes = ((endMillis - startMillis) / 60_000L).coerceAtLeast(0L)
-    val wageDetails = WageCalculator.calculateTotalEarned(
-        startMillis = startMillis,
-        endMillis = endMillis,
-        hourlyRate = hourlyRate,
-        dayTypeStr = selectedDayType.name
-    )
-    val isDateAlreadyLogged = pickedDate.toEpochDay() in blockedEpochDays
+    val totalMinutes = computedShiftPreview.first
+    val wageDetails = computedShiftPreview.second
+    val isDateAlreadyLogged = remember(pickedDate, blockedEpochDays) {
+        pickedDate.toEpochDay() in blockedEpochDays
+    }
 
     Column(
         modifier = Modifier
@@ -1224,8 +1248,8 @@ private fun BasicPresetTimeSelectorCard(
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
 
-    val startLocal = LocalTime.of(startHour24, startMinute)
-    val endLocal = LocalTime.of(endHour24, endMinute)
+    val startLocal = remember(startHour24, startMinute) { LocalTime.of(startHour24, startMinute) }
+    val endLocal = remember(endHour24, endMinute) { LocalTime.of(endHour24, endMinute) }
     val endsNextDay = !endLocal.isAfter(startLocal)
 
     Row(

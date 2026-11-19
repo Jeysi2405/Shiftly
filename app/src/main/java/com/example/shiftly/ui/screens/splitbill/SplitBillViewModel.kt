@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.splitbill
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -10,13 +11,16 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.utils.SplitBillMath
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@Immutable
 data class SplitBillUiState(
     val currencySymbol: String = "₱",
     val selectedMonth: YearMonth? = YearMonth.now(),
@@ -66,11 +70,13 @@ class SplitBillViewModel(
             paidParticipantsCount = friendSummary.paidFriendsCount,
             totalParticipantsCount = friendSummary.totalFriendsCount
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = SplitBillUiState()
-    )
+    }
+        .flowOn(Dispatchers.IO)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = SplitBillUiState()
+        )
 
     fun shiftMonth(delta: Long) {
         val base = _selectedMonth.value ?: YearMonth.now()

@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.duties
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -13,19 +14,23 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@Immutable
 data class TimeBreakdown(
     val regularHours: Double = 0.0,
     val nightDiffHours: Double = 0.0,
     val overtimeHours: Double = 0.0
 )
 
+@Immutable
 data class DutiesUiState(
     val defaultHourlyRate: Double = 0.0,
     val minimumWagePerDay: Double = 0.0,
@@ -113,11 +118,13 @@ class DutiesViewModel(
             displayedShifts = monthShifts,
             totalAllShiftsCount = allShifts.size
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = DutiesUiState()
-    )
+    }
+        .flowOn(Dispatchers.IO)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = DutiesUiState()
+        )
 
     fun setDutyDate(date: LocalDate) {
         _selectedDutyDate.value = date

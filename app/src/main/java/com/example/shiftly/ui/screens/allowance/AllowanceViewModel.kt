@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.allowance
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -10,12 +11,15 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.utils.CutoffCalculator
 import com.example.shiftly.utils.CutoffWindow
 import java.time.LocalDate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@Immutable
 data class AllowanceUiState(
     val currencySymbol: String = "₱",
     val entries: List<AllowanceEntryEntity> = emptyList(),
@@ -62,11 +66,13 @@ class AllowanceViewModel(
             pendingDutiesEarnings = pendingShifts.sumOf { it.totalEarned },
             pendingShiftCount = pendingShifts.size
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = AllowanceUiState()
-    )
+    }
+        .flowOn(Dispatchers.IO)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = AllowanceUiState()
+        )
 
     fun addManualAllowance(
         title: String,

@@ -35,13 +35,16 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -53,6 +56,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
@@ -61,6 +66,9 @@ import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private fun filterDecimal(raw: String, current: String): String {
     val filtered = raw.filter { it.isDigit() || it == '.' }
@@ -172,6 +180,7 @@ fun WelcomeScreen(
 
     if (showSetupSheet) {
         val context = LocalContext.current
+        val coroutineScope = rememberCoroutineScope()
         val suppressNextRelock = LocalSuppressNextRelock.current
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         var nameInput by remember { mutableStateOf("") }
@@ -184,10 +193,31 @@ fun WelcomeScreen(
             contract = ActivityResultContracts.PickVisualMedia()
         ) { uri ->
             if (uri != null) {
-                val saved = ProfilePhotoHelper.saveProfilePhotoFromUri(context, uri)
-                if (saved != null) {
-                    photoPath = saved
+                coroutineScope.launch {
+                    val saved = withContext(Dispatchers.IO) {
+                        ProfilePhotoHelper.saveProfilePhotoFromUri(context, uri)
+                    }
+                    if (saved != null) {
+                        photoPath = saved
+                    }
                 }
+            }
+        }
+
+        val photoFile by produceState<File?>(initialValue = null, photoPath) {
+            value = withContext(Dispatchers.IO) {
+                photoPath?.let(::File)?.takeIf { it.exists() && it.isFile }
+            }
+        }
+        val avatarSizePx = with(LocalDensity.current) { 68.dp.roundToPx() }
+        val avatarRequest = remember(photoFile, avatarSizePx, context) {
+            photoFile?.let { file ->
+                ImageRequest.Builder(context)
+                    .data(file)
+                    .size(avatarSizePx, avatarSizePx)
+                    .scale(Scale.FILL)
+                    .crossfade(true)
+                    .build()
             }
         }
 
@@ -250,10 +280,9 @@ fun WelcomeScreen(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        val file = photoPath?.let { File(it) }
-                        if (file != null && file.exists()) {
+                        if (avatarRequest != null) {
                             AsyncImage(
-                                model = file,
+                                model = avatarRequest,
                                 contentDescription = "Selected profile photo",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
@@ -294,8 +323,11 @@ fun WelcomeScreen(
                             if (photoPath != null) {
                                 TextButton(
                                     onClick = {
-                                        ProfilePhotoHelper.deleteProfilePhoto(photoPath)
+                                        val oldPath = photoPath
                                         photoPath = null
+                                        coroutineScope.launch(Dispatchers.IO) {
+                                            ProfilePhotoHelper.deleteProfilePhoto(oldPath)
+                                        }
                                     }
                                 ) {
                                     Icon(

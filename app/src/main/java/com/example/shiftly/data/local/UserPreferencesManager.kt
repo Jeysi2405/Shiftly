@@ -1,6 +1,7 @@
 package com.example.shiftly.data.local
 
 import android.content.Context
+import androidx.compose.runtime.Immutable
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -22,6 +23,7 @@ import org.json.JSONObject
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "shiftly_prefs")
 
+@Immutable
 data class ActiveTimerState(
     val isRunning: Boolean = false,
     val startTimeMillis: Long = 0L,
@@ -29,16 +31,19 @@ data class ActiveTimerState(
     val lockedRate: Double = 0.0
 )
 
+@Immutable
 data class CategoryBudgetSetting(
     val category: String,
     val monthlyLimit: Double
 )
 
+@Immutable
 data class ManagedCategorySetting(
     val name: String,
     val isVisible: Boolean
 )
 
+@Immutable
 data class RecurringEntrySetting(
     val id: String,
     val title: String,
@@ -50,6 +55,7 @@ data class RecurringEntrySetting(
     val lastAppliedEpochDay: Long = 0L
 )
 
+@Immutable
 data class ShiftTimePreset(
     val id: String,
     val label: String,
@@ -59,12 +65,14 @@ data class ShiftTimePreset(
     val endMinute: Int
 )
 
+@Immutable
 data class NotificationLastDays(
     val lastBillDay: Long = 0L,
     val lastShiftDay: Long = 0L,
     val lastSavingsDay: Long = 0L
 )
 
+@Immutable
 data class CutoffScheduleConfig(
     val mode: String = MODE_SEMI_MONTHLY,
     val day1: Int = 15,

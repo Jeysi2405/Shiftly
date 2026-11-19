@@ -3,8 +3,6 @@ package com.example.shiftly.ui.navigation
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -13,7 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -63,7 +60,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -135,8 +132,12 @@ import com.example.shiftly.workers.ShiftlyDailyWorker
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private val NavBarPillShape = RoundedCornerShape(50)
 
 @Composable
 fun MainAppScreen() {
@@ -289,7 +290,7 @@ private fun MainDashboardShell(
         repository.processDueRecurringEntries()
         repository.processDueCutoffAllowances()
         ShiftlyDailyWorker.scheduleDailyMaintenance(context)
-        val bills = repository.allRecurringBills.first()
+        val bills = withContext(Dispatchers.IO) { repository.allRecurringBills.first() }
         ShiftlyDailyWorker.scheduleNextRecurringCheck(
             context = context,
             nextDue = RecurringEngine.earliestNextDueDateTime(bills)
@@ -302,7 +303,7 @@ private fun MainDashboardShell(
                 scope.launch {
                     repository.processDueRecurringEntries()
                     repository.processDueCutoffAllowances()
-                    val bills = repository.allRecurringBills.first()
+                    val bills = withContext(Dispatchers.IO) { repository.allRecurringBills.first() }
                     ShiftlyDailyWorker.scheduleNextRecurringCheck(
                         context = context,
                         nextDue = RecurringEngine.earliestNextDueDateTime(bills)
@@ -314,13 +315,15 @@ private fun MainDashboardShell(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val showMessage: (String) -> Unit = { message ->
-        scope.launch {
-            snackbarHostState.currentSnackbarData?.dismiss()
-            snackbarHostState.showSnackbar(
-                message = message,
-                duration = SnackbarDuration.Short
-            )
+    val showMessage: (String) -> Unit = remember(scope, snackbarHostState) {
+        { message: String ->
+            scope.launch {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                snackbarHostState.showSnackbar(
+                    message = message,
+                    duration = SnackbarDuration.Short
+                )
+            }
         }
     }
 
@@ -439,6 +442,7 @@ private fun MainDashboardShell(
                             currentDestination?.hierarchy?.any { it.route == screen.route } == true
                         },
                         onSelect = ::onBottomBarSelect,
+                        isFabActive = showQuickActionSheet,
                         onFabClick = { showQuickActionSheet = true }
                     )
                 }
@@ -1007,7 +1011,7 @@ private fun QuickDepositPromptSheet(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
+                val parsedAmount = remember(amountText) { amountText.toDoubleOrNull() ?: 0.0 }
                 ShiftlyPrimaryPillButton(
                     text = "Save Deposit",
                     enabled = parsedAmount > 0.0,
@@ -1032,12 +1036,21 @@ fun FloatingPillBottomBar(
     isSelected: (Screen) -> Boolean,
     onSelect: (Screen) -> Unit,
     modifier: Modifier = Modifier,
+    isFabActive: Boolean = false,
     onFabClick: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
-    val pillShape = RoundedCornerShape(50)
-    val leftItems = items.take(2)
-    val rightItems = items.drop(2)
+    val leftItems = remember(items) { items.take(2) }
+    val rightItems = remember(items) { items.drop(2) }
+
+    val fabRotation by animateFloatAsState(
+        targetValue = if (isFabActive) 45f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "fabRotation"
+    )
 
     Box(
         modifier = modifier
@@ -1050,7 +1063,7 @@ fun FloatingPillBottomBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(68.dp),
-            shape = pillShape,
+            shape = NavBarPillShape,
             color = colors.surface,
             border = BorderStroke(1.dp, colors.border),
             shadowElevation = 0.dp
@@ -1097,7 +1110,9 @@ fun FloatingPillBottomBar(
                                 painter = painterResource(R.drawable.ic_lucide_plus),
                                 contentDescription = null,
                                 tint = colors.onAzurePrimary,
-                                modifier = Modifier.size(26.dp)
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .graphicsLayer { rotationZ = fabRotation }
                             )
                         }
                     }

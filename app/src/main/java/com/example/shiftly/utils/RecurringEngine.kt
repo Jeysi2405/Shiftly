@@ -1,5 +1,6 @@
 package com.example.shiftly.utils
 
+import androidx.compose.runtime.Immutable
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.RecurringEntrySetting
@@ -12,6 +13,7 @@ import java.time.LocalTime
 import java.time.Month
 import java.time.temporal.ChronoUnit
 
+@Immutable
 data class DueRecurringOccurrence(
     val rule: RecurringEntrySetting,
     val dueEpochDay: Long

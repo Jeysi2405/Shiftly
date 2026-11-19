@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -29,9 +30,11 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -50,47 +53,62 @@ data class SavingsGoalCardItem(
     val targetDate: LocalDate
 )
 
+@Immutable
 data class MonthlyHoursSummary(
     val totalHours: Double = 0.0,
     val nightDiffHours: Double = 0.0,
     val overtimeHours: Double = 0.0
 )
 
-sealed class TimelineActivityItem(
-    val sortEpochDay: Long,
-    val sortTimestamp: Long
-) {
-    class ShiftActivity(
+@Immutable
+sealed class TimelineActivityItem {
+    abstract val sortEpochDay: Long
+    abstract val sortTimestamp: Long
+
+    @Immutable
+    data class ShiftActivity(
         val id: Long,
         val title: String,
         val timeRange: String,
         val durationLabel: String,
         val amount: Double,
-        epochDay: Long,
-        timestamp: Long
-    ) : TimelineActivityItem(epochDay, timestamp)
+        val epochDay: Long,
+        val timestamp: Long
+    ) : TimelineActivityItem() {
+        override val sortEpochDay: Long get() = epochDay
+        override val sortTimestamp: Long get() = timestamp
+    }
 
-    class ExpenseActivity(
+    @Immutable
+    data class ExpenseActivity(
         val id: Long,
         val title: String,
         val category: String,
         val timeLabel: String,
         val amount: Double,
-        epochDay: Long,
-        timestamp: Long
-    ) : TimelineActivityItem(epochDay, timestamp)
+        val epochDay: Long,
+        val timestamp: Long
+    ) : TimelineActivityItem() {
+        override val sortEpochDay: Long get() = epochDay
+        override val sortTimestamp: Long get() = timestamp
+    }
 
-    class ExtraIncomeActivity(
+    @Immutable
+    data class ExtraIncomeActivity(
         val id: Long,
         val title: String,
         val timeLabel: String,
         val amount: Double,
-        epochDay: Long,
-        timestamp: Long,
+        val epochDay: Long,
+        val timestamp: Long,
         val subtitleTag: String = "Recurring"
-    ) : TimelineActivityItem(epochDay, timestamp)
+    ) : TimelineActivityItem() {
+        override val sortEpochDay: Long get() = epochDay
+        override val sortTimestamp: Long get() = timestamp
+    }
 }
 
+@Immutable
 data class HomeUiState(
     val userName: String = "",
     val profilePhotoPath: String? = null,
@@ -346,11 +364,13 @@ class HomeViewModel(
             timelineItems = combinedTimeline,
             activeTimer = prefs.activeTimer
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = HomeUiState()
-    )
+    }
+        .flowOn(Dispatchers.IO)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = HomeUiState()
+        )
 
     fun createSavingsGoal(title: String, targetAmount: Double, targetDateEpochDay: Long) {
         viewModelScope.launch {

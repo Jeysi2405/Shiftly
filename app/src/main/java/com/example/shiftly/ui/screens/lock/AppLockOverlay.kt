@@ -56,6 +56,13 @@ import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.utils.PinSecurity
 
+private val KEYPAD_ROWS = listOf(
+    listOf("1", "2", "3"),
+    listOf("4", "5", "6"),
+    listOf("7", "8", "9"),
+    listOf("BIO", "0", "DEL")
+)
+
 /**
  * Call right before launching an external chooser/document/camera picker so Android's
  * lifecycle transition does not immediately re-lock an already-unlocked session.
@@ -263,14 +270,8 @@ fun AppLockGateScreen(
 
             if (supportsPin) {
                 Spacer(modifier = Modifier.height(4.dp))
-                val rows = listOf(
-                    listOf("1", "2", "3"),
-                    listOf("4", "5", "6"),
-                    listOf("7", "8", "9"),
-                    listOf("BIO", "0", "DEL")
-                )
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    rows.forEach { row ->
+                    KEYPAD_ROWS.forEach { row ->
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(20.dp),
                             verticalAlignment = Alignment.CenterVertically

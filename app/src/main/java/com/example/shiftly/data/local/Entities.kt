@@ -1,5 +1,6 @@
 package com.example.shiftly.data.local
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Embedded
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -7,6 +8,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.Relation
 
+@Immutable
 @Entity(
     tableName = "shifts",
     indices = [Index(value = ["dateEpochDay"], unique = true)]
@@ -23,6 +25,7 @@ data class ShiftEntity(
     val dayType: String = "ORDINARY"
 )
 
+@Immutable
 @Entity(
     tableName = "expenses",
     indices = [Index(value = ["linkedRecurringBillId"])]
@@ -41,6 +44,7 @@ data class ExpenseEntity(
     val recurringOccurrenceEpochDay: Long? = null
 )
 
+@Immutable
 @Entity(tableName = "extra_incomes")
 data class ExtraIncomeEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -51,6 +55,7 @@ data class ExtraIncomeEntity(
     val createdAtMillis: Long = 0L
 )
 
+@Immutable
 @Entity(tableName = "recurring_bills")
 data class RecurringBillEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -75,6 +80,7 @@ object AllowanceSource {
     val ALL = listOf(SALARY, BUSINESS, OTHERS)
 }
 
+@Immutable
 @Entity(
     tableName = "allowance_entries",
     indices = [Index(value = ["cutoffKey"], unique = true)]
@@ -89,6 +95,7 @@ data class AllowanceEntryEntity(
     val createdAtMillis: Long = 0L
 )
 
+@Immutable
 @Entity(tableName = "split_bills")
 data class SplitBillEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -100,6 +107,7 @@ data class SplitBillEntity(
     val isLoggedToExpense: Boolean = false
 )
 
+@Immutable
 @Entity(
     tableName = "split_participants",
     foreignKeys = [
@@ -130,6 +138,7 @@ data class SplitBillWithParticipants(
     val participants: List<SplitParticipantEntity>
 )
 
+@Immutable
 @Entity(tableName = "savings_goals")
 data class SavingsGoalEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -140,6 +149,7 @@ data class SavingsGoalEntity(
     val createdAtMillis: Long = 0L
 )
 
+@Immutable
 @Entity(
     tableName = "savings_deposits",
     foreignKeys = [

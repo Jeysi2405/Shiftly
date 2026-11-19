@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -47,6 +49,8 @@ import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.shiftlySheetBodyBand
+import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.InkBlack
@@ -55,6 +59,7 @@ import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun ExpenseScreen(
@@ -133,19 +138,29 @@ fun ExpenseScreenContent(
     onResetFilters: () -> Unit = { onSelectCategory("All") }
 ) {
     val colors = ShiftlyColors.current
+    val locale = LocalConfiguration.current.locales[0]
+    val itemDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
+    val listTitle = remember(state.selectedCategory) {
+        if (state.selectedCategory == "All") {
+            "Expense History"
+        } else {
+            "${state.selectedCategory} Expenses"
+        }
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding(),
         contentPadding = PaddingValues(top = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.Top
     ) {
-        item {
+        item(key = "expense_header", contentType = "header") {
             ShiftlyScreenHeader(
                 title = "Expenses",
                 subtitle = null,
                 onBackClick = onBack,
-                modifier = Modifier.padding(horizontal = 20.dp),
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 trailing = {
                     Button(
                         onClick = onOpenAddSheet,
@@ -180,18 +195,18 @@ fun ExpenseScreenContent(
             )
         }
 
-        item {
+        item(key = "month_filter", contentType = "month_filter") {
             ShiftlyMonthFilterBar(
                 selectedMonth = state.selectedMonth,
                 onPreviousMonth = onPreviousMonth,
                 onNextMonth = onNextMonth,
                 onToggleAllMonths = onToggleAllMonths,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)
             )
         }
 
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+        item(key = "expense_summary", contentType = "summary") {
+            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
                 ExpenseSummaryCard(
                     monthlyTotal = state.monthlyTotal,
                     allTimeTotal = state.allTimeTotal,
@@ -204,62 +219,83 @@ fun ExpenseScreenContent(
             }
         }
 
-        item {
-            ExpenseCategoryFilterRow(
-                categories = state.filterCategories,
-                selectedCategory = state.selectedCategory,
-                onSelectCategory = onSelectCategory
-            )
+        item(key = "category_filter", contentType = "category_filter") {
+            Box(modifier = Modifier.padding(bottom = 14.dp)) {
+                ExpenseCategoryFilterRow(
+                    categories = state.filterCategories,
+                    selectedCategory = state.selectedCategory,
+                    onSelectCategory = onSelectCategory
+                )
+            }
         }
 
-        item {
-            Surface(
+        item(key = "sheet_header", contentType = "sheet_header") {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 620.dp),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = colors.surface,
-                border = BorderStroke(1.dp, colors.cardBorder),
-                shadowElevation = 0.dp
+                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                ShiftlySheetDragHandle()
+
+                ShiftlySectionHeader(
+                    title = listTitle,
+                    count = state.filteredExpenses.size,
+                    onLightSurface = true
+                )
+            }
+        }
+
+        if (state.filteredExpenses.isEmpty()) {
+            item(key = "sheet_empty", contentType = "sheet_empty") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 530.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
+                ) {
+                    ExpenseEmptyCard(
+                        selectedCategory = state.selectedCategory,
+                        selectedMonth = state.selectedMonth,
+                        onAddExpense = onOpenAddSheet,
+                        onShowAll = onResetFilters
+                    )
+                }
+            }
+        } else {
+            itemsIndexed(
+                items = state.filteredExpenses,
+                key = { _, expense -> "expense_${expense.id}" },
+                contentType = { _, _ -> "expense_item" }
+            ) { idx, expense ->
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(horizontal = 20.dp)
                 ) {
-                    ShiftlySheetDragHandle()
-
-                    val listTitle = if (state.selectedCategory == "All") {
-                        "Expense History"
-                    } else {
-                        "${state.selectedCategory} Expenses"
-                    }
-
-                    ShiftlySectionHeader(
-                        title = listTitle,
-                        count = state.filteredExpenses.size,
-                        onLightSurface = true
+                    ExpenseItemCard(
+                        expense = expense,
+                        currencySymbol = state.currencySymbol,
+                        onViewReceipt = onViewReceipt,
+                        onDelete = { onDeleteExpense(expense) },
+                        dateFormatter = itemDateFormatter
                     )
-
-                    if (state.filteredExpenses.isEmpty()) {
-                        ExpenseEmptyCard(
-                            selectedCategory = state.selectedCategory,
-                            selectedMonth = state.selectedMonth,
-                            onAddExpense = onOpenAddSheet,
-                            onShowAll = onResetFilters
-                        )
-                    } else {
-                        state.filteredExpenses.forEach { expense ->
-                            ExpenseItemCard(
-                                expense = expense,
-                                currencySymbol = state.currencySymbol,
-                                onViewReceipt = onViewReceipt,
-                                onDelete = { onDeleteExpense(expense) }
-                            )
-                        }
+                    if (idx < state.filteredExpenses.lastIndex) {
+                        Spacer(modifier = Modifier.height(14.dp))
                     }
                 }
+            }
+
+            item(key = "sheet_footer", contentType = "sheet_footer") {
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .height(if (state.filteredExpenses.size <= 2) 280.dp else 104.dp)
+                )
             }
         }
     }

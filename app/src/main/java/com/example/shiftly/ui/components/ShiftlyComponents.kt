@@ -1,10 +1,15 @@
 package com.example.shiftly.ui.components
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -32,11 +37,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -52,6 +64,81 @@ import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+
+private val PillShape = RoundedCornerShape(50)
+private val SheetTopShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+
+/**
+ * Top cap modifier for unrolled LazyColumn bottom-sheet headers: rounds the top 32dp corners,
+ * fills with [surfaceColor], and strokes only the top/side 1dp edges (no bottom seam).
+ */
+fun Modifier.shiftlySheetTopBand(
+    surfaceColor: Color,
+    borderColor: Color
+): Modifier = this
+    .clip(SheetTopShape)
+    .background(surfaceColor)
+    .drawWithCache {
+        val strokePx = 1.dp.toPx()
+        val half = strokePx / 2f
+        val r = 32.dp.toPx().coerceAtMost(minOf(size.width / 2f, size.height))
+        val path = Path().apply {
+            moveTo(half, size.height)
+            if (r > half) {
+                lineTo(half, r)
+                arcTo(
+                    rect = Rect(half, half, 2f * r - half, 2f * r - half),
+                    startAngleDegrees = 180f,
+                    sweepAngleDegrees = 90f,
+                    forceMoveTo = false
+                )
+                lineTo(size.width - r, half)
+                arcTo(
+                    rect = Rect(size.width - 2f * r + half, half, size.width - half, 2f * r - half),
+                    startAngleDegrees = 270f,
+                    sweepAngleDegrees = 90f,
+                    forceMoveTo = false
+                )
+            } else {
+                lineTo(half, half)
+                lineTo(size.width - half, half)
+            }
+            lineTo(size.width - half, size.height)
+        }
+        val stroke = Stroke(width = strokePx)
+        onDrawWithContent {
+            drawContent()
+            drawPath(path = path, color = borderColor, style = stroke)
+        }
+    }
+
+/**
+ * Side-bordered body row modifier for unrolled LazyColumn bottom-sheet items.
+ */
+fun Modifier.shiftlySheetBodyBand(
+    surfaceColor: Color,
+    borderColor: Color
+): Modifier = this
+    .background(surfaceColor)
+    .drawWithCache {
+        val strokePx = 1.dp.toPx()
+        val half = strokePx / 2f
+        onDrawWithContent {
+            drawContent()
+            drawLine(
+                color = borderColor,
+                start = Offset(half, 0f),
+                end = Offset(half, size.height),
+                strokeWidth = strokePx
+            )
+            drawLine(
+                color = borderColor,
+                start = Offset(size.width - half, 0f),
+                end = Offset(size.width - half, size.height),
+                strokeWidth = strokePx
+            )
+        }
+    }
 
 /**
  * Full-bleed screen backdrop reacting to the active Shiftly theme.
@@ -86,7 +173,7 @@ fun ShiftlySheetDragHandle(modifier: Modifier = Modifier) {
         Box(
             modifier = Modifier
                 .size(width = 36.dp, height = 4.dp)
-                .clip(RoundedCornerShape(50))
+                .clip(PillShape)
                 .background(if (colors.isDark) Color.White.copy(alpha = 0.16f) else colors.border)
         )
     }
@@ -104,7 +191,7 @@ fun ShiftlyGlassCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val colors = ShiftlyColors.current
-    val shape = RoundedCornerShape(cornerRadius)
+    val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -140,10 +227,22 @@ fun ShiftlyPrimaryPillButton(
     leadingIcon: (@Composable () -> Unit)? = null
 ) {
     val colors = ShiftlyColors.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val buttonScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "pillButtonScale"
+    )
+
     Button(
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(50),
+        interactionSource = interactionSource,
+        shape = PillShape,
         colors = ButtonDefaults.buttonColors(
             containerColor = colors.azurePrimary,
             contentColor = colors.onAzurePrimary,
@@ -158,6 +257,10 @@ fun ShiftlyPrimaryPillButton(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
+            .graphicsLayer {
+                scaleX = buttonScale
+                scaleY = buttonScale
+            }
     ) {
         if (leadingIcon != null) {
             leadingIcon()
@@ -186,9 +289,10 @@ fun ShiftlyCard(
     contentPadding: Dp = 16.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(cornerRadius),
+        shape = shape,
         color = containerColor,
         border = BorderStroke(1.dp, borderColor),
         shadowElevation = 0.dp
@@ -274,7 +378,9 @@ fun ShiftlyMonthFilterBar(
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val monthFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM yyyy", locale) }
-    val monthLabel = selectedMonth?.format(monthFormatter) ?: "All Months"
+    val monthLabel = remember(selectedMonth, monthFormatter) {
+        selectedMonth?.format(monthFormatter) ?: "All Months"
+    }
     val isAllSelected = selectedMonth == null
 
     Row(
@@ -283,7 +389,7 @@ fun ShiftlyMonthFilterBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            shape = RoundedCornerShape(50),
+            shape = PillShape,
             color = colors.surface,
             border = BorderStroke(1.dp, colors.cardBorder),
             shadowElevation = 0.dp,
@@ -337,12 +443,12 @@ fun ShiftlyMonthFilterBar(
         Box(
             modifier = Modifier
                 .heightIn(min = 48.dp)
-                .clip(RoundedCornerShape(50))
+                .clip(PillShape)
                 .background(if (isAllSelected) colors.azurePrimary else colors.surface)
                 .border(
                     width = 1.dp,
                     color = if (isAllSelected) colors.azureAccent else colors.cardBorder,
-                    shape = RoundedCornerShape(50)
+                    shape = PillShape
                 )
                 .clickable(role = Role.Tab) { onToggleAllMonths() }
                 .semantics { selected = isAllSelected }
@@ -396,7 +502,7 @@ fun ShiftlySectionHeader(
             )
             if (count != null) {
                 Surface(
-                    shape = RoundedCornerShape(50),
+                    shape = PillShape,
                     color = countBg,
                     border = BorderStroke(1.dp, colors.cardBorder),
                     shadowElevation = 0.dp
@@ -415,7 +521,7 @@ fun ShiftlySectionHeader(
                 Box(
                     modifier = Modifier
                         .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(50))
+                        .clip(PillShape)
                         .clickable(onClick = onTrailingClick)
                         .padding(horizontal = 10.dp),
                     contentAlignment = Alignment.Center
@@ -487,7 +593,7 @@ fun ShiftlyConfirmDeleteDialog(
         confirmButton = {
             Button(
                 onClick = onConfirm,
-                shape = RoundedCornerShape(50),
+                shape = PillShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.coralBright,
                     contentColor = colors.onAccentDark

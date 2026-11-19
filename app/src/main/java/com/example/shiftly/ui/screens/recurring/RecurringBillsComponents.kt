@@ -81,6 +81,9 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.roundToLong
 
+private val REPEAT_FREQUENCIES = listOf("Monthly", "Weekly")
+private val FALLBACK_RECURRING_CATEGORIES = listOf("Bills", "Food", "Transport", "Supplies", "Other")
+
 @Composable
 fun RecurringBillsSummaryCard(
     activeCount: Int,
@@ -194,20 +197,27 @@ fun RecurringBillItemCard(
     currencySymbol: String,
     onToggleEnabled: (Boolean) -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    dateTimeFormatter: DateTimeFormatter? = null,
+    now: LocalDateTime? = null
 ) {
     val colors = ShiftlyColors.current
-    val locale = LocalConfiguration.current.locales[0]
-    val dateTimeFormatter = remember(locale) {
-        DateTimeFormatter.ofPattern("MMM d, yyyy • h:mm a", locale)
+    val resolvedFormatter = dateTimeFormatter ?: run {
+        val locale = LocalConfiguration.current.locales[0]
+        remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy • h:mm a", locale) }
     }
     val dueDateTime = remember(bill.dueEpochDay, bill.dueHour, bill.dueMinute) {
         RecurringEngine.dueDateTimeOf(bill)
     }
-    val now = LocalDateTime.now()
-    val isDueSoon = bill.isEnabled &&
-        !dueDateTime.isBefore(now) &&
-        !dueDateTime.isAfter(now.plusHours(24))
+    val resolvedNow = now ?: remember { LocalDateTime.now() }
+    val isDueSoon = remember(bill.isEnabled, dueDateTime, resolvedNow) {
+        bill.isEnabled &&
+            !dueDateTime.isBefore(resolvedNow) &&
+            !dueDateTime.isAfter(resolvedNow.plusHours(24))
+    }
+    val dueDateLabel = remember(dueDateTime, resolvedFormatter) {
+        "Due ${dueDateTime.format(resolvedFormatter)}"
+    }
 
     Surface(
         shape = RoundedCornerShape(22.dp),
@@ -333,7 +343,7 @@ fun RecurringBillItemCard(
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "Due ${dueDateTime.format(dateTimeFormatter)}",
+                        text = dueDateLabel,
                         style = MaterialTheme.typography.bodySmall.tabular(),
                         color = colors.textSecondary,
                         maxLines = 1,
@@ -461,7 +471,7 @@ fun AddEditRecurringBillBottomSheet(
     val timeFormatter = remember(locale) { DateTimeFormatter.ofPattern("h:mm a", locale) }
 
     val categoryOptions = remember(availableCategories) {
-        availableCategories.ifEmpty { listOf("Bills", "Food", "Transport", "Supplies", "Other") }
+        availableCategories.ifEmpty { FALLBACK_RECURRING_CATEGORIES }
     }
 
     var title by remember(editingBill?.id) { mutableStateOf(editingBill?.title.orEmpty()) }
@@ -505,8 +515,12 @@ fun AddEditRecurringBillBottomSheet(
         }
     }
 
-    val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
+    val parsedAmount = remember(amountText) { amountText.toDoubleOrNull() ?: 0.0 }
     val isValid = title.isNotBlank() && parsedAmount.isFinite() && parsedAmount > 0.0
+    val formattedDueDate = remember(dueDate, dateFormatter) { dueDate.format(dateFormatter) }
+    val formattedDueTime = remember(dueHour, dueMinute, timeFormatter) {
+        LocalTime.of(dueHour, dueMinute).format(timeFormatter)
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -687,7 +701,7 @@ fun AddEditRecurringBillBottomSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    listOf("Monthly", "Weekly").forEach { freq ->
+                    REPEAT_FREQUENCIES.forEach { freq ->
                         val isSelected = selectedFrequency == freq
                         Box(
                             modifier = Modifier
@@ -750,7 +764,7 @@ fun AddEditRecurringBillBottomSheet(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = dueDate.format(dateFormatter),
+                                text = formattedDueDate,
                                 style = MaterialTheme.typography.titleSmall.tabular(),
                                 color = colors.textPrimary,
                                 maxLines = 1,
@@ -782,7 +796,7 @@ fun AddEditRecurringBillBottomSheet(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                text = LocalTime.of(dueHour, dueMinute).format(timeFormatter),
+                                text = formattedDueTime,
                                 style = MaterialTheme.typography.titleSmall.tabular(),
                                 color = colors.textPrimary,
                                 maxLines = 1

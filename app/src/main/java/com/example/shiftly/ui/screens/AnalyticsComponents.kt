@@ -1,7 +1,6 @@
 package com.example.shiftly.ui.screens
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,9 +28,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -55,6 +56,8 @@ import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
+
+private val ChartDashEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
 
 @Composable
 fun AnalyticsTopBar(
@@ -152,15 +155,26 @@ fun IncomeVsExpenseGlassChartCard(
 ) {
     val colors = ShiftlyColors.current
     val currency = state.currencySymbol
-    val net = state.periodIncome - state.periodExpenses
-    val maxVal = state.chartBuckets
-        .maxOfOrNull { maxOf(it.income, it.expense) }
-        ?.coerceAtLeast(100.0)
-        ?: 100.0
-    val chartDescription = buildString {
-        append("Income versus expenses bar chart for ${state.selectedRange.fullLabel}. ")
-        append("Total income ${ShiftlyFormatters.formatCurrency(currency, state.periodIncome)}, ")
-        append("total expenses ${ShiftlyFormatters.formatCurrency(currency, state.periodExpenses)}.")
+    val net = remember(state.periodIncome, state.periodExpenses) {
+        state.periodIncome - state.periodExpenses
+    }
+    val maxVal = remember(state.chartBuckets) {
+        state.chartBuckets
+            .maxOfOrNull { maxOf(it.income, it.expense) }
+            ?.coerceAtLeast(100.0)
+            ?: 100.0
+    }
+    val chartDescription = remember(
+        state.selectedRange,
+        currency,
+        state.periodIncome,
+        state.periodExpenses
+    ) {
+        buildString {
+            append("Income versus expenses bar chart for ${state.selectedRange.fullLabel}. ")
+            append("Total income ${ShiftlyFormatters.formatCurrency(currency, state.periodIncome)}, ")
+            append("total expenses ${ShiftlyFormatters.formatCurrency(currency, state.periodExpenses)}.")
+        }
     }
 
     ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
@@ -247,7 +261,6 @@ fun IncomeVsExpenseGlassChartCard(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val buckets = state.chartBuckets
-                    val count = buckets.size
                     val gridBorderColor = colors.border
                     val cardDotBg = colors.card
                     val mintLineColor = colors.mintBright
@@ -259,89 +272,121 @@ fun IncomeVsExpenseGlassChartCard(
                             .fillMaxWidth()
                             .height(140.dp)
                     ) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            val w = size.width
-                            val h = size.height
-                            val paddingTop = 12.dp.toPx()
-                            val paddingBottom = 12.dp.toPx()
-                            val paddingLeft = 24.dp.toPx()
-                            val paddingRight = 24.dp.toPx()
-
-                            val chartHeight = h - paddingTop - paddingBottom
-                            val chartWidth = w - paddingLeft - paddingRight
-
-                            val gridLines = 3
-                            for (i in 0..gridLines) {
-                                val y = paddingTop + (chartHeight / gridLines) * i
-                                drawLine(
-                                    color = gridBorderColor.copy(alpha = 0.6f),
-                                    start = Offset(paddingLeft, y),
-                                    end = Offset(w - paddingRight, y),
-                                    strokeWidth = 1.dp.toPx(),
-                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
-                                )
-                            }
-
-                            if (count > 0) {
-                                val stepX = if (count > 1) chartWidth / (count - 1) else 0f
-
-                                buckets.forEachIndexed { idx, _ ->
-                                    val x = paddingLeft + idx * stepX
-                                    drawLine(
-                                        color = gridBorderColor.copy(alpha = 0.35f),
-                                        start = Offset(x, paddingTop),
-                                        end = Offset(x, h - paddingBottom),
-                                        strokeWidth = 1.dp.toPx()
+                        Spacer(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .drawWithCache {
+                                    val w = size.width
+                                    val h = size.height
+                                    val paddingTop = 12.dp.toPx()
+                                    val paddingBottom = 12.dp.toPx()
+                                    val paddingLeft = 24.dp.toPx()
+                                    val paddingRight = 24.dp.toPx()
+                                    val gridStrokePx = 1.dp.toPx()
+                                    val lineStroke = Stroke(
+                                        width = 3.dp.toPx(),
+                                        cap = StrokeCap.Round,
+                                        join = StrokeJoin.Round
                                     )
-                                }
+                                    val dotOuterRadius = 5.dp.toPx()
+                                    val dotMidRadius = 2.5.dp.toPx()
+                                    val dotInnerRadius = 1.5.dp.toPx()
 
-                                val incPoints = buckets.mapIndexed { idx, b ->
-                                    val x = paddingLeft + idx * stepX
-                                    val y = h - paddingBottom - ((b.income / maxVal) * chartHeight).toFloat()
-                                    Offset(x, y)
-                                }
+                                    val chartHeight = h - paddingTop - paddingBottom
+                                    val chartWidth = w - paddingLeft - paddingRight
+                                    val gridLines = 3
+                                    val horizontalYs = FloatArray(gridLines + 1) { i ->
+                                        paddingTop + (chartHeight / gridLines) * i
+                                    }
 
-                                val expPoints = buckets.mapIndexed { idx, b ->
-                                    val x = paddingLeft + idx * stepX
-                                    val y = h - paddingBottom - ((b.expense / maxVal) * chartHeight).toFloat()
-                                    Offset(x, y)
-                                }
+                                    val count = buckets.size
+                                    val stepX = if (count > 1) chartWidth / (count - 1) else 0f
+                                    val verticalXs = FloatArray(count) { idx ->
+                                        paddingLeft + idx * stepX
+                                    }
+                                    val incPoints = if (count > 0) {
+                                        List(count) { idx ->
+                                            val b = buckets[idx]
+                                            Offset(
+                                                verticalXs[idx],
+                                                h - paddingBottom - ((b.income / maxVal) * chartHeight).toFloat()
+                                            )
+                                        }
+                                    } else {
+                                        emptyList()
+                                    }
+                                    val expPoints = if (count > 0) {
+                                        List(count) { idx ->
+                                            val b = buckets[idx]
+                                            Offset(
+                                                verticalXs[idx],
+                                                h - paddingBottom - ((b.expense / maxVal) * chartHeight).toFloat()
+                                            )
+                                        }
+                                    } else {
+                                        emptyList()
+                                    }
+                                    val incPath = Path().apply {
+                                        incPoints.forEachIndexed { i, p ->
+                                            if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+                                        }
+                                    }
+                                    val expPath = Path().apply {
+                                        expPoints.forEachIndexed { i, p ->
+                                            if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+                                        }
+                                    }
+                                    val hGridColor = gridBorderColor.copy(alpha = 0.6f)
+                                    val vGridColor = gridBorderColor.copy(alpha = 0.35f)
+                                    val endX = w - paddingRight
+                                    val bottomY = h - paddingBottom
 
-                                val incPath = Path().apply {
-                                    incPoints.forEachIndexed { i, p ->
-                                        if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+                                    onDrawBehind {
+                                        for (y in horizontalYs) {
+                                            drawLine(
+                                                color = hGridColor,
+                                                start = Offset(paddingLeft, y),
+                                                end = Offset(endX, y),
+                                                strokeWidth = gridStrokePx,
+                                                pathEffect = ChartDashEffect
+                                            )
+                                        }
+
+                                        if (count > 0) {
+                                            for (x in verticalXs) {
+                                                drawLine(
+                                                    color = vGridColor,
+                                                    start = Offset(x, paddingTop),
+                                                    end = Offset(x, bottomY),
+                                                    strokeWidth = gridStrokePx
+                                                )
+                                            }
+
+                                            drawPath(
+                                                path = incPath,
+                                                color = mintLineColor,
+                                                style = lineStroke
+                                            )
+                                            for (p in incPoints) {
+                                                drawCircle(color = mintLineColor, radius = dotOuterRadius, center = p)
+                                                drawCircle(color = cardDotBg, radius = dotMidRadius, center = p)
+                                                drawCircle(color = dotCenterColor, radius = dotInnerRadius, center = p)
+                                            }
+
+                                            drawPath(
+                                                path = expPath,
+                                                color = coralLineColor,
+                                                style = lineStroke
+                                            )
+                                            for (p in expPoints) {
+                                                drawCircle(color = coralLineColor, radius = dotOuterRadius, center = p)
+                                                drawCircle(color = cardDotBg, radius = dotMidRadius, center = p)
+                                                drawCircle(color = dotCenterColor, radius = dotInnerRadius, center = p)
+                                            }
+                                        }
                                     }
                                 }
-                                drawPath(
-                                    path = incPath,
-                                    color = mintLineColor,
-                                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                                )
-
-                                incPoints.forEach { p ->
-                                    drawCircle(color = mintLineColor, radius = 5.dp.toPx(), center = p)
-                                    drawCircle(color = cardDotBg, radius = 2.5.dp.toPx(), center = p)
-                                    drawCircle(color = dotCenterColor, radius = 1.5.dp.toPx(), center = p)
-                                }
-
-                                val expPath = Path().apply {
-                                    expPoints.forEachIndexed { i, p ->
-                                        if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
-                                    }
-                                }
-                                drawPath(
-                                    path = expPath,
-                                    color = coralLineColor,
-                                    style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-                                )
-
-                                expPoints.forEach { p ->
-                                    drawCircle(color = coralLineColor, radius = 5.dp.toPx(), center = p)
-                                    drawCircle(color = cardDotBg, radius = 2.5.dp.toPx(), center = p)
-                                    drawCircle(color = dotCenterColor, radius = 1.5.dp.toPx(), center = p)
-                                }
-                            }
-                        }
+                        )
                     }
 
                     Row(
@@ -561,7 +606,9 @@ fun EarningsHoursBreakdownCard(
     overtimeHours: Double
 ) {
     val colors = ShiftlyColors.current
-    val totalSplitHours = (regularHours + nightDiffHours + overtimeHours).coerceAtLeast(0.1)
+    val totalSplitHours = remember(regularHours, nightDiffHours, overtimeHours) {
+        (regularHours + nightDiffHours + overtimeHours).coerceAtLeast(0.1)
+    }
     InsightCardContainer(title = "Hours Worked & Earnings") {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -697,7 +744,9 @@ fun HoursOfWorkCostCard(
     items: List<HoursCostInsight>
 ) {
     val colors = ShiftlyColors.current
-    val maxHours = (items.maxOfOrNull { it.dutyHours } ?: 1.0).coerceAtLeast(1.0)
+    val maxHours = remember(items) {
+        (items.maxOfOrNull { it.dutyHours } ?: 1.0).coerceAtLeast(1.0)
+    }
 
     InsightCardContainer(
         title = "Hours of Work This Cost"
@@ -786,10 +835,12 @@ fun OnBudgetStreakCard(
 ) {
     val colors = ShiftlyColors.current
     val hasBudget = dailyAllowance > 0.0
-    val streakFraction = if (hasBudget) {
-        (streakDays.toFloat() / streakTargetDays.coerceAtLeast(1)).coerceIn(0.05f, 1f)
-    } else {
-        0f
+    val streakFraction = remember(hasBudget, streakDays, streakTargetDays) {
+        if (hasBudget) {
+            (streakDays.toFloat() / streakTargetDays.coerceAtLeast(1)).coerceIn(0.05f, 1f)
+        } else {
+            0f
+        }
     }
 
     InsightCardContainer(title = "On Budget Streak") {
@@ -865,10 +916,12 @@ fun UnsettledSplitsTrackerCard(
     onOpenSplitBill: () -> Unit
 ) {
     val colors = ShiftlyColors.current
-    val settledFraction = if (totalSplitAmount > 0.0) {
-        ((totalSplitAmount - unsettledAmount) / totalSplitAmount).toFloat().coerceIn(0.05f, 1f)
-    } else {
-        1f
+    val settledFraction = remember(totalSplitAmount, unsettledAmount) {
+        if (totalSplitAmount > 0.0) {
+            ((totalSplitAmount - unsettledAmount) / totalSplitAmount).toFloat().coerceIn(0.05f, 1f)
+        } else {
+            1f
+        }
     }
 
     InsightCardContainer(title = "Unsettled Split Bills") {

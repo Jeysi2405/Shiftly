@@ -76,6 +76,16 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 
+private val WEEK_HEADERS = listOf("M", "T", "W", "T", "F", "S", "S")
+private val CalendarCellShape = RoundedCornerShape(14.dp)
+
+private data class CalendarMonthLayout(
+    val startOffset: Int,
+    val rowCount: Int,
+    val days: List<LocalDate>,
+    val epochDays: LongArray
+)
+
 internal fun formatDurationCompact(totalMinutes: Long): String {
     val safe = totalMinutes.coerceAtLeast(0L)
     val h = safe / 60L
@@ -783,6 +793,34 @@ fun ShiftCalendarCard(
     val fullDateFormatter = remember(locale) {
         DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", locale)
     }
+    val calendarLayout = remember(displayedMonth) {
+        val firstDayOfMonth = displayedMonth.atDay(1)
+        val startOffset = firstDayOfMonth.dayOfWeek.value - 1
+        val daysInMonth = displayedMonth.lengthOfMonth()
+        val totalCells = startOffset + daysInMonth
+        val rowCount = (totalCells + 6) / 7
+        val days = List(daysInMonth) { idx -> displayedMonth.atDay(idx + 1) }
+        val epochDays = LongArray(daysInMonth) { idx -> days[idx].toEpochDay() }
+        CalendarMonthLayout(
+            startOffset = startOffset,
+            rowCount = rowCount,
+            days = days,
+            epochDays = epochDays
+        )
+    }
+    val cellDescriptions = remember(calendarLayout, loggedEpochDays, today, fullDateFormatter) {
+        List(calendarLayout.days.size) { idx ->
+            val cellDate = calendarLayout.days[idx]
+            val hasLoggedShift = loggedEpochDays.contains(calendarLayout.epochDays[idx])
+            val isToday = cellDate == today
+            buildString {
+                append(cellDate.format(fullDateFormatter))
+                if (isToday) append(", today")
+                if (hasLoggedShift) append(", tap to edit logged shift")
+                else append(", tap to log shift")
+            }
+        }
+    }
 
     ShiftlyGlassCard(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -831,12 +869,11 @@ fun ShiftCalendarCard(
                 }
             }
 
-            val weekHeaders = listOf("M", "T", "W", "T", "F", "S", "S")
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                weekHeaders.forEach { day ->
+                WEEK_HEADERS.forEach { day ->
                     Text(
                         text = day,
                         textAlign = TextAlign.Center,
@@ -850,32 +887,25 @@ fun ShiftCalendarCard(
                 }
             }
 
-            val firstDayOfMonth = displayedMonth.atDay(1)
-            val startOffset = firstDayOfMonth.dayOfWeek.value - 1
-            val daysInMonth = displayedMonth.lengthOfMonth()
-            val totalCells = startOffset + daysInMonth
-            val rowCount = (totalCells + 6) / 7
+            val daysInMonth = calendarLayout.days.size
+            val startOffset = calendarLayout.startOffset
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                for (row in 0 until rowCount) {
+                for (row in 0 until calendarLayout.rowCount) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         for (col in 0..6) {
                             val cellIndex = row * 7 + col
-                            val dayNumber = cellIndex - startOffset + 1
+                            val dayIdx = cellIndex - startOffset
 
-                            if (dayNumber in 1..daysInMonth) {
-                                val cellDate = displayedMonth.atDay(dayNumber)
-                                val hasLoggedShift = loggedEpochDays.contains(cellDate.toEpochDay())
+                            if (dayIdx in 0 until daysInMonth) {
+                                val dayNumber = dayIdx + 1
+                                val cellDate = calendarLayout.days[dayIdx]
+                                val hasLoggedShift = loggedEpochDays.contains(calendarLayout.epochDays[dayIdx])
                                 val isToday = cellDate == today
-                                val cellDescription = buildString {
-                                    append(cellDate.format(fullDateFormatter))
-                                    if (isToday) append(", today")
-                                    if (hasLoggedShift) append(", tap to edit logged shift")
-                                    else append(", tap to log shift")
-                                }
+                                val cellDescription = cellDescriptions[dayIdx]
 
                                 val isFirstCutoff = dayNumber in 1..15
                                 val cutoffBg = if (isFirstCutoff) colors.coralContainer else colors.azureContainer
@@ -887,19 +917,19 @@ fun ShiftCalendarCard(
                                     modifier = Modifier
                                         .weight(1f)
                                         .heightIn(min = 48.dp)
-                                        .clip(RoundedCornerShape(14.dp))
+                                        .clip(CalendarCellShape)
                                         .background(if (hasLoggedShift) cutoffBg else colors.card)
                                         .then(
                                             when {
                                                 isToday -> Modifier.border(
                                                     width = 1.6.dp,
                                                     color = colors.azureAccent,
-                                                    shape = RoundedCornerShape(14.dp)
+                                                    shape = CalendarCellShape
                                                 )
                                                 hasLoggedShift -> Modifier.border(
                                                     width = 1.dp,
                                                     color = cutoffBorder,
-                                                    shape = RoundedCornerShape(14.dp)
+                                                    shape = CalendarCellShape
                                                 )
                                                 else -> Modifier
                                             }
@@ -1024,6 +1054,9 @@ fun ShiftHistoryItemCard(
         val end = Instant.ofEpochMilli(shift.timeOutMillis).atZone(zone).toLocalTime().format(timeFormatter)
         "$start – $end"
     }
+    val dayTypeLabel = remember(shift.dayType) {
+        runCatching { DayType.valueOf(shift.dayType).label }.getOrNull() ?: shift.dayType
+    }
 
     val wageDetails = remember(
         shift.timeInMillis,
@@ -1105,7 +1138,7 @@ fun ShiftHistoryItemCard(
                         color = colors.mintInk
                     )
                     Text(
-                        text = runCatching { DayType.valueOf(shift.dayType).label }.getOrNull() ?: shift.dayType,
+                        text = dayTypeLabel,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Medium

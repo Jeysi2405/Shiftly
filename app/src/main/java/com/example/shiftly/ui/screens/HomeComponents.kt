@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -40,6 +41,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -52,6 +55,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
@@ -65,7 +70,11 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+private val HERO_PAGE_LABELS = listOf("Total Balance", "Shift Earnings", "Savings Goals")
 
 /**
  * Top header displaying a refined muted date subtitle (e.g. "Wednesday, Nov 18, 2026"),
@@ -80,14 +89,35 @@ fun HomeGreetingHeader(
     onProfileClick: () -> Unit
 ) {
     val colors = ShiftlyColors.current
+    val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val today = remember(todayOverride) { todayOverride ?: LocalDate.now() }
     val fullDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy", locale) }
+    val formattedDate = remember(today, fullDateFormatter) { today.format(fullDateFormatter) }
 
-    val notificationDescription = if (pendingAlertsCount > 0) {
-        "Notifications, $pendingAlertsCount pending split bill(s)"
-    } else {
-        "Notifications, no pending alerts"
+    val notificationDescription = remember(pendingAlertsCount) {
+        if (pendingAlertsCount > 0) {
+            "Notifications, $pendingAlertsCount pending split bill(s)"
+        } else {
+            "Notifications, no pending alerts"
+        }
+    }
+
+    val photoFile by produceState<File?>(initialValue = null, profilePhotoPath) {
+        value = withContext(Dispatchers.IO) {
+            profilePhotoPath?.let(::File)?.takeIf { it.exists() && it.isFile }
+        }
+    }
+    val avatarSizePx = with(LocalDensity.current) { 48.dp.roundToPx() }
+    val avatarRequest = remember(photoFile, avatarSizePx, context) {
+        photoFile?.let { file ->
+            ImageRequest.Builder(context)
+                .data(file)
+                .size(avatarSizePx, avatarSizePx)
+                .scale(Scale.FILL)
+                .crossfade(true)
+                .build()
+        }
     }
 
     Row(
@@ -98,7 +128,7 @@ fun HomeGreetingHeader(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = today.format(fullDateFormatter),
+            text = formattedDate,
             style = MaterialTheme.typography.titleSmall.copy(
                 fontFamily = PlusJakartaSans,
                 fontWeight = FontWeight.Medium
@@ -145,12 +175,9 @@ fun HomeGreetingHeader(
                     .clip(CircleShape)
                     .background(colors.azureContainer)
             ) {
-                val photoFile = remember(profilePhotoPath) {
-                    profilePhotoPath?.let { File(it) }?.takeIf { it.exists() && it.isFile }
-                }
-                if (photoFile != null) {
+                if (avatarRequest != null) {
                     AsyncImage(
-                        model = photoFile,
+                        model = avatarRequest,
                         contentDescription = "Open Profile and Settings",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -177,7 +204,7 @@ fun DashboardGreetingBanner(
 ) {
     val colors = ShiftlyColors.current
     val greeting = remember(greetingHour) { greetingForHour(greetingHour) }
-    val display = userName.trim().ifEmpty { "Shiftly" }
+    val display = remember(userName) { userName.trim().ifEmpty { "Shiftly" } }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
@@ -351,7 +378,6 @@ fun HomeHeroPager(
             }
         }
 
-        val pageLabels = listOf("Total Balance", "Shift Earnings", "Savings Goals")
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -372,7 +398,7 @@ fun HomeHeroPager(
                         )
                         .semantics {
                             selected = active
-                            contentDescription = "${pageLabels[index]}, card ${index + 1} of 3"
+                            contentDescription = "${HERO_PAGE_LABELS[index]}, card ${index + 1} of 3"
                         }
                         .padding(horizontal = 6.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center
@@ -402,12 +428,17 @@ private fun SavingsGoalsHeroCard(
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
     var selectedGoalId by remember { mutableStateOf<Long?>(null) }
-    val effectiveGoalId = selectedGoalId?.takeIf { id ->
-        goals.any { it.goalWithDeposits.goal.id == id }
-    } ?: goals.firstOrNull { it.goalWithDeposits.goal.isActive }?.goalWithDeposits?.goal?.id
-        ?: goals.firstOrNull()?.goalWithDeposits?.goal?.id
-    val safeIdx = goals.indexOfFirst { it.goalWithDeposits.goal.id == effectiveGoalId }.coerceAtLeast(0)
-    val current = goals.getOrNull(safeIdx)
+
+    val resolved = remember(goals, selectedGoalId) {
+        val effectiveGoalId = selectedGoalId?.takeIf { id ->
+            goals.any { it.goalWithDeposits.goal.id == id }
+        } ?: goals.firstOrNull { it.goalWithDeposits.goal.isActive }?.goalWithDeposits?.goal?.id
+            ?: goals.firstOrNull()?.goalWithDeposits?.goal?.id
+        val idx = goals.indexOfFirst { it.goalWithDeposits.goal.id == effectiveGoalId }.coerceAtLeast(0)
+        idx to goals.getOrNull(idx)
+    }
+    val safeIdx = resolved.first
+    val current = resolved.second
 
     ShiftlyGlassCard(
         modifier = modifier,
@@ -483,7 +514,9 @@ private fun SavingsGoalsHeroCard(
         } else {
             val goal = current.goalWithDeposits.goal
             val progress = current.progress
-            val targetDateLabel = current.targetDate.format(dateFormatter)
+            val targetDateLabel = remember(current, dateFormatter) {
+                current.targetDate.format(dateFormatter)
+            }
 
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -763,6 +796,7 @@ fun MonthlyTopCategoriesCard(
     onViewInsights: () -> Unit
 ) {
     val colors = ShiftlyColors.current
+    val topThree = remember(topCategories) { topCategories.take(3) }
     Surface(
         shape = RoundedCornerShape(22.dp),
         color = colors.card,
@@ -817,7 +851,7 @@ fun MonthlyTopCategoriesCard(
                     )
                 }
 
-                if (topCategories.isEmpty()) {
+                if (topThree.isEmpty()) {
                     Text(
                         text = "No expenses logged in $monthName yet.",
                         style = MaterialTheme.typography.bodySmall,
@@ -825,7 +859,7 @@ fun MonthlyTopCategoriesCard(
                     )
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        topCategories.take(3).forEach { item ->
+                        topThree.forEach { item ->
                             val pct = (item.fraction * 100f).roundToInt()
                             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 Row(

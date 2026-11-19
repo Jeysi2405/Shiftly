@@ -82,11 +82,23 @@ class ShiftlyRepository(private val context: Context) {
     val savingsBuffer: Flow<Double> = prefs.savingsBuffer
     val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = prefs.settingsSnapshot
 
-    suspend fun updateDefaultHourlyRate(rate: Double) = prefs.setDefaultHourlyRate(rate)
-    suspend fun updateMinimumWagePerDay(amount: Double) = prefs.setMinimumWagePerDay(amount)
-    suspend fun setOnboardingCompleted(completed: Boolean) = prefs.setOnboardingCompleted(completed)
-    suspend fun updateUserName(name: String) = prefs.setUserName(name)
-    suspend fun updateProfilePhotoPath(path: String?) {
+    suspend fun updateDefaultHourlyRate(rate: Double) = withContext(Dispatchers.IO) {
+        prefs.setDefaultHourlyRate(rate)
+    }
+
+    suspend fun updateMinimumWagePerDay(amount: Double) = withContext(Dispatchers.IO) {
+        prefs.setMinimumWagePerDay(amount)
+    }
+
+    suspend fun setOnboardingCompleted(completed: Boolean) = withContext(Dispatchers.IO) {
+        prefs.setOnboardingCompleted(completed)
+    }
+
+    suspend fun updateUserName(name: String) = withContext(Dispatchers.IO) {
+        prefs.setUserName(name)
+    }
+
+    suspend fun updateProfilePhotoPath(path: String?) = withContext(Dispatchers.IO) {
         val previous = prefs.profilePhotoPath.first()
         prefs.setProfilePhotoPath(path)
         if (!previous.isNullOrBlank() && previous != path) {
@@ -94,15 +106,20 @@ class ShiftlyRepository(private val context: Context) {
         }
     }
 
-    suspend fun updateMonthlyBudget(budget: Double) = prefs.setMonthlyBudget(budget)
-    suspend fun updateSavingsBuffer(buffer: Double) = prefs.setSavingsBuffer(buffer)
+    suspend fun updateMonthlyBudget(budget: Double) = withContext(Dispatchers.IO) {
+        prefs.setMonthlyBudget(budget)
+    }
 
-    suspend fun updatePayCycleSchedule(schedule: String) {
+    suspend fun updateSavingsBuffer(buffer: Double) = withContext(Dispatchers.IO) {
+        prefs.setSavingsBuffer(buffer)
+    }
+
+    suspend fun updatePayCycleSchedule(schedule: String) = withContext(Dispatchers.IO) {
         prefs.setPayCycleSchedule(schedule)
         processDueCutoffAllowances()
     }
 
-    suspend fun updateCutoffSchedule(config: CutoffScheduleConfig) {
+    suspend fun updateCutoffSchedule(config: CutoffScheduleConfig) = withContext(Dispatchers.IO) {
         prefs.updateCutoffSchedule(config)
         processDueCutoffAllowances()
     }
@@ -112,24 +129,54 @@ class ShiftlyRepository(private val context: Context) {
         billReminderEnabled: Boolean,
         shiftReminderEnabled: Boolean,
         savingsReminderEnabled: Boolean
-    ) = prefs.setNotificationPreferences(
-        notificationsEnabled = notificationsEnabled,
-        billReminderEnabled = billReminderEnabled,
-        shiftReminderEnabled = shiftReminderEnabled,
-        savingsReminderEnabled = savingsReminderEnabled
-    )
+    ) = withContext(Dispatchers.IO) {
+        prefs.setNotificationPreferences(
+            notificationsEnabled = notificationsEnabled,
+            billReminderEnabled = billReminderEnabled,
+            shiftReminderEnabled = shiftReminderEnabled,
+            savingsReminderEnabled = savingsReminderEnabled
+        )
+    }
 
-    suspend fun updateNotificationsEnabled(enabled: Boolean) = prefs.setNotificationsEnabled(enabled)
-    suspend fun updateSavingsGoal(title: String, target: Double) = prefs.setSavingsGoal(title, target)
-    suspend fun updateCategoryBudgets(items: List<CategoryBudgetSetting>) = prefs.setCategoryBudgets(items)
-    suspend fun updateManagedCategories(items: List<ManagedCategorySetting>) = prefs.setManagedCategories(items)
-    suspend fun updateRecurringEntries(items: List<RecurringEntrySetting>) = prefs.setRecurringEntries(items)
-    suspend fun updateShiftTimePresets(items: List<ShiftTimePreset>) = prefs.setShiftTimePresets(items)
+    suspend fun updateNotificationsEnabled(enabled: Boolean) = withContext(Dispatchers.IO) {
+        prefs.setNotificationsEnabled(enabled)
+    }
 
-    suspend fun getNotificationLastDays(): NotificationLastDays = prefs.getNotificationLastDays()
-    suspend fun markBillNotified(epochDay: Long) = prefs.markBillNotified(epochDay)
-    suspend fun markShiftNotified(epochDay: Long) = prefs.markShiftNotified(epochDay)
-    suspend fun markSavingsNotified(epochDay: Long) = prefs.markSavingsNotified(epochDay)
+    suspend fun updateSavingsGoal(title: String, target: Double) = withContext(Dispatchers.IO) {
+        prefs.setSavingsGoal(title, target)
+    }
+
+    suspend fun updateCategoryBudgets(items: List<CategoryBudgetSetting>) = withContext(Dispatchers.IO) {
+        prefs.setCategoryBudgets(items)
+    }
+
+    suspend fun updateManagedCategories(items: List<ManagedCategorySetting>) = withContext(Dispatchers.IO) {
+        prefs.setManagedCategories(items)
+    }
+
+    suspend fun updateRecurringEntries(items: List<RecurringEntrySetting>) = withContext(Dispatchers.IO) {
+        prefs.setRecurringEntries(items)
+    }
+
+    suspend fun updateShiftTimePresets(items: List<ShiftTimePreset>) = withContext(Dispatchers.IO) {
+        prefs.setShiftTimePresets(items)
+    }
+
+    suspend fun getNotificationLastDays(): NotificationLastDays = withContext(Dispatchers.IO) {
+        prefs.getNotificationLastDays()
+    }
+
+    suspend fun markBillNotified(epochDay: Long) = withContext(Dispatchers.IO) {
+        prefs.markBillNotified(epochDay)
+    }
+
+    suspend fun markShiftNotified(epochDay: Long) = withContext(Dispatchers.IO) {
+        prefs.markShiftNotified(epochDay)
+    }
+
+    suspend fun markSavingsNotified(epochDay: Long) = withContext(Dispatchers.IO) {
+        prefs.markSavingsNotified(epochDay)
+    }
 
     suspend fun changeCurrency(newSymbol: String, conversionRate: Double?) = withContext(Dispatchers.IO) {
         if ((conversionRate != null) && conversionRate.isFinite() && (conversionRate > 0.0)) {
@@ -195,7 +242,7 @@ class ShiftlyRepository(private val context: Context) {
         prefs.applyCurrencyConversion(newSymbol, conversionRate)
     }
 
-    suspend fun updateAppLock(enabled: Boolean, method: String, newPin: String? = null) {
+    suspend fun updateAppLock(enabled: Boolean, method: String, newPin: String? = null) = withContext(Dispatchers.IO) {
         val existingHash = settingsSnapshot.first().appLockPinHash
         val resolvedHash = when {
             !newPin.isNullOrBlank() && PinSecurity.isValidPinFormat(newPin) -> PinSecurity.hashPin(newPin)
@@ -204,11 +251,17 @@ class ShiftlyRepository(private val context: Context) {
         prefs.setAppLock(enabled = enabled, method = method, pinHash = resolvedHash)
     }
 
-    suspend fun updateThemeMode(mode: String) = prefs.updateThemeMode(mode)
+    suspend fun updateThemeMode(mode: String) = withContext(Dispatchers.IO) {
+        prefs.updateThemeMode(mode)
+    }
 
-    suspend fun startShiftTimer(startMillis: Long, dateEpochDay: Long, lockedRate: Double) =
+    suspend fun startShiftTimer(startMillis: Long, dateEpochDay: Long, lockedRate: Double) = withContext(Dispatchers.IO) {
         prefs.startActiveTimer(startMillis, dateEpochDay, lockedRate)
-    suspend fun stopShiftTimer() = prefs.clearActiveTimer()
+    }
+
+    suspend fun stopShiftTimer() = withContext(Dispatchers.IO) {
+        prefs.clearActiveTimer()
+    }
 
     // Shifts (one shift per dateEpochDay enforced at repository + DB levels)
     val allShifts: Flow<List<ShiftEntity>> = shiftDao.getAllShifts()
@@ -216,11 +269,12 @@ class ShiftlyRepository(private val context: Context) {
     val totalMinutesWorked: Flow<Int?> = shiftDao.getTotalMinutesWorked()
     val totalLifetimeEarnings: Flow<Double?> = shiftDao.getTotalLifetimeEarnings()
 
-    suspend fun getShiftByDateOnce(dateEpochDay: Long): ShiftEntity? =
+    suspend fun getShiftByDateOnce(dateEpochDay: Long): ShiftEntity? = withContext(Dispatchers.IO) {
         shiftDao.getShiftByDateOnce(dateEpochDay)
+    }
 
-    suspend fun insertShift(shift: ShiftEntity): Long {
-        if (shiftDao.getShiftByDateOnce(shift.dateEpochDay) != null) return -1L
+    suspend fun insertShift(shift: ShiftEntity): Long = withContext(Dispatchers.IO) {
+        if (shiftDao.getShiftByDateOnce(shift.dateEpochDay) != null) return@withContext -1L
         val id = try {
             shiftDao.insertShift(shift)
         } catch (_: SQLiteConstraintException) {
@@ -229,12 +283,12 @@ class ShiftlyRepository(private val context: Context) {
         if (id > 0L) {
             processDueCutoffAllowances()
         }
-        return id
+        id
     }
 
-    suspend fun updateShift(shift: ShiftEntity): Boolean {
+    suspend fun updateShift(shift: ShiftEntity): Boolean = withContext(Dispatchers.IO) {
         val conflict = shiftDao.getShiftByDateOnce(shift.dateEpochDay)
-        if (conflict != null && conflict.id != shift.id) return false
+        if (conflict != null && conflict.id != shift.id) return@withContext false
         val updated = try {
             shiftDao.updateShift(shift)
             true
@@ -244,10 +298,10 @@ class ShiftlyRepository(private val context: Context) {
         if (updated) {
             processDueCutoffAllowances()
         }
-        return updated
+        updated
     }
 
-    suspend fun deleteShift(shift: ShiftEntity) {
+    suspend fun deleteShift(shift: ShiftEntity) = withContext(Dispatchers.IO) {
         shiftDao.deleteShift(shift)
         processDueCutoffAllowances()
     }
@@ -259,17 +313,21 @@ class ShiftlyRepository(private val context: Context) {
     // Recurring Bills (Dedicated Room table with exact due date & time execution)
     val allRecurringBills: Flow<List<RecurringBillEntity>> = recurringBillDao.getAllBills()
 
-    suspend fun insertRecurringBill(bill: RecurringBillEntity): Long =
+    suspend fun insertRecurringBill(bill: RecurringBillEntity): Long = withContext(Dispatchers.IO) {
         recurringBillDao.insertBill(bill)
+    }
 
-    suspend fun updateRecurringBill(bill: RecurringBillEntity) =
+    suspend fun updateRecurringBill(bill: RecurringBillEntity) = withContext(Dispatchers.IO) {
         recurringBillDao.updateBill(bill)
+    }
 
-    suspend fun deleteRecurringBill(bill: RecurringBillEntity) =
+    suspend fun deleteRecurringBill(bill: RecurringBillEntity) = withContext(Dispatchers.IO) {
         recurringBillDao.deleteBill(bill)
+    }
 
-    suspend fun toggleRecurringBillEnabled(bill: RecurringBillEntity, enabled: Boolean) =
+    suspend fun toggleRecurringBillEnabled(bill: RecurringBillEntity, enabled: Boolean) = withContext(Dispatchers.IO) {
         recurringBillDao.updateBill(bill.copy(isEnabled = enabled))
+    }
 
     // Allowance & Payday Cutoff Credits
     val allAllowanceEntries: Flow<List<AllowanceEntryEntity>> = allowanceDao.getAllEntries()
@@ -279,11 +337,11 @@ class ShiftlyRepository(private val context: Context) {
         amount: Double,
         source: String,
         dateEpochDay: Long
-    ): Long {
+    ): Long = withContext(Dispatchers.IO) {
         val cleanTitle = title.trim()
-        if (cleanTitle.isEmpty() || !amount.isFinite() || amount <= 0.0) return 0L
+        if (cleanTitle.isEmpty() || !amount.isFinite() || amount <= 0.0) return@withContext 0L
         val safeSource = if (source in AllowanceSource.ALL) source else AllowanceSource.OTHERS
-        return allowanceDao.insertEntry(
+        allowanceDao.insertEntry(
             AllowanceEntryEntity(
                 title = cleanTitle,
                 amount = round2(amount),
@@ -295,7 +353,7 @@ class ShiftlyRepository(private val context: Context) {
         )
     }
 
-    suspend fun deleteAllowanceEntry(entry: AllowanceEntryEntity) {
+    suspend fun deleteAllowanceEntry(entry: AllowanceEntryEntity) = withContext(Dispatchers.IO) {
         allowanceDao.deleteEntry(entry)
     }
 
@@ -305,73 +363,77 @@ class ShiftlyRepository(private val context: Context) {
      * launch, resume, shift CRUD, cutoff config changes, and background worker runs.
      */
     suspend fun processDueCutoffAllowances(today: LocalDate = LocalDate.now()): Int =
-        allowanceMutex.withLock {
-            val config = settingsSnapshot.first().cutoffScheduleConfig()
-            var changesCount = 0
+        withContext(Dispatchers.IO) {
+            allowanceMutex.withLock {
+                val config = settingsSnapshot.first().cutoffScheduleConfig()
+                var changesCount = 0
 
-            db.withTransaction {
-                val shifts = shiftDao.getAllShiftsOnce()
-                val existingEntries = allowanceDao.getAllEntriesOnce()
-                val reachedSummaries = CutoffCalculator.resolveReachedCutoffWindows(
-                    shifts = shifts,
-                    today = today,
-                    config = config
-                ).filter { it.totalEarnings > 0.0 }
+                db.withTransaction {
+                    val shifts = shiftDao.getAllShiftsOnce()
+                    val existingEntries = allowanceDao.getAllEntriesOnce()
+                    val reachedSummaries = CutoffCalculator.resolveReachedCutoffWindows(
+                        shifts = shifts,
+                        today = today,
+                        config = config
+                    ).filter { it.totalEarnings > 0.0 }
 
-                val reachedByKey = reachedSummaries.associateBy { it.window.key }
-                val existingAuto = existingEntries
-                    .filter { !it.cutoffKey.isNullOrBlank() }
-                    .associateBy { it.cutoffKey!! }
+                    val reachedByKey = reachedSummaries.associateBy { it.window.key }
+                    val existingAuto = existingEntries
+                        .filter { !it.cutoffKey.isNullOrBlank() }
+                        .associateBy { it.cutoffKey!! }
 
-                // Remove stale auto-credited entries whose cutoff key no longer has reached earnings
-                existingAuto.forEach { (key, entry) ->
-                    if (!reachedByKey.containsKey(key)) {
-                        allowanceDao.deleteEntry(entry)
+                    // Remove stale auto-credited entries whose cutoff key no longer has reached earnings
+                    existingAuto.forEach { (key, entry) ->
+                        if (!reachedByKey.containsKey(key)) {
+                            allowanceDao.deleteEntry(entry)
+                        }
+                    }
+
+                    val nowMillis = System.currentTimeMillis()
+                    reachedByKey.forEach { (key, summary) ->
+                        val amount = round2(summary.totalEarnings)
+                        val title = "Salary Payout (${summary.window.label})"
+                        val dateEpoch = summary.window.endDate.toEpochDay()
+                        val existing = existingAuto[key]
+                        if (existing == null) {
+                            allowanceDao.insertEntry(
+                                AllowanceEntryEntity(
+                                    title = title,
+                                    amount = amount,
+                                    source = AllowanceSource.SALARY,
+                                    dateEpochDay = dateEpoch,
+                                    cutoffKey = key,
+                                    createdAtMillis = nowMillis
+                                )
+                            )
+                            changesCount++
+                        } else if (
+                            abs(existing.amount - amount) > 0.005 ||
+                            existing.dateEpochDay != dateEpoch ||
+                            existing.title != title
+                        ) {
+                            allowanceDao.updateEntry(
+                                existing.copy(
+                                    title = title,
+                                    amount = amount,
+                                    dateEpochDay = dateEpoch
+                                )
+                            )
+                            changesCount++
+                        }
                     }
                 }
-
-                val nowMillis = System.currentTimeMillis()
-                reachedByKey.forEach { (key, summary) ->
-                    val amount = round2(summary.totalEarnings)
-                    val title = "Salary Payout (${summary.window.label})"
-                    val dateEpoch = summary.window.endDate.toEpochDay()
-                    val existing = existingAuto[key]
-                    if (existing == null) {
-                        allowanceDao.insertEntry(
-                            AllowanceEntryEntity(
-                                title = title,
-                                amount = amount,
-                                source = AllowanceSource.SALARY,
-                                dateEpochDay = dateEpoch,
-                                cutoffKey = key,
-                                createdAtMillis = nowMillis
-                            )
-                        )
-                        changesCount++
-                    } else if (
-                        abs(existing.amount - amount) > 0.005 ||
-                        existing.dateEpochDay != dateEpoch ||
-                        existing.title != title
-                    ) {
-                        allowanceDao.updateEntry(
-                            existing.copy(
-                                title = title,
-                                amount = amount,
-                                dateEpochDay = dateEpoch
-                            )
-                        )
-                        changesCount++
-                    }
-                }
+                changesCount
             }
-            changesCount
         }
 
     // Expenses
     val allExpenses: Flow<List<ExpenseEntity>> = expenseDao.getAllExpenses()
     val totalExpenseAmount: Flow<Double?> = expenseDao.getTotalExpenseAmount()
 
-    suspend fun insertExpense(expense: ExpenseEntity): Long = expenseDao.insertExpense(expense)
+    suspend fun insertExpense(expense: ExpenseEntity): Long = withContext(Dispatchers.IO) {
+        expenseDao.insertExpense(expense)
+    }
 
     suspend fun deleteExpense(expense: ExpenseEntity) = withContext(Dispatchers.IO) {
         db.withTransaction {
@@ -392,18 +454,21 @@ class ShiftlyRepository(private val context: Context) {
     suspend fun createSplitBill(
         bill: SplitBillEntity,
         participants: List<SplitParticipantEntity>
-    ): Long = db.withTransaction {
-        val billId = splitBillDao.insertBill(bill)
-        val linkedParticipants = participants.map { it.copy(billId = billId) }
-        splitBillDao.insertParticipants(linkedParticipants)
-        billId
+    ): Long = withContext(Dispatchers.IO) {
+        db.withTransaction {
+            val billId = splitBillDao.insertBill(bill)
+            val linkedParticipants = participants.map { it.copy(billId = billId) }
+            splitBillDao.insertParticipants(linkedParticipants)
+            billId
+        }
     }
 
-    suspend fun toggleParticipantPaid(participantId: Long, hasPaid: Boolean) =
+    suspend fun toggleParticipantPaid(participantId: Long, hasPaid: Boolean) = withContext(Dispatchers.IO) {
         splitBillDao.updateParticipantPaidStatus(participantId, hasPaid)
+    }
 
-    suspend fun logSplitShareAsExpense(bill: SplitBillEntity) {
-        if (bill.isLoggedToExpense) return
+    suspend fun logSplitShareAsExpense(bill: SplitBillEntity) = withContext(Dispatchers.IO) {
+        if (bill.isLoggedToExpense) return@withContext
         db.withTransaction {
             expenseDao.insertExpense(
                 ExpenseEntity(
@@ -445,9 +510,9 @@ class ShiftlyRepository(private val context: Context) {
         title: String,
         targetAmount: Double,
         targetDateEpochDay: Long
-    ): Long {
+    ): Long = withContext(Dispatchers.IO) {
         val cleanTitle = title.trim()
-        if (cleanTitle.isEmpty() || !targetAmount.isFinite() || targetAmount <= 0.0) return 0L
+        if (cleanTitle.isEmpty() || !targetAmount.isFinite() || targetAmount <= 0.0) return@withContext 0L
         val insertedId = db.withTransaction {
             savingsGoalDao.clearAllActiveFlags()
             savingsGoalDao.insertGoal(
@@ -461,10 +526,10 @@ class ShiftlyRepository(private val context: Context) {
             )
         }
         prefs.setSavingsGoal(cleanTitle, round2(targetAmount))
-        return insertedId
+        insertedId
     }
 
-    suspend fun setActiveSavingsGoal(goalId: Long) {
+    suspend fun setActiveSavingsGoal(goalId: Long) = withContext(Dispatchers.IO) {
         val goal = db.withTransaction {
             savingsGoalDao.setActiveGoal(goalId)
             savingsGoalDao.getGoalByIdOnce(goalId)
@@ -474,7 +539,7 @@ class ShiftlyRepository(private val context: Context) {
         }
     }
 
-    suspend fun updateSavingsGoalItem(goal: SavingsGoalEntity) {
+    suspend fun updateSavingsGoalItem(goal: SavingsGoalEntity) = withContext(Dispatchers.IO) {
         db.withTransaction {
             savingsGoalDao.updateGoal(goal)
         }
@@ -483,7 +548,7 @@ class ShiftlyRepository(private val context: Context) {
         }
     }
 
-    suspend fun deleteSavingsGoal(goal: SavingsGoalEntity) {
+    suspend fun deleteSavingsGoal(goal: SavingsGoalEntity) = withContext(Dispatchers.IO) {
         val nextActive = db.withTransaction {
             val deposits = savingsGoalDao.getDepositsForGoalOnce(goal.id)
             val depositIds = deposits.map { it.id }
@@ -515,8 +580,8 @@ class ShiftlyRepository(private val context: Context) {
         amount: Double,
         timestampMillis: Long = System.currentTimeMillis(),
         note: String = ""
-    ): Long {
-        if (!amount.isFinite() || amount <= 0.0) return 0L
+    ): Long = withContext(Dispatchers.IO) {
+        if (!amount.isFinite() || amount <= 0.0) return@withContext 0L
         val cleanAmount = round2(amount)
         val cleanNote = note.trim()
         val depositDateEpochDay = Instant.ofEpochMilli(timestampMillis)
@@ -524,7 +589,7 @@ class ShiftlyRepository(private val context: Context) {
             .toLocalDate()
             .toEpochDay()
 
-        return db.withTransaction {
+        db.withTransaction {
             val depositId = savingsGoalDao.insertDeposit(
                 SavingsDepositEntity(
                     goalId = goal.id,
@@ -552,7 +617,7 @@ class ShiftlyRepository(private val context: Context) {
         }
     }
 
-    suspend fun deleteSavingsDeposit(deposit: SavingsDepositEntity) {
+    suspend fun deleteSavingsDeposit(deposit: SavingsDepositEntity) = withContext(Dispatchers.IO) {
         db.withTransaction {
             expenseDao.deleteExpensesByLinkedSavingsDepositId(deposit.id)
             savingsGoalDao.deleteDeposit(deposit)
@@ -565,92 +630,94 @@ class ShiftlyRepository(private val context: Context) {
      * inserts due expenses idempotently while advancing each bill's `dueEpochDay`.
      */
     suspend fun processDueRecurringBills(now: LocalDateTime = LocalDateTime.now()): Int =
-        recurringMutex.withLock {
-            val snapshot = settingsSnapshot.first()
-            val today = now.toLocalDate()
+        withContext(Dispatchers.IO) {
+            recurringMutex.withLock {
+                val snapshot = settingsSnapshot.first()
+                val today = now.toLocalDate()
 
-            if (!snapshot.legacyRecurringMigrated) {
-                val legacyBills = snapshot.recurringEntries.filter { !it.isIncome }
-                if (legacyBills.isNotEmpty()) {
-                    db.withTransaction {
-                        val existingSignatures = recurringBillDao.getAllBillsOnce()
-                            .map { BackupCodec.recurringBillSignature(it) }
-                            .toMutableSet()
-                        val createdNow = System.currentTimeMillis()
-                        legacyBills.forEach { legacy ->
-                            val nextDue = RecurringEngine.nextDueDate(legacy, today) ?: today
-                            val entity = RecurringBillEntity(
-                                title = legacy.title.trim(),
-                                amount = round2(legacy.amount),
-                                category = legacy.category.ifBlank { "Bills" },
-                                frequency = legacy.frequency.ifBlank { "Monthly" },
-                                dueEpochDay = nextDue.toEpochDay(),
-                                dueHour = 9,
-                                dueMinute = 0,
-                                isEnabled = legacy.isEnabled,
-                                lastExecutedEpochDay = legacy.lastAppliedEpochDay,
-                                lastExecutedAtMillis = if (legacy.lastAppliedEpochDay > 0L) createdNow else 0L,
-                                createdAtMillis = createdNow
-                            )
-                            val sig = BackupCodec.recurringBillSignature(entity)
-                            if (existingSignatures.add(sig)) {
-                                recurringBillDao.insertBill(entity)
-                            }
-                        }
-                    }
-                    prefs.setRecurringEntries(snapshot.recurringEntries.filter { it.isIncome })
-                }
-                prefs.markLegacyRecurringMigrated(true)
-            }
-
-            var postedCount = 0
-            val zone = ZoneId.systemDefault()
-            val nowMillis = System.currentTimeMillis()
-
-            db.withTransaction {
-                val bills = recurringBillDao.getAllBillsOnce()
-                bills.forEach { bill ->
-                    val dueOccurrences = RecurringEngine.computeDueBillOccurrences(bill, now)
-                    if (dueOccurrences.isNotEmpty()) {
-                        dueOccurrences.forEach { occ ->
-                            val occEpochDay = occ.toLocalDate().toEpochDay()
-                            val exists = expenseDao.existsRecurringOccurrenceExpense(bill.id, occEpochDay)
-                            if (!exists) {
-                                val occMillis = occ.atZone(zone).toInstant().toEpochMilli()
-                                expenseDao.insertExpense(
-                                    ExpenseEntity(
-                                        title = bill.title,
-                                        amount = bill.amount,
-                                        category = bill.category.ifBlank { "Bills" },
-                                        dateEpochDay = occEpochDay,
-                                        createdAtMillis = occMillis,
-                                        linkedRecurringBillId = bill.id,
-                                        recurringOccurrenceEpochDay = occEpochDay
-                                    )
+                if (!snapshot.legacyRecurringMigrated) {
+                    val legacyBills = snapshot.recurringEntries.filter { !it.isIncome }
+                    if (legacyBills.isNotEmpty()) {
+                        db.withTransaction {
+                            val existingSignatures = recurringBillDao.getAllBillsOnce()
+                                .map { BackupCodec.recurringBillSignature(it) }
+                                .toMutableSet()
+                            val createdNow = System.currentTimeMillis()
+                            legacyBills.forEach { legacy ->
+                                val nextDue = RecurringEngine.nextDueDate(legacy, today) ?: today
+                                val entity = RecurringBillEntity(
+                                    title = legacy.title.trim(),
+                                    amount = round2(legacy.amount),
+                                    category = legacy.category.ifBlank { "Bills" },
+                                    frequency = legacy.frequency.ifBlank { "Monthly" },
+                                    dueEpochDay = nextDue.toEpochDay(),
+                                    dueHour = 9,
+                                    dueMinute = 0,
+                                    isEnabled = legacy.isEnabled,
+                                    lastExecutedEpochDay = legacy.lastAppliedEpochDay,
+                                    lastExecutedAtMillis = if (legacy.lastAppliedEpochDay > 0L) createdNow else 0L,
+                                    createdAtMillis = createdNow
                                 )
-                                postedCount++
+                                val sig = BackupCodec.recurringBillSignature(entity)
+                                if (existingSignatures.add(sig)) {
+                                    recurringBillDao.insertBill(entity)
+                                }
                             }
                         }
-                        val nextDueDate = RecurringEngine.nextScheduledDueDateAfter(bill, now)
-                        val maxOccEpochDay = dueOccurrences.maxOf { it.toLocalDate().toEpochDay() }
-                        recurringBillDao.updateBill(
-                            bill.copy(
-                                dueEpochDay = nextDueDate.toEpochDay(),
-                                lastExecutedEpochDay = maxOccEpochDay,
-                                lastExecutedAtMillis = nowMillis
+                        prefs.setRecurringEntries(snapshot.recurringEntries.filter { it.isIncome })
+                    }
+                    prefs.markLegacyRecurringMigrated(true)
+                }
+
+                var postedCount = 0
+                val zone = ZoneId.systemDefault()
+                val nowMillis = System.currentTimeMillis()
+
+                db.withTransaction {
+                    val bills = recurringBillDao.getAllBillsOnce()
+                    bills.forEach { bill ->
+                        val dueOccurrences = RecurringEngine.computeDueBillOccurrences(bill, now)
+                        if (dueOccurrences.isNotEmpty()) {
+                            dueOccurrences.forEach { occ ->
+                                val occEpochDay = occ.toLocalDate().toEpochDay()
+                                val exists = expenseDao.existsRecurringOccurrenceExpense(bill.id, occEpochDay)
+                                if (!exists) {
+                                    val occMillis = occ.atZone(zone).toInstant().toEpochMilli()
+                                    expenseDao.insertExpense(
+                                        ExpenseEntity(
+                                            title = bill.title,
+                                            amount = bill.amount,
+                                            category = bill.category.ifBlank { "Bills" },
+                                            dateEpochDay = occEpochDay,
+                                            createdAtMillis = occMillis,
+                                            linkedRecurringBillId = bill.id,
+                                            recurringOccurrenceEpochDay = occEpochDay
+                                        )
+                                    )
+                                    postedCount++
+                                }
+                            }
+                            val nextDueDate = RecurringEngine.nextScheduledDueDateAfter(bill, now)
+                            val maxOccEpochDay = dueOccurrences.maxOf { it.toLocalDate().toEpochDay() }
+                            recurringBillDao.updateBill(
+                                bill.copy(
+                                    dueEpochDay = nextDueDate.toEpochDay(),
+                                    lastExecutedEpochDay = maxOccEpochDay,
+                                    lastExecutedAtMillis = nowMillis
+                                )
                             )
-                        )
+                        }
                     }
                 }
+                postedCount
             }
-            postedCount
         }
 
     /**
      * Evaluates legacy recurring income rules if any exist, while delegating recurring bills
      * to [processDueRecurringBills].
      */
-    suspend fun processDueRecurringEntries(today: LocalDate = LocalDate.now()): Int {
+    suspend fun processDueRecurringEntries(today: LocalDate = LocalDate.now()): Int = withContext(Dispatchers.IO) {
         val billsPosted = processDueRecurringBills(today.atTime(LocalDateTime.now().toLocalTime()))
         val legacyIncomePosted = recurringMutex.withLock {
             val snapshot = settingsSnapshot.first()
@@ -690,7 +757,7 @@ class ShiftlyRepository(private val context: Context) {
             }
             postedCount
         }
-        return billsPosted + legacyIncomePosted
+        billsPosted + legacyIncomePosted
     }
 
     private suspend fun buildCurrentBackupPayload(includeReceipts: Boolean): BackupPayload = withContext(Dispatchers.IO) {

@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens.allowance
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,18 +7,19 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -45,10 +46,13 @@ import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.shiftlySheetBodyBand
+import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun AllowanceScreen(
@@ -123,19 +127,22 @@ fun AllowanceScreenContent(
     onDeleteEntry: (AllowanceEntryEntity) -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
+    val locale = LocalConfiguration.current.locales[0]
+    val itemDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding(),
         contentPadding = PaddingValues(top = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.Top
     ) {
-        item {
+        item(key = "allowance_header", contentType = "header") {
             ShiftlyScreenHeader(
                 title = "Allowance",
                 subtitle = null,
                 onBackClick = onBack,
-                modifier = Modifier.padding(horizontal = 20.dp),
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 trailing = {
                     Button(
                         onClick = onOpenAddAllowance,
@@ -170,8 +177,8 @@ fun AllowanceScreenContent(
             )
         }
 
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+        item(key = "allowance_hero", contentType = "hero") {
+            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
                 AllowanceHeroCard(
                     totalBalance = state.totalAllowanceBalance,
                     salaryTotal = state.salaryTotal,
@@ -182,8 +189,8 @@ fun AllowanceScreenContent(
             }
         }
 
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+        item(key = "allowance_cutoff", contentType = "cutoff") {
+            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
                 AllowanceCutoffScheduleCard(
                     cutoffConfig = state.cutoffConfig,
                     activeWindow = state.activeCutoffWindow,
@@ -195,42 +202,73 @@ fun AllowanceScreenContent(
             }
         }
 
-        item {
-            Surface(
+        item(key = "sheet_header", contentType = "sheet_header") {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 520.dp),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = colors.surface,
-                border = BorderStroke(1.dp, colors.cardBorder),
-                shadowElevation = 0.dp
+                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                ShiftlySheetDragHandle()
+
+                ShiftlySectionHeader(
+                    title = "Allowance History",
+                    count = state.entries.size,
+                    onLightSurface = true
+                )
+            }
+        }
+
+        if (state.entries.isEmpty()) {
+            item(key = "sheet_empty", contentType = "sheet_empty") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 440.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
+                ) {
+                    AllowanceEmptyCard(onAddAllowance = onOpenAddAllowance)
+                }
+            }
+        } else {
+            itemsIndexed(
+                items = state.entries,
+                key = { _, entry -> "allowance_${entry.id}" },
+                contentType = { _, _ -> "allowance_item" }
+            ) { idx, entry ->
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(horizontal = 20.dp)
                 ) {
-                    ShiftlySheetDragHandle()
-
-                    ShiftlySectionHeader(
-                        title = "Allowance History",
-                        count = state.entries.size,
-                        onLightSurface = true
+                    AllowanceHistoryItemCard(
+                        entry = entry,
+                        currencySymbol = state.currencySymbol,
+                        onDelete = { onDeleteEntry(entry) },
+                        dateFormatter = itemDateFormatter
                     )
-
-                    if (state.entries.isEmpty()) {
-                        AllowanceEmptyCard(onAddAllowance = onOpenAddAllowance)
-                    } else {
-                        state.entries.forEach { entry ->
-                            AllowanceHistoryItemCard(
-                                entry = entry,
-                                currencySymbol = state.currencySymbol,
-                                onDelete = { onDeleteEntry(entry) }
-                            )
-                        }
+                    if (idx < state.entries.lastIndex) {
+                        Spacer(modifier = Modifier.height(14.dp))
                     }
                 }
+            }
+
+            item(key = "sheet_footer", contentType = "sheet_footer") {
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .height(
+                            when {
+                                state.entries.size <= 2 -> 220.dp
+                                state.entries.size == 3 -> 160.dp
+                                else -> 104.dp
+                            }
+                        )
+                )
             }
         }
     }

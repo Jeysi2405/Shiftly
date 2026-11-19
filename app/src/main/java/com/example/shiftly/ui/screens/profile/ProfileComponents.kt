@@ -48,6 +48,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -58,6 +59,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -71,6 +73,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
@@ -87,6 +91,30 @@ import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.PinSecurity
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+private val THEME_MODE_OPTIONS = listOf(
+    "SYSTEM" to "System Default",
+    "DARK" to "Dark Mode",
+    "LIGHT" to "Light Mode"
+)
+
+private val CURRENCY_OPTIONS = listOf(
+    "₱" to "Philippine Peso (PHP)",
+    "$" to "US Dollar (USD)",
+    "€" to "Euro (EUR)",
+    "£" to "British Pound (GBP)",
+    "¥" to "Japanese Yen (JPY)"
+)
+
+private val APP_LOCK_METHOD_OPTIONS = listOf(
+    "PIN & Fingerprint",
+    "4-Digit PIN",
+    "Fingerprint Only"
+)
+
+private val DEFAULT_RECURRING_CATEGORIES = listOf("Food", "Transport", "Bills", "Supplies", "Other")
 
 private fun filterSingleDecimalInput(raw: String, current: String): String {
     val filtered = raw.filter { it.isDigit() || it == '.' }
@@ -467,17 +495,12 @@ fun ThemeSelectorSheetContent(
     onSave: (String) -> Unit
 ) {
     val colors = ShiftlyColors.current
-    val modes = listOf(
-        "SYSTEM" to "System Default",
-        "DARK" to "Dark Mode",
-        "LIGHT" to "Light Mode"
-    )
 
     Column(
         modifier = Modifier.selectableGroup(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        modes.forEach { (modeKey, modeLabel) ->
+        THEME_MODE_OPTIONS.forEach { (modeKey, modeLabel) ->
             val isSelected = currentThemeMode.equals(modeKey, ignoreCase = true)
             Surface(
                 shape = RoundedCornerShape(16.dp),
@@ -545,8 +568,31 @@ fun AccountEditSheetContent(
     onSave: (String) -> Unit
 ) {
     val colors = ShiftlyColors.current
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val avatarSizePx = remember(density) { with(density) { 64.dp.roundToPx() } }
     var nameInput by remember { mutableStateOf(currentName) }
-    val hasPhoto = !profilePhotoPath.isNullOrBlank() && File(profilePhotoPath).exists()
+    val photoFile by produceState<File?>(initialValue = null, key1 = profilePhotoPath) {
+        value = if (profilePhotoPath.isNullOrBlank()) {
+            null
+        } else {
+            withContext(Dispatchers.IO) {
+                val file = File(profilePhotoPath)
+                if (file.exists()) file else null
+            }
+        }
+    }
+    val hasPhoto = photoFile != null
+    val avatarRequest = remember(photoFile, avatarSizePx, context) {
+        photoFile?.let { file ->
+            ImageRequest.Builder(context)
+                .data(file)
+                .size(avatarSizePx)
+                .scale(Scale.FILL)
+                .crossfade(true)
+                .build()
+        }
+    }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -562,9 +608,9 @@ fun AccountEditSheetContent(
                 .clickable(onClick = onChangePhoto),
             contentAlignment = Alignment.Center
         ) {
-            if (hasPhoto && profilePhotoPath != null) {
+            if (avatarRequest != null) {
                 AsyncImage(
-                    model = File(profilePhotoPath),
+                    model = avatarRequest,
                     contentDescription = "Profile photo",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.size(64.dp)
@@ -651,13 +697,6 @@ fun CurrencyPickerSheetContent(
     onApplyCurrency: (newSymbol: String, conversionRate: Double?) -> Unit
 ) {
     val colors = ShiftlyColors.current
-    val options = listOf(
-        "₱" to "Philippine Peso (PHP)",
-        "$" to "US Dollar (USD)",
-        "€" to "Euro (EUR)",
-        "£" to "British Pound (GBP)",
-        "¥" to "Japanese Yen (JPY)"
-    )
     var pendingTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var rateInput by remember { mutableStateOf("") }
 
@@ -667,7 +706,7 @@ fun CurrencyPickerSheetContent(
             modifier = Modifier.selectableGroup(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            options.forEach { (symbol, label) ->
+            CURRENCY_OPTIONS.forEach { (symbol, label) ->
                 val isSelected = symbol == currentCurrency
                 Surface(
                     shape = RoundedCornerShape(16.dp),
@@ -715,7 +754,7 @@ fun CurrencyPickerSheetContent(
         }
     } else {
         val (targetSymbol, targetLabel) = target
-        val parsedRate = rateInput.toDoubleOrNull()
+        val parsedRate = remember(rateInput) { rateInput.toDoubleOrNull() }
         val rateValid = parsedRate != null && parsedRate.isFinite() && parsedRate > 0.0
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1366,7 +1405,7 @@ fun ManageCategoriesSheetContent(
 fun RecurringEntriesSheetContent(
     currencySymbol: String,
     currentEntries: List<RecurringEntrySetting>,
-    availableCategories: List<String> = listOf("Food", "Transport", "Bills", "Supplies", "Other"),
+    availableCategories: List<String> = DEFAULT_RECURRING_CATEGORIES,
     onSave: (List<RecurringEntrySetting>) -> Unit
 ) {
     val colors = ShiftlyColors.current
@@ -1643,7 +1682,7 @@ fun AppLockSheetContent(
             .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        listOf("PIN & Fingerprint", "4-Digit PIN", "Fingerprint Only").forEach { option ->
+        APP_LOCK_METHOD_OPTIONS.forEach { option ->
             SelectableRulePill(
                 label = option.replace(" Only", ""),
                 selected = method == option,

@@ -1,5 +1,6 @@
 package com.example.shiftly.utils
 
+import androidx.compose.runtime.Immutable
 import java.time.Instant
 import java.time.ZoneId
 
@@ -30,6 +31,7 @@ enum class DayType(
     }
 }
 
+@Immutable
 data class WageDetails(
     val totalEarned: Double,
     val regularMinutes: Long,

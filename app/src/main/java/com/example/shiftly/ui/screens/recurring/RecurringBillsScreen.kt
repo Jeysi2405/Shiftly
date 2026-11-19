@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens.recurring
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,18 +7,19 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -45,12 +46,16 @@ import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.shiftlySheetBodyBand
+import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.RecurringEngine
 import com.example.shiftly.workers.ShiftlyDailyWorker
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun RecurringBillsScreen(
@@ -158,25 +163,31 @@ fun RecurringBillsScreenContent(
     onDeleteBill: (RecurringBillEntity) -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
+    val locale = LocalConfiguration.current.locales[0]
+    val itemDateTimeFormatter = remember(locale) {
+        DateTimeFormatter.ofPattern("MMM d, yyyy • h:mm a", locale)
+    }
+    val now = remember { LocalDateTime.now() }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding(),
         contentPadding = PaddingValues(top = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.Top
     ) {
-        item {
+        item(key = "recurring_header", contentType = "header") {
             ShiftlyScreenHeader(
                 title = "Recurring Bills",
                 subtitle = null,
                 onBackClick = onBack,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)
             )
         }
 
-        item {
+        item(key = "recurring_summary", contentType = "summary") {
             Column(
-                modifier = Modifier.padding(horizontal = 20.dp),
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 RecurringBillsSummaryCard(
@@ -219,44 +230,70 @@ fun RecurringBillsScreenContent(
             }
         }
 
-        item {
-            Surface(
+        item(key = "sheet_header", contentType = "sheet_header") {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 620.dp),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = colors.surface,
-                border = BorderStroke(1.dp, colors.cardBorder),
-                shadowElevation = 0.dp
+                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                ShiftlySheetDragHandle()
+
+                ShiftlySectionHeader(
+                    title = "Scheduled Bills",
+                    count = state.bills.size,
+                    onLightSurface = true
+                )
+            }
+        }
+
+        if (state.bills.isEmpty()) {
+            item(key = "sheet_empty", contentType = "sheet_empty") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 540.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
+                ) {
+                    RecurringBillsEmptyCard(onAddBill = onOpenAddSheet)
+                }
+            }
+        } else {
+            itemsIndexed(
+                items = state.bills,
+                key = { _, bill -> "recurring_${bill.id}" },
+                contentType = { _, _ -> "recurring_bill_item" }
+            ) { idx, bill ->
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(horizontal = 20.dp)
                 ) {
-                    ShiftlySheetDragHandle()
-
-                    ShiftlySectionHeader(
-                        title = "Scheduled Bills",
-                        count = state.bills.size,
-                        onLightSurface = true
+                    RecurringBillItemCard(
+                        bill = bill,
+                        currencySymbol = state.currencySymbol,
+                        onToggleEnabled = { enabled -> onToggleEnabled(bill, enabled) },
+                        onEdit = { onEditBill(bill) },
+                        onDelete = { onDeleteBill(bill) },
+                        dateTimeFormatter = itemDateTimeFormatter,
+                        now = now
                     )
-
-                    if (state.bills.isEmpty()) {
-                        RecurringBillsEmptyCard(onAddBill = onOpenAddSheet)
-                    } else {
-                        state.bills.forEach { bill ->
-                            RecurringBillItemCard(
-                                bill = bill,
-                                currencySymbol = state.currencySymbol,
-                                onToggleEnabled = { enabled -> onToggleEnabled(bill, enabled) },
-                                onEdit = { onEditBill(bill) },
-                                onDelete = { onDeleteBill(bill) }
-                            )
-                        }
+                    if (idx < state.bills.lastIndex) {
+                        Spacer(modifier = Modifier.height(14.dp))
                     }
                 }
+            }
+
+            item(key = "sheet_footer", contentType = "sheet_footer") {
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .height(if (state.bills.size <= 2) 260.dp else 104.dp)
+                )
             }
         }
     }

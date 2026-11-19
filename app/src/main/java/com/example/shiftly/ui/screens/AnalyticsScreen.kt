@@ -70,8 +70,10 @@ fun AnalyticsScreen(
     )
 
     if (showGoalDetailSheet) {
-        val activeGoalId = (state.savingsGoals.firstOrNull { it.goal.isActive }
-            ?: state.savingsGoals.firstOrNull())?.goal?.id
+        val activeGoalId = remember(state.savingsGoals) {
+            (state.savingsGoals.firstOrNull { it.goal.isActive }
+                ?: state.savingsGoals.firstOrNull())?.goal?.id
+        }
         SavingsGoalDetailSheet(
             goals = state.savingsGoals,
             initialGoalId = activeGoalId,
@@ -128,13 +130,13 @@ fun AnalyticsScreenContent(
         contentPadding = PaddingValues(top = 10.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item {
+        item(key = "analytics_top_bar", contentType = "top_bar") {
             AnalyticsTopBar(
                 rangeLabel = state.selectedRange.fullLabel
             )
         }
 
-        item {
+        item(key = "analytics_range_control", contentType = "range_control") {
             AnalyticsRangeSegmentedControl(
                 selectedRange = state.selectedRange,
                 onSelectRange = onSelectRange,
@@ -142,13 +144,13 @@ fun AnalyticsScreenContent(
             )
         }
 
-        item {
+        item(key = "analytics_chart_card", contentType = "chart_card") {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 IncomeVsExpenseGlassChartCard(state = state)
             }
         }
 
-        item {
+        item(key = "analytics_insights_sheet", contentType = "insights_sheet") {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()

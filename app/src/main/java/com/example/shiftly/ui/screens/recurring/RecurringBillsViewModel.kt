@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.recurring
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -9,12 +10,15 @@ import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.utils.RecurringEngine
 import java.time.LocalDate
 import java.time.LocalDateTime
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@Immutable
 data class RecurringBillsUiState(
     val currencySymbol: String = "₱",
     val bills: List<RecurringBillEntity> = emptyList(),
@@ -64,11 +68,13 @@ class RecurringBillsViewModel(
             dueSoonCount = dueSoonCount,
             availableCategories = visibleCategories
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = RecurringBillsUiState()
-    )
+    }
+        .flowOn(Dispatchers.IO)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = RecurringBillsUiState()
+        )
 
     fun saveBill(
         existing: RecurringBillEntity?,

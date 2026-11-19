@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -25,10 +26,12 @@ import java.time.format.TextStyle
 import java.time.temporal.TemporalAdjusters
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -39,12 +42,14 @@ enum class AnalyticsRange(val shortLabel: String, val fullLabel: String) {
     YEAR("Y", "This Year")
 }
 
+@Immutable
 data class IncomeExpenseBarBucket(
     val label: String,
     val income: Double,
     val expense: Double
 )
 
+@Immutable
 data class CategorySpendingInsight(
     val category: String,
     val amount: Double,
@@ -52,12 +57,14 @@ data class CategorySpendingInsight(
     val fraction: Float
 )
 
+@Immutable
 data class HoursCostInsight(
     val category: String,
     val amount: Double,
     val dutyHours: Double
 )
 
+@Immutable
 data class AnalyticsUiState(
     val selectedRange: AnalyticsRange = AnalyticsRange.WEEK,
     val currencySymbol: String = "₱",
@@ -291,11 +298,13 @@ class AnalyticsViewModel(
             totalSplitsAmount = splitSummary.pendingFriendsAmount + splitSummary.collectedFriendsAmount,
             unsettledFriendsCount = unsettledFriendsCount
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = AnalyticsUiState()
-    )
+    }
+        .flowOn(Dispatchers.IO)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = AnalyticsUiState()
+        )
 
     fun selectRange(range: AnalyticsRange) {
         _selectedRange.value = range

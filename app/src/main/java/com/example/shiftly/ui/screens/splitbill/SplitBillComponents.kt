@@ -1,5 +1,8 @@
 package com.example.shiftly.ui.screens.splitbill
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -73,6 +76,12 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 
+private data class SplitParticipantSummary(
+    val trackedCount: Int,
+    val paidCount: Int,
+    val allPaid: Boolean
+)
+
 @Composable
 fun SplitBillSummaryCard(
     currencySymbol: String,
@@ -82,10 +91,12 @@ fun SplitBillSummaryCard(
     totalParticipantsCount: Int,
 ) {
     val colors = ShiftlyColors.current
-    val paidFraction = if (totalParticipantsCount > 0) {
-        (paidParticipantsCount.toFloat() / totalParticipantsCount.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
+    val paidFraction = remember(paidParticipantsCount, totalParticipantsCount) {
+        if (totalParticipantsCount > 0) {
+            (paidParticipantsCount.toFloat() / totalParticipantsCount.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
     }
 
     ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
@@ -150,6 +161,12 @@ fun SplitBillSummaryCard(
                 }
             }
 
+            val animatedPaidFraction by animateFloatAsState(
+                targetValue = paidFraction.coerceIn(0f, 1f),
+                animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+                label = "paidFractionAnim"
+            )
+
             // Paid vs Unpaid Mint Progress Bar
             Box(
                 modifier = Modifier
@@ -158,10 +175,10 @@ fun SplitBillSummaryCard(
                     .clip(RoundedCornerShape(50))
                     .background(colors.border)
             ) {
-                if (paidFraction > 0f) {
+                if (animatedPaidFraction > 0f) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(paidFraction)
+                            .fillMaxWidth(animatedPaidFraction)
                             .fillMaxHeight()
                             .clip(RoundedCornerShape(50))
                             .background(colors.mintBright)
@@ -265,9 +282,13 @@ fun NewSplitBillSheetContent(
         }
     }
 
-    val totalAmount = amountInput.toDoubleOrNull() ?: 0.0
-    val perPersonShare = SplitBillMath.distributeEqualShares(totalAmount, personCount).firstOrNull() ?: 0.0
-    val isValid = totalAmount.isFinite() && (totalAmount > 0.0) && (personCount >= 2)
+    val totalAmount = remember(amountInput) { amountInput.toDoubleOrNull() ?: 0.0 }
+    val perPersonShare = remember(totalAmount, personCount) {
+        SplitBillMath.distributeEqualShares(totalAmount, personCount).firstOrNull() ?: 0.0
+    }
+    val isValid = remember(totalAmount, personCount) {
+        totalAmount.isFinite() && (totalAmount > 0.0) && (personCount >= 2)
+    }
 
     val sheetFieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = colors.azureAccent,
@@ -707,20 +728,31 @@ fun SplitBillLogItemCard(
     currencySymbol: String,
     onToggleParticipantPaid: (SplitParticipantEntity) -> Unit,
     onLogAsExpense: (SplitBillEntity) -> Unit,
-    onDeleteBill: (SplitBillEntity) -> Unit
+    onDeleteBill: (SplitBillEntity) -> Unit,
+    dateFormatter: DateTimeFormatter? = null
 ) {
     val colors = ShiftlyColors.current
     val bill = item.bill
     val participants = item.participants
-    val friendParticipants = participants.filter { !it.isCurrentUser }
-    val trackedParticipants = friendParticipants.ifEmpty { participants }
-    val paidCount = trackedParticipants.count { it.hasPaid }
-    val allPaid = trackedParticipants.isNotEmpty() && paidCount == trackedParticipants.size
+    val summary = remember(participants) {
+        val friendParticipants = participants.filter { !it.isCurrentUser }
+        val trackedParticipants = friendParticipants.ifEmpty { participants }
+        val paidCount = trackedParticipants.count { it.hasPaid }
+        SplitParticipantSummary(
+            trackedCount = trackedParticipants.size,
+            paidCount = paidCount,
+            allPaid = trackedParticipants.isNotEmpty() && paidCount == trackedParticipants.size
+        )
+    }
+    val paidCount = summary.paidCount
+    val allPaid = summary.allPaid
 
-    val locale = LocalConfiguration.current.locales[0]
-    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
-    val dateLabel = remember(bill.dateEpochDay, dateFormatter) {
-        LocalDate.ofEpochDay(bill.dateEpochDay).format(dateFormatter)
+    val resolvedFormatter = dateFormatter ?: run {
+        val locale = LocalConfiguration.current.locales[0]
+        remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
+    }
+    val dateLabel = remember(bill.dateEpochDay, resolvedFormatter) {
+        LocalDate.ofEpochDay(bill.dateEpochDay).format(resolvedFormatter)
     }
 
     var selectedParticipantForPrompt by remember { mutableStateOf<SplitParticipantEntity?>(null) }
@@ -767,7 +799,7 @@ fun SplitBillLogItemCard(
                             shadowElevation = 0.dp
                         ) {
                             Text(
-                                text = if (allPaid) "Paid" else "Pending ($paidCount/${trackedParticipants.size})",
+                                text = if (allPaid) "Paid" else "Pending ($paidCount/${summary.trackedCount})",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontFamily = PlusJakartaSans,
                                     fontWeight = FontWeight.SemiBold

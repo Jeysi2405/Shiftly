@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,6 +56,8 @@ import com.example.shiftly.ui.components.ShiftlyConfirmDeleteDialog
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.shiftlySheetBodyBand
+import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.InkBlack
@@ -350,14 +353,14 @@ fun DutiesScreenContent(
             .fillMaxSize()
             .statusBarsPadding(),
         contentPadding = PaddingValues(top = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.Top
     ) {
         // 0. Screen Header with Back & Settings Action
-        item {
+        item(key = "duties_header", contentType = "header") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -398,8 +401,8 @@ fun DutiesScreenContent(
         }
 
         // 1. Monthly Earnings & Time Breakdown Card (Regular=White, ND=Purple, OT=Red)
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+        item(key = "time_breakdown", contentType = "summary") {
+            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
                 TimeBreakdownCard(
                     monthlyTotalEarnings = state.monthlyTotalEarnings,
                     monthlyTotalHours = state.monthlyTotalHours,
@@ -413,8 +416,8 @@ fun DutiesScreenContent(
         }
 
         // 2. Monthly Shift Calendar
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+        item(key = "shift_calendar", contentType = "calendar") {
+            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
                 ShiftCalendarCard(
                     displayedMonth = state.displayedMonth,
                     loggedEpochDays = state.loggedEpochDays,
@@ -426,9 +429,9 @@ fun DutiesScreenContent(
             }
         }
 
-        // 2b. Prominent Log Shift Action Button
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+        // 3. Prominent Log Shift Action Button
+        item(key = "log_shift_button", contentType = "action_button") {
+            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
                 ShiftlyPrimaryPillButton(
                     text = "Log Shift",
                     onClick = onOpenLogShift,
@@ -444,52 +447,75 @@ fun DutiesScreenContent(
             }
         }
 
-        // 3. Bottom Sheet Surface for Monthly Shift History
-        item {
-            Surface(
+        // 4. Bottom Sheet Top Cap for Monthly Shift History
+        item(key = "sheet_header", contentType = "sheet_header") {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 460.dp),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = colors.surface,
-                border = BorderStroke(1.dp, colors.cardBorder),
-                shadowElevation = 0.dp
+                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                ShiftlySheetDragHandle()
+
+                ShiftlySectionHeader(
+                    title = "Shift History",
+                    count = state.displayedShifts.size,
+                    onLightSurface = true
+                )
+            }
+        }
+
+        if (state.displayedShifts.isEmpty()) {
+            item(key = "sheet_empty", contentType = "sheet_empty") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 380.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
+                ) {
+                    ShiftHistoryEmptyCard(
+                        onLogFirstShift = onOpenLogShift
+                    )
+                }
+            }
+        } else {
+            itemsIndexed(
+                items = state.displayedShifts,
+                key = { _, shift -> "shift_${shift.id}" },
+                contentType = { _, _ -> "shift_item" }
+            ) { idx, shift ->
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(horizontal = 20.dp)
                 ) {
-                    ShiftlySheetDragHandle()
-
-                    ShiftlySectionHeader(
-                        title = "Shift History",
-                        count = state.displayedShifts.size,
-                        onLightSurface = true
+                    ShiftHistoryItemCard(
+                        shift = shift,
+                        currencySymbol = state.currencySymbol,
+                        onEditNote = { onEditShift(shift) },
+                        onDelete = { onDeleteShift(shift) }
                     )
-
-                    if (state.displayedShifts.isEmpty()) {
-                        ShiftHistoryEmptyCard(
-                            onLogFirstShift = onOpenLogShift
+                    if (idx < state.displayedShifts.lastIndex) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        HorizontalDivider(
+                            color = colors.border.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(horizontal = 4.dp)
                         )
-                    } else {
-                        state.displayedShifts.forEachIndexed { idx, shift ->
-                            ShiftHistoryItemCard(
-                                shift = shift,
-                                currencySymbol = state.currencySymbol,
-                                onEditNote = { onEditShift(shift) },
-                                onDelete = { onDeleteShift(shift) }
-                            )
-                            if (idx < state.displayedShifts.lastIndex) {
-                                HorizontalDivider(
-                                    color = colors.border.copy(alpha = 0.6f),
-                                    modifier = Modifier.padding(horizontal = 4.dp)
-                                )
-                            }
-                        }
+                        Spacer(modifier = Modifier.height(14.dp))
                     }
                 }
+            }
+
+            item(key = "sheet_footer", contentType = "sheet_footer") {
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .height(if (state.displayedShifts.size <= 1) 220.dp else 104.dp)
+                )
             }
         }
     }

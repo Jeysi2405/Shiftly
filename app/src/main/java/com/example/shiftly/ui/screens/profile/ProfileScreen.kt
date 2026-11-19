@@ -36,13 +36,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -51,6 +54,8 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
@@ -74,8 +79,13 @@ import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.workers.ShiftlyDailyWorker
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
+
+private val BACKUP_PICKER_MIME_TYPES = arrayOf("application/zip", "application/json", "text/plain", "*/*")
 
 private enum class ActiveSettingsSheet {
     ACCOUNT,
@@ -95,6 +105,7 @@ fun ProfileScreen(
     val viewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val suppressNextRelock = LocalSuppressNextRelock.current
     var activeSheet by remember { mutableStateOf<ActiveSettingsSheet?>(null) }
     var showSavingsGoalDetailSheet by remember { mutableStateOf(false) }
@@ -106,12 +117,16 @@ fun ProfileScreen(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val savedPath = ProfilePhotoHelper.saveProfilePhotoFromUri(context, uri)
-        if (savedPath != null) {
-            viewModel.updateProfilePhotoPath(savedPath)
-            onShowMessage("Profile photo updated")
-        } else {
-            onShowMessage("Could not load selected photo")
+        scope.launch {
+            val savedPath = withContext(Dispatchers.IO) {
+                ProfilePhotoHelper.saveProfilePhotoFromUri(context, uri)
+            }
+            if (savedPath != null) {
+                viewModel.updateProfilePhotoPath(savedPath)
+                onShowMessage("Profile photo updated")
+            } else {
+                onShowMessage("Could not load selected photo")
+            }
         }
     }
 
@@ -156,19 +171,23 @@ fun ProfileScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        val bytes = runCatching {
-            context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-        }.getOrNull()
-        if (bytes == null) {
-            onShowMessage("Could not read selected backup file")
-            return@rememberLauncherForActivityResult
-        }
-        viewModel.restoreBackupBytes(bytes, pendingFileRestoreMode) { result ->
-            activeSheet = null
-            result.fold(
-                onSuccess = { msg -> onShowMessage(msg) },
-                onFailure = { err -> onShowMessage("Restore failed: ${err.message ?: "invalid backup"}") }
-            )
+        scope.launch {
+            val bytes = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                }.getOrNull()
+            }
+            if (bytes == null) {
+                onShowMessage("Could not read selected backup file")
+                return@launch
+            }
+            viewModel.restoreBackupBytes(bytes, pendingFileRestoreMode) { result ->
+                activeSheet = null
+                result.fold(
+                    onSuccess = { msg -> onShowMessage(msg) },
+                    onFailure = { err -> onShowMessage("Restore failed: ${err.message ?: "invalid backup"}") }
+                )
+            }
         }
     }
 
@@ -309,8 +328,10 @@ fun ProfileScreen(
     )
 
     if (showSavingsGoalDetailSheet) {
-        val activeGoalId = (state.savingsGoals.firstOrNull { it.goal.isActive }
-            ?: state.savingsGoals.firstOrNull())?.goal?.id
+        val activeGoalId = remember(state.savingsGoals) {
+            (state.savingsGoals.firstOrNull { it.goal.isActive }
+                ?: state.savingsGoals.firstOrNull())?.goal?.id
+        }
         SavingsGoalDetailSheet(
             goals = state.savingsGoals,
             initialGoalId = activeGoalId,
@@ -506,7 +527,7 @@ fun ProfileScreen(
                     onPickBackupFile = { mode ->
                         pendingFileRestoreMode = mode
                         suppressNextRelock()
-                        backupFilePicker.launch(arrayOf("application/zip", "application/json", "text/plain", "*/*"))
+                        backupFilePicker.launch(BACKUP_PICKER_MIME_TYPES)
                     },
                     onRestoreJson = { rawJson, mode ->
                         viewModel.restoreBackup(rawJson, mode) { result ->
@@ -536,8 +557,31 @@ private fun ProfileScreenContent(
     listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
+    val context = LocalContext.current
+    val avatarSizePx = with(LocalDensity.current) { 56.dp.roundToPx() }
     val currency = state.currencySymbol
-    val hasPhoto = !state.profilePhotoPath.isNullOrBlank() && File(state.profilePhotoPath).exists()
+
+    val hasPhoto by produceState(initialValue = false, state.profilePhotoPath) {
+        val path = state.profilePhotoPath
+        value = if (path.isNullOrBlank()) {
+            false
+        } else {
+            withContext(Dispatchers.IO) { File(path).exists() }
+        }
+    }
+    val avatarRequest = remember(state.profilePhotoPath, hasPhoto, avatarSizePx) {
+        val path = state.profilePhotoPath
+        if (hasPhoto && !path.isNullOrBlank()) {
+            ImageRequest.Builder(context)
+                .data(File(path))
+                .size(avatarSizePx)
+                .scale(Scale.FILL)
+                .crossfade(true)
+                .build()
+        } else {
+            null
+        }
+    }
 
     LazyColumn(
         state = listState,
@@ -547,7 +591,7 @@ private fun ProfileScreenContent(
         contentPadding = PaddingValues(top = 12.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item {
+        item(key = "profile_header", contentType = "header") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -568,9 +612,9 @@ private fun ProfileScreenContent(
                             .border(1.5.dp, colors.azureAccent.copy(alpha = 0.7f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (hasPhoto && state.profilePhotoPath != null) {
+                        if (avatarRequest != null) {
                             AsyncImage(
-                                model = File(state.profilePhotoPath),
+                                model = avatarRequest,
                                 contentDescription = "Profile photo",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.size(56.dp)
@@ -609,7 +653,7 @@ private fun ProfileScreenContent(
             }
         }
 
-        item {
+        item(key = "profile_snapshot", contentType = "snapshot") {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ProfileSnapshotGlassCard(
                     currencySymbol = currency,
@@ -621,7 +665,7 @@ private fun ProfileScreenContent(
             }
         }
 
-        item {
+        item(key = "profile_settings_sheet", contentType = "settings_sheet") {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()

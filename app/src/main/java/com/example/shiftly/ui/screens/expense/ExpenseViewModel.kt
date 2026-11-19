@@ -1,5 +1,6 @@
 package com.example.shiftly.ui.screens.expense
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -7,13 +8,16 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import java.time.LocalDate
 import java.time.YearMonth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@Immutable
 data class CategorySpendSummary(
     val category: String,
     val totalAmount: Double,
@@ -21,6 +25,7 @@ data class CategorySpendSummary(
     val monthlyLimit: Double? = null
 )
 
+@Immutable
 data class ExpenseUiState(
     val currencySymbol: String = "₱",
     val monthlyBudget: Double = 0.0,
@@ -143,11 +148,13 @@ class ExpenseViewModel(
             filteredExpenses = filtered,
             totalReceiptCount = receiptCount
         )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = ExpenseUiState()
-    )
+    }
+        .flowOn(Dispatchers.IO)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = ExpenseUiState()
+        )
 
     private data class ExpenseInputs(
         val currency: String,

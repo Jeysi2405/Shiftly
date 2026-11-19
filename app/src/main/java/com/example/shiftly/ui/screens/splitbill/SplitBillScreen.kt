@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -57,6 +59,8 @@ import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.shiftlySheetBodyBand
+import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.InkBlack
@@ -65,6 +69,7 @@ import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
 import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun SplitBillScreen(
@@ -279,39 +284,42 @@ fun SplitBillScreenContent(
     onShowAllMonths: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
+    val locale = LocalConfiguration.current.locales[0]
+    val itemDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
+
     LazyColumn(
         state = listState,
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding(),
         contentPadding = PaddingValues(top = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.Top
     ) {
         // 0. Screen Header
-        item {
+        item(key = "split_header", contentType = "header") {
             ShiftlyScreenHeader(
                 title = "Split Bill",
                 subtitle = null,
                 onBackClick = onBack,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)
             )
         }
 
         // 0b. Month / All-time Filter Bar
-        item {
+        item(key = "month_filter", contentType = "month_filter") {
             ShiftlyMonthFilterBar(
                 selectedMonth = state.selectedMonth,
                 onPreviousMonth = onPreviousMonth,
                 onNextMonth = onNextMonth,
                 onToggleAllMonths = onToggleAllMonths,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)
             )
         }
 
         // 1. Summary Card (Pending + Paid Mint Badge + Progress Bar) + New Split Button
-        item {
+        item(key = "split_summary", contentType = "summary") {
             Column(
-                modifier = Modifier.padding(horizontal = 20.dp),
+                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 SplitBillSummaryCard(
@@ -352,51 +360,76 @@ fun SplitBillScreenContent(
             }
         }
 
-        // 2. Bottom Sheet Surface for Split Bills List / Empty State
-        item {
-            Surface(
+        // 2. Bottom Sheet Top Cap for Split Bills List
+        item(key = "sheet_header", contentType = "sheet_header") {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 580.dp),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = colors.surface,
-                border = BorderStroke(1.dp, colors.cardBorder),
-                shadowElevation = 0.dp
+                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                ShiftlySheetDragHandle()
+
+                ShiftlySectionHeader(
+                    title = "Split Bills",
+                    count = state.totalBillsCount,
+                    onLightSurface = true
+                )
+            }
+        }
+
+        if (state.billsWithParticipants.isEmpty()) {
+            item(key = "sheet_empty", contentType = "sheet_empty") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 500.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
+                ) {
+                    SplitBillEmptyCard(
+                        currencySymbol = state.currencySymbol,
+                        selectedMonth = state.selectedMonth,
+                        hasAnyBillsAtAll = state.hasAnyBillsAtAll,
+                        onShowAllMonths = onShowAllMonths,
+                        onTrySampleSplit = onTrySampleSplit
+                    )
+                }
+            }
+        } else {
+            itemsIndexed(
+                items = state.billsWithParticipants,
+                key = { _, item -> "split_${item.bill.id}" },
+                contentType = { _, _ -> "split_bill_item" }
+            ) { idx, billWithParticipants ->
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(horizontal = 20.dp)
                 ) {
-                    ShiftlySheetDragHandle()
-
-                    ShiftlySectionHeader(
-                        title = "Split Bills",
-                        count = state.totalBillsCount,
-                        onLightSurface = true
+                    SplitBillLogItemCard(
+                        item = billWithParticipants,
+                        currencySymbol = state.currencySymbol,
+                        onToggleParticipantPaid = onToggleParticipantPaid,
+                        onLogAsExpense = onLogAsExpense,
+                        onDeleteBill = onDeleteBill,
+                        dateFormatter = itemDateFormatter
                     )
-
-                    if (state.billsWithParticipants.isEmpty()) {
-                        SplitBillEmptyCard(
-                            currencySymbol = state.currencySymbol,
-                            selectedMonth = state.selectedMonth,
-                            hasAnyBillsAtAll = state.hasAnyBillsAtAll,
-                            onShowAllMonths = onShowAllMonths,
-                            onTrySampleSplit = onTrySampleSplit
-                        )
-                    } else {
-                        state.billsWithParticipants.forEach { billWithParticipants ->
-                            SplitBillLogItemCard(
-                                item = billWithParticipants,
-                                currencySymbol = state.currencySymbol,
-                                onToggleParticipantPaid = onToggleParticipantPaid,
-                                onLogAsExpense = onLogAsExpense,
-                                onDeleteBill = onDeleteBill
-                            )
-                        }
+                    if (idx < state.billsWithParticipants.lastIndex) {
+                        Spacer(modifier = Modifier.height(14.dp))
                     }
                 }
+            }
+
+            item(key = "sheet_footer", contentType = "sheet_footer") {
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .height(if (state.billsWithParticipants.size <= 1) 260.dp else 104.dp)
+                )
             }
         }
     }

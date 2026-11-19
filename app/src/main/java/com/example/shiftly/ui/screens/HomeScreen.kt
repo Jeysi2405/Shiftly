@@ -1,22 +1,21 @@
 package com.example.shiftly.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,6 +37,8 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.shiftlySheetBodyBand
+import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
@@ -99,8 +100,11 @@ fun HomeScreen(
     )
 
     if (showGoalDetailSheet) {
+        val detailGoals = remember(state.savingsGoals) {
+            state.savingsGoals.map { it.goalWithDeposits }
+        }
         SavingsGoalDetailSheet(
-            goals = state.savingsGoals.map { it.goalWithDeposits },
+            goals = detailGoals,
             initialGoalId = viewingGoalId,
             currencySymbol = state.currencySymbol,
             onDismiss = { showGoalDetailSheet = false },
@@ -153,26 +157,37 @@ fun HomeScreenContent(
 ) {
     val colors = ShiftlyColors.current
     val currency = state.currencySymbol
+    val budgetRatio = remember(state.mtdExpenses, state.monthlyBudget) {
+        if (state.monthlyBudget > 0.0) {
+            (state.mtdExpenses / state.monthlyBudget).toFloat().coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+    }
+    val nearLimit = budgetRatio >= 0.80f
+    val budgetPct = (budgetRatio * 100).toInt()
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding(),
         contentPadding = PaddingValues(top = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.Top
     ) {
-        item {
-            HomeGreetingHeader(
-                profilePhotoPath = state.profilePhotoPath,
-                pendingAlertsCount = state.pendingSplitBillCount,
-                todayOverride = todayOverride,
-                onNotificationClick = onNotificationClick,
-                onProfileClick = onProfileClick
-            )
+        item(key = "greeting_header", contentType = "greeting_header") {
+            Box(modifier = Modifier.padding(bottom = 14.dp)) {
+                HomeGreetingHeader(
+                    profilePhotoPath = state.profilePhotoPath,
+                    pendingAlertsCount = state.pendingSplitBillCount,
+                    todayOverride = todayOverride,
+                    onNotificationClick = onNotificationClick,
+                    onProfileClick = onProfileClick
+                )
+            }
         }
 
-        item {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+        item(key = "greeting_banner", contentType = "greeting_banner") {
+            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
                 if (greetingHourOverride != null) {
                     DashboardGreetingBanner(
                         userName = state.userName,
@@ -184,122 +199,148 @@ fun HomeScreenContent(
             }
         }
 
-        item {
-            HomeHeroPager(
-                state = state,
-                onOpenGoalDetail = onOpenGoalDetail,
-                onOpenAddGoal = onOpenAddGoal,
-                onSelectActiveGoal = onSelectActiveGoal
-            )
+        item(key = "hero_pager", contentType = "hero_pager") {
+            Box(modifier = Modifier.padding(bottom = 14.dp)) {
+                HomeHeroPager(
+                    state = state,
+                    onOpenGoalDetail = onOpenGoalDetail,
+                    onOpenAddGoal = onOpenAddGoal,
+                    onSelectActiveGoal = onSelectActiveGoal
+                )
+            }
         }
 
-        item {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                color = colors.surface,
-                border = BorderStroke(1.dp, colors.cardBorder),
-                shadowElevation = 0.dp
+        item(key = "sheet_header", contentType = "sheet_header") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shiftlySheetTopBand(colors.surface, colors.cardBorder)
+                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                ShiftlySheetDragHandle()
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Monthly Budget",
+                            style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
+                            color = colors.textPrimary
+                        )
+                        Text(
+                            text = if (state.monthlyBudget > 0.0) {
+                                "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} of ${ShiftlyFormatters.formatCurrency(currency, state.monthlyBudget)}"
+                            } else {
+                                "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} spent • No cap set"
+                            },
+                            style = MaterialTheme.typography.labelMedium.tabular(),
+                            color = if (nearLimit && state.monthlyBudget > 0.0) colors.coralInk else colors.mintInk
+                        )
+                    }
+                    LinearProgressIndicator(
+                        progress = { budgetRatio },
+                        color = if (nearLimit) colors.coralBright else colors.mintBright,
+                        trackColor = colors.cardElevated,
+                        strokeCap = StrokeCap.Round,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .semantics {
+                                contentDescription = "Monthly budget $budgetPct percent used"
+                            }
+                    )
+                }
+
+                if (state.pendingSplitsOwed > 0.0) {
+                    PendingSplitsBanner(
+                        pendingAmount = state.pendingSplitsOwed,
+                        billCount = state.pendingSplitBillCount,
+                        currencySymbol = currency,
+                        onClick = onOpenPendingSplits
+                    )
+                }
+
+                MonthlyTopCategoriesCard(
+                    monthName = state.currentMonthName,
+                    monthlyTotalSpent = state.mtdExpenses,
+                    topCategories = state.monthlyTopCategories,
+                    currencySymbol = currency,
+                    onViewInsights = onViewInsights
+                )
+
+                MonthlyHoursIndicatorCard(
+                    monthName = state.currentMonthName,
+                    summary = state.monthlyHoursSummary
+                )
+
+                ShiftlySectionHeader(
+                    title = "Recent Activity",
+                    count = state.timelineItems.size,
+                    onLightSurface = true
+                )
+            }
+        }
+
+        if (state.timelineItems.isEmpty()) {
+            item(key = "timeline_empty", contentType = "timeline_empty") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 112.dp)
+                ) {
+                    Text(
+                        text = "No activity logged yet. Start a shift in Duties or log an expense.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary
+                    )
+                }
+            }
+        } else {
+            itemsIndexed(
+                items = state.timelineItems,
+                key = { _, item ->
+                    when (item) {
+                        is TimelineActivityItem.ShiftActivity -> "shift_${item.id}"
+                        is TimelineActivityItem.ExpenseActivity -> "expense_${item.id}"
+                        is TimelineActivityItem.ExtraIncomeActivity ->
+                            "extra_${item.subtitleTag}_${item.id}_${item.sortTimestamp}"
+                    }
+                },
+                contentType = { _, item ->
+                    when (item) {
+                        is TimelineActivityItem.ShiftActivity -> "timeline_shift"
+                        is TimelineActivityItem.ExpenseActivity -> "timeline_expense"
+                        is TimelineActivityItem.ExtraIncomeActivity -> "timeline_extra"
+                    }
+                }
+            ) { idx, item ->
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .padding(horizontal = 20.dp)
                 ) {
-                    ShiftlySheetDragHandle()
-
-                    val budgetRatio = if (state.monthlyBudget > 0.0) {
-                        (state.mtdExpenses / state.monthlyBudget).toFloat().coerceIn(0f, 1f)
-                    } else {
-                        0f
-                    }
-                    val nearLimit = budgetRatio >= 0.80f
-                    val budgetPct = (budgetRatio * 100).toInt()
-
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Monthly Budget",
-                                style = MaterialTheme.typography.titleSmall.copy(fontFamily = PlusJakartaSans),
-                                color = colors.textPrimary
-                            )
-                            Text(
-                                text = if (state.monthlyBudget > 0.0) {
-                                    "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} of ${ShiftlyFormatters.formatCurrency(currency, state.monthlyBudget)}"
-                                } else {
-                                    "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} spent • No cap set"
-                                },
-                                style = MaterialTheme.typography.labelMedium.tabular(),
-                                color = if (nearLimit && state.monthlyBudget > 0.0) colors.coralInk else colors.mintInk
-                            )
-                        }
-                        LinearProgressIndicator(
-                            progress = { budgetRatio },
-                            color = if (nearLimit) colors.coralBright else colors.mintBright,
-                            trackColor = colors.cardElevated,
-                            strokeCap = StrokeCap.Round,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(8.dp)
-                                .semantics {
-                                    contentDescription = "Monthly budget $budgetPct percent used"
-                                }
-                        )
-                    }
-
-                    if (state.pendingSplitsOwed > 0.0) {
-                        PendingSplitsBanner(
-                            pendingAmount = state.pendingSplitsOwed,
-                            billCount = state.pendingSplitBillCount,
-                            currencySymbol = currency,
-                            onClick = onOpenPendingSplits
-                        )
-                    }
-
-                    MonthlyTopCategoriesCard(
-                        monthName = state.currentMonthName,
-                        monthlyTotalSpent = state.mtdExpenses,
-                        topCategories = state.monthlyTopCategories,
-                        currencySymbol = currency,
-                        onViewInsights = onViewInsights
-                    )
-
-                    MonthlyHoursIndicatorCard(
-                        monthName = state.currentMonthName,
-                        summary = state.monthlyHoursSummary
-                    )
-
-                    ShiftlySectionHeader(
-                        title = "Recent Activity",
-                        count = state.timelineItems.size,
-                        onLightSurface = true
-                    )
-
-                    if (state.timelineItems.isEmpty()) {
-                        Text(
-                            text = "No activity logged yet. Start a shift in Duties or log an expense.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    } else {
-                        Column {
-                            state.timelineItems.forEachIndexed { idx, item ->
-                                HomeTimelineRow(
-                                    item = item,
-                                    currencySymbol = currency,
-                                ) { onTimelineItemClick(item) }
-                                if (idx < state.timelineItems.lastIndex) {
-                                    HorizontalDivider(color = colors.border)
-                                }
-                            }
-                        }
+                    HomeTimelineRow(
+                        item = item,
+                        currencySymbol = currency
+                    ) { onTimelineItemClick(item) }
+                    if (idx < state.timelineItems.lastIndex) {
+                        HorizontalDivider(color = colors.border)
                     }
                 }
+            }
+
+            item(key = "sheet_footer", contentType = "sheet_footer") {
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shiftlySheetBodyBand(colors.surface, colors.cardBorder)
+                        .height(104.dp)
+                )
             }
         }
     }

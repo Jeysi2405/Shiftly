@@ -57,7 +57,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +75,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -87,6 +90,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ReceiptStorageHelper
@@ -105,6 +110,9 @@ import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @DrawableRes
 fun categoryIcon(category: String): Int {
@@ -122,13 +130,15 @@ fun categoryIcon(category: String): Int {
 @Composable
 private fun categorySegmentColor(index: Int): Color {
     val colors = ShiftlyColors.current
-    val palette = listOf(
-        colors.coralBright,
-        Color(0xFFFF9F7F),
-        OrbSkyLight,
-        colors.mintBright,
-        Color(0xFF93C5FD)
-    )
+    val palette = remember(colors.coralBright, colors.mintBright) {
+        listOf(
+            colors.coralBright,
+            Color(0xFFFF9F7F),
+            OrbSkyLight,
+            colors.mintBright,
+            Color(0xFF93C5FD)
+        )
+    }
     return palette[index % palette.size]
 }
 
@@ -151,6 +161,11 @@ fun ExpenseSummaryCard(
             selectedMonth.format(DateTimeFormatter.ofPattern("MMM yyyy", locale)).uppercase()
         }
     }
+    val topLegendCategories = remember(categoryBreakdown) { categoryBreakdown.take(4) }
+    val budgetedCategories = remember(categoryBreakdown) {
+        categoryBreakdown.filter { (it.monthlyLimit ?: 0.0) > 0.0 }
+    }
+
     ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(
@@ -294,7 +309,7 @@ fun ExpenseSummaryCard(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    categoryBreakdown.take(4).forEachIndexed { index, item ->
+                    topLegendCategories.forEachIndexed { index, item ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
@@ -315,7 +330,6 @@ fun ExpenseSummaryCard(
                     }
                 }
 
-                val budgetedCategories = categoryBreakdown.filter { (it.monthlyLimit ?: 0.0) > 0.0 }
                 if (budgetedCategories.isNotEmpty()) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         budgetedCategories.forEach { item ->
@@ -522,16 +536,22 @@ fun ExpenseItemCard(
     expense: ExpenseEntity,
     currencySymbol: String,
     onViewReceipt: (ExpenseEntity) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    dateFormatter: DateTimeFormatter? = null
 ) {
     val colors = ShiftlyColors.current
-    val locale = LocalConfiguration.current.locales[0]
-    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
-    val dateLabel = remember(expense.dateEpochDay, dateFormatter) {
-        LocalDate.ofEpochDay(expense.dateEpochDay).format(dateFormatter)
+    val resolvedFormatter = dateFormatter ?: run {
+        val locale = LocalConfiguration.current.locales[0]
+        remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
     }
-    val hasReceipt = remember(expense.receiptImagePath) {
-        !expense.receiptImagePath.isNullOrBlank() && File(expense.receiptImagePath).exists()
+    val dateLabel = remember(expense.dateEpochDay, resolvedFormatter) {
+        LocalDate.ofEpochDay(expense.dateEpochDay).format(resolvedFormatter)
+    }
+    val hasReceipt by produceState(initialValue = false, expense.receiptImagePath) {
+        value = withContext(Dispatchers.IO) {
+            val path = expense.receiptImagePath
+            !path.isNullOrBlank() && File(path).exists()
+        }
     }
     val isSplitItem = expense.category.equals("Split Bill", ignoreCase = true)
     val isSavingsItem = expense.category.equals("Savings", ignoreCase = true)
@@ -674,11 +694,15 @@ fun AddExpenseBottomSheet(
 ) {
     val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     var savedReceiptPath by remember { mutableStateOf<String?>(null) }
 
     ModalBottomSheet(
         onDismissRequest = {
-            ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
+            val orphanPath = savedReceiptPath
+            scope.launch(Dispatchers.IO) {
+                ReceiptStorageHelper.deleteReceiptFile(orphanPath)
+            }
             onDismiss()
         },
         sheetState = sheetState,
@@ -691,7 +715,10 @@ fun AddExpenseBottomSheet(
             savedReceiptPath = savedReceiptPath,
             onReceiptChanged = { savedReceiptPath = it },
             onDismiss = {
-                ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
+                val orphanPath = savedReceiptPath
+                scope.launch(Dispatchers.IO) {
+                    ReceiptStorageHelper.deleteReceiptFile(orphanPath)
+                }
                 onDismiss()
             },
             onSaveExpense = { title, amount, category, date, path ->
@@ -722,6 +749,7 @@ fun AddExpenseSheetContent(
     val suppressNextRelock = LocalSuppressNextRelock.current
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE, MMM d", locale) }
+    val timeFormatter = remember(locale) { DateTimeFormatter.ofPattern("hh:mm a", locale) }
     val categoryOptions = remember(availableCategories) {
         availableCategories.ifEmpty { ExpenseViewModel.EXPENSE_CATEGORIES }
     }
@@ -741,6 +769,8 @@ fun AddExpenseSheetContent(
     var showTimePicker by remember { mutableStateOf(false) }
     var showCategoryPrompt by remember { mutableStateOf(false) }
     var pendingCameraFile by remember { mutableStateOf<File?>(null) }
+    var isProcessingCameraPhoto by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     val amountFocusRequester = remember { FocusRequester() }
     LaunchedEffect(Unit) {
@@ -751,8 +781,14 @@ fun AddExpenseSheetContent(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
-            ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
-            onReceiptChanged(ReceiptStorageHelper.saveUriToLocalReceipts(context, uri))
+            val previousPath = savedReceiptPath
+            coroutineScope.launch {
+                val savedPath = withContext(Dispatchers.IO) {
+                    ReceiptStorageHelper.deleteReceiptFile(previousPath)
+                    ReceiptStorageHelper.saveUriToLocalReceipts(context, uri)
+                }
+                onReceiptChanged(savedPath)
+            }
         }
     }
 
@@ -760,13 +796,46 @@ fun AddExpenseSheetContent(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         val file = pendingCameraFile
-        if (success && file != null && file.exists() && file.length() > 0L) {
-            ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
-            onReceiptChanged(file.absolutePath)
-        } else {
-            file?.delete()
-        }
         pendingCameraFile = null
+        if (success && file != null) {
+            isProcessingCameraPhoto = true
+            val previousPath = savedReceiptPath
+            coroutineScope.launch {
+                try {
+                    val savedPath = withContext(Dispatchers.IO) {
+                        if (file.exists() && file.length() > 0L) {
+                            ReceiptStorageHelper.applyTimestampWatermark(file)
+                            ReceiptStorageHelper.deleteReceiptFile(previousPath)
+                            file.absolutePath
+                        } else {
+                            file.delete()
+                            null
+                        }
+                    }
+                    if (savedPath != null) {
+                        onReceiptChanged(savedPath)
+                    }
+                } finally {
+                    isProcessingCameraPhoto = false
+                }
+            }
+        } else if (file != null) {
+            coroutineScope.launch(Dispatchers.IO) {
+                file.delete()
+            }
+        }
+    }
+
+    val thumbSizePx = with(LocalDensity.current) { 56.dp.roundToPx() }
+    val receiptThumbRequest = remember(savedReceiptPath, thumbSizePx, context) {
+        savedReceiptPath?.let { path ->
+            ImageRequest.Builder(context)
+                .data(File(path))
+                .size(thumbSizePx, thumbSizePx)
+                .scale(Scale.FILL)
+                .crossfade(true)
+                .build()
+        }
     }
 
     val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
@@ -996,7 +1065,7 @@ fun AddExpenseSheetContent(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = selectedTime.format(DateTimeFormatter.ofPattern("hh:mm a", locale)),
+                        text = selectedTime.format(timeFormatter),
                         style = MaterialTheme.typography.titleSmall,
                         color = colors.textPrimary
                     )
@@ -1011,7 +1080,7 @@ fun AddExpenseSheetContent(
                 color = colors.textSecondary
             )
 
-            if (savedReceiptPath != null) {
+            if (receiptThumbRequest != null) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = colors.card,
@@ -1027,7 +1096,7 @@ fun AddExpenseSheetContent(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         AsyncImage(
-                            model = File(savedReceiptPath),
+                            model = receiptThumbRequest,
                             contentDescription = "Receipt Preview",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
@@ -1042,8 +1111,11 @@ fun AddExpenseSheetContent(
                         )
                         IconButton(
                             onClick = {
-                                ReceiptStorageHelper.deleteReceiptFile(savedReceiptPath)
+                                val oldPath = savedReceiptPath
                                 onReceiptChanged(null)
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    ReceiptStorageHelper.deleteReceiptFile(oldPath)
+                                }
                             },
                             modifier = Modifier.size(48.dp)
                         ) {
@@ -1068,6 +1140,7 @@ fun AddExpenseSheetContent(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
+                        enabled = !isProcessingCameraPhoto,
                         shape = RoundedCornerShape(50),
                         border = BorderStroke(1.dp, colors.border),
                         modifier = Modifier
@@ -1091,18 +1164,23 @@ fun AddExpenseSheetContent(
                     OutlinedButton(
                         onClick = {
                             suppressNextRelock()
-                            val created = runCatching {
-                                ReceiptStorageHelper.createCameraReceiptTarget(context)
-                            }.getOrNull() ?: return@OutlinedButton
-                            pendingCameraFile = created.first
-                            val launched = runCatching {
-                                cameraLauncher.launch(created.second)
-                            }.isSuccess
-                            if (!launched) {
-                                created.first.delete()
-                                pendingCameraFile = null
+                            coroutineScope.launch {
+                                val created = withContext(Dispatchers.IO) {
+                                    runCatching {
+                                        ReceiptStorageHelper.createCameraReceiptTarget(context)
+                                    }.getOrNull()
+                                } ?: return@launch
+                                pendingCameraFile = created.first
+                                val launched = runCatching {
+                                    cameraLauncher.launch(created.second)
+                                }.isSuccess
+                                if (!launched) {
+                                    pendingCameraFile = null
+                                    withContext(Dispatchers.IO) { created.first.delete() }
+                                }
                             }
                         },
+                        enabled = !isProcessingCameraPhoto,
                         shape = RoundedCornerShape(50),
                         border = BorderStroke(1.dp, colors.border),
                         modifier = Modifier
@@ -1117,7 +1195,7 @@ fun AddExpenseSheetContent(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Camera",
+                            text = if (isProcessingCameraPhoto) "Saving..." else "Camera",
                             style = MaterialTheme.typography.labelLarge.copy(fontFamily = PlusJakartaSans),
                             color = colors.textPrimary
                         )
@@ -1130,7 +1208,7 @@ fun AddExpenseSheetContent(
             onClick = {
                 onSaveExpense(title, parsedAmount, selectedCategory, selectedDate, savedReceiptPath)
             },
-            enabled = isValid,
+            enabled = isValid && !isProcessingCameraPhoto,
             shape = RoundedCornerShape(50),
             elevation = ButtonDefaults.buttonElevation(
                 defaultElevation = 0.dp,
@@ -1427,11 +1505,20 @@ fun ReceiptViewerDialog(
     onDismiss: () -> Unit
 ) {
     val colors = ShiftlyColors.current
+    val context = LocalContext.current
     val path = expense.receiptImagePath ?: return
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
     val dateLabel = remember(expense.dateEpochDay, dateFormatter) {
         LocalDate.ofEpochDay(expense.dateEpochDay).format(dateFormatter)
+    }
+    val receiptRequest = remember(path, context) {
+        ImageRequest.Builder(context)
+            .data(File(path))
+            .size(1440, 1440)
+            .scale(Scale.FIT)
+            .crossfade(true)
+            .build()
     }
 
     Dialog(
@@ -1489,7 +1576,7 @@ fun ReceiptViewerDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
-                        model = File(path),
+                        model = receiptRequest,
                         contentDescription = "Receipt Proof",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize()

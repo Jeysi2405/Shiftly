@@ -97,6 +97,10 @@ fun ToolsScreen(
     var showAddSavingsGoalSheet by remember { mutableStateOf(false) }
     var showSavingsGoalDetailSheet by remember { mutableStateOf(false) }
 
+    val cutoffScheduleLabel = remember(profileState.settings) {
+        profileState.settings.cutoffScheduleConfig().displayLabel()
+    }
+
     ToolsScreenContent(
         currencySymbol = profileState.currencySymbol,
         shifts = shifts,
@@ -106,7 +110,7 @@ fun ToolsScreen(
         savingsGoals = profileState.savingsGoals,
         recurringBills = recurringBills,
         allowanceEntries = allowanceEntries,
-        cutoffScheduleLabel = profileState.settings.cutoffScheduleConfig().displayLabel(),
+        cutoffScheduleLabel = cutoffScheduleLabel,
         onOpenDuties = onOpenDuties,
         onOpenExpense = onOpenExpense,
         onOpenSplitBill = onOpenSplitBill,
@@ -165,8 +169,10 @@ fun ToolsScreen(
     }
 
     if (showSavingsGoalDetailSheet) {
-        val activeGoalId = (profileState.savingsGoals.firstOrNull { it.goal.isActive }
-            ?: profileState.savingsGoals.firstOrNull())?.goal?.id
+        val activeGoalId = remember(profileState.savingsGoals) {
+            (profileState.savingsGoals.firstOrNull { it.goal.isActive }
+                ?: profileState.savingsGoals.firstOrNull())?.goal?.id
+        }
         SavingsGoalDetailSheet(
             goals = profileState.savingsGoals,
             initialGoalId = activeGoalId,
@@ -227,29 +233,71 @@ fun ToolsScreenContent(
     onOpenAllowance: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
-    val currentMonth = YearMonth.now()
-    val monthStartEpoch = currentMonth.atDay(1).toEpochDay()
-    val monthEndEpoch = currentMonth.atEndOfMonth().toEpochDay()
+    val currentMonth = remember { YearMonth.now() }
+    val monthStartEpoch = remember(currentMonth) { currentMonth.atDay(1).toEpochDay() }
+    val monthEndEpoch = remember(currentMonth) { currentMonth.atEndOfMonth().toEpochDay() }
 
-    val monthShifts = shifts.filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
-    val monthShiftHours = monthShifts.sumOf { it.durationMinutes } / 60.0
-    val monthShiftEarnings = monthShifts.sumOf { it.totalEarned }
-
-    val monthExpenses = expenses.filter { it.dateEpochDay in monthStartEpoch..monthEndEpoch }
-    val monthSpent = monthExpenses.sumOf { it.amount }
-
-    val pendingSplitsAmount = splitBills.sumOf { item ->
-        item.participants
-            .filter { !it.isCurrentUser && !it.hasPaid }
-            .sumOf { it.amountOwed }
+    val shiftSummary = remember(shifts, monthStartEpoch, monthEndEpoch) {
+        var count = 0
+        var minutes = 0L
+        var earnings = 0.0
+        for (shift in shifts) {
+            if (shift.dateEpochDay in monthStartEpoch..monthEndEpoch) {
+                count++
+                minutes += shift.durationMinutes
+                earnings += shift.totalEarned
+            }
+        }
+        Triple(count, minutes / 60.0, earnings)
     }
-    val pendingBillsCount = splitBills.count { item ->
-        item.participants.any { !it.isCurrentUser && !it.hasPaid }
-    }
+    val monthShiftCount = shiftSummary.first
+    val monthShiftHours = shiftSummary.second
+    val monthShiftEarnings = shiftSummary.third
 
-    val activeGoal = savingsGoals.firstOrNull { it.goal.isActive } ?: savingsGoals.firstOrNull()
-    val enabledRecurringCount = recurringBills.count { it.isEnabled }
-    val totalAllowanceAmount = allowanceEntries.sumOf { it.amount }
+    val expenseSummary = remember(expenses, monthStartEpoch, monthEndEpoch) {
+        var count = 0
+        var spent = 0.0
+        for (expense in expenses) {
+            if (expense.dateEpochDay in monthStartEpoch..monthEndEpoch) {
+                count++
+                spent += expense.amount
+            }
+        }
+        Pair(count, spent)
+    }
+    val monthExpenseCount = expenseSummary.first
+    val monthSpent = expenseSummary.second
+
+    val splitSummary = remember(splitBills) {
+        var pendingAmt = 0.0
+        var pendingBills = 0
+        for (item in splitBills) {
+            var hasUnpaidFriend = false
+            for (p in item.participants) {
+                if (!p.isCurrentUser && !p.hasPaid) {
+                    pendingAmt += p.amountOwed
+                    hasUnpaidFriend = true
+                }
+            }
+            if (hasUnpaidFriend) pendingBills++
+        }
+        Pair(pendingAmt, pendingBills)
+    }
+    val pendingSplitsAmount = splitSummary.first
+    val pendingBillsCount = splitSummary.second
+
+    val activeGoal = remember(savingsGoals) {
+        savingsGoals.firstOrNull { it.goal.isActive } ?: savingsGoals.firstOrNull()
+    }
+    val activeGoalSaved = remember(activeGoal) {
+        activeGoal?.deposits?.sumOf { it.amount } ?: 0.0
+    }
+    val enabledRecurringCount = remember(recurringBills) {
+        recurringBills.count { it.isEnabled }
+    }
+    val totalAllowanceAmount = remember(allowanceEntries) {
+        allowanceEntries.sumOf { it.amount }
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -258,19 +306,19 @@ fun ToolsScreenContent(
         contentPadding = PaddingValues(top = 12.dp, bottom = 112.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        item {
+        item(key = "tools_header", contentType = "header") {
             ShiftlyScreenHeader(
                 title = "Tools",
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
         }
 
-        item {
+        item(key = "tool_duties", contentType = "tool_card") {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ToolHubCard(
                     title = "Duties & Shifts",
                     metric = ShiftlyFormatters.formatCurrency(currencySymbol, monthShiftEarnings),
-                    metricSub = "${ShiftlyFormatters.formatHours(monthShiftHours, compact = true)} this month • ${monthShifts.size} shift(s)",
+                    metricSub = "${ShiftlyFormatters.formatHours(monthShiftHours, compact = true)} this month • $monthShiftCount shift(s)",
                     iconRes = R.drawable.ic_lucide_clock,
                     iconBg = colors.mintContainer,
                     iconTint = colors.mintInk,
@@ -282,7 +330,7 @@ fun ToolsScreenContent(
             }
         }
 
-        item {
+        item(key = "tool_expense", contentType = "tool_card") {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ToolHubCard(
                     title = "Expenses & Receipts",
@@ -290,7 +338,7 @@ fun ToolsScreenContent(
                     metricSub = if (monthlyBudget > 0.0) {
                         "of ${ShiftlyFormatters.formatCurrency(currencySymbol, monthlyBudget)} monthly budget"
                     } else {
-                        "${monthExpenses.size} expense(s) this month"
+                        "$monthExpenseCount expense(s) this month"
                     },
                     iconRes = R.drawable.ic_lucide_receipt_text,
                     iconBg = colors.coralContainer,
@@ -303,7 +351,7 @@ fun ToolsScreenContent(
             }
         }
 
-        item {
+        item(key = "tool_split_bill", contentType = "tool_card") {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ToolHubCard(
                     title = "Split Bill",
@@ -324,7 +372,7 @@ fun ToolsScreenContent(
             }
         }
 
-        item {
+        item(key = "tool_budgets", contentType = "tool_card") {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ToolHubCard(
                     title = "Monthly & Category Budgets",
@@ -341,13 +389,13 @@ fun ToolsScreenContent(
             }
         }
 
-        item {
+        item(key = "tool_savings", contentType = "tool_card") {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ToolHubCard(
                     title = "Savings Goals",
                     metric = activeGoal?.goal?.title ?: "Add Goal",
                     metricSub = if (activeGoal != null) {
-                        "${ShiftlyFormatters.formatCurrency(currencySymbol, activeGoal.deposits.sumOf { it.amount })} of ${ShiftlyFormatters.formatCurrency(currencySymbol, activeGoal.goal.targetAmount)}"
+                        "${ShiftlyFormatters.formatCurrency(currencySymbol, activeGoalSaved)} of ${ShiftlyFormatters.formatCurrency(currencySymbol, activeGoal.goal.targetAmount)}"
                     } else {
                         "Track savings progress"
                     },
@@ -362,7 +410,7 @@ fun ToolsScreenContent(
             }
         }
 
-        item {
+        item(key = "tool_recurring", contentType = "tool_card") {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ToolHubCard(
                     title = "Recurring Bills",
@@ -379,7 +427,7 @@ fun ToolsScreenContent(
             }
         }
 
-        item {
+        item(key = "tool_allowance", contentType = "tool_card") {
             Box(modifier = Modifier.padding(horizontal = 20.dp)) {
                 ToolHubCard(
                     title = "Allowance",

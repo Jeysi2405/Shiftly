@@ -79,7 +79,25 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
+
+private val CUTOFF_MODE_OPTIONS = listOf(
+    CutoffScheduleConfig.MODE_SEMI_MONTHLY to "Semi-Monthly",
+    CutoffScheduleConfig.MODE_MONTHLY to "Monthly",
+    CutoffScheduleConfig.MODE_WEEKLY to "Weekly"
+)
+
+private val SEMI_MONTHLY_PRESETS = listOf(
+    Triple("15th & End", 15, CutoffScheduleConfig.END_OF_MONTH_DAY),
+    Triple("10th & 25th", 10, 25),
+    Triple("5th & 20th", 5, 20)
+)
+
+private val MONTHLY_PRESETS = listOf(
+    "End" to CutoffScheduleConfig.END_OF_MONTH_DAY,
+    "15th" to 15,
+    "19th" to 19,
+    "25th" to 25
+)
 
 @Composable
 fun AllowanceHeroCard(
@@ -209,6 +227,10 @@ fun AllowanceCutoffScheduleCard(
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d", locale) }
+    val cutoffDisplayLabel = remember(cutoffConfig, locale) { cutoffConfig.displayLabel(locale) }
+    val formattedEndDate = remember(activeWindow.endDate, dateFormatter) {
+        activeWindow.endDate.format(dateFormatter)
+    }
 
     ShiftlyGlassCard(
         cornerRadius = 24.dp,
@@ -230,7 +252,7 @@ fun AllowanceCutoffScheduleCard(
                         color = colors.textSecondary
                     )
                     Text(
-                        text = cutoffConfig.displayLabel(locale),
+                        text = cutoffDisplayLabel,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.Bold
@@ -282,7 +304,7 @@ fun AllowanceCutoffScheduleCard(
                         )
                         Text(
                             text = if (pendingShiftCount > 0) {
-                                "$pendingShiftCount shift(s) • credits ${activeWindow.endDate.format(dateFormatter)}"
+                                "$pendingShiftCount shift(s) • credits $formattedEndDate"
                             } else {
                                 "Current cycle: ${activeWindow.label}"
                             },
@@ -311,11 +333,17 @@ fun AllowanceCutoffScheduleCard(
 fun AllowanceHistoryItemCard(
     entry: AllowanceEntryEntity,
     currencySymbol: String,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    dateFormatter: DateTimeFormatter? = null
 ) {
     val colors = ShiftlyColors.current
-    val locale = LocalConfiguration.current.locales[0]
-    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
+    val resolvedFormatter = dateFormatter ?: run {
+        val locale = LocalConfiguration.current.locales[0]
+        remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
+    }
+    val formattedDate = remember(entry.dateEpochDay, resolvedFormatter) {
+        LocalDate.ofEpochDay(entry.dateEpochDay).format(resolvedFormatter)
+    }
     val isAutoFromDuties = !entry.cutoffKey.isNullOrBlank()
     val iconRes = allowanceSourceIcon(entry.source)
     val badgeBg = when (entry.source) {
@@ -397,7 +425,7 @@ fun AllowanceHistoryItemCard(
                         )
                     }
                     Text(
-                        text = LocalDate.ofEpochDay(entry.dateEpochDay).format(dateFormatter),
+                        text = formattedDate,
                         style = MaterialTheme.typography.bodySmall.tabular(),
                         color = colors.textSecondary,
                         maxLines = 1
@@ -516,8 +544,11 @@ fun AddAllowanceBottomSheet(
         amountFocusRequester.requestFocus()
     }
 
-    val parsedAmount = amountText.toDoubleOrNull() ?: 0.0
+    val parsedAmount = remember(amountText) { amountText.toDoubleOrNull() ?: 0.0 }
     val isValid = title.isNotBlank() && parsedAmount.isFinite() && parsedAmount > 0.0
+    val formattedSelectedDate = remember(selectedDate, dateFormatter) {
+        selectedDate.format(dateFormatter)
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -719,7 +750,7 @@ fun AddAllowanceBottomSheet(
                         modifier = Modifier.size(18.dp)
                     )
                     Text(
-                        text = selectedDate.format(dateFormatter),
+                        text = formattedSelectedDate,
                         style = MaterialTheme.typography.titleSmall.tabular(),
                         color = colors.textPrimary
                     )
@@ -806,6 +837,7 @@ fun ChangeCutoffScheduleSheet(
     val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val locale = LocalConfiguration.current.locales[0]
+    val today = remember { LocalDate.now() }
 
     val initial = remember(currentConfig) { currentConfig.normalized() }
     var mode by remember(currentConfig) { mutableStateOf(initial.mode) }
@@ -821,8 +853,11 @@ fun ChangeCutoffScheduleSheet(
             weeklyDayOfWeek = weeklyDay
         ).normalized()
     }
-    val previewWindow = remember(previewConfig) {
-        CutoffCalculator.resolveCutoffWindow(LocalDate.now(), previewConfig, locale)
+    val previewWindow = remember(today, previewConfig, locale) {
+        CutoffCalculator.resolveCutoffWindow(today, previewConfig, locale)
+    }
+    val previewDisplayLabel = remember(previewConfig, locale) {
+        previewConfig.displayLabel(locale)
     }
 
     ModalBottomSheet(
@@ -868,11 +903,7 @@ fun ChangeCutoffScheduleSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf(
-                    CutoffScheduleConfig.MODE_SEMI_MONTHLY to "Semi-Monthly",
-                    CutoffScheduleConfig.MODE_MONTHLY to "Monthly",
-                    CutoffScheduleConfig.MODE_WEEKLY to "Weekly"
-                ).forEach { (optionMode, label) ->
+                CUTOFF_MODE_OPTIONS.forEach { (optionMode, label) ->
                     val isSelected = mode == optionMode
                     Box(
                         modifier = Modifier
@@ -920,11 +951,7 @@ fun ChangeCutoffScheduleSheet(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            listOf(
-                                Triple("15th & End", 15, CutoffScheduleConfig.END_OF_MONTH_DAY),
-                                Triple("10th & 25th", 10, 25),
-                                Triple("5th & 20th", 5, 20)
-                            ).forEach { (label, p1, p2) ->
+                            SEMI_MONTHLY_PRESETS.forEach { (label, p1, p2) ->
                                 val isPreset = day1 == p1 && day2 == p2
                                 PresetChip(
                                     label = label,
@@ -969,12 +996,7 @@ fun ChangeCutoffScheduleSheet(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            listOf(
-                                "End" to CutoffScheduleConfig.END_OF_MONTH_DAY,
-                                "15th" to 15,
-                                "19th" to 19,
-                                "25th" to 25
-                            ).forEach { (label, d) ->
+                            MONTHLY_PRESETS.forEach { (label, d) ->
                                 PresetChip(
                                     label = label,
                                     selected = day1 == d,
@@ -1050,7 +1072,7 @@ fun ChangeCutoffScheduleSheet(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
-                        text = "Active Rule: ${previewConfig.displayLabel(locale)}",
+                        text = "Active Rule: $previewDisplayLabel",
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontFamily = PlusJakartaSans,
                             fontWeight = FontWeight.SemiBold

@@ -1,8 +1,10 @@
 package com.example.shiftly.utils
 
+import androidx.compose.runtime.Immutable
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import kotlin.math.roundToLong
 
+@Immutable
 data class SplitSummaryMetrics(
     val pendingFriendsAmount: Double = 0.0,
     val collectedFriendsAmount: Double = 0.0,
