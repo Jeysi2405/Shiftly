@@ -20,6 +20,11 @@ import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+data class NotificationCopy(
+    val title: String,
+    val message: String
+)
+
 object ShiftlyNotificationHelper {
     const val CHANNEL_RECURRING_BILLS = "recurring_bill_reminders"
     const val CHANNEL_SHIFT = "shift_reminders"
@@ -28,6 +33,54 @@ object ShiftlyNotificationHelper {
     private const val NOTIFICATION_ID_BILLS = 1001
     private const val NOTIFICATION_ID_SHIFT = 1002
     private const val NOTIFICATION_ID_SAVINGS = 1003
+
+    fun formatRecurringBillReminderCopy(
+        dueBills: List<RecurringBillEntity>,
+        currencySymbol: String
+    ): NotificationCopy {
+        val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
+        val title = if (dueBills.size == 1) {
+            "Bill Due Soon: ${dueBills.first().title}"
+        } else {
+            "${dueBills.size} Recurring Bills Due Soon"
+        }
+        val body = if (dueBills.size == 1) {
+            val bill = dueBills.first()
+            val timeStr = LocalTime.of(bill.dueHour.coerceIn(0, 23), bill.dueMinute.coerceIn(0, 59))
+                .format(timeFormatter)
+            "${ShiftlyFormatters.formatCurrency(currencySymbol, bill.amount)} is due soon ($timeStr)."
+        } else {
+            val total = dueBills.sumOf { it.amount }
+            val names = dueBills.take(2).joinToString(", ") { it.title }
+            val extra = if (dueBills.size > 2) " +${dueBills.size - 2} more" else ""
+            "$names$extra (${ShiftlyFormatters.formatCurrency(currencySymbol, total)}) due within 24 hours."
+        }
+        return NotificationCopy(title = title, message = body)
+    }
+
+    fun formatShiftReminderCopy(): NotificationCopy =
+        NotificationCopy(
+            title = "Log Shift Reminder",
+            message = "Did you work today? Tap to log your shift hours in Shiftly."
+        )
+
+    fun formatSavingsDepositReminderCopy(
+        activeGoalTitle: String,
+        isPayday: Boolean
+    ): NotificationCopy {
+        val goalLabel = if (activeGoalTitle.isNotBlank()) " for $activeGoalTitle" else ""
+        val title = if (isPayday) {
+            "Payday! Add a Savings Deposit"
+        } else {
+            "Log Saving Reminder"
+        }
+        val body = if (isPayday) {
+            "Your payout cutoff is here — tap to add a deposit$goalLabel."
+        } else {
+            "Don't forget to add a deposit$goalLabel today in Shiftly."
+        }
+        return NotificationCopy(title = title, message = body)
+    }
 
     fun ensureChannels(context: Context) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
@@ -123,27 +176,11 @@ object ShiftlyNotificationHelper {
     ): Boolean {
         if (dueBills.isEmpty() || !canPostNotifications(context)) return false
         ensureChannels(context)
-        val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.ENGLISH)
-        val title = if (dueBills.size == 1) {
-            "Bill Due Soon: ${dueBills.first().title}"
-        } else {
-            "${dueBills.size} Recurring Bills Due Soon"
-        }
-        val body = if (dueBills.size == 1) {
-            val bill = dueBills.first()
-            val timeStr = LocalTime.of(bill.dueHour.coerceIn(0, 23), bill.dueMinute.coerceIn(0, 59))
-                .format(timeFormatter)
-            "${ShiftlyFormatters.formatCurrency(currencySymbol, bill.amount)} is due soon ($timeStr)."
-        } else {
-            val total = dueBills.sumOf { it.amount }
-            val names = dueBills.take(2).joinToString(", ") { it.title }
-            val extra = if (dueBills.size > 2) " +${dueBills.size - 2} more" else ""
-            "$names$extra (${ShiftlyFormatters.formatCurrency(currencySymbol, total)}) due within 24 hours."
-        }
+        val copy = formatRecurringBillReminderCopy(dueBills, currencySymbol)
         val notification = NotificationCompat.Builder(context, CHANNEL_RECURRING_BILLS)
             .setSmallIcon(R.drawable.ic_stat_shiftly)
-            .setContentTitle(title)
-            .setContentText(body)
+            .setContentTitle(copy.title)
+            .setContentText(copy.message)
             .setAutoCancel(true)
             .setContentIntent(launchAppPendingIntent(context))
             .build()
@@ -158,10 +195,11 @@ object ShiftlyNotificationHelper {
     fun showShiftReminder(context: Context): Boolean {
         if (!canPostNotifications(context)) return false
         ensureChannels(context)
+        val copy = formatShiftReminderCopy()
         val notification = NotificationCompat.Builder(context, CHANNEL_SHIFT)
             .setSmallIcon(R.drawable.ic_stat_shiftly)
-            .setContentTitle("Log Shift Reminder")
-            .setContentText("Did you work today? Tap to log your shift hours in Shiftly.")
+            .setContentTitle(copy.title)
+            .setContentText(copy.message)
             .setAutoCancel(true)
             .setContentIntent(launchAppPendingIntent(context))
             .build()
@@ -180,21 +218,11 @@ object ShiftlyNotificationHelper {
     ): Boolean {
         if (!canPostNotifications(context)) return false
         ensureChannels(context)
-        val goalLabel = if (activeGoalTitle.isNotBlank()) " for $activeGoalTitle" else ""
-        val title = if (isPayday) {
-            "Payday! Add a Savings Deposit"
-        } else {
-            "Log Saving Reminder"
-        }
-        val body = if (isPayday) {
-            "Your payout cutoff is here — tap to add a deposit$goalLabel."
-        } else {
-            "Don't forget to add a deposit$goalLabel today in Shiftly."
-        }
+        val copy = formatSavingsDepositReminderCopy(activeGoalTitle, isPayday)
         val notification = NotificationCompat.Builder(context, CHANNEL_SAVINGS_DEPOSIT)
             .setSmallIcon(R.drawable.ic_stat_shiftly)
-            .setContentTitle(title)
-            .setContentText(body)
+            .setContentTitle(copy.title)
+            .setContentText(copy.message)
             .setAutoCancel(true)
             .setContentIntent(launchAppPendingIntent(context))
             .build()

@@ -8,6 +8,7 @@ import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
+import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
@@ -122,6 +123,9 @@ data class HomeUiState(
     val monthlyBudget: Double = 0.0,
     val pendingSplitsOwed: Double = 0.0,
     val pendingSplitBillCount: Int = 0,
+    val notifications: List<InAppNotificationItem> = emptyList(),
+    val unreadNotificationCount: Int = 0,
+    val pendingHeadsUpNotification: InAppNotificationItem? = null,
     val cutoffSummary: CutoffShiftSummary = CutoffShiftSummary(
         window = CutoffWindow(
             startDate = LocalDate.now(),
@@ -144,6 +148,25 @@ data class HomeUiState(
 class HomeViewModel(
     private val repository: ShiftlyRepository
 ) : ViewModel() {
+
+    private class CachedHomeFormatters(
+        val locale: Locale,
+        val timeFormatter: DateTimeFormatter,
+        val monthDayFormatter: DateTimeFormatter
+    )
+
+    @Volatile
+    private var cachedFormatters: CachedHomeFormatters? = null
+
+    private fun formattersFor(locale: Locale): CachedHomeFormatters {
+        val existing = cachedFormatters
+        if (existing != null && existing.locale == locale) return existing
+        return CachedHomeFormatters(
+            locale = locale,
+            timeFormatter = DateTimeFormatter.ofPattern("h:mm a", locale),
+            monthDayFormatter = DateTimeFormatter.ofPattern("MMM d", locale)
+        ).also { cachedFormatters = it }
+    }
 
     private data class CorePrefs(
         val userName: String,
@@ -181,6 +204,13 @@ class HomeViewModel(
         )
     }
 
+    private val settingsAndInboxFlow = combine(
+        repository.settingsSnapshot,
+        repository.notificationInbox
+    ) { settings, inbox ->
+        settings to inbox
+    }
+
     val uiState: StateFlow<HomeUiState> = combine(
         corePrefsFlow,
         repository.allShifts,
@@ -189,7 +219,7 @@ class HomeViewModel(
         repository.allSplitBills,
         repository.allSavingsGoals,
         repository.allAllowanceEntries,
-        repository.settingsSnapshot
+        settingsAndInboxFlow
     ) { values ->
         val prefs = values[0] as CorePrefs
         @Suppress("UNCHECKED_CAST")
@@ -204,7 +234,10 @@ class HomeViewModel(
         val rawGoals = values[5] as List<SavingsGoalWithDeposits>
         @Suppress("UNCHECKED_CAST")
         val allowanceEntries = values[6] as List<AllowanceEntryEntity>
-        val settings = values[7] as ShiftlySettingsSnapshot
+        @Suppress("UNCHECKED_CAST")
+        val settingsAndInbox = values[7] as Pair<ShiftlySettingsSnapshot, List<InAppNotificationItem>>
+        val settings = settingsAndInbox.first
+        val inboxItems = settingsAndInbox.second
 
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
@@ -281,8 +314,9 @@ class HomeViewModel(
             }
             .sortedByDescending { it.totalAmount }
 
-        val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault())
-        val monthDayFormatter = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault())
+        val formatters = formattersFor(Locale.getDefault())
+        val timeFormatter = formatters.timeFormatter
+        val monthDayFormatter = formatters.monthDayFormatter
 
         val shiftItems = shifts.take(6).map { shift ->
             val startStr = Instant.ofEpochMilli(shift.timeInMillis).atZone(zone).toLocalTime().format(timeFormatter)
@@ -343,6 +377,13 @@ class HomeViewModel(
         val combinedTimeline = (shiftItems + extraItems + manualAllowanceItems + expenseItems)
             .sortedWith(compareByDescending<TimelineActivityItem> { it.sortEpochDay }.thenByDescending { it.sortTimestamp })
 
+        val unreadCount = inboxItems.count { !it.isRead }
+        val pendingToast = if (settings.notificationsEnabled) {
+            inboxItems.firstOrNull { !it.isRead && !it.hasShownToast }
+        } else {
+            null
+        }
+
         HomeUiState(
             userName = prefs.userName,
             profilePhotoPath = prefs.profilePhotoPath,
@@ -356,6 +397,9 @@ class HomeViewModel(
             monthlyBudget = prefs.budget,
             pendingSplitsOwed = pendingSplitsOwed,
             pendingSplitBillCount = pendingSplitBillCount,
+            notifications = inboxItems,
+            unreadNotificationCount = unreadCount,
+            pendingHeadsUpNotification = pendingToast,
             cutoffSummary = cutoffSummary,
             savingsGoals = savingsGoalItems,
             currentMonthName = today.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
@@ -371,6 +415,30 @@ class HomeViewModel(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = HomeUiState()
         )
+
+    fun markNotificationRead(id: String) {
+        viewModelScope.launch {
+            repository.markNotificationRead(id)
+        }
+    }
+
+    fun markNotificationToastShown(id: String) {
+        viewModelScope.launch {
+            repository.markNotificationToastShown(id)
+        }
+    }
+
+    fun markAllNotificationsRead() {
+        viewModelScope.launch {
+            repository.markAllNotificationsRead()
+        }
+    }
+
+    fun clearAllNotifications() {
+        viewModelScope.launch {
+            repository.clearNotificationInbox()
+        }
+    }
 
     fun createSavingsGoal(title: String, targetAmount: Double, targetDateEpochDay: Long) {
         viewModelScope.launch {

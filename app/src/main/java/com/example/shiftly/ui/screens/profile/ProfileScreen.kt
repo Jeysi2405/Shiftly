@@ -86,6 +86,7 @@ import java.io.File
 import java.time.LocalDate
 
 private val BACKUP_PICKER_MIME_TYPES = arrayOf("application/zip", "application/json", "text/plain", "*/*")
+private val ProfileSettingsSheetTopShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
 
 private enum class ActiveSettingsSheet {
     ACCOUNT,
@@ -130,11 +131,13 @@ fun ProfileScreen(
         }
     }
 
-    val launchProfilePhotoPicker: () -> Unit = {
-        suppressNextRelock()
-        profilePhotoLauncher.launch(
-            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-        )
+    val launchProfilePhotoPicker: () -> Unit = remember(suppressNextRelock, profilePhotoLauncher) {
+        {
+            suppressNextRelock()
+            profilePhotoLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        }
     }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
@@ -144,7 +147,9 @@ fun ProfileScreen(
         pendingNotificationAction = null
         if (granted) {
             action?.invoke()
-            ShiftlyDailyWorker.triggerImmediateCheck(context)
+            scope.launch(Dispatchers.IO) {
+                ShiftlyDailyWorker.triggerImmediateCheck(context)
+            }
         } else {
             viewModel.updateNotificationsEnabled(false)
             onShowMessage("Notification permission denied — enable in Android Settings")
@@ -159,7 +164,9 @@ fun ProfileScreen(
             ) == PackageManager.PERMISSION_GRANTED
         ) {
             onGranted()
-            ShiftlyDailyWorker.triggerImmediateCheck(context)
+            scope.launch(Dispatchers.IO) {
+                ShiftlyDailyWorker.triggerImmediateCheck(context)
+            }
         } else {
             pendingNotificationAction = onGranted
             suppressNextRelock()
@@ -284,10 +291,12 @@ fun ProfileScreen(
         }
     }
 
+    val onOpenSheet = remember { { sheet: ActiveSettingsSheet -> activeSheet = sheet } }
+
     ProfileScreenContent(
         state = state,
         onAvatarClick = launchProfilePhotoPicker,
-        onOpenSheet = { activeSheet = it },
+        onOpenSheet = onOpenSheet,
         onOpenSavingsGoals = {
             if (state.savingsGoals.isEmpty()) {
                 showAddSavingsGoalSheet = true
@@ -670,7 +679,7 @@ private fun ProfileScreenContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 520.dp),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                shape = ProfileSettingsSheetTopShape,
                 color = colors.surface,
                 border = BorderStroke(1.dp, colors.cardBorder),
                 shadowElevation = 0.dp

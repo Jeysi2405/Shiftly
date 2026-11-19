@@ -50,6 +50,7 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
@@ -59,7 +60,6 @@ import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
 import com.example.shiftly.ui.screens.profile.ManageCategoriesSheetContent
-import com.example.shiftly.ui.screens.profile.ProfileViewModel
 import com.example.shiftly.ui.screens.profile.SettingsSheetContainer
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
@@ -69,7 +69,9 @@ import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.LocalDate
-import java.time.YearMonth
+
+private val ToolHubCardShape = RoundedCornerShape(24.dp)
+private val ToolHubPillShape = RoundedCornerShape(50)
 
 @Composable
 fun ToolsScreen(
@@ -83,47 +85,32 @@ fun ToolsScreen(
     onQuickAddExpense: () -> Unit,
     onShowMessage: (String) -> Unit = {}
 ) {
-    val profileViewModel: ProfileViewModel = viewModel(factory = ProfileViewModel.Factory(repository))
-    val profileState by profileViewModel.uiState.collectAsStateWithLifecycle()
-
-    val shifts by repository.allShifts.collectAsStateWithLifecycle(initialValue = emptyList())
-    val expenses by repository.allExpenses.collectAsStateWithLifecycle(initialValue = emptyList())
-    val splitBills by repository.allSplitBills.collectAsStateWithLifecycle(initialValue = emptyList())
-    val recurringBills by repository.allRecurringBills.collectAsStateWithLifecycle(initialValue = emptyList())
-    val allowanceEntries by repository.allAllowanceEntries.collectAsStateWithLifecycle(initialValue = emptyList())
+    val viewModel: ToolsViewModel = viewModel(factory = ToolsViewModel.Factory(repository))
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     var showBudgetsSheet by remember { mutableStateOf(false) }
     var showManageCategoriesSheet by remember { mutableStateOf(false) }
     var showAddSavingsGoalSheet by remember { mutableStateOf(false) }
     var showSavingsGoalDetailSheet by remember { mutableStateOf(false) }
 
-    val cutoffScheduleLabel = remember(profileState.settings) {
-        profileState.settings.cutoffScheduleConfig().displayLabel()
-    }
-
-    ToolsScreenContent(
-        currencySymbol = profileState.currencySymbol,
-        shifts = shifts,
-        expenses = expenses,
-        splitBills = splitBills,
-        monthlyBudget = profileState.monthlyBudget,
-        savingsGoals = profileState.savingsGoals,
-        recurringBills = recurringBills,
-        allowanceEntries = allowanceEntries,
-        cutoffScheduleLabel = cutoffScheduleLabel,
-        onOpenDuties = onOpenDuties,
-        onOpenExpense = onOpenExpense,
-        onOpenSplitBill = onOpenSplitBill,
-        onQuickLogShift = onQuickLogShift,
-        onQuickAddExpense = onQuickAddExpense,
-        onOpenBudgets = { showBudgetsSheet = true },
-        onOpenSavingsGoals = {
-            if (profileState.savingsGoals.isEmpty()) {
+    val onOpenBudgets = remember { { showBudgetsSheet = true } }
+    val onOpenSavingsGoals = remember(state.savingsGoals.isEmpty()) {
+        {
+            if (state.savingsGoals.isEmpty()) {
                 showAddSavingsGoalSheet = true
             } else {
                 showSavingsGoalDetailSheet = true
             }
-        },
+        }
+    }
+
+    ToolsScreenContent(
+        state = state,
+        onOpenDuties = onOpenDuties,
+        onOpenExpense = onOpenExpense,
+        onOpenSplitBill = onOpenSplitBill,
+        onOpenBudgets = onOpenBudgets,
+        onOpenSavingsGoals = onOpenSavingsGoals,
         onOpenRecurringBills = onOpenRecurringBills,
         onOpenAllowance = onOpenAllowance
     )
@@ -137,14 +124,14 @@ fun ToolsScreen(
             }
         ) {
             BudgetsEditorSheetContent(
-                currencySymbol = profileState.currencySymbol,
-                currentMonthlyBudget = profileState.monthlyBudget,
-                currentCategoryBudgets = profileState.settings.categoryBudgets,
-                managedCategories = profileState.settings.managedCategories,
+                currencySymbol = state.currencySymbol,
+                currentMonthlyBudget = state.monthlyBudget,
+                currentCategoryBudgets = state.settings.categoryBudgets,
+                managedCategories = state.settings.managedCategories,
                 onManageCategories = { showManageCategoriesSheet = true },
                 onDismiss = { showBudgetsSheet = false },
                 onSave = { monthly, categoryList ->
-                    profileViewModel.updateBudgets(monthly, categoryList)
+                    viewModel.updateBudgets(monthly, categoryList)
                     showBudgetsSheet = false
                     onShowMessage("Budgets saved")
                 }
@@ -158,9 +145,9 @@ fun ToolsScreen(
             onDismiss = { showManageCategoriesSheet = false }
         ) {
             ManageCategoriesSheetContent(
-                currentCategories = profileState.settings.managedCategories,
+                currentCategories = state.settings.managedCategories,
                 onSave = { updated ->
-                    profileViewModel.updateManagedCategories(updated)
+                    viewModel.updateManagedCategories(updated)
                     showManageCategoriesSheet = false
                     onShowMessage("Categories updated")
                 }
@@ -169,30 +156,30 @@ fun ToolsScreen(
     }
 
     if (showSavingsGoalDetailSheet) {
-        val activeGoalId = remember(profileState.savingsGoals) {
-            (profileState.savingsGoals.firstOrNull { it.goal.isActive }
-                ?: profileState.savingsGoals.firstOrNull())?.goal?.id
+        val activeGoalId = remember(state.savingsGoals) {
+            (state.savingsGoals.firstOrNull { it.goal.isActive }
+                ?: state.savingsGoals.firstOrNull())?.goal?.id
         }
         SavingsGoalDetailSheet(
-            goals = profileState.savingsGoals,
+            goals = state.savingsGoals,
             initialGoalId = activeGoalId,
-            currencySymbol = profileState.currencySymbol,
+            currencySymbol = state.currencySymbol,
             onDismiss = { showSavingsGoalDetailSheet = false },
-            onSelectActiveGoal = { goalId -> profileViewModel.setActiveSavingsGoal(goalId) },
+            onSelectActiveGoal = { goalId -> viewModel.setActiveSavingsGoal(goalId) },
             onOpenAddNewGoal = {
                 showSavingsGoalDetailSheet = false
                 showAddSavingsGoalSheet = true
             },
             onAddDeposit = { goal, amount, note ->
-                profileViewModel.addSavingsDeposit(goal, amount, note)
-                onShowMessage("Saved ${ShiftlyFormatters.formatCurrency(profileState.currencySymbol, amount)}")
+                viewModel.addSavingsDeposit(goal, amount, note)
+                onShowMessage("Saved ${ShiftlyFormatters.formatCurrency(state.currencySymbol, amount)}")
             },
             onDeleteDeposit = { dep ->
-                profileViewModel.deleteSavingsDeposit(dep)
+                viewModel.deleteSavingsDeposit(dep)
                 onShowMessage("Savings deposit removed")
             },
             onDeleteGoal = { goal ->
-                profileViewModel.deleteSavingsGoal(goal)
+                viewModel.deleteSavingsGoal(goal)
                 onShowMessage("Savings goal deleted")
             }
         )
@@ -200,14 +187,175 @@ fun ToolsScreen(
 
     if (showAddSavingsGoalSheet) {
         AddSavingsGoalSheet(
-            currencySymbol = profileState.currencySymbol,
+            currencySymbol = state.currencySymbol,
             onDismiss = { showAddSavingsGoalSheet = false },
             onCreateGoal = { title, targetAmount, targetDateEpochDay ->
-                profileViewModel.createSavingsGoal(title, targetAmount, targetDateEpochDay)
+                viewModel.createSavingsGoal(title, targetAmount, targetDateEpochDay)
                 showAddSavingsGoalSheet = false
                 onShowMessage("Savings goal \"$title\" added")
             }
         )
+    }
+}
+
+@Composable
+fun ToolsScreenContent(
+    state: ToolsUiState,
+    onOpenDuties: () -> Unit,
+    onOpenExpense: () -> Unit,
+    onOpenSplitBill: () -> Unit,
+    onOpenBudgets: () -> Unit = {},
+    onOpenSavingsGoals: () -> Unit = {},
+    onOpenRecurringBills: () -> Unit = {},
+    onOpenAllowance: () -> Unit = {}
+) {
+    val colors = ShiftlyColors.current
+    val currencySymbol = state.currencySymbol
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 112.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item(key = "tools_header", contentType = "header") {
+            ShiftlyScreenHeader(
+                title = "Tools",
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+        }
+
+        item(key = "tool_duties", contentType = "tool_card") {
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ToolHubCard(
+                    title = "Duties & Shifts",
+                    metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthShiftEarnings),
+                    metricSub = "${ShiftlyFormatters.formatHours(state.monthShiftHours, compact = true)} this month • ${state.monthShiftCount} shift(s)",
+                    iconRes = R.drawable.ic_lucide_clock,
+                    iconBg = colors.mintContainer,
+                    iconTint = colors.mintInk,
+                    metricColor = colors.mintInk,
+                    quickActionLabel = null,
+                    onQuickAction = null,
+                    onClick = onOpenDuties
+                )
+            }
+        }
+
+        item(key = "tool_expense", contentType = "tool_card") {
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ToolHubCard(
+                    title = "Expenses & Receipts",
+                    metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthSpent),
+                    metricSub = if (state.monthlyBudget > 0.0) {
+                        "of ${ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget)} monthly budget"
+                    } else {
+                        "${state.monthExpenseCount} expense(s) this month"
+                    },
+                    iconRes = R.drawable.ic_lucide_receipt_text,
+                    iconBg = colors.coralContainer,
+                    iconTint = colors.coralInk,
+                    metricColor = colors.coralInk,
+                    quickActionLabel = null,
+                    onQuickAction = null,
+                    onClick = onOpenExpense
+                )
+            }
+        }
+
+        item(key = "tool_split_bill", contentType = "tool_card") {
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ToolHubCard(
+                    title = "Split Bill",
+                    metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.pendingSplitsAmount),
+                    metricSub = if (state.pendingBillsCount > 0) {
+                        "${state.pendingBillsCount} active bill(s) awaiting payment"
+                    } else {
+                        "${state.totalSplitBillsCount} bill(s) • all settled"
+                    },
+                    iconRes = R.drawable.ic_lucide_split,
+                    iconBg = colors.azureContainer,
+                    iconTint = colors.azureInk,
+                    metricColor = colors.azureInk,
+                    quickActionLabel = null,
+                    onQuickAction = null,
+                    onClick = onOpenSplitBill
+                )
+            }
+        }
+
+        item(key = "tool_budgets", contentType = "tool_card") {
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ToolHubCard(
+                    title = "Monthly & Category Budgets",
+                    metric = if (state.monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget) else "Set Budget",
+                    metricSub = "Monthly spend limit & category targets",
+                    iconRes = R.drawable.ic_lucide_wallet,
+                    iconBg = colors.coralContainer,
+                    iconTint = colors.coralInk,
+                    metricColor = colors.coralInk,
+                    quickActionLabel = null,
+                    onQuickAction = null,
+                    onClick = onOpenBudgets
+                )
+            }
+        }
+
+        item(key = "tool_savings", contentType = "tool_card") {
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ToolHubCard(
+                    title = "Savings Goals",
+                    metric = state.activeGoalTitle ?: "Add Goal",
+                    metricSub = if (state.activeGoalTitle != null) {
+                        "${ShiftlyFormatters.formatCurrency(currencySymbol, state.activeGoalSaved)} of ${ShiftlyFormatters.formatCurrency(currencySymbol, state.activeGoalTarget)}"
+                    } else {
+                        "Track savings progress"
+                    },
+                    iconRes = R.drawable.ic_lucide_piggy_bank,
+                    iconBg = colors.mintContainer,
+                    iconTint = colors.mintInk,
+                    metricColor = colors.mintInk,
+                    quickActionLabel = null,
+                    onQuickAction = null,
+                    onClick = onOpenSavingsGoals
+                )
+            }
+        }
+
+        item(key = "tool_recurring", contentType = "tool_card") {
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ToolHubCard(
+                    title = "Recurring Bills",
+                    metric = "${state.enabledRecurringCount} active",
+                    metricSub = "${state.totalRecurringCount} scheduled bill(s)",
+                    iconRes = R.drawable.ic_lucide_repeat,
+                    iconBg = colors.azureContainer,
+                    iconTint = colors.azureInk,
+                    metricColor = colors.azureInk,
+                    quickActionLabel = null,
+                    onQuickAction = null,
+                    onClick = onOpenRecurringBills
+                )
+            }
+        }
+
+        item(key = "tool_allowance", contentType = "tool_card") {
+            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                ToolHubCard(
+                    title = "Allowance",
+                    metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.totalAllowanceAmount),
+                    metricSub = "${state.cutoffScheduleLabel} • ${state.allowanceEntryCount} entry(s)",
+                    iconRes = R.drawable.ic_lucide_wallet,
+                    iconBg = colors.mintContainer,
+                    iconTint = colors.mintInk,
+                    metricColor = colors.mintInk,
+                    quickActionLabel = null,
+                    onQuickAction = null,
+                    onClick = onOpenAllowance
+                )
+            }
+        }
     }
 }
 
@@ -232,218 +380,40 @@ fun ToolsScreenContent(
     onOpenRecurringBills: () -> Unit = {},
     onOpenAllowance: () -> Unit = {}
 ) {
-    val colors = ShiftlyColors.current
-    val currentMonth = remember { YearMonth.now() }
-    val monthStartEpoch = remember(currentMonth) { currentMonth.atDay(1).toEpochDay() }
-    val monthEndEpoch = remember(currentMonth) { currentMonth.atEndOfMonth().toEpochDay() }
-
-    val shiftSummary = remember(shifts, monthStartEpoch, monthEndEpoch) {
-        var count = 0
-        var minutes = 0L
-        var earnings = 0.0
-        for (shift in shifts) {
-            if (shift.dateEpochDay in monthStartEpoch..monthEndEpoch) {
-                count++
-                minutes += shift.durationMinutes
-                earnings += shift.totalEarned
-            }
-        }
-        Triple(count, minutes / 60.0, earnings)
-    }
-    val monthShiftCount = shiftSummary.first
-    val monthShiftHours = shiftSummary.second
-    val monthShiftEarnings = shiftSummary.third
-
-    val expenseSummary = remember(expenses, monthStartEpoch, monthEndEpoch) {
-        var count = 0
-        var spent = 0.0
-        for (expense in expenses) {
-            if (expense.dateEpochDay in monthStartEpoch..monthEndEpoch) {
-                count++
-                spent += expense.amount
-            }
-        }
-        Pair(count, spent)
-    }
-    val monthExpenseCount = expenseSummary.first
-    val monthSpent = expenseSummary.second
-
-    val splitSummary = remember(splitBills) {
-        var pendingAmt = 0.0
-        var pendingBills = 0
-        for (item in splitBills) {
-            var hasUnpaidFriend = false
-            for (p in item.participants) {
-                if (!p.isCurrentUser && !p.hasPaid) {
-                    pendingAmt += p.amountOwed
-                    hasUnpaidFriend = true
-                }
-            }
-            if (hasUnpaidFriend) pendingBills++
-        }
-        Pair(pendingAmt, pendingBills)
-    }
-    val pendingSplitsAmount = splitSummary.first
-    val pendingBillsCount = splitSummary.second
-
-    val activeGoal = remember(savingsGoals) {
-        savingsGoals.firstOrNull { it.goal.isActive } ?: savingsGoals.firstOrNull()
-    }
-    val activeGoalSaved = remember(activeGoal) {
-        activeGoal?.deposits?.sumOf { it.amount } ?: 0.0
-    }
-    val enabledRecurringCount = remember(recurringBills) {
-        recurringBills.count { it.isEnabled }
-    }
-    val totalAllowanceAmount = remember(allowanceEntries) {
-        allowanceEntries.sumOf { it.amount }
-    }
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 112.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+    val state = remember(
+        currencySymbol,
+        shifts,
+        expenses,
+        splitBills,
+        monthlyBudget,
+        savingsGoals,
+        recurringBills,
+        allowanceEntries,
+        cutoffScheduleLabel
     ) {
-        item(key = "tools_header", contentType = "header") {
-            ShiftlyScreenHeader(
-                title = "Tools",
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-        }
-
-        item(key = "tool_duties", contentType = "tool_card") {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                ToolHubCard(
-                    title = "Duties & Shifts",
-                    metric = ShiftlyFormatters.formatCurrency(currencySymbol, monthShiftEarnings),
-                    metricSub = "${ShiftlyFormatters.formatHours(monthShiftHours, compact = true)} this month • $monthShiftCount shift(s)",
-                    iconRes = R.drawable.ic_lucide_clock,
-                    iconBg = colors.mintContainer,
-                    iconTint = colors.mintInk,
-                    metricColor = colors.mintInk,
-                    quickActionLabel = null,
-                    onQuickAction = null,
-                    onClick = onOpenDuties
-                )
-            }
-        }
-
-        item(key = "tool_expense", contentType = "tool_card") {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                ToolHubCard(
-                    title = "Expenses & Receipts",
-                    metric = ShiftlyFormatters.formatCurrency(currencySymbol, monthSpent),
-                    metricSub = if (monthlyBudget > 0.0) {
-                        "of ${ShiftlyFormatters.formatCurrency(currencySymbol, monthlyBudget)} monthly budget"
-                    } else {
-                        "$monthExpenseCount expense(s) this month"
-                    },
-                    iconRes = R.drawable.ic_lucide_receipt_text,
-                    iconBg = colors.coralContainer,
-                    iconTint = colors.coralInk,
-                    metricColor = colors.coralInk,
-                    quickActionLabel = null,
-                    onQuickAction = null,
-                    onClick = onOpenExpense
-                )
-            }
-        }
-
-        item(key = "tool_split_bill", contentType = "tool_card") {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                ToolHubCard(
-                    title = "Split Bill",
-                    metric = ShiftlyFormatters.formatCurrency(currencySymbol, pendingSplitsAmount),
-                    metricSub = if (pendingBillsCount > 0) {
-                        "$pendingBillsCount active bill(s) awaiting payment"
-                    } else {
-                        "${splitBills.size} bill(s) • all settled"
-                    },
-                    iconRes = R.drawable.ic_lucide_split,
-                    iconBg = colors.azureContainer,
-                    iconTint = colors.azureInk,
-                    metricColor = colors.azureInk,
-                    quickActionLabel = null,
-                    onQuickAction = null,
-                    onClick = onOpenSplitBill
-                )
-            }
-        }
-
-        item(key = "tool_budgets", contentType = "tool_card") {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                ToolHubCard(
-                    title = "Monthly & Category Budgets",
-                    metric = if (monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, monthlyBudget) else "Set Budget",
-                    metricSub = "Monthly spend limit & category targets",
-                    iconRes = R.drawable.ic_lucide_wallet,
-                    iconBg = colors.coralContainer,
-                    iconTint = colors.coralInk,
-                    metricColor = colors.coralInk,
-                    quickActionLabel = null,
-                    onQuickAction = null,
-                    onClick = onOpenBudgets
-                )
-            }
-        }
-
-        item(key = "tool_savings", contentType = "tool_card") {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                ToolHubCard(
-                    title = "Savings Goals",
-                    metric = activeGoal?.goal?.title ?: "Add Goal",
-                    metricSub = if (activeGoal != null) {
-                        "${ShiftlyFormatters.formatCurrency(currencySymbol, activeGoalSaved)} of ${ShiftlyFormatters.formatCurrency(currencySymbol, activeGoal.goal.targetAmount)}"
-                    } else {
-                        "Track savings progress"
-                    },
-                    iconRes = R.drawable.ic_lucide_piggy_bank,
-                    iconBg = colors.mintContainer,
-                    iconTint = colors.mintInk,
-                    metricColor = colors.mintInk,
-                    quickActionLabel = null,
-                    onQuickAction = null,
-                    onClick = onOpenSavingsGoals
-                )
-            }
-        }
-
-        item(key = "tool_recurring", contentType = "tool_card") {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                ToolHubCard(
-                    title = "Recurring Bills",
-                    metric = "$enabledRecurringCount active",
-                    metricSub = "${recurringBills.size} scheduled bill(s)",
-                    iconRes = R.drawable.ic_lucide_repeat,
-                    iconBg = colors.azureContainer,
-                    iconTint = colors.azureInk,
-                    metricColor = colors.azureInk,
-                    quickActionLabel = null,
-                    onQuickAction = null,
-                    onClick = onOpenRecurringBills
-                )
-            }
-        }
-
-        item(key = "tool_allowance", contentType = "tool_card") {
-            Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                ToolHubCard(
-                    title = "Allowance",
-                    metric = ShiftlyFormatters.formatCurrency(currencySymbol, totalAllowanceAmount),
-                    metricSub = "$cutoffScheduleLabel • ${allowanceEntries.size} entry(s)",
-                    iconRes = R.drawable.ic_lucide_wallet,
-                    iconBg = colors.mintContainer,
-                    iconTint = colors.mintInk,
-                    metricColor = colors.mintInk,
-                    quickActionLabel = null,
-                    onQuickAction = null,
-                    onClick = onOpenAllowance
-                )
-            }
-        }
+        ToolsViewModel.computeToolsUiState(
+            currencySymbol = currencySymbol,
+            monthlyBudget = monthlyBudget,
+            settings = ShiftlySettingsSnapshot(),
+            shifts = shifts,
+            expenses = expenses,
+            splitBills = splitBills,
+            savingsGoals = savingsGoals,
+            recurringBills = recurringBills,
+            allowanceEntries = allowanceEntries
+        ).copy(cutoffScheduleLabel = cutoffScheduleLabel)
     }
+
+    ToolsScreenContent(
+        state = state,
+        onOpenDuties = onOpenDuties,
+        onOpenExpense = onOpenExpense,
+        onOpenSplitBill = onOpenSplitBill,
+        onOpenBudgets = onOpenBudgets,
+        onOpenSavingsGoals = onOpenSavingsGoals,
+        onOpenRecurringBills = onOpenRecurringBills,
+        onOpenAllowance = onOpenAllowance
+    )
 }
 
 @Composable
@@ -464,7 +434,7 @@ private fun ToolHubCard(
         cornerRadius = 24.dp,
         contentPadding = PaddingValues(18.dp),
         modifier = Modifier
-            .clip(RoundedCornerShape(24.dp))
+            .clip(ToolHubCardShape)
             .clickable(onClick = onClick)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -541,13 +511,13 @@ private fun ToolHubCard(
                 if (quickActionLabel != null && onQuickAction != null) {
                     Spacer(modifier = Modifier.width(4.dp))
                     Surface(
-                        shape = RoundedCornerShape(50),
+                        shape = ToolHubPillShape,
                         color = colors.card,
                         border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .heightIn(min = 40.dp)
-                            .clip(RoundedCornerShape(50))
+                            .clip(ToolHubPillShape)
                             .clickable(onClick = onQuickAction)
                     ) {
                         Row(

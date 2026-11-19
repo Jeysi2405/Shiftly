@@ -56,6 +56,10 @@ import com.example.shiftly.workers.ShiftlyDailyWorker
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+private val RecurringPillShape = RoundedCornerShape(50)
 
 @Composable
 fun RecurringBillsScreen(
@@ -72,11 +76,16 @@ fun RecurringBillsScreen(
     var editingBill by remember { mutableStateOf<RecurringBillEntity?>(null) }
     var pendingDeleteBill by remember { mutableStateOf<RecurringBillEntity?>(null) }
 
-    LaunchedEffect(state.bills) {
-        ShiftlyDailyWorker.scheduleNextRecurringCheck(
-            context = context,
-            nextDue = RecurringEngine.earliestNextDueDateTime(state.bills)
-        )
+    val earliestNextDue = remember(state.bills) {
+        RecurringEngine.earliestNextDueDateTime(state.bills)
+    }
+    LaunchedEffect(earliestNextDue) {
+        withContext(Dispatchers.IO) {
+            ShiftlyDailyWorker.scheduleNextRecurringCheck(
+                context = context,
+                nextDue = earliestNextDue
+            )
+        }
     }
 
     RecurringBillsScreenContent(
@@ -201,7 +210,7 @@ fun RecurringBillsScreenContent(
                 if (state.bills.isNotEmpty()) {
                     Button(
                         onClick = onOpenAddSheet,
-                        shape = RoundedCornerShape(50),
+                        shape = RecurringPillShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = colors.azurePrimary,
                             contentColor = colors.onAzurePrimary

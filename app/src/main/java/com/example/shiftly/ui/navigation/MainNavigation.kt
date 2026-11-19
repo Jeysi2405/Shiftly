@@ -4,6 +4,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -138,11 +139,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val NavBarPillShape = RoundedCornerShape(50)
+private val SheetTopRoundedShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+private val QuickAddOptionShape = RoundedCornerShape(18.dp)
+private val DepositFieldShape = RoundedCornerShape(14.dp)
 
 @Composable
 fun MainAppScreen() {
     val context = LocalContext.current
-    val repository = remember { ShiftlyRepository(context.applicationContext) }
+    val repository = remember { ShiftlyRepository.getInstance(context) }
     val hasCompletedOnboarding by repository.hasCompletedOnboarding
         .collectAsStateWithLifecycle(initialValue = null)
     val settings by repository.settingsSnapshot
@@ -253,7 +257,6 @@ private fun MainDashboardShell(
 ) {
     val colors = ShiftlyColors.current
     val context = LocalContext.current
-    val haptics = LocalHapticFeedback.current
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -264,12 +267,6 @@ private fun MainDashboardShell(
         currentRoute == Screen.RecurringBills.route ||
         currentRoute == Screen.Allowance.route
 
-    val dutiesViewModel: DutiesViewModel = viewModel(factory = DutiesViewModel.Factory(repository))
-    val dutiesState by dutiesViewModel.uiState.collectAsStateWithLifecycle()
-    val expenseViewModel: ExpenseViewModel = viewModel(factory = ExpenseViewModel.Factory(repository))
-    val expenseState by expenseViewModel.uiState.collectAsStateWithLifecycle()
-    val splitBillViewModel: SplitBillViewModel = viewModel(factory = SplitBillViewModel.Factory(repository))
-
     var showQuickActionSheet by remember { mutableStateOf(false) }
     var showQuickLogShiftSheet by remember { mutableStateOf(false) }
     var quickEditingShift by remember { mutableStateOf<ShiftEntity?>(null) }
@@ -279,31 +276,24 @@ private fun MainDashboardShell(
     var showQuickAddGoalSheet by remember { mutableStateOf(false) }
     var showQuickDepositSheet by remember { mutableStateOf(false) }
 
-    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
-    val savingsGoals by repository.allSavingsGoals.collectAsStateWithLifecycle(initialValue = emptyList())
-
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(Unit) {
-        repository.processDueRecurringEntries()
-        repository.processDueCutoffAllowances()
-        ShiftlyDailyWorker.scheduleDailyMaintenance(context)
-        val bills = withContext(Dispatchers.IO) { repository.allRecurringBills.first() }
-        ShiftlyDailyWorker.scheduleNextRecurringCheck(
-            context = context,
-            nextDue = RecurringEngine.earliestNextDueDateTime(bills)
-        )
+        withContext(Dispatchers.IO) {
+            ShiftlyDailyWorker.scheduleDailyMaintenance(context)
+        }
     }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                scope.launch {
+                scope.launch(Dispatchers.IO) {
                     repository.processDueRecurringEntries()
                     repository.processDueCutoffAllowances()
-                    val bills = withContext(Dispatchers.IO) { repository.allRecurringBills.first() }
+                    repository.syncInAppNotifications()
+                    val bills = repository.allRecurringBills.first()
                     ShiftlyDailyWorker.scheduleNextRecurringCheck(
                         context = context,
                         nextDue = RecurringEngine.earliestNextDueDateTime(bills)
@@ -327,34 +317,68 @@ private fun MainDashboardShell(
         }
     }
 
-    fun navigateToTab(screen: Screen) {
-        navController.navigate(screen.route) {
-            popUpTo(navController.graph.findStartDestination().id) {
-                saveState = true
+    val navigateToTab: (Screen) -> Unit = remember(navController) {
+        { screen: Screen ->
+            navController.navigate(screen.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
+                }
+                launchSingleTop = true
+                restoreState = true
             }
-            launchSingleTop = true
-            restoreState = true
         }
     }
 
-    fun onBottomBarSelect(screen: Screen) {
-        val route = currentDestination?.route
-        if (screen == Screen.Tools && (
-                route == Screen.Duties.route ||
-                route == Screen.Expense.route ||
-                route == Screen.SplitBill.route ||
-                route == Screen.RecurringBills.route ||
-                route == Screen.Allowance.route
-            )
-        ) {
-            val popped = navController.popBackStack(Screen.Tools.route, inclusive = false)
-            if (!popped) {
-                navigateToTab(Screen.Tools)
+    val onBottomBarSelect: (Screen) -> Unit = remember(navController, currentRoute, navigateToTab) {
+        { screen: Screen ->
+            if (screen == Screen.Tools && (
+                    currentRoute == Screen.Duties.route ||
+                    currentRoute == Screen.Expense.route ||
+                    currentRoute == Screen.SplitBill.route ||
+                    currentRoute == Screen.RecurringBills.route ||
+                    currentRoute == Screen.Allowance.route
+                )
+            ) {
+                val popped = navController.popBackStack(Screen.Tools.route, inclusive = false)
+                if (!popped) {
+                    navigateToTab(Screen.Tools)
+                }
+            } else {
+                navigateToTab(screen)
             }
-        } else {
-            navigateToTab(screen)
         }
     }
+
+    val isNavItemSelected: (Screen) -> Boolean = remember(currentDestination) {
+        { screen: Screen ->
+            currentDestination?.hierarchy?.any { it.route == screen.route } == true
+        }
+    }
+    val onFabClick = remember { { showQuickActionSheet = true } }
+
+    val onNavigateToDuties = remember(navigateToTab) { { navigateToTab(Screen.Duties) } }
+    val onNavigateToExpense = remember(navigateToTab) { { navigateToTab(Screen.Expense) } }
+    val onNavigateToSplitBill = remember(navigateToTab) { { navigateToTab(Screen.SplitBill) } }
+    val onNavigateToProfile = remember(navigateToTab) { { navigateToTab(Screen.Profile) } }
+    val onNavigateToAnalytics = remember(navigateToTab) { { navigateToTab(Screen.Analytics) } }
+    val onPopBack: () -> Unit = remember(navController) { { navController.popBackStack(); Unit } }
+    val onOpenDuties = remember(navController) {
+        { navController.navigate(Screen.Duties.route) { launchSingleTop = true } }
+    }
+    val onOpenExpense = remember(navController) {
+        { navController.navigate(Screen.Expense.route) { launchSingleTop = true } }
+    }
+    val onOpenSplitBill = remember(navController) {
+        { navController.navigate(Screen.SplitBill.route) { launchSingleTop = true } }
+    }
+    val onOpenRecurringBills = remember(navController) {
+        { navController.navigate(Screen.RecurringBills.route) { launchSingleTop = true } }
+    }
+    val onOpenAllowance = remember(navController) {
+        { navController.navigate(Screen.Allowance.route) { launchSingleTop = true } }
+    }
+    val onQuickLogShift = remember { { showQuickLogShiftSheet = true } }
+    val onQuickAddExpense = remember { { showQuickAddExpenseSheet = true } }
 
     ShiftlyBlueGradientBackground {
         Scaffold(
@@ -369,7 +393,7 @@ private fun MainDashboardShell(
                         .padding(horizontal = 20.dp, vertical = 8.dp)
                 ) { data ->
                     Surface(
-                        shape = RoundedCornerShape(50),
+                        shape = NavBarPillShape,
                         color = colors.card,
                         border = BorderStroke(1.dp, colors.border),
                         shadowElevation = 0.dp,
@@ -438,12 +462,10 @@ private fun MainDashboardShell(
                 ) {
                     FloatingPillBottomBar(
                         items = Screen.bottomNavItems,
-                        isSelected = { screen ->
-                            currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                        },
-                        onSelect = ::onBottomBarSelect,
+                        isSelected = isNavItemSelected,
+                        onSelect = onBottomBarSelect,
                         isFabActive = showQuickActionSheet,
-                        onFabClick = { showQuickActionSheet = true }
+                        onFabClick = onFabClick
                     )
                 }
             }
@@ -454,85 +476,87 @@ private fun MainDashboardShell(
                 modifier = Modifier
                     .fillMaxSize()
                     .consumeWindowInsets(innerPadding),
-                enterTransition = { fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f, animationSpec = tween(220)) },
-                exitTransition = { fadeOut(animationSpec = tween(180)) },
-                popEnterTransition = { fadeIn(animationSpec = tween(220)) + scaleIn(initialScale = 0.98f, animationSpec = tween(220)) },
-                popExitTransition = { fadeOut(animationSpec = tween(180)) }
+                enterTransition = {
+                    fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                        scaleIn(initialScale = 0.985f, animationSpec = tween(180, easing = FastOutSlowInEasing))
+                },
+                exitTransition = {
+                    fadeOut(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                },
+                popEnterTransition = {
+                    fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                        scaleIn(initialScale = 0.985f, animationSpec = tween(180, easing = FastOutSlowInEasing))
+                },
+                popExitTransition = {
+                    fadeOut(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                }
             ) {
                 composable(Screen.Home.route) {
                     HomeScreen(
                         repository = repository,
-                        onNavigateToDuties = { navigateToTab(Screen.Duties) },
-                        onNavigateToExpense = { navigateToTab(Screen.Expense) },
-                        onNavigateToSplitBill = { navigateToTab(Screen.SplitBill) },
-                        onNavigateToProfile = { navigateToTab(Screen.Profile) },
-                        onNavigateToAnalytics = { navigateToTab(Screen.Analytics) },
+                        onNavigateToDuties = onNavigateToDuties,
+                        onNavigateToExpense = onNavigateToExpense,
+                        onNavigateToSplitBill = onNavigateToSplitBill,
+                        onNavigateToRecurringBills = onOpenRecurringBills,
+                        onNavigateToAllowance = onOpenAllowance,
+                        onNavigateToProfile = onNavigateToProfile,
+                        onNavigateToAnalytics = onNavigateToAnalytics,
                         onShowMessage = showMessage
                     )
                 }
                 composable(Screen.Analytics.route) {
                     AnalyticsScreen(
                         repository = repository,
-                        onBack = { navController.popBackStack() },
-                        onNavigateToSplitBill = { navigateToTab(Screen.SplitBill) },
+                        onBack = onPopBack,
+                        onNavigateToSplitBill = onNavigateToSplitBill,
                         onShowMessage = showMessage
                     )
                 }
                 composable(Screen.Tools.route) {
                     ToolsScreen(
                         repository = repository,
-                        onOpenDuties = {
-                            navController.navigate(Screen.Duties.route) { launchSingleTop = true }
-                        },
-                        onOpenExpense = {
-                            navController.navigate(Screen.Expense.route) { launchSingleTop = true }
-                        },
-                        onOpenSplitBill = {
-                            navController.navigate(Screen.SplitBill.route) { launchSingleTop = true }
-                        },
-                        onOpenRecurringBills = {
-                            navController.navigate(Screen.RecurringBills.route) { launchSingleTop = true }
-                        },
-                        onOpenAllowance = {
-                            navController.navigate(Screen.Allowance.route) { launchSingleTop = true }
-                        },
-                        onQuickLogShift = { showQuickLogShiftSheet = true },
-                        onQuickAddExpense = { showQuickAddExpenseSheet = true },
+                        onOpenDuties = onOpenDuties,
+                        onOpenExpense = onOpenExpense,
+                        onOpenSplitBill = onOpenSplitBill,
+                        onOpenRecurringBills = onOpenRecurringBills,
+                        onOpenAllowance = onOpenAllowance,
+                        onQuickLogShift = onQuickLogShift,
+                        onQuickAddExpense = onQuickAddExpense,
                         onShowMessage = showMessage
                     )
                 }
                 composable(Screen.Duties.route) {
                     DutiesScreen(
                         repository = repository,
-                        onBack = { navController.popBackStack() },
+                        onBack = onPopBack,
                         onShowMessage = showMessage
                     )
                 }
                 composable(Screen.Expense.route) {
                     ExpenseScreen(
                         repository = repository,
-                        onBack = { navController.popBackStack() },
+                        onBack = onPopBack,
                         onShowMessage = showMessage
                     )
                 }
                 composable(Screen.SplitBill.route) {
                     SplitBillScreen(
                         repository = repository,
-                        onBack = { navController.popBackStack() },
+                        onBack = onPopBack,
                         onShowMessage = showMessage
                     )
                 }
                 composable(Screen.RecurringBills.route) {
                     RecurringBillsScreen(
                         repository = repository,
-                        onBack = { navController.popBackStack() },
+                        onBack = onPopBack,
                         onShowMessage = showMessage
                     )
                 }
                 composable(Screen.Allowance.route) {
                     AllowanceScreen(
                         repository = repository,
-                        onBack = { navController.popBackStack() },
+                        onBack = onPopBack,
                         onShowMessage = showMessage
                     )
                 }
@@ -573,7 +597,70 @@ private fun MainDashboardShell(
         )
     }
 
-    if (showQuickLogShiftSheet) {
+    if (showQuickLogShiftSheet || quickEditingShift != null) {
+        QuickShiftSheetsHost(
+            repository = repository,
+            showLogSheet = showQuickLogShiftSheet,
+            editingShift = quickEditingShift,
+            onDismissLog = { showQuickLogShiftSheet = false },
+            onSwitchToEdit = { existing ->
+                showQuickLogShiftSheet = false
+                quickEditingShift = existing
+            },
+            onDismissEdit = { quickEditingShift = null },
+            onShowMessage = showMessage
+        )
+    }
+
+    if (showQuickAddExpenseSheet) {
+        QuickExpenseSheetHost(
+            repository = repository,
+            onDismiss = { showQuickAddExpenseSheet = false },
+            onShowMessage = showMessage
+        )
+    }
+
+    if (showQuickNewSplitSheet) {
+        QuickSplitSheetHost(
+            repository = repository,
+            prefillTrigger = quickSplitTrigger,
+            onDismiss = { showQuickNewSplitSheet = false },
+            onShowMessage = showMessage
+        )
+    }
+
+    if (showQuickAddGoalSheet) {
+        QuickAddGoalSheetHost(
+            repository = repository,
+            onDismiss = { showQuickAddGoalSheet = false },
+            onShowMessage = showMessage
+        )
+    }
+
+    if (showQuickDepositSheet) {
+        QuickDepositSheetHost(
+            repository = repository,
+            onDismiss = { showQuickDepositSheet = false },
+            onShowMessage = showMessage
+        )
+    }
+}
+
+@Composable
+private fun QuickShiftSheetsHost(
+    repository: ShiftlyRepository,
+    showLogSheet: Boolean,
+    editingShift: ShiftEntity?,
+    onDismissLog: () -> Unit,
+    onSwitchToEdit: (ShiftEntity) -> Unit,
+    onDismissEdit: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    val dutiesViewModel: DutiesViewModel = viewModel(factory = DutiesViewModel.Factory(repository))
+    val dutiesState by dutiesViewModel.uiState.collectAsStateWithLifecycle()
+
+    if (showLogSheet) {
         ManualShiftBottomSheet(
             selectedDate = dutiesState.selectedDutyDate,
             hourlyRate = dutiesState.defaultHourlyRate,
@@ -583,19 +670,16 @@ private fun MainDashboardShell(
             confirmButtonText = "Save Shift",
             blockedEpochDays = dutiesState.loggedEpochDays,
             onSwitchToEdit = { duplicateDate ->
-                dutiesState.shiftsByEpochDay[duplicateDate.toEpochDay()]?.let { existing ->
-                    showQuickLogShiftSheet = false
-                    quickEditingShift = existing
-                }
+                dutiesState.shiftsByEpochDay[duplicateDate.toEpochDay()]?.let(onSwitchToEdit)
             },
             onSavePreset = { sH, sM, eH, eM ->
                 dutiesViewModel.saveShiftTimePreset(sH, sM, eH, eM)
-                showMessage("Preset saved")
+                onShowMessage("Preset saved")
             },
             onDeletePreset = { presetId ->
                 dutiesViewModel.deleteShiftTimePreset(presetId)
             },
-            onDismiss = { showQuickLogShiftSheet = false },
+            onDismiss = onDismissLog,
             onSave = { date, sH, sM, eH, eM, note, dayType ->
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 dutiesViewModel.logManualShift(
@@ -608,10 +692,10 @@ private fun MainDashboardShell(
                     dayType = dayType,
                     onResult = { saved ->
                         if (saved) {
-                            showQuickLogShiftSheet = false
-                            showMessage("Shift logged")
+                            onDismissLog()
+                            onShowMessage("Shift logged")
                         } else {
-                            showMessage("A shift is already logged for this date")
+                            onShowMessage("A shift is already logged for this date")
                         }
                     }
                 )
@@ -619,7 +703,7 @@ private fun MainDashboardShell(
         )
     }
 
-    quickEditingShift?.let { targetShift ->
+    editingShift?.let { targetShift ->
         val zone = remember { ZoneId.systemDefault() }
         val startLocalTime = remember(targetShift.id, targetShift.timeInMillis) {
             Instant.ofEpochMilli(targetShift.timeInMillis).atZone(zone).toLocalTime()
@@ -646,7 +730,7 @@ private fun MainDashboardShell(
             initialDayType = initialDayType,
             showPresets = false,
             blockedEpochDays = dutiesState.loggedEpochDays - targetShift.dateEpochDay,
-            onDismiss = { quickEditingShift = null },
+            onDismiss = onDismissEdit,
             onSave = { date, sH, sM, eH, eM, note, dayType ->
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                 dutiesViewModel.editShift(
@@ -660,82 +744,118 @@ private fun MainDashboardShell(
                     overtimeNote = note,
                     onResult = { updated ->
                         if (updated) {
-                            quickEditingShift = null
-                            showMessage("Shift updated")
+                            onDismissEdit()
+                            onShowMessage("Shift updated")
                         } else {
-                            showMessage("A shift is already logged for that date")
+                            onShowMessage("A shift is already logged for that date")
                         }
                     }
                 )
             }
         )
     }
+}
 
-    if (showQuickAddExpenseSheet) {
-        AddExpenseBottomSheet(
-            currencySymbol = expenseState.currencySymbol,
-            availableCategories = expenseState.availableCategories,
-            onDismiss = { showQuickAddExpenseSheet = false },
-            onSaveExpense = { title, amount, category, date, receiptPath ->
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                expenseViewModel.addExpense(title, amount, category, date, receiptPath)
-                showMessage("Expense saved")
-            }
-        )
-    }
+@Composable
+private fun QuickExpenseSheetHost(
+    repository: ShiftlyRepository,
+    onDismiss: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    val expenseViewModel: ExpenseViewModel = viewModel(factory = ExpenseViewModel.Factory(repository))
+    val expenseState by expenseViewModel.uiState.collectAsStateWithLifecycle()
 
-    if (showQuickNewSplitSheet) {
-        NewSplitBillBottomSheet(
-            currencySymbol = currencySymbol,
-            prefillTrigger = quickSplitTrigger,
-            onDismiss = { showQuickNewSplitSheet = false },
-            onSaveSplitBill = { title, totalAmount, personCount, names, paidStates, alsoLogAsExpense ->
-                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                splitBillViewModel.createSplitBill(
-                    rawTitle = title,
-                    totalAmount = totalAmount,
-                    personCount = personCount,
-                    participantNames = names,
-                    participantPaidStates = paidStates,
-                    alsoLogMyShareAsExpense = alsoLogAsExpense
-                )
-                showQuickNewSplitSheet = false
-                showMessage(
-                    if (alsoLogAsExpense) "Split bill saved & share logged to Expenses"
-                    else "Split bill saved as pending"
-                )
-            }
-        )
-    }
+    AddExpenseBottomSheet(
+        currencySymbol = expenseState.currencySymbol,
+        availableCategories = expenseState.availableCategories,
+        onDismiss = onDismiss,
+        onSaveExpense = { title, amount, category, date, receiptPath ->
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            expenseViewModel.addExpense(title, amount, category, date, receiptPath)
+            onShowMessage("Expense saved")
+        }
+    )
+}
 
-    if (showQuickAddGoalSheet) {
-        AddSavingsGoalSheet(
-            currencySymbol = currencySymbol,
-            onDismiss = { showQuickAddGoalSheet = false },
-            onCreateGoal = { title, targetAmount, targetDateEpochDay ->
-                scope.launch {
-                    repository.createSavingsGoal(title, targetAmount, targetDateEpochDay)
-                    showQuickAddGoalSheet = false
-                    showMessage("Savings goal \"$title\" added")
-                }
-            }
-        )
-    }
+@Composable
+private fun QuickSplitSheetHost(
+    repository: ShiftlyRepository,
+    prefillTrigger: Int,
+    onDismiss: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    val splitBillViewModel: SplitBillViewModel = viewModel(factory = SplitBillViewModel.Factory(repository))
+    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
 
-    if (showQuickDepositSheet) {
-        QuickDepositPromptSheet(
-            currencySymbol = currencySymbol,
-            savingsGoals = savingsGoals,
-            onDismiss = { showQuickDepositSheet = false },
-            onSaveDeposit = { goal, amount, note ->
-                scope.launch {
-                    repository.addSavingsDeposit(goal = goal, amount = amount, note = note)
-                    showQuickDepositSheet = false
-                    showMessage("Saved ${ShiftlyFormatters.formatCurrency(currencySymbol, amount)} deposit for ${goal.title}")
-                }
+    NewSplitBillBottomSheet(
+        currencySymbol = currencySymbol,
+        prefillTrigger = prefillTrigger,
+        onDismiss = onDismiss,
+        onSaveSplitBill = { title, totalAmount, personCount, names, paidStates, alsoLogAsExpense ->
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            splitBillViewModel.createSplitBill(
+                rawTitle = title,
+                totalAmount = totalAmount,
+                personCount = personCount,
+                participantNames = names,
+                participantPaidStates = paidStates,
+                alsoLogMyShareAsExpense = alsoLogAsExpense
+            )
+            onDismiss()
+            onShowMessage(
+                if (alsoLogAsExpense) "Split bill saved & share logged to Expenses"
+                else "Split bill saved as pending"
+            )
+        }
+    )
+}
+
+@Composable
+private fun QuickAddGoalSheetHost(
+    repository: ShiftlyRepository,
+    onDismiss: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
+
+    AddSavingsGoalSheet(
+        currencySymbol = currencySymbol,
+        onDismiss = onDismiss,
+        onCreateGoal = { title, targetAmount, targetDateEpochDay ->
+            scope.launch {
+                repository.createSavingsGoal(title, targetAmount, targetDateEpochDay)
+                onDismiss()
+                onShowMessage("Savings goal \"$title\" added")
             }
-        )
-    }
+        }
+    )
+}
+
+@Composable
+private fun QuickDepositSheetHost(
+    repository: ShiftlyRepository,
+    onDismiss: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
+    val savingsGoals by repository.allSavingsGoals.collectAsStateWithLifecycle(initialValue = emptyList())
+
+    QuickDepositPromptSheet(
+        currencySymbol = currencySymbol,
+        savingsGoals = savingsGoals,
+        onDismiss = onDismiss,
+        onSaveDeposit = { goal, amount, note ->
+            scope.launch {
+                repository.addSavingsDeposit(goal = goal, amount = amount, note = note)
+                onDismiss()
+                onShowMessage("Saved ${ShiftlyFormatters.formatCurrency(currencySymbol, amount)} deposit for ${goal.title}")
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -755,7 +875,7 @@ private fun QuickAddActionSheet(
         sheetState = sheetState,
         containerColor = colors.surface,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        shape = SheetTopRoundedShape
     ) {
         Column(
             modifier = Modifier
@@ -853,12 +973,12 @@ private fun QuickAddOptionBox(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(18.dp),
+        shape = QuickAddOptionShape,
         color = colors.card,
         border = BorderStroke(1.dp, colors.border),
         shadowElevation = 0.dp,
         modifier = modifier
-            .clip(RoundedCornerShape(18.dp))
+            .clip(QuickAddOptionShape)
             .clickable(onClick = onClick)
     ) {
         Column(
@@ -917,7 +1037,7 @@ private fun QuickDepositPromptSheet(
         sheetState = sheetState,
         containerColor = colors.surface,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        shape = SheetTopRoundedShape
     ) {
         Column(
             modifier = Modifier
@@ -989,7 +1109,7 @@ private fun QuickDepositPromptSheet(
                     },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = DepositFieldShape,
                     colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1006,7 +1126,7 @@ private fun QuickDepositPromptSheet(
                         )
                     },
                     singleLine = true,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = DepositFieldShape,
                     colors = fieldColors,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -1043,7 +1163,7 @@ fun FloatingPillBottomBar(
     val leftItems = remember(items) { items.take(2) }
     val rightItems = remember(items) { items.drop(2) }
 
-    val fabRotation by animateFloatAsState(
+    val fabRotationState = animateFloatAsState(
         targetValue = if (isFabActive) 45f else 0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -1077,10 +1197,11 @@ fun FloatingPillBottomBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 leftItems.forEach { screen ->
+                    val onClick = remember(screen, onSelect) { { onSelect(screen) } }
                     BottomNavItemSlot(
                         screen = screen,
                         selected = isSelected(screen),
-                        onClick = { onSelect(screen) },
+                        onClick = onClick,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -1112,17 +1233,18 @@ fun FloatingPillBottomBar(
                                 tint = colors.onAzurePrimary,
                                 modifier = Modifier
                                     .size(26.dp)
-                                    .graphicsLayer { rotationZ = fabRotation }
+                                    .graphicsLayer { rotationZ = fabRotationState.value }
                             )
                         }
                     }
                 }
 
                 rightItems.forEach { screen ->
+                    val onClick = remember(screen, onSelect) { { onSelect(screen) } }
                     BottomNavItemSlot(
                         screen = screen,
                         selected = isSelected(screen),
-                        onClick = { onSelect(screen) },
+                        onClick = onClick,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -1141,9 +1263,10 @@ private fun BottomNavItemSlot(
     val colors = ShiftlyColors.current
     val contentTint by animateColorAsState(
         targetValue = if (selected) colors.textPrimary else colors.textSecondary,
+        animationSpec = tween(160),
         label = "navContentTint"
     )
-    val iconScale by animateFloatAsState(
+    val iconScaleState = animateFloatAsState(
         targetValue = if (selected) 1.12f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -1180,8 +1303,9 @@ private fun BottomNavItemSlot(
                 modifier = Modifier
                     .size(21.dp)
                     .graphicsLayer {
-                        scaleX = iconScale
-                        scaleY = iconScale
+                        val scale = iconScaleState.value
+                        scaleX = scale
+                        scaleY = scale
                     }
             )
             Spacer(modifier = Modifier.height(2.dp))

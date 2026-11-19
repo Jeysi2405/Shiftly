@@ -1,5 +1,6 @@
 package com.example.shiftly.data.repository
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.database.sqlite.SQLiteConstraintException
 import android.graphics.Paint
@@ -18,6 +19,8 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
+import com.example.shiftly.data.local.InAppNotificationItem
+import com.example.shiftly.data.local.InAppNotificationType
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.NotificationLastDays
 import com.example.shiftly.data.local.ProfilePhotoHelper
@@ -35,9 +38,12 @@ import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.data.local.UserPreferencesManager
+import com.example.shiftly.notifications.ShiftlyNotificationHelper
 import com.example.shiftly.utils.CutoffCalculator
+import com.example.shiftly.utils.CutoffShiftSummary
 import com.example.shiftly.utils.PinSecurity
 import com.example.shiftly.utils.RecurringEngine
+import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.utils.SplitBillMath
 import java.io.File
 import java.io.FileOutputStream
@@ -55,8 +61,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
-class ShiftlyRepository(private val context: Context) {
-    private val db = ShiftlyDatabase.getInstance(context)
+class ShiftlyRepository(context: Context) {
+    private val appContext: Context = context.applicationContext ?: context
+    private val db = ShiftlyDatabase.getInstance(appContext)
     private val shiftDao = db.shiftDao()
     private val expenseDao = db.expenseDao()
     private val extraIncomeDao = db.extraIncomeDao()
@@ -64,9 +71,10 @@ class ShiftlyRepository(private val context: Context) {
     private val allowanceDao = db.allowanceDao()
     private val splitBillDao = db.splitBillDao()
     private val savingsGoalDao = db.savingsGoalDao()
-    private val prefs = UserPreferencesManager(context.applicationContext)
+    private val prefs = UserPreferencesManager(appContext)
     private val recurringMutex = Mutex()
     private val allowanceMutex = Mutex()
+    private val notificationMutex = Mutex()
 
     private fun round2(value: Double): Double = (value * 100.0).roundToLong() / 100.0
 
@@ -81,6 +89,135 @@ class ShiftlyRepository(private val context: Context) {
     val monthlyBudget: Flow<Double> = prefs.monthlyBudget
     val savingsBuffer: Flow<Double> = prefs.savingsBuffer
     val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = prefs.settingsSnapshot
+    val notificationInbox: Flow<List<InAppNotificationItem>> = prefs.notificationInbox
+
+    suspend fun recordInAppNotification(
+        eventKey: String,
+        type: InAppNotificationType,
+        title: String,
+        message: String,
+        timestampMillis: Long = System.currentTimeMillis()
+    ): Boolean = withContext(Dispatchers.IO) {
+        prefs.recordInAppNotification(
+            eventKey = eventKey,
+            type = type,
+            title = title,
+            message = message,
+            timestampMillis = timestampMillis
+        )
+    }
+
+    suspend fun markNotificationRead(id: String) = withContext(Dispatchers.IO) {
+        prefs.markNotificationRead(id)
+    }
+
+    suspend fun markNotificationToastShown(id: String) = withContext(Dispatchers.IO) {
+        prefs.markNotificationToastShown(id)
+    }
+
+    suspend fun markAllNotificationsRead() = withContext(Dispatchers.IO) {
+        prefs.markAllNotificationsRead()
+    }
+
+    suspend fun clearNotificationInbox() = withContext(Dispatchers.IO) {
+        prefs.clearNotificationInbox()
+    }
+
+    suspend fun syncInAppNotifications(now: LocalDateTime = LocalDateTime.now()) =
+        withContext(Dispatchers.IO) {
+            notificationMutex.withLock {
+                val settings = settingsSnapshot.first()
+                if (!settings.notificationsEnabled) return@withLock
+
+                val currency = currencySymbol.first()
+                val today = now.toLocalDate()
+                val todayEpoch = today.toEpochDay()
+                val zone = ZoneId.systemDefault()
+
+                if (settings.billReminderEnabled) {
+                    val allBills = recurringBillDao.getAllBillsOnce()
+                    val dueSoonBills = RecurringEngine.findBillsDueWithinOneDay(
+                        bills = allBills,
+                        now = now
+                    )
+                    if (dueSoonBills.isNotEmpty()) {
+                        val copy = ShiftlyNotificationHelper.formatRecurringBillReminderCopy(
+                            dueBills = dueSoonBills,
+                            currencySymbol = currency
+                        )
+                        val billKey = dueSoonBills.map { "${it.id}_${it.dueEpochDay}" }
+                            .sorted()
+                            .joinToString("_")
+                        prefs.recordInAppNotification(
+                            eventKey = "bill_due_${todayEpoch}_$billKey",
+                            type = InAppNotificationType.BILL_DUE,
+                            title = copy.title,
+                            message = copy.message
+                        )
+                    }
+                }
+
+                val splitBills = splitBillDao.getAllBillsWithParticipantsOnce()
+                val splitSummary = SplitBillMath.summarizeFriendsOwed(splitBills)
+                if (splitSummary.pendingBillCount > 0 && splitSummary.pendingFriendsAmount > 0.0) {
+                    val amountKey = (splitSummary.pendingFriendsAmount * 100.0).roundToLong()
+                    val count = splitSummary.pendingBillCount
+                    val plural = if (count > 1) "s" else ""
+                    prefs.recordInAppNotification(
+                        eventKey = "split_pending_${todayEpoch}_${count}_$amountKey",
+                        type = InAppNotificationType.SPLIT_BILL,
+                        title = "$count Split Bill$plural Pending",
+                        message = "${ShiftlyFormatters.formatCurrency(currency, splitSummary.pendingFriendsAmount)} awaiting payment from friends."
+                    )
+                }
+
+                val shifts = shiftDao.getAllShiftsOnce()
+                val hasLoggedToday = shifts.any { it.dateEpochDay == todayEpoch }
+                val isTimerRunning = activeTimerState.first().isRunning
+                if (RecurringEngine.shouldSendShiftReminder(
+                        settings = settings,
+                        hasLoggedShiftToday = hasLoggedToday,
+                        isTimerRunning = isTimerRunning,
+                        hourOfDay = now.hour
+                    )
+                ) {
+                    val copy = ShiftlyNotificationHelper.formatShiftReminderCopy()
+                    prefs.recordInAppNotification(
+                        eventKey = "shift_reminder_$todayEpoch",
+                        type = InAppNotificationType.SHIFT_REMINDER,
+                        title = copy.title,
+                        message = copy.message
+                    )
+                }
+
+                val goals = savingsGoalDao.getAllGoalsWithDepositsOnce()
+                val activeGoal = goals.firstOrNull { it.goal.isActive } ?: goals.firstOrNull()
+                val hasDepositedToday = goals.any { g ->
+                    g.deposits.any { dep ->
+                        Instant.ofEpochMilli(dep.timestampMillis).atZone(zone).toLocalDate() == today
+                    }
+                }
+                val isPayday = RecurringEngine.isPaydayToday(settings.cutoffScheduleConfig(), today)
+                if (RecurringEngine.shouldSendSavingsDepositReminder(
+                        settings = settings,
+                        isPaydayToday = isPayday,
+                        hasDepositedToday = hasDepositedToday,
+                        hourOfDay = now.hour
+                    )
+                ) {
+                    val copy = ShiftlyNotificationHelper.formatSavingsDepositReminderCopy(
+                        activeGoalTitle = activeGoal?.goal?.title.orEmpty(),
+                        isPayday = isPayday
+                    )
+                    prefs.recordInAppNotification(
+                        eventKey = "savings_reminder_$todayEpoch",
+                        type = InAppNotificationType.SAVINGS_REMINDER,
+                        title = copy.title,
+                        message = copy.message
+                    )
+                }
+            }
+        }
 
     suspend fun updateDefaultHourlyRate(rate: Double) = withContext(Dispatchers.IO) {
         prefs.setDefaultHourlyRate(rate)
@@ -365,8 +502,10 @@ class ShiftlyRepository(private val context: Context) {
     suspend fun processDueCutoffAllowances(today: LocalDate = LocalDate.now()): Int =
         withContext(Dispatchers.IO) {
             allowanceMutex.withLock {
-                val config = settingsSnapshot.first().cutoffScheduleConfig()
+                val snapshot = settingsSnapshot.first()
+                val config = snapshot.cutoffScheduleConfig()
                 var changesCount = 0
+                val newlyCredited = mutableListOf<Pair<String, CutoffShiftSummary>>()
 
                 db.withTransaction {
                     val shifts = shiftDao.getAllShiftsOnce()
@@ -406,6 +545,7 @@ class ShiftlyRepository(private val context: Context) {
                                     createdAtMillis = nowMillis
                                 )
                             )
+                            newlyCredited.add(key to summary)
                             changesCount++
                         } else if (
                             abs(existing.amount - amount) > 0.005 ||
@@ -421,6 +561,17 @@ class ShiftlyRepository(private val context: Context) {
                             )
                             changesCount++
                         }
+                    }
+                }
+                if (newlyCredited.isNotEmpty() && snapshot.notificationsEnabled) {
+                    val currency = currencySymbol.first()
+                    newlyCredited.forEach { (key, summary) ->
+                        prefs.recordInAppNotification(
+                            eventKey = "cutoff_payout_$key",
+                            type = InAppNotificationType.PAYDAY_CUTOFF,
+                            title = "Payday Cutoff Credited",
+                            message = "${ShiftlyFormatters.formatCurrency(currency, round2(summary.totalEarnings))} from ${summary.window.label} added to Allowance."
+                        )
                     }
                 }
                 changesCount
@@ -455,12 +606,16 @@ class ShiftlyRepository(private val context: Context) {
         bill: SplitBillEntity,
         participants: List<SplitParticipantEntity>
     ): Long = withContext(Dispatchers.IO) {
-        db.withTransaction {
+        val insertedId = db.withTransaction {
             val billId = splitBillDao.insertBill(bill)
             val linkedParticipants = participants.map { it.copy(billId = billId) }
             splitBillDao.insertParticipants(linkedParticipants)
             billId
         }
+        if (insertedId > 0L) {
+            syncInAppNotifications()
+        }
+        insertedId
     }
 
     suspend fun toggleParticipantPaid(participantId: Long, hasPaid: Boolean) = withContext(Dispatchers.IO) {
@@ -670,6 +825,7 @@ class ShiftlyRepository(private val context: Context) {
                 }
 
                 var postedCount = 0
+                val newlyPostedBills = mutableListOf<Pair<RecurringBillEntity, Long>>()
                 val zone = ZoneId.systemDefault()
                 val nowMillis = System.currentTimeMillis()
 
@@ -694,6 +850,7 @@ class ShiftlyRepository(private val context: Context) {
                                             recurringOccurrenceEpochDay = occEpochDay
                                         )
                                     )
+                                    newlyPostedBills.add(bill to occEpochDay)
                                     postedCount++
                                 }
                             }
@@ -707,6 +864,17 @@ class ShiftlyRepository(private val context: Context) {
                                 )
                             )
                         }
+                    }
+                }
+                if (newlyPostedBills.isNotEmpty() && snapshot.notificationsEnabled && snapshot.billReminderEnabled) {
+                    val currency = currencySymbol.first()
+                    newlyPostedBills.forEach { (bill, occEpochDay) ->
+                        prefs.recordInAppNotification(
+                            eventKey = "bill_posted_${bill.id}_$occEpochDay",
+                            type = InAppNotificationType.BILL_POSTED,
+                            title = "Recurring Bill Logged: ${bill.title}",
+                            message = "${ShiftlyFormatters.formatCurrency(currency, bill.amount)} was automatically added to Expenses."
+                        )
                     }
                 }
                 postedCount
@@ -838,7 +1006,7 @@ class ShiftlyRepository(private val context: Context) {
     suspend fun generateBackupZipFile(): File = withContext(Dispatchers.IO) {
         val payload = buildCurrentBackupPayload(includeReceipts = true)
         val zipBytes = BackupCodec.encodeZipBytes(payload)
-        val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val exportDir = File(appContext.cacheDir, "exports").apply { mkdirs() }
         val stamp = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
         val zipFile = File(exportDir, "shiftly_backup_$stamp.zip")
         zipFile.writeBytes(zipBytes)
@@ -866,7 +1034,7 @@ class ShiftlyRepository(private val context: Context) {
     }
 
     private suspend fun applyBackupPayload(payload: BackupPayload, mode: RestoreMode): String {
-        val receiptsDir = File(context.filesDir, "receipts").apply { mkdirs() }
+        val receiptsDir = File(appContext.filesDir, "receipts").apply { mkdirs() }
         val existingReceiptFiles = if (mode == RestoreMode.REPLACE) {
             receiptsDir.listFiles()?.toList().orEmpty()
         } else {
@@ -1103,7 +1271,7 @@ class ShiftlyRepository(private val context: Context) {
         val expenses = allExpenses.first()
         val allowanceEntries = allAllowanceEntries.first()
         val currency = currencySymbol.first()
-        val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val exportDir = File(appContext.cacheDir, "exports").apply { mkdirs() }
         val csvFile = File(exportDir, "shiftly_export.csv")
         val csvContent = BackupCodec.buildCsvExport(
             shifts = shifts,
@@ -1131,7 +1299,7 @@ class ShiftlyRepository(private val context: Context) {
         val netBalance = totalIncome - totalExpense
         val totalHours = shifts.sumOf { it.durationMinutes } / 60.0
 
-        val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+        val exportDir = File(appContext.cacheDir, "exports").apply { mkdirs() }
         val pdfFile = File(exportDir, "shiftly_statement.pdf")
 
         val pageWidth = 595
@@ -1261,5 +1429,17 @@ class ShiftlyRepository(private val context: Context) {
             doc.close()
         }
         pdfFile
+    }
+
+    companion object {
+        @SuppressLint("StaticFieldLeak")
+        @Volatile
+        private var INSTANCE: ShiftlyRepository? = null
+
+        fun getInstance(context: Context): ShiftlyRepository {
+            return INSTANCE ?: synchronized(this) {
+                INSTANCE ?: ShiftlyRepository(context.applicationContext ?: context).also { INSTANCE = it }
+            }
+        }
     }
 }

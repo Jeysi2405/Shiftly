@@ -160,7 +160,12 @@ class ProfileViewModel(
     }
 
     fun updateNotificationsEnabled(enabled: Boolean) {
-        viewModelScope.launch { repository.updateNotificationsEnabled(enabled) }
+        viewModelScope.launch {
+            repository.updateNotificationsEnabled(enabled)
+            if (enabled) {
+                repository.syncInAppNotifications()
+            }
+        }
     }
 
     fun updateNotificationPreferences(
@@ -176,6 +181,9 @@ class ProfileViewModel(
                 shiftReminderEnabled = shiftReminderEnabled,
                 savingsReminderEnabled = savingsReminderEnabled
             )
+            if (notificationsEnabled) {
+                repository.syncInAppNotifications()
+            }
         }
     }
 

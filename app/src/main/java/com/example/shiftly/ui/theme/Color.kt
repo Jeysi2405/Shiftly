@@ -21,10 +21,10 @@ val TextLightSecondary = Color(0xFFA0A0A0)   // Muted gray secondary text
 val TextLightMuted = Color(0xFF9399A2)       // Subtle captions & placeholders (WCAG AA >= 4.5:1 on DarkCard)
 
 // Brand Azure Accents (Preserved & Adapted for Dark Mode)
-val AzurePrimaryButton = Color(0xFF2173D6)   // Primary pill CTA button fill
-val AzureAccent = Color(0xFF4C9AFF)          // High-contrast azure text/icons/borders on dark
-val AzureDarkContainer = Color(0xFF1A2B42)   // Dark tinted azure container
-val OrbSkyLight = Color(0xFF68BEFF)
+val AzurePrimaryButton = Color(0xFF126BE0)   // Primary pill CTA button fill
+val AzureAccent = Color(0xFF3895FF)          // High-contrast azure text/icons/borders on dark
+val AzureDarkContainer = Color(0xFF142B4A)   // Dark tinted azure container
+val OrbSkyLight = Color(0xFF54B6FF)
 
 // Core Neutrals (Kept for explicit semantic/foreground or contrast usage)
 val PureWhite = Color(0xFFFFFFFF)
@@ -35,20 +35,20 @@ val GlassNavTop = Color(0xE024272E)
 val GlassNavBottom = Color(0xEB17191E)
 
 // Mint / Aqua Green — Charts, Progress, Income, Success ONLY
-val MintBright = Color(0xFF34E5B8)           // Bars, dots, selected nav indicator, progress safe
-val MintTextOnBlue = Color(0xFF7CF7D8)       // High-contrast mint on dark
-val MintInkOnWhite = Color(0xFF34E5B8)       // High-contrast mint on dark cards
-val MintSoftContainer = Color(0xFF132B24)    // Dark tinted mint pill/icon well
+val MintBright = Color(0xFF18DEAC)           // Bars, dots, selected nav indicator, progress safe
+val MintTextOnBlue = Color(0xFF66F5D0)       // High-contrast mint on dark
+val MintInkOnWhite = Color(0xFF18DEAC)       // High-contrast mint on dark cards
+val MintSoftContainer = Color(0xFF0E2F26)    // Dark tinted mint pill/icon well
 
 // Purple — Night Differential Pay & Hours
-val NightDiffPurple = Color(0xFFC084FC)      // High-contrast violet/purple for Night Diff on dark
-val NightDiffPurpleContainer = Color(0xFF2B1F3D)
+val NightDiffPurple = Color(0xFFB870FF)      // High-contrast violet/purple for Night Diff on dark
+val NightDiffPurpleContainer = Color(0xFF2D1C47)
 
 // Soft Coral / Red — Expenses, Overtime Pay/Hours & Near-Limit Budget
-val CoralBright = Color(0xFFFF6B6B)          // Bars, dots, warning progress, Overtime red
-val CoralTextOnBlue = Color(0xFFFF9E96)      // High-contrast coral on dark
-val CoralInkOnWhite = Color(0xFFFF7A7A)      // High-contrast coral on dark cards
-val CoralSoftContainer = Color(0xFF331B1D)   // Dark tinted coral pill/icon well
+val CoralBright = Color(0xFFFF5B5B)          // Bars, dots, warning progress, Overtime red
+val CoralTextOnBlue = Color(0xFFFF8C82)      // High-contrast coral on dark
+val CoralInkOnWhite = Color(0xFFFF6666)      // High-contrast coral on dark cards
+val CoralSoftContainer = Color(0xFF3B191C)   // Dark tinted coral pill/icon well
 
 // Azure Accent for Neutral / Split Bill Chips
 val AzureInkOnWhite = AzureAccent

@@ -8,11 +8,11 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import com.example.shiftly.data.local.InAppNotificationType
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.notifications.ShiftlyNotificationHelper
 import com.example.shiftly.utils.RecurringEngine
 import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
@@ -25,7 +25,7 @@ class ShiftlyDailyWorker(
 ) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        val repository = ShiftlyRepository(applicationContext)
+        val repository = ShiftlyRepository.getInstance(applicationContext)
         val now = LocalDateTime.now()
         val today = now.toLocalDate()
         val todayEpoch = today.toEpochDay()
@@ -33,7 +33,6 @@ class ShiftlyDailyWorker(
 
         // 1. Auto-post any due recurring bills & legacy entries
         runCatching {
-            repository.processDueRecurringBills(now)
             repository.processDueRecurringEntries(today)
         }
 
@@ -49,12 +48,14 @@ class ShiftlyDailyWorker(
             scheduleNextRecurringCheck(applicationContext, earliestDue)
         }
 
-        // 4. Evaluate the 3 allowed reminders:
-        //    (a) Recurring bills < 1 day before due date/time
-        //    (b) Log shift reminder
-        //    (c) Log saving & add deposit reminder
+        // 4. Evaluate the 3 allowed reminders + in-app inbox sync
         val settings = repository.settingsSnapshot.first()
         if (!settings.notificationsEnabled) return Result.success()
+
+        runCatching {
+            repository.syncInAppNotifications(now)
+        }
+
         if (!ShiftlyNotificationHelper.canPostNotifications(applicationContext)) {
             return Result.success()
         }
@@ -77,6 +78,14 @@ class ShiftlyDailyWorker(
                     )
                 ) {
                     repository.markBillNotified(todayEpoch)
+                    val copy = ShiftlyNotificationHelper.formatRecurringBillReminderCopy(dueSoonBills, currency)
+                    val billKey = dueSoonBills.map { "${it.id}_${it.dueEpochDay}" }.sorted().joinToString("_")
+                    repository.recordInAppNotification(
+                        eventKey = "bill_due_${todayEpoch}_$billKey",
+                        type = InAppNotificationType.BILL_DUE,
+                        title = copy.title,
+                        message = copy.message
+                    )
                 }
             }
         }
@@ -96,6 +105,13 @@ class ShiftlyDailyWorker(
         ) {
             if (ShiftlyNotificationHelper.showShiftReminder(applicationContext)) {
                 repository.markShiftNotified(todayEpoch)
+                val copy = ShiftlyNotificationHelper.formatShiftReminderCopy()
+                repository.recordInAppNotification(
+                    eventKey = "shift_reminder_$todayEpoch",
+                    type = InAppNotificationType.SHIFT_REMINDER,
+                    title = copy.title,
+                    message = copy.message
+                )
             }
         }
 
@@ -117,13 +133,24 @@ class ShiftlyDailyWorker(
                 hourOfDay = hour
             )
         ) {
+            val activeGoalTitle = activeGoal?.goal?.title.orEmpty()
             if (ShiftlyNotificationHelper.showSavingsDepositReminder(
                     context = applicationContext,
-                    activeGoalTitle = activeGoal?.goal?.title.orEmpty(),
+                    activeGoalTitle = activeGoalTitle,
                     isPayday = isPayday
                 )
             ) {
                 repository.markSavingsNotified(todayEpoch)
+                val copy = ShiftlyNotificationHelper.formatSavingsDepositReminderCopy(
+                    activeGoalTitle = activeGoalTitle,
+                    isPayday = isPayday
+                )
+                repository.recordInAppNotification(
+                    eventKey = "savings_reminder_$todayEpoch",
+                    type = InAppNotificationType.SAVINGS_REMINDER,
+                    title = copy.title,
+                    message = copy.message
+                )
             }
         }
 

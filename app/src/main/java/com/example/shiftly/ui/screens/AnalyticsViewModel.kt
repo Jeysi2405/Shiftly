@@ -366,10 +366,10 @@ class AnalyticsViewModel(
         manualAllowances: List<AllowanceEntryEntity>,
         expenses: List<ExpenseEntity>
     ): List<IncomeExpenseBarBucket> {
-        val shiftsByDay = shifts.groupBy { it.dateEpochDay }
-        val extraByDay = extraIncomes.groupBy { it.dateEpochDay }
-        val allowanceByDay = manualAllowances.groupBy { it.dateEpochDay }
-        val expensesByDay = expenses.groupBy { it.dateEpochDay }
+        val shiftsByDay by lazy(LazyThreadSafetyMode.NONE) { shifts.groupBy { it.dateEpochDay } }
+        val extraByDay by lazy(LazyThreadSafetyMode.NONE) { extraIncomes.groupBy { it.dateEpochDay } }
+        val allowanceByDay by lazy(LazyThreadSafetyMode.NONE) { manualAllowances.groupBy { it.dateEpochDay } }
+        val expensesByDay by lazy(LazyThreadSafetyMode.NONE) { expenses.groupBy { it.dateEpochDay } }
 
         return when (range) {
             AnalyticsRange.DAY -> {
@@ -442,17 +442,41 @@ class AnalyticsViewModel(
 
             AnalyticsRange.YEAR -> {
                 val currentYear = today.year
+                val monthlyIncome = DoubleArray(12)
+                val monthlyExpense = DoubleArray(12)
+
+                shifts.forEach { shift ->
+                    val d = LocalDate.ofEpochDay(shift.dateEpochDay)
+                    if (d.year == currentYear) {
+                        monthlyIncome[d.monthValue - 1] += shift.totalEarned
+                    }
+                }
+                extraIncomes.forEach { inc ->
+                    val d = LocalDate.ofEpochDay(inc.dateEpochDay)
+                    if (d.year == currentYear) {
+                        monthlyIncome[d.monthValue - 1] += inc.amount
+                    }
+                }
+                manualAllowances.forEach { entry ->
+                    val d = LocalDate.ofEpochDay(entry.dateEpochDay)
+                    if (d.year == currentYear) {
+                        monthlyIncome[d.monthValue - 1] += entry.amount
+                    }
+                }
+                expenses.forEach { exp ->
+                    val d = LocalDate.ofEpochDay(exp.dateEpochDay)
+                    if (d.year == currentYear) {
+                        monthlyExpense[d.monthValue - 1] += exp.amount
+                    }
+                }
+
                 (1..12).map { month ->
                     val ym = YearMonth.of(currentYear, month)
-                    val startEp = ym.atDay(1).toEpochDay()
-                    val endEp = ym.atEndOfMonth().toEpochDay()
                     val label = ym.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
                     IncomeExpenseBarBucket(
                         label = label,
-                        income = shifts.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.totalEarned } +
-                            extraIncomes.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount } +
-                            manualAllowances.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount },
-                        expense = expenses.filter { it.dateEpochDay in startEp..endEp }.sumOf { it.amount }
+                        income = monthlyIncome[month - 1],
+                        expense = monthlyExpense[month - 1]
                     )
                 }
             }

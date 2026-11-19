@@ -14,14 +14,37 @@ import androidx.datastore.preferences.preferencesDataStore
 import java.time.DayOfWeek
 import java.time.format.TextStyle
 import java.util.Locale
+import java.util.UUID
 import kotlin.math.roundToLong
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "shiftly_prefs")
+
+enum class InAppNotificationType {
+    BILL_DUE,
+    BILL_POSTED,
+    SHIFT_REMINDER,
+    SAVINGS_REMINDER,
+    PAYDAY_CUTOFF,
+    SPLIT_BILL
+}
+
+@Immutable
+data class InAppNotificationItem(
+    val id: String,
+    val eventKey: String,
+    val type: InAppNotificationType,
+    val title: String,
+    val message: String,
+    val timestampMillis: Long,
+    val isRead: Boolean = false,
+    val hasShownToast: Boolean = false
+)
 
 @Immutable
 data class ActiveTimerState(
@@ -225,8 +248,29 @@ data class ShiftlySettingsSnapshot(
 /**
  * Pure JSON serializer/deserializer for structured user preferences.
  * Supports decoding legacy delimited strings for seamless upgrades while always writing JSON.
+ * Uses single-entry raw-string caches so unrelated preference writes preserve List references.
  */
 object PreferenceJsonCodec {
+    private class CachedJsonDecode<T>(
+        val raw: String,
+        val value: List<T>
+    )
+
+    @Volatile
+    private var cachedCategoryBudgets: CachedJsonDecode<CategoryBudgetSetting>? = null
+
+    @Volatile
+    private var cachedManagedCategories: CachedJsonDecode<ManagedCategorySetting>? = null
+
+    @Volatile
+    private var cachedRecurringEntries: CachedJsonDecode<RecurringEntrySetting>? = null
+
+    @Volatile
+    private var cachedShiftTimePresets: CachedJsonDecode<ShiftTimePreset>? = null
+
+    @Volatile
+    private var cachedInAppNotifications: CachedJsonDecode<InAppNotificationItem>? = null
+
     fun encodeCategoryBudgets(items: List<CategoryBudgetSetting>): String =
         JSONArray().apply {
             items.forEach { item ->
@@ -244,9 +288,11 @@ object PreferenceJsonCodec {
 
     fun decodeCategoryBudgets(raw: String?): List<CategoryBudgetSetting> {
         if (raw.isNullOrBlank()) return ShiftlySettingsSnapshot.DEFAULT_CATEGORY_BUDGETS
+        cachedCategoryBudgets?.takeIf { it.raw == raw }?.let { return it.value }
+
         val trimmed = raw.trim()
-        if (trimmed.startsWith("[")) {
-            val parsed = runCatching {
+        val parsed = if (trimmed.startsWith("[")) {
+            runCatching {
                 val array = JSONArray(trimmed)
                 buildList {
                     for (i in 0 until array.length()) {
@@ -259,9 +305,10 @@ object PreferenceJsonCodec {
                     }
                 }
             }.getOrNull()
-            if (parsed != null) return parsed
+        } else {
+            null
         }
-        return trimmed.split(";").mapNotNull { entry ->
+        val result = parsed ?: trimmed.split(";").mapNotNull { entry ->
             val idx = entry.lastIndexOf(':')
             if (idx <= 0 || idx >= entry.length - 1) return@mapNotNull null
             val cat = entry.substring(0, idx).trim()
@@ -269,6 +316,9 @@ object PreferenceJsonCodec {
                 ?: return@mapNotNull null
             if (cat.isEmpty()) null else CategoryBudgetSetting(cat, amount.coerceAtLeast(0.0))
         }.ifEmpty { ShiftlySettingsSnapshot.DEFAULT_CATEGORY_BUDGETS }
+
+        cachedCategoryBudgets = CachedJsonDecode(raw, result)
+        return result
     }
 
     fun encodeManagedCategories(items: List<ManagedCategorySetting>): String =
@@ -285,9 +335,11 @@ object PreferenceJsonCodec {
 
     fun decodeManagedCategories(raw: String?): List<ManagedCategorySetting> {
         if (raw.isNullOrBlank()) return ShiftlySettingsSnapshot.DEFAULT_MANAGED_CATEGORIES
+        cachedManagedCategories?.takeIf { it.raw == raw }?.let { return it.value }
+
         val trimmed = raw.trim()
-        if (trimmed.startsWith("[")) {
-            val parsed = runCatching {
+        val parsed = if (trimmed.startsWith("[")) {
+            runCatching {
                 val array = JSONArray(trimmed)
                 buildList {
                     for (i in 0 until array.length()) {
@@ -298,16 +350,20 @@ object PreferenceJsonCodec {
                         }
                     }
                 }
-            }.getOrNull()
-            if (!parsed.isNullOrEmpty()) return parsed
+            }.getOrNull()?.takeIf { it.isNotEmpty() }
+        } else {
+            null
         }
-        return trimmed.split(";").mapNotNull { entry ->
+        val result = parsed ?: trimmed.split(";").mapNotNull { entry ->
             val idx = entry.lastIndexOf('|')
             if (idx <= 0 || idx >= entry.length - 1) return@mapNotNull null
             val name = entry.substring(0, idx).trim()
             val visible = entry.substring(idx + 1) == "1"
             if (name.isEmpty()) null else ManagedCategorySetting(name, visible)
         }.ifEmpty { ShiftlySettingsSnapshot.DEFAULT_MANAGED_CATEGORIES }
+
+        cachedManagedCategories = CachedJsonDecode(raw, result)
+        return result
     }
 
     fun encodeRecurringEntries(items: List<RecurringEntrySetting>): String =
@@ -333,9 +389,11 @@ object PreferenceJsonCodec {
 
     fun decodeRecurringEntries(raw: String?): List<RecurringEntrySetting> {
         if (raw.isNullOrBlank()) return emptyList()
+        cachedRecurringEntries?.takeIf { it.raw == raw }?.let { return it.value }
+
         val trimmed = raw.trim()
-        if (trimmed.startsWith("[")) {
-            return runCatching {
+        val result = if (trimmed.startsWith("[")) {
+            runCatching {
                 val array = JSONArray(trimmed)
                 buildList {
                     for (i in 0 until array.length()) {
@@ -360,24 +418,28 @@ object PreferenceJsonCodec {
                     }
                 }
             }.getOrDefault(emptyList())
-        }
-        return trimmed.split(";").mapNotNull { entry ->
-            val parts = entry.split("|")
-            if (parts.size == 6) {
-                val amount = parts[2].toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
-                    ?: return@mapNotNull null
-                RecurringEntrySetting(
-                    id = parts[0],
-                    title = parts[1],
-                    amount = amount,
-                    frequency = parts[3],
-                    isIncome = parts[4] == "1",
-                    isEnabled = parts[5] == "1"
-                )
-            } else {
-                null
+        } else {
+            trimmed.split(";").mapNotNull { entry ->
+                val parts = entry.split("|")
+                if (parts.size == 6) {
+                    val amount = parts[2].toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 }
+                        ?: return@mapNotNull null
+                    RecurringEntrySetting(
+                        id = parts[0],
+                        title = parts[1],
+                        amount = amount,
+                        frequency = parts[3],
+                        isIncome = parts[4] == "1",
+                        isEnabled = parts[5] == "1"
+                    )
+                } else {
+                    null
+                }
             }
         }
+
+        cachedRecurringEntries = CachedJsonDecode(raw, result)
+        return result
     }
 
     fun encodeShiftTimePresets(items: List<ShiftTimePreset>): String =
@@ -398,6 +460,8 @@ object PreferenceJsonCodec {
 
     fun decodeShiftTimePresets(raw: String?): List<ShiftTimePreset> {
         if (raw.isNullOrBlank()) return ShiftlySettingsSnapshot.DEFAULT_SHIFT_TIME_PRESETS
+        cachedShiftTimePresets?.takeIf { it.raw == raw }?.let { return it.value }
+
         val trimmed = raw.trim()
         if (!trimmed.startsWith("[")) return ShiftlySettingsSnapshot.DEFAULT_SHIFT_TIME_PRESETS
         val parsed = runCatching {
@@ -422,13 +486,96 @@ object PreferenceJsonCodec {
                 }
             }
         }.getOrNull()
-        return parsed ?: ShiftlySettingsSnapshot.DEFAULT_SHIFT_TIME_PRESETS
+        val result = parsed ?: ShiftlySettingsSnapshot.DEFAULT_SHIFT_TIME_PRESETS
+        cachedShiftTimePresets = CachedJsonDecode(raw, result)
+        return result
+    }
+
+    fun encodeInAppNotifications(items: List<InAppNotificationItem>): String =
+        JSONArray().apply {
+            items.forEach { item ->
+                put(
+                    JSONObject().apply {
+                        put("id", item.id)
+                        put("eventKey", item.eventKey)
+                        put("type", item.type.name)
+                        put("title", item.title.trim())
+                        put("message", item.message.trim())
+                        put("timestampMillis", item.timestampMillis)
+                        put("isRead", item.isRead)
+                        put("hasShownToast", item.hasShownToast)
+                    }
+                )
+            }
+        }.toString()
+
+    fun decodeInAppNotifications(raw: String?): List<InAppNotificationItem> {
+        if (raw.isNullOrBlank()) return emptyList()
+        cachedInAppNotifications?.takeIf { it.raw == raw }?.let { return it.value }
+
+        val trimmed = raw.trim()
+        if (!trimmed.startsWith("[")) return emptyList()
+        val parsed = runCatching {
+            val array = JSONArray(trimmed)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val id = obj.optString("id", "").trim()
+                    val title = obj.optString("title", "").trim()
+                    val message = obj.optString("message", "").trim()
+                    val typeName = obj.optString("type", InAppNotificationType.BILL_DUE.name)
+                    val type = runCatching { InAppNotificationType.valueOf(typeName) }
+                        .getOrDefault(InAppNotificationType.BILL_DUE)
+                    val timestamp = obj.optLong("timestampMillis", 0L)
+                    if (id.isNotEmpty() && title.isNotEmpty()) {
+                        add(
+                            InAppNotificationItem(
+                                id = id,
+                                eventKey = obj.optString("eventKey", id),
+                                type = type,
+                                title = title,
+                                message = message,
+                                timestampMillis = timestamp,
+                                isRead = obj.optBoolean("isRead", false),
+                                hasShownToast = obj.optBoolean("hasShownToast", false)
+                            )
+                        )
+                    }
+                }
+            }.sortedByDescending { it.timestampMillis }
+        }.getOrDefault(emptyList())
+
+        cachedInAppNotifications = CachedJsonDecode(raw, parsed)
+        return parsed
+    }
+
+    fun encodeStringList(items: List<String>): String =
+        JSONArray().apply {
+            items.forEach { put(it) }
+        }.toString()
+
+    fun decodeStringList(raw: String?): List<String> {
+        if (raw.isNullOrBlank()) return emptyList()
+        val trimmed = raw.trim()
+        if (!trimmed.startsWith("[")) return emptyList()
+        return runCatching {
+            val array = JSONArray(trimmed)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val value = array.optString(i, "")
+                    if (value.isNotBlank()) add(value)
+                }
+            }
+        }.getOrDefault(emptyList())
     }
 }
 
 class UserPreferencesManager(private val context: Context) {
 
     companion object {
+        private const val MAX_INBOX_ITEMS = 30
+        private const val MAX_RECORDED_EVENT_KEYS = 80
+
         private val KEY_DEFAULT_HOURLY_RATE = doublePreferencesKey("default_hourly_rate")
         private val KEY_MINIMUM_WAGE_PER_DAY = doublePreferencesKey("minimum_wage_per_day")
         private val KEY_CURRENCY_SYMBOL = stringPreferencesKey("currency_symbol")
@@ -473,6 +620,8 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_LAST_PAYDAY_NOTIFIED_DAY = longPreferencesKey("last_payday_notified_day")
         private val KEY_LAST_SHIFT_NOTIFIED_DAY = longPreferencesKey("last_shift_notified_day")
         private val KEY_LAST_SAVINGS_NOTIFIED_DAY = longPreferencesKey("last_savings_notified_day")
+        private val KEY_NOTIFICATION_INBOX = stringPreferencesKey("notification_inbox_serialized")
+        private val KEY_RECORDED_NOTIFICATION_KEYS = stringPreferencesKey("recorded_notification_keys_serialized")
     }
 
     private fun round2(value: Double): Double =
@@ -480,35 +629,39 @@ class UserPreferencesManager(private val context: Context) {
 
     val defaultHourlyRate: Flow<Double> = context.dataStore.data.map { prefs ->
         prefs[KEY_DEFAULT_HOURLY_RATE] ?: 0.0
-    }
+    }.distinctUntilChanged()
 
     val minimumWagePerDay: Flow<Double> = context.dataStore.data.map { prefs ->
         prefs[KEY_MINIMUM_WAGE_PER_DAY] ?: 0.0
-    }
+    }.distinctUntilChanged()
 
     val currencySymbol: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_CURRENCY_SYMBOL] ?: "₱"
-    }
+    }.distinctUntilChanged()
 
     val hasCompletedOnboarding: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[KEY_ONBOARDING_COMPLETED] ?: false
-    }
+    }.distinctUntilChanged()
 
     val userName: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_USER_NAME] ?: ""
-    }
+    }.distinctUntilChanged()
 
     val profilePhotoPath: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[KEY_PROFILE_PHOTO_PATH]?.takeIf { it.isNotBlank() }
-    }
+    }.distinctUntilChanged()
 
     val monthlyBudget: Flow<Double> = context.dataStore.data.map { prefs ->
         prefs[KEY_MONTHLY_BUDGET] ?: 0.0
-    }
+    }.distinctUntilChanged()
 
     val savingsBuffer: Flow<Double> = context.dataStore.data.map { prefs ->
         prefs[KEY_SAVINGS_BUFFER] ?: 0.0
-    }
+    }.distinctUntilChanged()
+
+    val notificationInbox: Flow<List<InAppNotificationItem>> = context.dataStore.data.map { prefs ->
+        PreferenceJsonCodec.decodeInAppNotifications(prefs[KEY_NOTIFICATION_INBOX])
+    }.distinctUntilChanged()
 
     val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = context.dataStore.data.map { prefs ->
         val pinHash = prefs[KEY_APP_LOCK_PIN_HASH].orEmpty().ifBlank {
@@ -555,6 +708,98 @@ class UserPreferencesManager(private val context: Context) {
             cutoffWeeklyDay = normalizedCutoff.weeklyDayOfWeek,
             legacyRecurringMigrated = prefs[KEY_LEGACY_RECURRING_MIGRATED] ?: false
         )
+    }.distinctUntilChanged()
+
+    suspend fun recordInAppNotification(
+        eventKey: String,
+        type: InAppNotificationType,
+        title: String,
+        message: String,
+        timestampMillis: Long = System.currentTimeMillis()
+    ): Boolean {
+        val cleanTitle = title.trim()
+        val cleanMessage = message.trim()
+        val cleanKey = eventKey.trim()
+        if (cleanKey.isEmpty() || cleanTitle.isEmpty()) return false
+
+        var inserted = false
+        context.dataStore.edit { prefs ->
+            val recordedKeys = PreferenceJsonCodec.decodeStringList(prefs[KEY_RECORDED_NOTIFICATION_KEYS])
+            val currentItems = PreferenceJsonCodec.decodeInAppNotifications(prefs[KEY_NOTIFICATION_INBOX])
+            if (cleanKey in recordedKeys || currentItems.any { it.eventKey == cleanKey }) {
+                return@edit
+            }
+            val newItem = InAppNotificationItem(
+                id = UUID.randomUUID().toString(),
+                eventKey = cleanKey,
+                type = type,
+                title = cleanTitle,
+                message = cleanMessage,
+                timestampMillis = timestampMillis,
+                isRead = false,
+                hasShownToast = false
+            )
+            val updatedItems = (listOf(newItem) + currentItems)
+                .sortedByDescending { it.timestampMillis }
+                .take(MAX_INBOX_ITEMS)
+            val updatedKeys = (recordedKeys + cleanKey).takeLast(MAX_RECORDED_EVENT_KEYS)
+            prefs[KEY_NOTIFICATION_INBOX] = PreferenceJsonCodec.encodeInAppNotifications(updatedItems)
+            prefs[KEY_RECORDED_NOTIFICATION_KEYS] = PreferenceJsonCodec.encodeStringList(updatedKeys)
+            inserted = true
+        }
+        return inserted
+    }
+
+    suspend fun markNotificationRead(id: String) {
+        context.dataStore.edit { prefs ->
+            val current = PreferenceJsonCodec.decodeInAppNotifications(prefs[KEY_NOTIFICATION_INBOX])
+            var changed = false
+            val updated = current.map { item ->
+                if (item.id == id && (!item.isRead || !item.hasShownToast)) {
+                    changed = true
+                    item.copy(isRead = true, hasShownToast = true)
+                } else {
+                    item
+                }
+            }
+            if (changed) {
+                prefs[KEY_NOTIFICATION_INBOX] = PreferenceJsonCodec.encodeInAppNotifications(updated)
+            }
+        }
+    }
+
+    suspend fun markNotificationToastShown(id: String) {
+        context.dataStore.edit { prefs ->
+            val current = PreferenceJsonCodec.decodeInAppNotifications(prefs[KEY_NOTIFICATION_INBOX])
+            var changed = false
+            val updated = current.map { item ->
+                if (item.id == id && !item.hasShownToast) {
+                    changed = true
+                    item.copy(hasShownToast = true)
+                } else {
+                    item
+                }
+            }
+            if (changed) {
+                prefs[KEY_NOTIFICATION_INBOX] = PreferenceJsonCodec.encodeInAppNotifications(updated)
+            }
+        }
+    }
+
+    suspend fun markAllNotificationsRead() {
+        context.dataStore.edit { prefs ->
+            val current = PreferenceJsonCodec.decodeInAppNotifications(prefs[KEY_NOTIFICATION_INBOX])
+            if (current.any { !it.isRead || !it.hasShownToast }) {
+                val updated = current.map { it.copy(isRead = true, hasShownToast = true) }
+                prefs[KEY_NOTIFICATION_INBOX] = PreferenceJsonCodec.encodeInAppNotifications(updated)
+            }
+        }
+    }
+
+    suspend fun clearNotificationInbox() {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_NOTIFICATION_INBOX] = "[]"
+        }
     }
 
     suspend fun updateThemeMode(mode: String) {
@@ -575,7 +820,7 @@ class UserPreferencesManager(private val context: Context) {
         } else {
             ActiveTimerState(isRunning = false)
         }
-    }
+    }.distinctUntilChanged()
 
     suspend fun getNotificationLastDays(): NotificationLastDays {
         val prefs = context.dataStore.data.first()

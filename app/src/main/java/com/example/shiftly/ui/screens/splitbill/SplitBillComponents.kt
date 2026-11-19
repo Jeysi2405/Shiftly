@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -53,6 +52,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +77,13 @@ import com.example.shiftly.utils.SplitBillMath
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+
+private val SplitPillShape = RoundedCornerShape(50)
+private val SplitCardShape = RoundedCornerShape(22.dp)
+private val SplitItemShape = RoundedCornerShape(20.dp)
+private val SplitFieldShape = RoundedCornerShape(16.dp)
+private val SplitRowShape = RoundedCornerShape(14.dp)
+private val SplitSheetTopShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
 
 private data class SplitParticipantSummary(
     val trackedCount: Int,
@@ -133,7 +142,7 @@ fun SplitBillSummaryCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(50),
+                        shape = SplitPillShape,
                         color = colors.mintContainer,
                         border = BorderStroke(1.dp, colors.mintBright.copy(alpha = 0.45f)),
                         shadowElevation = 0.dp
@@ -161,30 +170,32 @@ fun SplitBillSummaryCard(
                 }
             }
 
-            val animatedPaidFraction by animateFloatAsState(
+            val animatedPaidFractionState = animateFloatAsState(
                 targetValue = paidFraction.coerceIn(0f, 1f),
                 animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
                 label = "paidFractionAnim"
             )
+            val mintBarColor = colors.mintBright
 
             // Paid vs Unpaid Mint Progress Bar
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
-                    .clip(RoundedCornerShape(50))
+                    .clip(SplitPillShape)
                     .background(colors.border)
-            ) {
-                if (animatedPaidFraction > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(animatedPaidFraction)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(50))
-                            .background(colors.mintBright)
-                    )
-                }
-            }
+                    .drawBehind {
+                        val fraction = animatedPaidFractionState.value
+                        if (fraction > 0f) {
+                            val cornerRadius = size.height / 2f
+                            drawRoundRect(
+                                color = mintBarColor,
+                                size = Size(size.width * fraction, size.height),
+                                cornerRadius = CornerRadius(cornerRadius, cornerRadius)
+                            )
+                        }
+                    }
+            )
         }
     }
 }
@@ -214,7 +225,7 @@ fun NewSplitBillBottomSheet(
         sheetState = sheetState,
         containerColor = colors.surface,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+        shape = SplitSheetTopShape
     ) {
         NewSplitBillSheetContent(
             currencySymbol = currencySymbol,
@@ -367,7 +378,7 @@ fun NewSplitBillSheetContent(
                 },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                shape = RoundedCornerShape(16.dp),
+                shape = SplitFieldShape,
                 colors = sheetFieldColors,
                 modifier = Modifier.weight(1f)
             )
@@ -384,7 +395,7 @@ fun NewSplitBillSheetContent(
                     )
                 },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = SplitFieldShape,
                 colors = sheetFieldColors,
                 modifier = Modifier.weight(1.15f)
             )
@@ -498,13 +509,13 @@ fun NewSplitBillSheetContent(
                                 )
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = SplitRowShape,
                             colors = sheetFieldColors,
                             modifier = Modifier.weight(1f)
                         )
 
                         Surface(
-                            shape = RoundedCornerShape(50),
+                            shape = SplitPillShape,
                             color = if (isPaid) colors.mintContainer else colors.card,
                             border = BorderStroke(
                                 width = 1.dp,
@@ -513,7 +524,7 @@ fun NewSplitBillSheetContent(
                             shadowElevation = 0.dp,
                             modifier = Modifier
                                 .heightIn(min = 44.dp)
-                                .clip(RoundedCornerShape(50))
+                                .clip(SplitPillShape)
                                 .clickable {
                                     ensurePaidCapacity(index + 1)
                                     customPaidStates[index] = !isPaid
@@ -549,7 +560,7 @@ fun NewSplitBillSheetContent(
 
         // Bold "Per Person" Result Banner
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = SplitFieldShape,
             color = colors.mintContainer,
             border = BorderStroke(1.dp, colors.mintBright.copy(alpha = 0.40f)),
             shadowElevation = 0.dp,
@@ -596,7 +607,7 @@ fun NewSplitBillSheetContent(
                     )
                 },
                 enabled = isValid,
-                shape = RoundedCornerShape(50),
+                shape = SplitPillShape,
                 border = BorderStroke(
                     width = 1.4.dp,
                     color = if (isValid) colors.azureAccent else colors.border
@@ -630,7 +641,7 @@ fun NewSplitBillSheetContent(
                     )
                 },
                 enabled = isValid,
-                shape = RoundedCornerShape(50),
+                shape = SplitPillShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = colors.azurePrimary,
                     contentColor = colors.onAzurePrimary,
@@ -673,7 +684,7 @@ fun SplitBillEmptyCard(
     }
     val showMonthReset = hasAnyBillsAtAll && monthLabel != null
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = SplitCardShape,
         color = colors.card,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
@@ -758,7 +769,7 @@ fun SplitBillLogItemCard(
     var selectedParticipantForPrompt by remember { mutableStateOf<SplitParticipantEntity?>(null) }
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = SplitItemShape,
         color = colors.card,
         border = BorderStroke(
             width = 1.dp,
@@ -794,7 +805,7 @@ fun SplitBillLogItemCard(
                             modifier = Modifier.weight(1f, fill = false)
                         )
                         Surface(
-                            shape = RoundedCornerShape(50),
+                            shape = SplitPillShape,
                             color = if (allPaid) colors.mintContainer else colors.azureContainer,
                             shadowElevation = 0.dp
                         ) {
@@ -850,7 +861,7 @@ fun SplitBillLogItemCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(SplitRowShape)
                             .background(colors.surface)
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -897,12 +908,12 @@ fun SplitBillLogItemCard(
 
                         if (participant.hasPaid) {
                             Surface(
-                                shape = RoundedCornerShape(50),
+                                shape = SplitPillShape,
                                 color = colors.mintContainer,
                                 shadowElevation = 0.dp,
                                 modifier = Modifier
                                     .heightIn(min = 44.dp)
-                                    .clip(RoundedCornerShape(50))
+                                    .clip(SplitPillShape)
                                     .clickable(onClickLabel = "Change payment status for $displayLabel") {
                                         selectedParticipantForPrompt = participant
                                     }
@@ -931,7 +942,7 @@ fun SplitBillLogItemCard(
                         } else {
                             OutlinedButton(
                                 onClick = { selectedParticipantForPrompt = participant },
-                                shape = RoundedCornerShape(50),
+                                shape = SplitPillShape,
                                 border = BorderStroke(1.dp, colors.azureInk),
                                 contentPadding = PaddingValues(horizontal = 14.dp),
                                 modifier = Modifier.heightIn(min = 44.dp)
@@ -953,7 +964,7 @@ fun SplitBillLogItemCard(
             // One-Tap "Log Share as Expense" Action or Logged Confirmation Banner
             if (bill.isLoggedToExpense) {
                 Surface(
-                    shape = RoundedCornerShape(50),
+                    shape = SplitPillShape,
                     color = colors.mintContainer,
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
@@ -985,7 +996,7 @@ fun SplitBillLogItemCard(
             } else {
                 Button(
                     onClick = { onLogAsExpense(bill) },
-                    shape = RoundedCornerShape(50),
+                    shape = SplitPillShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colors.azurePrimary,
                         contentColor = colors.onAzurePrimary
@@ -1063,7 +1074,7 @@ fun SplitBillLogItemCard(
                         onToggleParticipantPaid(participant)
                         selectedParticipantForPrompt = null
                     },
-                    shape = RoundedCornerShape(50),
+                    shape = SplitPillShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (participant.hasPaid) colors.surface else colors.azurePrimary,
                         contentColor = if (participant.hasPaid) colors.textPrimary else colors.onAzurePrimary

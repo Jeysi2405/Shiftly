@@ -64,7 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.BlendMode
@@ -98,7 +98,6 @@ import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
-import com.example.shiftly.ui.theme.OrbSkyLight
 import com.example.shiftly.ui.theme.PlusJakartaSans
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
@@ -114,6 +113,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+private val ExpensePillShape = RoundedCornerShape(50)
+private val ExpenseCardShape = RoundedCornerShape(22.dp)
+private val ExpenseItemShape = RoundedCornerShape(20.dp)
+private val ExpenseFieldLargeShape = RoundedCornerShape(18.dp)
+private val ExpenseFieldShape = RoundedCornerShape(16.dp)
+private val ExpenseChipShape = RoundedCornerShape(14.dp)
+private val ExpenseThumbShape = RoundedCornerShape(10.dp)
+private val ExpenseSheetTopShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+private val ExpenseCategorySheetTopShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+
 @DrawableRes
 fun categoryIcon(category: String): Int {
     return when (category.lowercase()) {
@@ -125,21 +134,6 @@ fun categoryIcon(category: String): Int {
         "split bill" -> R.drawable.ic_lucide_split
         else -> R.drawable.ic_lucide_shopping_bag
     }
-}
-
-@Composable
-private fun categorySegmentColor(index: Int): Color {
-    val colors = ShiftlyColors.current
-    val palette = remember(colors.coralBright, colors.mintBright) {
-        listOf(
-            colors.coralBright,
-            Color(0xFFFF9F7F),
-            OrbSkyLight,
-            colors.mintBright,
-            Color(0xFF93C5FD)
-        )
-    }
-    return palette[index % palette.size]
 }
 
 @Composable
@@ -164,6 +158,21 @@ fun ExpenseSummaryCard(
     val topLegendCategories = remember(categoryBreakdown) { categoryBreakdown.take(4) }
     val budgetedCategories = remember(categoryBreakdown) {
         categoryBreakdown.filter { (it.monthlyLimit ?: 0.0) > 0.0 }
+    }
+    val segmentPalette = remember(
+        colors.coralBright,
+        colors.azureAccent,
+        colors.mintBright,
+        colors.nightDiffPurple,
+        colors.coralTextOnSurface
+    ) {
+        listOf(
+            colors.coralBright,
+            colors.azureAccent,
+            colors.mintBright,
+            colors.nightDiffPurple,
+            colors.coralTextOnSurface
+        )
     }
 
     ShiftlyGlassCard(contentPadding = PaddingValues(18.dp)) {
@@ -200,7 +209,7 @@ fun ExpenseSummaryCard(
                     verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(50),
+                        shape = ExpensePillShape,
                         color = colors.card,
                         border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp
@@ -265,7 +274,7 @@ fun ExpenseSummaryCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(6.dp)
-                            .clip(RoundedCornerShape(50))
+                            .clip(ExpensePillShape)
                             .background(colors.border)
                     ) {
                         if (budgetUsed > 0f) {
@@ -273,7 +282,7 @@ fun ExpenseSummaryCard(
                                 modifier = Modifier
                                     .fillMaxWidth(budgetUsed)
                                     .fillMaxHeight()
-                                    .clip(RoundedCornerShape(50))
+                                    .clip(ExpensePillShape)
                                     .background(if (isNear) colors.coralBright else colors.mintBright)
                             )
                         }
@@ -286,7 +295,7 @@ fun ExpenseSummaryCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(10.dp)
-                        .clip(RoundedCornerShape(50))
+                        .clip(ExpensePillShape)
                         .background(colors.border),
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
@@ -296,8 +305,8 @@ fun ExpenseSummaryCard(
                                 modifier = Modifier
                                     .weight(item.fraction.coerceAtLeast(0.05f))
                                     .fillMaxHeight()
-                                    .clip(RoundedCornerShape(50))
-                                    .background(categorySegmentColor(index))
+                                    .clip(ExpensePillShape)
+                                    .background(segmentPalette[index % segmentPalette.size])
                             )
                         }
                     }
@@ -315,7 +324,7 @@ fun ExpenseSummaryCard(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(categorySegmentColor(index))
+                                    .background(segmentPalette[index % segmentPalette.size])
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
@@ -368,7 +377,7 @@ fun ExpenseSummaryCard(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(6.dp)
-                                        .clip(RoundedCornerShape(50))
+                                        .clip(ExpensePillShape)
                                         .background(colors.border)
                                 ) {
                                     if (usedFraction > 0f) {
@@ -376,7 +385,7 @@ fun ExpenseSummaryCard(
                                             modifier = Modifier
                                                 .fillMaxWidth(usedFraction)
                                                 .fillMaxHeight()
-                                                .clip(RoundedCornerShape(50))
+                                                .clip(ExpensePillShape)
                                                 .background(if (isNearOrOver) colors.coralBright else colors.mintBright)
                                         )
                                     }
@@ -401,16 +410,19 @@ fun ExpenseCategoryFilterRow(
         modifier = Modifier
             .fillMaxWidth()
             .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-            .drawWithContent {
-                drawContent()
-                drawRect(
-                    brush = Brush.horizontalGradient(
-                        0.0f to Color.Black,
-                        0.88f to Color.Black,
-                        1.0f to Color.Transparent
-                    ),
-                    blendMode = BlendMode.DstIn
+            .drawWithCache {
+                val fadeBrush = Brush.horizontalGradient(
+                    0.0f to Color.Black,
+                    0.88f to Color.Black,
+                    1.0f to Color.Transparent
                 )
+                onDrawWithContent {
+                    drawContent()
+                    drawRect(
+                        brush = fadeBrush,
+                        blendMode = BlendMode.DstIn
+                    )
+                }
             }
             .horizontalScroll(rememberScrollState())
             .selectableGroup()
@@ -422,12 +434,12 @@ fun ExpenseCategoryFilterRow(
             Box(
                 modifier = Modifier
                     .heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(50))
+                    .clip(ExpensePillShape)
                     .background(if (isSelected) colors.azurePrimary else colors.surface)
                     .border(
                         width = 1.dp,
                         color = if (isSelected) colors.azureAccent else colors.cardBorder,
-                        shape = RoundedCornerShape(50)
+                        shape = ExpensePillShape
                     )
                     .clickable(role = Role.Tab) { onSelectCategory(category) }
                     .semantics(mergeDescendants = true) {
@@ -477,7 +489,7 @@ fun ExpenseEmptyCard(
         else -> "Log your first expense"
     }
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = ExpenseCardShape,
         color = colors.card,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
@@ -557,7 +569,7 @@ fun ExpenseItemCard(
     val isSavingsItem = expense.category.equals("Savings", ignoreCase = true)
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = ExpenseItemShape,
         color = colors.card,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
@@ -617,7 +629,7 @@ fun ExpenseItemCard(
                     Box(
                         modifier = Modifier
                             .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(ExpenseChipShape)
                             .clickable(onClickLabel = "View receipt for ${expense.title}") {
                                 onViewReceipt(expense)
                             }
@@ -627,7 +639,7 @@ fun ExpenseItemCard(
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(50),
+                            shape = ExpensePillShape,
                             color = colors.azureContainer,
                             shadowElevation = 0.dp
                         ) {
@@ -708,7 +720,7 @@ fun AddExpenseBottomSheet(
         sheetState = sheetState,
         containerColor = colors.surface,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+        shape = ExpenseSheetTopShape
     ) {
         AddExpenseSheetContent(
             currencySymbol = currencySymbol,
@@ -905,7 +917,7 @@ fun AddExpenseSheetContent(
             ).tabular(),
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            shape = RoundedCornerShape(18.dp),
+            shape = ExpenseFieldLargeShape,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = colors.coralInk,
                 unfocusedBorderColor = colors.border,
@@ -930,7 +942,7 @@ fun AddExpenseSheetContent(
                 )
             },
             singleLine = true,
-            shape = RoundedCornerShape(16.dp),
+            shape = ExpenseFieldShape,
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = colors.azureAccent,
                 unfocusedBorderColor = colors.border,
@@ -944,14 +956,14 @@ fun AddExpenseSheetContent(
 
         // Category selection prompt card
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = ExpenseFieldShape,
             color = colors.card,
             border = BorderStroke(1.dp, colors.cardBorder),
             shadowElevation = 0.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 52.dp)
-                .clip(RoundedCornerShape(16.dp))
+                .clip(ExpenseFieldShape)
                 .clickable { showCategoryPrompt = true }
         ) {
             Row(
@@ -1013,14 +1025,14 @@ fun AddExpenseSheetContent(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = ExpenseFieldShape,
                 color = colors.card,
                 border = BorderStroke(1.dp, colors.cardBorder),
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(ExpenseFieldShape)
                     .clickable { showDatePicker = true }
             ) {
                 Row(
@@ -1043,14 +1055,14 @@ fun AddExpenseSheetContent(
             }
 
             Surface(
-                shape = RoundedCornerShape(16.dp),
+                shape = ExpenseFieldShape,
                 color = colors.card,
                 border = BorderStroke(1.dp, colors.cardBorder),
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .weight(1f)
                     .heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(ExpenseFieldShape)
                     .clickable { showTimePicker = true }
             ) {
                 Row(
@@ -1082,7 +1094,7 @@ fun AddExpenseSheetContent(
 
             if (receiptThumbRequest != null) {
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = ExpenseFieldShape,
                     color = colors.card,
                     border = BorderStroke(1.dp, colors.azureAccent),
                     shadowElevation = 0.dp,
@@ -1101,7 +1113,7 @@ fun AddExpenseSheetContent(
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(56.dp)
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(ExpenseThumbShape)
                         )
                         Text(
                             text = "Receipt attached",
@@ -1141,7 +1153,7 @@ fun AddExpenseSheetContent(
                             )
                         },
                         enabled = !isProcessingCameraPhoto,
-                        shape = RoundedCornerShape(50),
+                        shape = ExpensePillShape,
                         border = BorderStroke(1.dp, colors.border),
                         modifier = Modifier
                             .weight(1f)
@@ -1181,7 +1193,7 @@ fun AddExpenseSheetContent(
                             }
                         },
                         enabled = !isProcessingCameraPhoto,
-                        shape = RoundedCornerShape(50),
+                        shape = ExpensePillShape,
                         border = BorderStroke(1.dp, colors.border),
                         modifier = Modifier
                             .weight(1f)
@@ -1209,7 +1221,7 @@ fun AddExpenseSheetContent(
                 onSaveExpense(title, parsedAmount, selectedCategory, selectedDate, savedReceiptPath)
             },
             enabled = isValid && !isProcessingCameraPhoto,
-            shape = RoundedCornerShape(50),
+            shape = ExpensePillShape,
             elevation = ButtonDefaults.buttonElevation(
                 defaultElevation = 0.dp,
                 pressedElevation = 0.dp
@@ -1387,7 +1399,7 @@ fun CategoryPromptSheet(
         sheetState = sheetState,
         containerColor = colors.surface,
         tonalElevation = 0.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+        shape = ExpenseCategorySheetTopShape
     ) {
         Column(
             modifier = Modifier
@@ -1423,7 +1435,7 @@ fun CategoryPromptSheet(
             categoryOptions.forEach { category ->
                 val isSelected = category.equals(selectedCategory, ignoreCase = true)
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = ExpenseFieldShape,
                     color = if (isSelected) colors.coralContainer else colors.card,
                     border = BorderStroke(
                         width = if (isSelected) 1.5.dp else 1.dp,
@@ -1432,7 +1444,7 @@ fun CategoryPromptSheet(
                     shadowElevation = 0.dp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(ExpenseFieldShape)
                         .clickable(role = Role.RadioButton) {
                             onSelectCategory(category)
                             onDismiss()
@@ -1571,7 +1583,7 @@ fun ReceiptViewerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(ExpenseItemShape)
                         .background(colors.surface),
                     contentAlignment = Alignment.Center
                 ) {

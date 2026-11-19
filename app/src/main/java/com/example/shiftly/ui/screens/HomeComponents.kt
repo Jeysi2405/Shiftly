@@ -1,34 +1,59 @@
 package com.example.shiftly.ui.screens
 
+import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -39,6 +64,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -58,6 +85,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.size.Scale
 import com.example.shiftly.R
+import com.example.shiftly.data.local.InAppNotificationItem
+import com.example.shiftly.data.local.InAppNotificationType
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
 import com.example.shiftly.ui.screens.expense.categoryIcon
@@ -66,15 +95,101 @@ import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.io.File
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val HERO_PAGE_LABELS = listOf("Total Balance", "Shift Earnings", "Savings Goals")
+private val HomePillShape = RoundedCornerShape(50)
+private val HomeCardShape = RoundedCornerShape(22.dp)
+private val HomeBannerShape = RoundedCornerShape(20.dp)
+private val HomeMetricTileShape = RoundedCornerShape(18.dp)
+private val HomeCompactTileShape = RoundedCornerShape(16.dp)
+private val HomeTimelineRowShape = RoundedCornerShape(14.dp)
+private val InboxDropdownShape = RoundedCornerShape(24.dp)
+private val HeadsUpBannerShape = RoundedCornerShape(22.dp)
+private const val HEADS_UP_AUTO_DISMISS_MS = 4_200L
+
+internal fun formatNotificationTime(
+    timestampMillis: Long,
+    referenceTimeMillis: Long? = null,
+    locale: Locale = Locale.ENGLISH,
+    zoneId: ZoneId = ZoneId.systemDefault()
+): String {
+    if (timestampMillis <= 0L) return ""
+    val nowMillis = referenceTimeMillis ?: System.currentTimeMillis()
+    val diffMillis = (nowMillis - timestampMillis).coerceAtLeast(0L)
+    if (diffMillis < 60_000L) return "Just now"
+    val diffMins = diffMillis / 60_000L
+    if (diffMins < 60L) return "${diffMins}m ago"
+
+    val itemZoned = Instant.ofEpochMilli(timestampMillis).atZone(zoneId)
+    val nowZoned = Instant.ofEpochMilli(nowMillis).atZone(zoneId)
+    val itemDate = itemZoned.toLocalDate()
+    val nowDate = nowZoned.toLocalDate()
+
+    return when {
+        itemDate == nowDate -> {
+            val diffHours = diffMillis / 3_600_000L
+            if (diffHours < 6L) "${diffHours}h ago"
+            else itemZoned.format(DateTimeFormatter.ofPattern("h:mm a", locale))
+        }
+        itemDate == nowDate.minusDays(1) -> "Yesterday"
+        else -> itemZoned.format(DateTimeFormatter.ofPattern("MMM d", locale))
+    }
+}
+
+private data class NotificationVisualStyle(
+    @DrawableRes val iconRes: Int,
+    val containerColor: Color,
+    val accentColor: Color
+)
+
+@Composable
+private fun notificationVisualStyle(type: InAppNotificationType): NotificationVisualStyle {
+    val colors = ShiftlyColors.current
+    return when (type) {
+        InAppNotificationType.BILL_DUE -> NotificationVisualStyle(
+            iconRes = R.drawable.ic_lucide_repeat,
+            containerColor = colors.coralContainer,
+            accentColor = colors.coralInk
+        )
+        InAppNotificationType.BILL_POSTED -> NotificationVisualStyle(
+            iconRes = R.drawable.ic_lucide_receipt_text,
+            containerColor = colors.coralContainer,
+            accentColor = colors.coralInk
+        )
+        InAppNotificationType.SHIFT_REMINDER -> NotificationVisualStyle(
+            iconRes = R.drawable.ic_lucide_clock,
+            containerColor = colors.azureContainer,
+            accentColor = colors.azureAccent
+        )
+        InAppNotificationType.SAVINGS_REMINDER -> NotificationVisualStyle(
+            iconRes = R.drawable.ic_lucide_piggy_bank,
+            containerColor = colors.mintContainer,
+            accentColor = colors.mintInk
+        )
+        InAppNotificationType.PAYDAY_CUTOFF -> NotificationVisualStyle(
+            iconRes = R.drawable.ic_lucide_wallet,
+            containerColor = colors.mintContainer,
+            accentColor = colors.mintInk
+        )
+        InAppNotificationType.SPLIT_BILL -> NotificationVisualStyle(
+            iconRes = R.drawable.ic_lucide_split,
+            containerColor = colors.azureContainer,
+            accentColor = colors.azureAccent
+        )
+    }
+}
 
 /**
  * Top header displaying a refined muted date subtitle (e.g. "Wednesday, Nov 18, 2026"),
@@ -83,7 +198,8 @@ private val HERO_PAGE_LABELS = listOf("Total Balance", "Shift Earnings", "Saving
 @Composable
 fun HomeGreetingHeader(
     profilePhotoPath: String? = null,
-    pendingAlertsCount: Int = 0,
+    unreadCount: Int = 0,
+    isInboxOpen: Boolean = false,
     todayOverride: LocalDate? = null,
     onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit
@@ -95,11 +211,11 @@ fun HomeGreetingHeader(
     val fullDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy", locale) }
     val formattedDate = remember(today, fullDateFormatter) { today.format(fullDateFormatter) }
 
-    val notificationDescription = remember(pendingAlertsCount) {
-        if (pendingAlertsCount > 0) {
-            "Notifications, $pendingAlertsCount pending split bill(s)"
-        } else {
-            "Notifications, no pending alerts"
+    val notificationDescription = remember(unreadCount, isInboxOpen) {
+        when {
+            isInboxOpen -> "Close notifications inbox"
+            unreadCount > 0 -> "Notifications, $unreadCount unread"
+            else -> "Notifications, all caught up"
         }
     }
 
@@ -147,25 +263,42 @@ fun HomeGreetingHeader(
                     onClick = onNotificationClick,
                     modifier = Modifier
                         .size(48.dp)
+                        .clip(CircleShape)
+                        .background(if (isInboxOpen) colors.azureContainer else Color.Transparent)
                         .semantics { contentDescription = notificationDescription }
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_bell),
                         contentDescription = null,
-                        tint = colors.textPrimary,
+                        tint = if (isInboxOpen) colors.azureAccent else colors.textPrimary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
-                if (pendingAlertsCount > 0) {
+                if (unreadCount > 0) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 10.dp, end = 10.dp)
-                            .size(9.dp)
+                            .padding(top = 6.dp, end = 6.dp)
+                            .defaultMinSize(minWidth = 17.dp, minHeight = 17.dp)
                             .clip(CircleShape)
                             .background(colors.coralBright)
                             .border(1.5.dp, colors.background, CircleShape)
-                    )
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (unreadCount > 9) "9+" else unreadCount.toString(),
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontSize = 9.sp,
+                                lineHeight = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            ).tabular(),
+                            color = colors.onAccentDark,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
                 }
             }
             IconButton(
@@ -197,13 +330,539 @@ fun HomeGreetingHeader(
     }
 }
 
+/**
+ * Top-anchored notification inbox dropdown panel triggered by the Home bell icon.
+ */
+@Composable
+fun NotificationInboxDropdown(
+    visible: Boolean,
+    notifications: List<InAppNotificationItem>,
+    unreadCount: Int,
+    onDismiss: () -> Unit,
+    onClearAll: () -> Unit,
+    onItemClick: (InAppNotificationItem) -> Unit,
+    modifier: Modifier = Modifier,
+    referenceTimeMillis: Long? = null
+) {
+    val colors = ShiftlyColors.current
+    val locale = LocalConfiguration.current.locales[0]
+
+    Box(modifier = modifier.fillMaxSize()) {
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(animationSpec = tween(180)),
+            exit = fadeOut(animationSpec = tween(160))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = if (colors.isDark) 0.56f else 0.32f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss
+                    )
+            )
+        }
+
+        AnimatedVisibility(
+            visible = visible,
+            enter = slideInVertically(
+                initialOffsetY = { -it / 4 },
+                animationSpec = spring(
+                    dampingRatio = 0.88f,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + expandVertically(
+                expandFrom = Alignment.Top,
+                animationSpec = tween(220, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(180)),
+            exit = slideOutVertically(
+                targetOffsetY = { -it / 4 },
+                animationSpec = tween(180, easing = FastOutSlowInEasing)
+            ) + shrinkVertically(
+                shrinkTowards = Alignment.Top,
+                animationSpec = tween(180, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(150)),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 64.dp, start = 16.dp, end = 16.dp)
+        ) {
+            Surface(
+                shape = InboxDropdownShape,
+                color = colors.surface,
+                border = BorderStroke(1.dp, colors.border),
+                shadowElevation = 12.dp,
+                tonalElevation = 0.dp,
+                modifier = Modifier
+                    .widthIn(max = 420.dp)
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {}
+                    )
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 18.dp, end = 10.dp, top = 12.dp, bottom = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "Notifications",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = colors.textPrimary
+                            )
+                            if (unreadCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(HomePillShape)
+                                        .background(colors.coralContainer)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "$unreadCount new",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = PlusJakartaSans,
+                                            fontWeight = FontWeight.Bold
+                                        ).tabular(),
+                                        color = colors.coralInk
+                                    )
+                                }
+                            }
+                        }
+
+                        TextButton(
+                            onClick = onClearAll,
+                            enabled = notifications.isNotEmpty(),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.heightIn(min = 36.dp)
+                        ) {
+                            Text(
+                                text = "Clear all",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = if (notifications.isNotEmpty()) colors.azureAccent else colors.disabledContent
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = colors.border)
+
+                    if (notifications.isEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(CircleShape)
+                                    .background(colors.card)
+                                    .border(1.dp, colors.cardBorder, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_lucide_bell),
+                                    contentDescription = null,
+                                    tint = colors.textMuted,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Text(
+                                text = "All caught up",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.textPrimary
+                            )
+                            Text(
+                                text = "Bill alerts, shift reminders, and payday updates will appear here.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = colors.textSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 360.dp),
+                            contentPadding = PaddingValues(vertical = 6.dp)
+                        ) {
+                            itemsIndexed(
+                                items = notifications,
+                                key = { _, item -> item.id },
+                                contentType = { _, _ -> "inbox_notification" }
+                            ) { idx, item ->
+                                NotificationInboxRow(
+                                    item = item,
+                                    locale = locale,
+                                    referenceTimeMillis = referenceTimeMillis,
+                                    onClick = { onItemClick(item) }
+                                )
+                                if (idx < notifications.lastIndex) {
+                                    HorizontalDivider(
+                                        color = colors.border.copy(alpha = 0.65f),
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotificationInboxRow(
+    item: InAppNotificationItem,
+    locale: Locale,
+    referenceTimeMillis: Long?,
+    onClick: () -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val visual = notificationVisualStyle(item.type)
+    val timeLabel = remember(item.timestampMillis, referenceTimeMillis, locale) {
+        formatNotificationTime(
+            timestampMillis = item.timestampMillis,
+            referenceTimeMillis = referenceTimeMillis,
+            locale = locale
+        )
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                if (!item.isRead) colors.azureContainer.copy(alpha = if (colors.isDark) 0.18f else 0.12f)
+                else Color.Transparent
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(visual.containerColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(visual.iconRes),
+                contentDescription = null,
+                tint = visual.accentColor,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = if (!item.isRead) FontWeight.Bold else FontWeight.SemiBold
+                    ),
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (timeLabel.isNotEmpty()) {
+                        Text(
+                            text = timeLabel,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
+                            color = colors.textMuted
+                        )
+                    }
+                    if (!item.isRead) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(colors.coralBright)
+                        )
+                    }
+                }
+            }
+            Text(
+                text = item.message,
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.textSecondary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+/**
+ * Top heads-up toast-style notification bubble that slides in smoothly, auto-dismisses after
+ * a few seconds, and supports swipe up or swipe left/right dismissal.
+ */
+@Composable
+fun NotificationHeadsUpBanner(
+    notification: InAppNotificationItem?,
+    onTap: (InAppNotificationItem) -> Unit,
+    onDismiss: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    referenceTimeMillis: Long? = null
+) {
+    var displayedItem by remember { mutableStateOf(notification) }
+    if (notification != null) {
+        displayedItem = notification
+    }
+
+    LaunchedEffect(notification?.id) {
+        val active = notification ?: return@LaunchedEffect
+        delay(HEADS_UP_AUTO_DISMISS_MS)
+        onDismiss(active.id)
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(top = 8.dp, start = 16.dp, end = 16.dp),
+        contentAlignment = Alignment.TopCenter
+    ) {
+        AnimatedVisibility(
+            visible = notification != null,
+            enter = slideInVertically(
+                initialOffsetY = { -it - 40 },
+                animationSpec = spring(
+                    dampingRatio = 0.85f,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) + fadeIn(animationSpec = tween(220)),
+            exit = slideOutVertically(
+                targetOffsetY = { -it - 40 },
+                animationSpec = tween(200, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(180))
+        ) {
+            val item = displayedItem ?: return@AnimatedVisibility
+            key(item.id) {
+                NotificationHeadsUpCard(
+                    item = item,
+                    referenceTimeMillis = referenceTimeMillis,
+                    onTap = { onTap(item) },
+                    onDismiss = { onDismiss(item.id) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NotificationHeadsUpCard(
+    item: InAppNotificationItem,
+    referenceTimeMillis: Long?,
+    onTap: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val locale = LocalConfiguration.current.locales[0]
+    val visual = notificationVisualStyle(item.type)
+    val scope = rememberCoroutineScope()
+    val offsetX = remember { Animatable(0f) }
+    val offsetY = remember { Animatable(0f) }
+    var dismissedBySwipe by remember { mutableStateOf(false) }
+
+    val timeLabel = remember(item.timestampMillis, referenceTimeMillis, locale) {
+        formatNotificationTime(
+            timestampMillis = item.timestampMillis,
+            referenceTimeMillis = referenceTimeMillis,
+            locale = locale
+        )
+    }
+
+    Surface(
+        shape = HeadsUpBannerShape,
+        color = colors.card,
+        border = BorderStroke(1.dp, visual.accentColor.copy(alpha = 0.45f)),
+        shadowElevation = 12.dp,
+        tonalElevation = 0.dp,
+        modifier = Modifier
+            .widthIn(max = 420.dp)
+            .fillMaxWidth()
+            .graphicsLayer {
+                translationX = offsetX.value
+                translationY = offsetY.value
+                val dismissProgress = maxOf(
+                    abs(offsetX.value) / 260f,
+                    (-offsetY.value) / 140f
+                ).coerceIn(0f, 1f)
+                alpha = 1f - dismissProgress * 0.85f
+            }
+            .pointerInput(item.id) {
+                detectDragGestures(
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        scope.launch {
+                            offsetX.snapTo(offsetX.value + dragAmount.x)
+                            offsetY.snapTo((offsetY.value + dragAmount.y).coerceAtMost(16f))
+                        }
+                    },
+                    onDragEnd = {
+                        if (dismissedBySwipe) return@detectDragGestures
+                        val curX = offsetX.value
+                        val curY = offsetY.value
+                        if (curY < -54f || abs(curX) > 130f) {
+                            dismissedBySwipe = true
+                            scope.launch {
+                                if (curY < -54f) {
+                                    offsetY.animateTo(-220f, tween(150))
+                                } else {
+                                    val targetX = if (curX > 0f) 600f else -600f
+                                    offsetX.animateTo(targetX, tween(150))
+                                }
+                                onDismiss()
+                            }
+                        } else {
+                            scope.launch {
+                                launch { offsetX.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
+                                launch { offsetY.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
+                            }
+                        }
+                    },
+                    onDragCancel = {
+                        scope.launch {
+                            launch { offsetX.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
+                            launch { offsetY.animateTo(0f, spring(stiffness = Spring.StiffnessMedium)) }
+                        }
+                    }
+                )
+            }
+            .clip(HeadsUpBannerShape)
+            .clickable(onClick = onTap)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(visual.containerColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(visual.iconRes),
+                        contentDescription = null,
+                        tint = visual.accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (timeLabel.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = timeLabel,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = PlusJakartaSans,
+                                    fontWeight = FontWeight.Medium
+                                ).tabular(),
+                                color = colors.textMuted
+                            )
+                        }
+                    }
+                    Text(
+                        text = item.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 28.dp, height = 3.dp)
+                        .clip(HomePillShape)
+                        .background(colors.border)
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun DashboardGreetingBanner(
     userName: String,
-    greetingHour: Int = LocalTime.now().hour
+    greetingHour: Int? = null
 ) {
     val colors = ShiftlyColors.current
-    val greeting = remember(greetingHour) { greetingForHour(greetingHour) }
+    val resolvedHour = remember(greetingHour) { greetingHour ?: LocalTime.now().hour }
+    val greeting = remember(resolvedHour) { greetingForHour(resolvedHour) }
     val display = remember(userName) { userName.trim().ifEmpty { "Shiftly" } }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -245,6 +904,7 @@ fun HomeHeroPager(
     ) {
         HorizontalPager(
             state = pagerState,
+            key = { it },
             contentPadding = PaddingValues(horizontal = 20.dp),
             pageSpacing = 12.dp
         ) { page ->
@@ -389,7 +1049,7 @@ fun HomeHeroPager(
                 val active = pagerState.currentPage == index
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
+                        .clip(HomePillShape)
                         .clickable(
                             role = Role.Tab,
                             onClick = {
@@ -485,11 +1145,11 @@ private fun SavingsGoalsHeroCard(
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(50),
+                    shape = HomePillShape,
                     color = colors.azurePrimary,
                     shadowElevation = 0.dp,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
+                        .clip(HomePillShape)
                         .clickable(onClick = onOpenAddGoal)
                 ) {
                     Row(
@@ -657,13 +1317,13 @@ private fun SavingsGoalsHeroCard(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(50),
+                        shape = HomePillShape,
                         color = colors.card,
                         border = BorderStroke(1.dp, colors.cardBorder),
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(50))
+                            .clip(HomePillShape)
                             .clickable { onOpenGoalDetail(goal.id) }
                     ) {
                         Text(
@@ -695,7 +1355,7 @@ private fun HeroMetricPill(
     val colors = ShiftlyColors.current
     Surface(
         modifier = modifier.heightIn(min = 82.dp),
-        shape = RoundedCornerShape(18.dp),
+        shape = HomeMetricTileShape,
         color = colors.card,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
@@ -748,7 +1408,7 @@ private fun GlassSubStatPill(
     val colors = ShiftlyColors.current
     Surface(
         modifier = modifier.heightIn(min = if (compact) 60.dp else 82.dp),
-        shape = RoundedCornerShape(if (compact) 16.dp else 18.dp),
+        shape = if (compact) HomeCompactTileShape else HomeMetricTileShape,
         color = colors.card,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
@@ -798,7 +1458,7 @@ fun MonthlyTopCategoriesCard(
     val colors = ShiftlyColors.current
     val topThree = remember(topCategories) { topCategories.take(3) }
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = HomeCardShape,
         color = colors.card,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
@@ -810,7 +1470,7 @@ fun MonthlyTopCategoriesCard(
                     .align(Alignment.TopEnd)
                     .padding(top = 6.dp, end = 6.dp)
                     .heightIn(min = 40.dp)
-                    .clip(RoundedCornerShape(50))
+                    .clip(HomePillShape)
                     .clickable(onClick = onViewInsights)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -928,7 +1588,7 @@ fun MonthlyHoursIndicatorCard(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = HomeCardShape,
         color = colors.card,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp,
@@ -995,7 +1655,7 @@ private fun MonthlyHoursMetricTile(
     val colors = ShiftlyColors.current
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = HomeCompactTileShape,
         color = colors.surface,
         border = BorderStroke(1.dp, colors.cardBorder),
         shadowElevation = 0.dp
@@ -1036,14 +1696,14 @@ fun PendingSplitsBanner(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(20.dp),
+        shape = HomeBannerShape,
         color = colors.azureContainer,
         border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.35f)),
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(HomeBannerShape)
             .clickable(onClick = onClick)
     ) {
         Row(
@@ -1107,7 +1767,7 @@ fun HomeTimelineRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(HomeTimelineRowShape)
             .clickable(onClick = onClick)
             .semantics(mergeDescendants = true) {}
             .padding(horizontal = 4.dp, vertical = 8.dp),

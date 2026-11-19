@@ -1,6 +1,8 @@
 package com.example.shiftly
 
 import com.example.shiftly.data.local.CategoryBudgetSetting
+import com.example.shiftly.data.local.InAppNotificationItem
+import com.example.shiftly.data.local.InAppNotificationType
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.PreferenceJsonCodec
 import com.example.shiftly.data.local.RecurringEntrySetting
@@ -103,5 +105,76 @@ class PreferenceJsonCodecTest {
         assertEquals(1, recurring.size)
         assertEquals("Wi-Fi", recurring[0].title)
         assertEquals(false, recurring[0].isIncome)
+    }
+
+    @Test
+    fun inAppNotifications_roundTripSortsNewestFirstAndHandlesInvalidInput() {
+        assertTrue(PreferenceJsonCodec.decodeInAppNotifications(null).isEmpty())
+        assertTrue(PreferenceJsonCodec.decodeInAppNotifications("").isEmpty())
+        assertTrue(PreferenceJsonCodec.decodeInAppNotifications("not-json").isEmpty())
+
+        val older = InAppNotificationItem(
+            id = "n1",
+            eventKey = "bill_due_1",
+            type = InAppNotificationType.BILL_DUE,
+            title = "Wi-Fi Bill Due",
+            message = "₱1,499 due tomorrow",
+            timestampMillis = 1_700_000_000_000L,
+            isRead = true,
+            hasShownToast = true
+        )
+        val newer = InAppNotificationItem(
+            id = "n2",
+            eventKey = "payday_2025_05_15",
+            type = InAppNotificationType.PAYDAY_CUTOFF,
+            title = "Payday Credited",
+            message = "Added ₱5,200 to your balance",
+            timestampMillis = 1_700_005_000_000L,
+            isRead = false,
+            hasShownToast = false
+        )
+
+        val encoded = PreferenceJsonCodec.encodeInAppNotifications(listOf(older, newer))
+        val decoded = PreferenceJsonCodec.decodeInAppNotifications(encoded)
+        assertEquals(listOf(newer, older), decoded)
+    }
+
+    @Test
+    fun inAppNotifications_unknownTypeFallsBackGracefully() {
+        val raw = """
+            [
+              {
+                "id": "n_unknown",
+                "eventKey": "k1",
+                "type": "FUTURE_TYPE",
+                "title": "Heads Up",
+                "message": "Check schedule",
+                "timestampMillis": 1700000000000,
+                "isRead": false,
+                "hasShownToast": true
+              },
+              {
+                "id": "",
+                "title": "Should Skip"
+              }
+            ]
+        """.trimIndent()
+
+        val decoded = PreferenceJsonCodec.decodeInAppNotifications(raw)
+        assertEquals(1, decoded.size)
+        assertEquals(InAppNotificationType.BILL_DUE, decoded[0].type)
+        assertEquals("Heads Up", decoded[0].title)
+        assertEquals(true, decoded[0].hasShownToast)
+    }
+
+    @Test
+    fun stringList_roundTripAndHandlesInvalidInput() {
+        assertTrue(PreferenceJsonCodec.decodeStringList(null).isEmpty())
+        assertTrue(PreferenceJsonCodec.decodeStringList("malformed").isEmpty())
+
+        val keys = listOf("bill_due_10", "shift_2025_05_20", "split_99")
+        val encoded = PreferenceJsonCodec.encodeStringList(keys)
+        val decoded = PreferenceJsonCodec.decodeStringList(encoded)
+        assertEquals(keys, decoded)
     }
 }

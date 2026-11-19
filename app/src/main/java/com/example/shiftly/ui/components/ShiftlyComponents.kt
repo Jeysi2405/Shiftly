@@ -188,6 +188,7 @@ fun ShiftlyGlassCard(
     cornerRadius: Dp = 26.dp,
     contentPadding: PaddingValues = PaddingValues(20.dp),
     showBorder: Boolean = true,
+    animateSize: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val colors = ShiftlyColors.current
@@ -197,7 +198,7 @@ fun ShiftlyGlassCard(
             .fillMaxWidth()
             .clip(shape)
             .background(colors.surface)
-            .animateContentSize()
+            .then(if (animateSize) Modifier.animateContentSize() else Modifier)
             .then(
                 if (showBorder) {
                     Modifier.border(
@@ -229,7 +230,7 @@ fun ShiftlyPrimaryPillButton(
     val colors = ShiftlyColors.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val buttonScale by animateFloatAsState(
+    val buttonScaleState = animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -258,8 +259,9 @@ fun ShiftlyPrimaryPillButton(
             .fillMaxWidth()
             .heightIn(min = 56.dp)
             .graphicsLayer {
-                scaleX = buttonScale
-                scaleY = buttonScale
+                val scale = buttonScaleState.value
+                scaleX = scale
+                scaleY = scale
             }
     ) {
         if (leadingIcon != null) {
