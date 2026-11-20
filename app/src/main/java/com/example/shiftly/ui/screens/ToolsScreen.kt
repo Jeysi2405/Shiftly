@@ -73,6 +73,7 @@ private enum class ActiveToolTutorial {
     CATEGORIES,
     PAYCHECK,
     IOU,
+    INSTALLMENT_LOANS,
     CALENDAR
 }
 
@@ -97,6 +98,7 @@ fun ToolsScreen(
     var showSavingsGoalDetailSheet by remember { mutableStateOf(false) }
     var showPaycheckEstimatorSheet by remember { mutableStateOf(false) }
     var showIouSheet by remember { mutableStateOf(false) }
+    var showInstallmentLoansSheet by remember { mutableStateOf(false) }
     var showActivityCalendarSheet by remember { mutableStateOf(false) }
     var activeTutorial by remember { mutableStateOf<ActiveToolTutorial?>(null) }
 
@@ -112,6 +114,7 @@ fun ToolsScreen(
     }
     val onOpenPaycheckEstimator = remember { { showPaycheckEstimatorSheet = true } }
     val onOpenIouTracker = remember { { showIouSheet = true } }
+    val onOpenInstallmentLoans = remember { { showInstallmentLoansSheet = true } }
     val onOpenActivityCalendar = remember { { showActivityCalendarSheet = true } }
 
     ToolsScreenContent(
@@ -125,6 +128,7 @@ fun ToolsScreen(
         onOpenAllowance = onOpenAllowance,
         onOpenPaycheckEstimator = onOpenPaycheckEstimator,
         onOpenIouTracker = onOpenIouTracker,
+        onOpenInstallmentLoans = onOpenInstallmentLoans,
         onOpenActivityCalendar = onOpenActivityCalendar
     )
 
@@ -237,7 +241,7 @@ fun ToolsScreen(
 
     if (showIouSheet) {
         ShiftlyToolSheetContainer(
-            title = "IOU & Loans",
+            title = "Personal IOUs",
             onDismiss = { showIouSheet = false },
             onHelpClick = { activeTutorial = ActiveToolTutorial.IOU }
         ) {
@@ -251,6 +255,28 @@ fun ToolsScreen(
                 onDismiss = { showIouSheet = false }
             )
         }
+    }
+
+    if (showInstallmentLoansSheet) {
+        InstallmentLoansBottomSheet(
+            currencySymbol = state.currencySymbol,
+            loans = state.installmentLoans,
+            onAddOrUpdateLoan = { loan ->
+                viewModel.addOrUpdateInstallmentLoan(loan)
+                onShowMessage("Loan contract saved")
+            },
+            onPayInstallment = { loan ->
+                viewModel.recordLoanInstallmentPayment(loan.id)
+                val suffix = if (loan.autoLogExpense) " & logged to Expenses" else ""
+                onShowMessage("Installment paid$suffix")
+            },
+            onDeleteLoan = { loan ->
+                viewModel.deleteInstallmentLoan(loan.id)
+                onShowMessage("Loan contract deleted")
+            },
+            onHelpClick = { activeTutorial = ActiveToolTutorial.INSTALLMENT_LOANS },
+            onDismiss = { showInstallmentLoansSheet = false }
+        )
     }
 
     if (showActivityCalendarSheet) {
@@ -310,12 +336,25 @@ fun ToolsScreen(
 
         ActiveToolTutorial.IOU -> {
             ShiftlyScreenTutorialSheet(
-                title = "IOU & Loans Guide",
+                title = "Personal IOUs Guide",
                 subtitle = "Remember who owes you and who you need to pay back.",
                 steps = listOf(
                     "Add a borrow or lend entry" to "Enter the person's name, amount, and whether they owe you or you owe them.",
                     "Mark balances as settled" to "Mark an entry settled once paid back so your net IOU summary updates right away.",
                     "Keep records private" to "All IOU entries stay safely offline on your device for stress-free personal tracking."
+                ),
+                onDismiss = { activeTutorial = null }
+            )
+        }
+
+        ActiveToolTutorial.INSTALLMENT_LOANS -> {
+            ShiftlyScreenTutorialSheet(
+                title = "Installment Loans Guide",
+                subtitle = "Track financed contracts, remaining balance, and payoff dates.",
+                steps = listOf(
+                    "Add your loan contract" to "Tap + New Loan and enter the item, installment amount, term, and payment frequency.",
+                    "Watch your remaining balance" to "Each contract automatically shows how much balance and how many payments remain until completion.",
+                    "Log payments in one tap" to "Tap + Pay Installment to advance your progress—and optionally record it straight to Expenses."
                 ),
                 onDismiss = { activeTutorial = null }
             )
@@ -341,6 +380,7 @@ fun ToolsScreen(
 private val ToolGreen = Color(0xFF30D158)
 private val ToolRed = Color(0xFFFF453A)
 private val ToolBlue = Color(0xFF0A84FF)
+private val ToolCyan = Color(0xFF64D2FF)
 private val ToolOrange = Color(0xFFFF9F0A)
 private val ToolPurple = Color(0xFFBF5AF2)
 
@@ -356,6 +396,7 @@ fun ToolsScreenContent(
     onOpenAllowance: () -> Unit = {},
     onOpenPaycheckEstimator: () -> Unit = {},
     onOpenIouTracker: () -> Unit = {},
+    onOpenInstallmentLoans: () -> Unit = {},
     onOpenActivityCalendar: () -> Unit = {},
     listState: LazyListState = rememberLazyListState()
 ) {
@@ -439,12 +480,25 @@ fun ToolsScreenContent(
                         )
                         ShiftlyHairlineDivider(startInset = 48.dp)
                         ToolGroupedRow(
-                            title = "IOU & Loans",
+                            title = "Personal IOUs",
                             metric = state.iouSummaryText,
                             iconRes = R.drawable.ic_lucide_circle_dollar_sign,
                             iconTint = ToolRed,
                             metricColor = if (state.iouSummaryText.contains("you owe", ignoreCase = true)) colors.coralInk else colors.mintInk,
                             onClick = onOpenIouTracker
+                        )
+                        ShiftlyHairlineDivider(startInset = 48.dp)
+                        ToolGroupedRow(
+                            title = "Installment Loans",
+                            metric = state.installmentLoanSummaryText,
+                            iconRes = R.drawable.ic_lucide_file_text,
+                            iconTint = ToolCyan,
+                            metricColor = when {
+                                state.installmentLoans.isNotEmpty() && state.activeInstallmentLoanCount == 0 -> colors.mintInk
+                                state.activeInstallmentLoanCount > 0 -> colors.textPrimary
+                                else -> colors.textSecondary
+                            },
+                            onClick = onOpenInstallmentLoans
                         )
                     }
                 }
@@ -571,6 +625,7 @@ fun ToolsScreenContent(
     onOpenAllowance: () -> Unit = {},
     onOpenPaycheckEstimator: () -> Unit = {},
     onOpenIouTracker: () -> Unit = {},
+    onOpenInstallmentLoans: () -> Unit = {},
     onOpenActivityCalendar: () -> Unit = {}
 ) {
     val state = remember(
@@ -608,6 +663,7 @@ fun ToolsScreenContent(
         onOpenAllowance = onOpenAllowance,
         onOpenPaycheckEstimator = onOpenPaycheckEstimator,
         onOpenIouTracker = onOpenIouTracker,
+        onOpenInstallmentLoans = onOpenInstallmentLoans,
         onOpenActivityCalendar = onOpenActivityCalendar
     )
 }

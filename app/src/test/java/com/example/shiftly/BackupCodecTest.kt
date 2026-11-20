@@ -11,6 +11,7 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
+import com.example.shiftly.data.local.InstallmentLoan
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.RecurringEntrySetting
@@ -196,6 +197,21 @@ class BackupCodecTest {
                     createdAtMillis = 1_763_000_600_000L
                 )
             ),
+            installmentLoans = listOf(
+                InstallmentLoan(
+                    id = "loan-uuid-1",
+                    itemName = "Laptop",
+                    lenderOrStore = "Home Credit",
+                    installmentAmount = 2500.0,
+                    totalInstallments = 12,
+                    paidInstallments = 3,
+                    downPayment = 5000.0,
+                    frequency = InstallmentLoan.FREQ_MONTHLY,
+                    dueDayLabel = "Every 15th",
+                    startDateMillis = 1_763_000_000_000L,
+                    autoLogExpense = true
+                )
+            ),
             receiptFiles = mapOf("receipt_dinner.jpg" to receiptBytes)
         )
 
@@ -247,6 +263,17 @@ class BackupCodecTest {
         assertEquals("SEMI_2025-11-15", decoded.allowanceEntries[0].cutoffKey)
         assertEquals(AllowanceSource.BUSINESS, decoded.allowanceEntries[1].source)
         assertNull(decoded.allowanceEntries[1].cutoffKey)
+        assertEquals(1, decoded.installmentLoans.size)
+        assertEquals("loan-uuid-1", decoded.installmentLoans[0].id)
+        assertEquals("Laptop", decoded.installmentLoans[0].itemName)
+        assertEquals("Home Credit", decoded.installmentLoans[0].lenderOrStore)
+        assertEquals(2500.0, decoded.installmentLoans[0].installmentAmount, 0.001)
+        assertEquals(12, decoded.installmentLoans[0].totalInstallments)
+        assertEquals(3, decoded.installmentLoans[0].paidInstallments)
+        assertEquals(5000.0, decoded.installmentLoans[0].downPayment, 0.001)
+        assertEquals(InstallmentLoan.FREQ_MONTHLY, decoded.installmentLoans[0].frequency)
+        assertEquals("Every 15th", decoded.installmentLoans[0].dueDayLabel)
+        assertTrue(decoded.installmentLoans[0].autoLogExpense)
         assertArrayEquals(receiptBytes, decoded.receiptFiles["receipt_dinner.jpg"])
     }
 
@@ -287,6 +314,7 @@ class BackupCodecTest {
         assertEquals(0, decoded.extraIncomes.size)
         assertEquals(0, decoded.splitBills.size)
         assertEquals(0, decoded.savingsGoals.size)
+        assertEquals(0, decoded.installmentLoans.size)
 
         val e1 = decoded.expenses.first().expense
         val e2 = ExpenseEntity(title = " coffee ", amount = 95.00, category = "food", dateEpochDay = 20400L)

@@ -15,6 +15,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import java.io.IOException
 import java.time.DayOfWeek
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import java.util.UUID
@@ -125,10 +127,108 @@ data class IouEntrySetting(
     val personName: String,
     val amount: Double,
     val isLent: Boolean,
-    val dateEpochDay: Long = java.time.LocalDate.now().toEpochDay(),
+    val dateEpochDay: Long = LocalDate.now().toEpochDay(),
     val note: String = "",
     val isSettled: Boolean = false
 )
+
+@Immutable
+data class InstallmentLoan(
+    val id: String = UUID.randomUUID().toString(),
+    val itemName: String,
+    val lenderOrStore: String = "",
+    val installmentAmount: Double,
+    val totalInstallments: Int,
+    val paidInstallments: Int = 0,
+    val downPayment: Double = 0.0,
+    val frequency: String = FREQ_MONTHLY,
+    val dueDayLabel: String = "",
+    val startDateMillis: Long = System.currentTimeMillis(),
+    val autoLogExpense: Boolean = true
+) {
+    val totalFinancedAmount: Double
+        get() = (installmentAmount.takeIf { it.isFinite() } ?: 0.0).coerceAtLeast(0.0) *
+            totalInstallments.coerceAtLeast(0)
+
+    val totalContractAmount: Double
+        get() = totalFinancedAmount +
+            (downPayment.takeIf { it.isFinite() } ?: 0.0).coerceAtLeast(0.0)
+
+    val paidAmount: Double
+        get() {
+            val safeTotal = totalInstallments.coerceAtLeast(0)
+            val safePaid = paidInstallments.coerceIn(0, safeTotal)
+            val safeInstallment = (installmentAmount.takeIf { it.isFinite() } ?: 0.0).coerceAtLeast(0.0)
+            val safeDown = (downPayment.takeIf { it.isFinite() } ?: 0.0).coerceAtLeast(0.0)
+            return (safeInstallment * safePaid) + safeDown
+        }
+
+    val remainingInstallments: Int
+        get() = (totalInstallments.coerceAtLeast(0) - paidInstallments.coerceAtLeast(0)).coerceAtLeast(0)
+
+    val remainingBalance: Double
+        get() = ((installmentAmount.takeIf { it.isFinite() } ?: 0.0).coerceAtLeast(0.0) * remainingInstallments)
+            .coerceAtLeast(0.0)
+
+    val progressFraction: Float
+        get() = (paidInstallments.coerceAtLeast(0).toFloat() / totalInstallments.coerceAtLeast(1))
+            .coerceIn(0f, 1f)
+
+    val isCompleted: Boolean
+        get() = totalInstallments > 0 && remainingInstallments == 0
+
+    fun frequencyUnitSuffix(): String = when (frequency) {
+        FREQ_SEMI_MONTHLY -> "cutoff"
+        FREQ_WEEKLY -> "wk"
+        FREQ_EVERYDAY -> "day"
+        else -> "mo"
+    }
+
+    fun remainingTimeLabel(): String {
+        val rem = remainingInstallments
+        if (rem <= 0) return "Completed"
+        return when (frequency) {
+            FREQ_SEMI_MONTHLY -> "$rem ${if (rem == 1) "cutoff" else "cutoffs"} left"
+            FREQ_WEEKLY -> "$rem ${if (rem == 1) "wk" else "wks"} left"
+            FREQ_EVERYDAY -> "$rem ${if (rem == 1) "day" else "days"} left"
+            else -> "$rem ${if (rem == 1) "mo" else "mos"} left"
+        }
+    }
+
+    fun estimatedEndDateLabel(referenceDate: LocalDate = LocalDate.now()): String {
+        val rem = remainingInstallments
+        if (rem <= 0) return "Completed"
+        val endDate = when (frequency) {
+            FREQ_SEMI_MONTHLY -> referenceDate.plusMonths(rem.toLong() / 2L).plusDays((rem % 2) * 15L)
+            FREQ_WEEKLY -> referenceDate.plusWeeks(rem.toLong())
+            FREQ_EVERYDAY -> referenceDate.plusDays(rem.toLong())
+            else -> referenceDate.plusMonths(rem.toLong())
+        }
+        val formatter = DateTimeFormatter.ofPattern("MMM yyyy", Locale.ENGLISH)
+        return "Ends ${endDate.format(formatter)}"
+    }
+
+    companion object {
+        const val FREQ_MONTHLY = "Monthly"
+        const val FREQ_SEMI_MONTHLY = "Semi-Monthly"
+        const val FREQ_WEEKLY = "Weekly"
+        const val FREQ_EVERYDAY = "Everyday"
+
+        val ALL_FREQUENCIES = listOf(
+            FREQ_MONTHLY,
+            FREQ_SEMI_MONTHLY,
+            FREQ_WEEKLY,
+            FREQ_EVERYDAY
+        )
+
+        fun normalizeFrequency(raw: String): String = when {
+            raw.equals(FREQ_SEMI_MONTHLY, ignoreCase = true) -> FREQ_SEMI_MONTHLY
+            raw.equals(FREQ_WEEKLY, ignoreCase = true) -> FREQ_WEEKLY
+            raw.equals(FREQ_EVERYDAY, ignoreCase = true) -> FREQ_EVERYDAY
+            else -> FREQ_MONTHLY
+        }
+    }
+}
 
 @Immutable
 data class NotificationLastDays(
@@ -316,6 +416,9 @@ object PreferenceJsonCodec {
 
     @Volatile
     private var cachedInAppNotifications: CachedJsonDecode<InAppNotificationItem>? = null
+
+    @Volatile
+    private var cachedInstallmentLoans: CachedJsonDecode<InstallmentLoan>? = null
 
     fun encodeCategoryBudgets(items: List<CategoryBudgetSetting>): String =
         JSONArray().apply {
@@ -589,7 +692,7 @@ object PreferenceJsonCodec {
                                 personName = personName,
                                 amount = obj.optDouble("amount", 0.0),
                                 isLent = obj.optBoolean("isLent", true),
-                                dateEpochDay = obj.optLong("dateEpochDay", java.time.LocalDate.now().toEpochDay()),
+                                dateEpochDay = obj.optLong("dateEpochDay", LocalDate.now().toEpochDay()),
                                 note = obj.optString("note", "").trim(),
                                 isSettled = obj.optBoolean("isSettled", false)
                             )
@@ -598,6 +701,80 @@ object PreferenceJsonCodec {
                 }
             }
         }.getOrDefault(emptyList())
+    }
+
+    fun encodeInstallmentLoans(items: List<InstallmentLoan>): String =
+        JSONArray().apply {
+            items.forEach { item ->
+                put(
+                    JSONObject().apply {
+                        put("id", item.id)
+                        put("itemName", item.itemName.trim())
+                        put("lenderOrStore", item.lenderOrStore.trim())
+                        put(
+                            "installmentAmount",
+                            item.installmentAmount.takeIf { it.isFinite() }?.coerceAtLeast(0.0) ?: 0.0
+                        )
+                        put("totalInstallments", item.totalInstallments.coerceAtLeast(1))
+                        put("paidInstallments", item.paidInstallments.coerceIn(0, item.totalInstallments.coerceAtLeast(1)))
+                        put(
+                            "downPayment",
+                            item.downPayment.takeIf { it.isFinite() }?.coerceAtLeast(0.0) ?: 0.0
+                        )
+                        put("frequency", InstallmentLoan.normalizeFrequency(item.frequency))
+                        put("dueDayLabel", item.dueDayLabel.trim())
+                        put("startDateMillis", item.startDateMillis)
+                        put("autoLogExpense", item.autoLogExpense)
+                    }
+                )
+            }
+        }.toString()
+
+    fun decodeInstallmentLoans(raw: String?): List<InstallmentLoan> {
+        if (raw.isNullOrBlank()) return emptyList()
+        cachedInstallmentLoans?.takeIf { it.raw == raw }?.let { return it.value }
+
+        val trimmed = raw.trim()
+        if (!trimmed.startsWith("[")) return emptyList()
+        val parsed = runCatching {
+            val array = JSONArray(trimmed)
+            buildList {
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val itemName = obj.optString("itemName", "").trim()
+                    val installmentAmount = obj.optDouble("installmentAmount", Double.NaN)
+                    val totalInstallments = obj.optInt("totalInstallments", 0)
+                    if (itemName.isNotEmpty() &&
+                        installmentAmount.isFinite() && installmentAmount > 0.0 &&
+                        totalInstallments > 0
+                    ) {
+                        val downPayment = obj.optDouble("downPayment", 0.0)
+                            .takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
+                        add(
+                            InstallmentLoan(
+                                id = obj.optString("id", "").ifBlank { UUID.randomUUID().toString() },
+                                itemName = itemName,
+                                lenderOrStore = obj.optString("lenderOrStore", "").trim(),
+                                installmentAmount = installmentAmount,
+                                totalInstallments = totalInstallments,
+                                paidInstallments = obj.optInt("paidInstallments", 0)
+                                    .coerceIn(0, totalInstallments),
+                                downPayment = downPayment,
+                                frequency = InstallmentLoan.normalizeFrequency(
+                                    obj.optString("frequency", InstallmentLoan.FREQ_MONTHLY)
+                                ),
+                                dueDayLabel = obj.optString("dueDayLabel", "").trim(),
+                                startDateMillis = obj.optLong("startDateMillis", System.currentTimeMillis()),
+                                autoLogExpense = obj.optBoolean("autoLogExpense", true)
+                            )
+                        )
+                    }
+                }
+            }
+        }.getOrDefault(emptyList())
+
+        cachedInstallmentLoans = CachedJsonDecode(raw, parsed)
+        return parsed
     }
 
     fun decodeInAppNotifications(raw: String?): List<InAppNotificationItem> {
@@ -731,6 +908,7 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_DEDUCTION_CUSTOM_ENABLED = booleanPreferencesKey("deduction_custom_enabled")
         private val KEY_DEDUCTION_CUSTOM_AMOUNT = doublePreferencesKey("deduction_custom_amount")
         private val KEY_IOU_ENTRIES = stringPreferencesKey("iou_entries_serialized")
+        private val KEY_INSTALLMENT_LOANS = stringPreferencesKey("installment_loans_serialized")
     }
 
     private val safeData: Flow<Preferences> = context.dataStore.data.catch { exception ->
@@ -842,6 +1020,17 @@ class UserPreferencesManager(private val context: Context) {
         val serialized = PreferenceJsonCodec.encodeIouEntries(items)
         context.dataStore.edit { prefs ->
             prefs[KEY_IOU_ENTRIES] = serialized
+        }
+    }
+
+    val installmentLoans: Flow<List<InstallmentLoan>> = safeData.map { prefs ->
+        PreferenceJsonCodec.decodeInstallmentLoans(prefs[KEY_INSTALLMENT_LOANS])
+    }.distinctUntilChanged()
+
+    suspend fun setInstallmentLoans(items: List<InstallmentLoan>) {
+        val serialized = PreferenceJsonCodec.encodeInstallmentLoans(items)
+        context.dataStore.edit { prefs ->
+            prefs[KEY_INSTALLMENT_LOANS] = serialized
         }
     }
 
@@ -1084,6 +1273,18 @@ class UserPreferencesManager(private val context: Context) {
                         it.copy(amount = round2(it.amount * conversionRate).coerceAtLeast(0.01))
                     }
                 )
+
+                val currentLoans = PreferenceJsonCodec.decodeInstallmentLoans(prefs[KEY_INSTALLMENT_LOANS])
+                if (currentLoans.isNotEmpty()) {
+                    prefs[KEY_INSTALLMENT_LOANS] = PreferenceJsonCodec.encodeInstallmentLoans(
+                        currentLoans.map {
+                            it.copy(
+                                installmentAmount = round2(it.installmentAmount * conversionRate).coerceAtLeast(0.01),
+                                downPayment = round2(it.downPayment * conversionRate).coerceAtLeast(0.0)
+                            )
+                        }
+                    )
+                }
             }
         }
     }
@@ -1271,7 +1472,8 @@ class UserPreferencesManager(private val context: Context) {
         settings: ShiftlySettingsSnapshot?,
         profilePhotoPath: String? = null,
         paycheckDeductions: PaycheckDeductionsSetting? = null,
-        iouEntries: List<IouEntrySetting>? = null
+        iouEntries: List<IouEntrySetting>? = null,
+        installmentLoans: List<InstallmentLoan>? = null
     ) {
         context.dataStore.edit { prefs ->
             if (!userName.isNullOrBlank()) prefs[KEY_USER_NAME] = userName.trim()
@@ -1337,6 +1539,9 @@ class UserPreferencesManager(private val context: Context) {
             }
             if (iouEntries != null) {
                 prefs[KEY_IOU_ENTRIES] = PreferenceJsonCodec.encodeIouEntries(iouEntries)
+            }
+            if (installmentLoans != null) {
+                prefs[KEY_INSTALLMENT_LOANS] = PreferenceJsonCodec.encodeInstallmentLoans(installmentLoans)
             }
         }
     }

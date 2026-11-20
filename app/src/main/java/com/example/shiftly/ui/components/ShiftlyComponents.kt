@@ -1673,6 +1673,10 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
                 description = "Remember who owes you and who you need to pay back, stress-free."
             ),
             FeatureGuideItem(
+                title = "Installment Loan Tracker",
+                description = "Track financed items like a laptop or phone, see how much balance and time is left in your contract, and log payments in one tap."
+            ),
+            FeatureGuideItem(
                 title = "Recurring Bills",
                 description = "Keep track of daily, weekly, or monthly bills so you never miss a due date."
             ),

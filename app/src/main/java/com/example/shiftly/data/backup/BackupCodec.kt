@@ -6,6 +6,7 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
+import com.example.shiftly.data.local.InstallmentLoan
 import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.PaycheckDeductionsSetting
@@ -63,6 +64,7 @@ data class BackupPayload(
     val settings: ShiftlySettingsSnapshot? = null,
     val paycheckDeductions: PaycheckDeductionsSetting? = null,
     val iouEntries: List<IouEntrySetting> = emptyList(),
+    val installmentLoans: List<InstallmentLoan> = emptyList(),
     val shifts: List<ShiftEntity> = emptyList(),
     val expenses: List<BackupExpenseRecord> = emptyList(),
     val extraIncomes: List<ExtraIncomeEntity> = emptyList(),
@@ -157,6 +159,10 @@ object BackupCodec {
 
             if (payload.iouEntries.isNotEmpty()) {
                 put("iouEntries", JSONArray(PreferenceJsonCodec.encodeIouEntries(payload.iouEntries)))
+            }
+
+            if (payload.installmentLoans.isNotEmpty()) {
+                put("installmentLoans", JSONArray(PreferenceJsonCodec.encodeInstallmentLoans(payload.installmentLoans)))
             }
 
             put(
@@ -430,6 +436,7 @@ object BackupCodec {
         }
 
         val iouEntries = PreferenceJsonCodec.decodeIouEntries(root.optJSONArray("iouEntries")?.toString())
+        val installmentLoans = PreferenceJsonCodec.decodeInstallmentLoans(root.optJSONArray("installmentLoans")?.toString())
 
         val shiftsArray = root.optJSONArray("shifts") ?: JSONArray()
         val shifts = buildList {
@@ -672,6 +679,7 @@ object BackupCodec {
             settings = settings,
             paycheckDeductions = paycheckDeductions,
             iouEntries = iouEntries,
+            installmentLoans = installmentLoans,
             shifts = shifts,
             expenses = expenses,
             extraIncomes = extraIncomes,

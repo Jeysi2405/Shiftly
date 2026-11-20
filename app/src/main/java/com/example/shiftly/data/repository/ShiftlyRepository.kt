@@ -21,6 +21,7 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.InAppNotificationType
+import com.example.shiftly.data.local.InstallmentLoan
 import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.NotificationLastDays
@@ -77,6 +78,7 @@ class ShiftlyRepository(context: Context) {
     private val recurringMutex = Mutex()
     private val allowanceMutex = Mutex()
     private val notificationMutex = Mutex()
+    private val installmentLoanMutex = Mutex()
 
     private fun round2(value: Double): Double = (value * 100.0).roundToLong() / 100.0
 
@@ -100,6 +102,7 @@ class ShiftlyRepository(context: Context) {
     val balancePrivacyHidden: Flow<Boolean> = prefs.balancePrivacyHidden
     val paycheckDeductions: Flow<PaycheckDeductionsSetting> = prefs.paycheckDeductions
     val iouEntries: Flow<List<IouEntrySetting>> = prefs.iouEntries
+    val installmentLoans: Flow<List<InstallmentLoan>> = prefs.installmentLoans
 
     suspend fun setBalancePrivacyHidden(hidden: Boolean) = withContext(Dispatchers.IO) {
         prefs.setBalancePrivacyHidden(hidden)
@@ -269,6 +272,75 @@ class ShiftlyRepository(context: Context) {
 
     suspend fun updateIouEntries(items: List<IouEntrySetting>) = withContext(Dispatchers.IO) {
         prefs.setIouEntries(items)
+    }
+
+    suspend fun updateInstallmentLoans(items: List<InstallmentLoan>) = withContext(Dispatchers.IO) {
+        prefs.setInstallmentLoans(items)
+    }
+
+    suspend fun addOrUpdateInstallmentLoan(loan: InstallmentLoan) = withContext(Dispatchers.IO) {
+        val cleanName = loan.itemName.trim()
+        if (cleanName.isEmpty() || !loan.installmentAmount.isFinite() || loan.installmentAmount <= 0.0 || loan.totalInstallments <= 0) {
+            return@withContext
+        }
+        val normalized = loan.copy(
+            itemName = cleanName,
+            lenderOrStore = loan.lenderOrStore.trim(),
+            installmentAmount = round2(loan.installmentAmount),
+            totalInstallments = loan.totalInstallments.coerceAtLeast(1),
+            paidInstallments = loan.paidInstallments.coerceIn(0, loan.totalInstallments.coerceAtLeast(1)),
+            downPayment = round2(loan.downPayment.takeIf { it.isFinite() }?.coerceAtLeast(0.0) ?: 0.0),
+            frequency = InstallmentLoan.normalizeFrequency(loan.frequency),
+            dueDayLabel = loan.dueDayLabel.trim()
+        )
+        installmentLoanMutex.withLock {
+            val current = prefs.installmentLoans.first()
+            val idx = current.indexOfFirst { it.id == normalized.id }
+            val updated = if (idx >= 0) {
+                current.toMutableList().apply { set(idx, normalized) }
+            } else {
+                listOf(normalized) + current
+            }
+            prefs.setInstallmentLoans(updated)
+        }
+    }
+
+    suspend fun recordLoanInstallmentPayment(loanId: String): InstallmentLoan? = withContext(Dispatchers.IO) {
+        installmentLoanMutex.withLock {
+            val current = prefs.installmentLoans.first()
+            val idx = current.indexOfFirst { it.id == loanId }
+            if (idx < 0) return@withLock null
+            val target = current[idx]
+            if (target.paidInstallments >= target.totalInstallments) return@withLock null
+
+            val newPaid = (target.paidInstallments + 1).coerceAtMost(target.totalInstallments)
+            val updatedLoan = target.copy(paidInstallments = newPaid)
+            val updatedList = current.toMutableList().apply { set(idx, updatedLoan) }
+            prefs.setInstallmentLoans(updatedList)
+
+            if (target.autoLogExpense && target.installmentAmount.isFinite() && target.installmentAmount > 0.0) {
+                expenseDao.insertExpense(
+                    ExpenseEntity(
+                        title = "${target.itemName} Installment ($newPaid/${target.totalInstallments})",
+                        amount = round2(target.installmentAmount),
+                        category = "Bills",
+                        dateEpochDay = LocalDate.now().toEpochDay(),
+                        createdAtMillis = System.currentTimeMillis()
+                    )
+                )
+            }
+            updatedLoan
+        }
+    }
+
+    suspend fun deleteInstallmentLoan(loanId: String) = withContext(Dispatchers.IO) {
+        installmentLoanMutex.withLock {
+            val current = prefs.installmentLoans.first()
+            val updated = current.filterNot { it.id == loanId }
+            if (updated.size != current.size) {
+                prefs.setInstallmentLoans(updated)
+            }
+        }
     }
 
     suspend fun updateProfilePhotoPath(path: String?) = withContext(Dispatchers.IO) {
@@ -984,6 +1056,7 @@ class ShiftlyRepository(context: Context) {
         val settings = settingsSnapshot.first()
         val deductions = paycheckDeductions.first()
         val ious = iouEntries.first()
+        val loans = installmentLoans.first()
         val currency = currencySymbol.first()
         val rate = defaultHourlyRate.first()
         val minWage = minimumWagePerDay.first()
@@ -1035,6 +1108,7 @@ class ShiftlyRepository(context: Context) {
             settings = settings,
             paycheckDeductions = deductions,
             iouEntries = ious,
+            installmentLoans = loans,
             shifts = shifts,
             expenses = backupExpenses,
             extraIncomes = extraIncomes,
@@ -1302,6 +1376,16 @@ class ShiftlyRepository(context: Context) {
             }
         }
 
+        val resolvedLoans: List<InstallmentLoan>? = when {
+            mode == RestoreMode.REPLACE -> payload.installmentLoans
+            payload.installmentLoans.isEmpty() -> null
+            else -> {
+                val existingLoans = installmentLoans.first()
+                val seenIds = existingLoans.map { it.id }.toMutableSet()
+                existingLoans + payload.installmentLoans.filter { seenIds.add(it.id) }
+            }
+        }
+
         prefs.applyRestoredSettings(
             userName = payload.userName,
             currencySymbol = payload.currencySymbol,
@@ -1311,7 +1395,8 @@ class ShiftlyRepository(context: Context) {
             savingsBuffer = payload.savingsBuffer,
             settings = payload.settings,
             paycheckDeductions = payload.paycheckDeductions,
-            iouEntries = resolvedIous
+            iouEntries = resolvedIous,
+            installmentLoans = resolvedLoans
         )
 
         processDueCutoffAllowances()

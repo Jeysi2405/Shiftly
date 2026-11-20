@@ -7,6 +7,7 @@ import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
+import com.example.shiftly.data.local.InstallmentLoan
 import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.PaycheckDeductionsSetting
@@ -49,6 +50,10 @@ data class ToolsUiState(
     val cutoffScheduleLabel: String = CutoffScheduleConfig().displayLabel(),
     val paycheckDeductions: PaycheckDeductionsSetting = PaycheckDeductionsSetting(),
     val iouEntries: List<IouEntrySetting> = emptyList(),
+    val installmentLoans: List<InstallmentLoan> = emptyList(),
+    val totalRemainingLoanBalance: Double = 0.0,
+    val activeInstallmentLoanCount: Int = 0,
+    val installmentLoanSummaryText: String = "0 active",
     val netPayTakeHome: Double = 0.0,
     val totalDeductions: Double = 0.0,
     val iouSummaryText: String = "All settled",
@@ -70,6 +75,14 @@ class ToolsViewModel(
         Triple(currency, monthlyBudget, settings)
     }
 
+    private val trackerExtrasFlow = combine(
+        repository.paycheckDeductions,
+        repository.iouEntries,
+        repository.installmentLoans
+    ) { deductions, ious, loans ->
+        Triple(deductions, ious, loans)
+    }
+
     val uiState: StateFlow<ToolsUiState> = combine(
         corePrefsFlow,
         repository.allShifts,
@@ -78,8 +91,7 @@ class ToolsViewModel(
         repository.allSavingsGoals,
         repository.allRecurringBills,
         repository.allAllowanceEntries,
-        repository.paycheckDeductions,
-        repository.iouEntries
+        trackerExtrasFlow
     ) { values ->
         @Suppress("UNCHECKED_CAST")
         val prefs = values[0] as Triple<String, Double, ShiftlySettingsSnapshot>
@@ -95,9 +107,8 @@ class ToolsViewModel(
         val recurringBills = values[5] as List<RecurringBillEntity>
         @Suppress("UNCHECKED_CAST")
         val allowanceEntries = values[6] as List<AllowanceEntryEntity>
-        val deductions = values[7] as PaycheckDeductionsSetting
         @Suppress("UNCHECKED_CAST")
-        val iouItems = values[8] as List<IouEntrySetting>
+        val trackerExtras = values[7] as Triple<PaycheckDeductionsSetting, List<IouEntrySetting>, List<InstallmentLoan>>
 
         computeToolsUiState(
             currencySymbol = prefs.first,
@@ -109,8 +120,9 @@ class ToolsViewModel(
             savingsGoals = savingsGoals,
             recurringBills = recurringBills,
             allowanceEntries = allowanceEntries,
-            paycheckDeductions = deductions,
-            iouEntries = iouItems
+            paycheckDeductions = trackerExtras.first,
+            iouEntries = trackerExtras.second,
+            installmentLoans = trackerExtras.third
         )
     }
         .flowOn(Dispatchers.IO)
@@ -142,6 +154,24 @@ class ToolsViewModel(
     fun updateIouEntries(items: List<IouEntrySetting>) {
         viewModelScope.launch {
             repository.updateIouEntries(items)
+        }
+    }
+
+    fun addOrUpdateInstallmentLoan(loan: InstallmentLoan) {
+        viewModelScope.launch {
+            repository.addOrUpdateInstallmentLoan(loan)
+        }
+    }
+
+    fun recordLoanInstallmentPayment(loanId: String) {
+        viewModelScope.launch {
+            repository.recordLoanInstallmentPayment(loanId)
+        }
+    }
+
+    fun deleteInstallmentLoan(loanId: String) {
+        viewModelScope.launch {
+            repository.deleteInstallmentLoan(loanId)
         }
     }
 
@@ -188,6 +218,7 @@ class ToolsViewModel(
             allowanceEntries: List<AllowanceEntryEntity>,
             paycheckDeductions: PaycheckDeductionsSetting = PaycheckDeductionsSetting(),
             iouEntries: List<IouEntrySetting> = emptyList(),
+            installmentLoans: List<InstallmentLoan> = emptyList(),
             currentMonth: YearMonth = YearMonth.now()
         ): ToolsUiState {
             val monthStartEpoch = currentMonth.atDay(1).toEpochDay()
@@ -243,6 +274,14 @@ class ToolsViewModel(
                 else -> "Balanced debts"
             }
 
+            val activeLoans = installmentLoans.filter { !it.isCompleted }
+            val totalRemainingLoanBalance = activeLoans.sumOf { it.remainingBalance }
+            val installmentLoanSummaryText = when {
+                installmentLoans.isEmpty() -> "0 active"
+                activeLoans.isEmpty() -> "All paid"
+                else -> "${ShiftlyFormatters.formatCurrency(currencySymbol, totalRemainingLoanBalance)} left"
+            }
+
             return ToolsUiState(
                 currencySymbol = currencySymbol,
                 monthlyBudget = monthlyBudget,
@@ -264,6 +303,10 @@ class ToolsViewModel(
                 cutoffScheduleLabel = settings.cutoffScheduleConfig().displayLabel(),
                 paycheckDeductions = paycheckDeductions,
                 iouEntries = iouEntries,
+                installmentLoans = installmentLoans,
+                totalRemainingLoanBalance = totalRemainingLoanBalance,
+                activeInstallmentLoanCount = activeLoans.size,
+                installmentLoanSummaryText = installmentLoanSummaryText,
                 netPayTakeHome = netPayTakeHome,
                 totalDeductions = totalDeductions,
                 iouSummaryText = iouSummaryText,

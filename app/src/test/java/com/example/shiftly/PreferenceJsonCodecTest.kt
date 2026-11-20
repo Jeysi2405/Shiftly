@@ -3,12 +3,15 @@ package com.example.shiftly
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.InAppNotificationType
+import com.example.shiftly.data.local.InstallmentLoan
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.PreferenceJsonCodec
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
+import java.time.LocalDate
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -176,5 +179,87 @@ class PreferenceJsonCodecTest {
         val encoded = PreferenceJsonCodec.encodeStringList(keys)
         val decoded = PreferenceJsonCodec.decodeStringList(encoded)
         assertEquals(keys, decoded)
+    }
+
+    @Test
+    fun installmentLoans_roundTripViaJsonAndHandlesMalformed() {
+        assertTrue(PreferenceJsonCodec.decodeInstallmentLoans(null).isEmpty())
+        assertTrue(PreferenceJsonCodec.decodeInstallmentLoans("bad-json").isEmpty())
+
+        val loans = listOf(
+            InstallmentLoan(
+                id = "loan-1",
+                itemName = "MacBook Air",
+                lenderOrStore = "Home Credit",
+                installmentAmount = 2500.0,
+                totalInstallments = 12,
+                paidInstallments = 3,
+                downPayment = 5000.0,
+                frequency = InstallmentLoan.FREQ_MONTHLY,
+                dueDayLabel = "Every 15th",
+                startDateMillis = 1_760_000_000_000L,
+                autoLogExpense = true
+            ),
+            InstallmentLoan(
+                id = "loan-2",
+                itemName = "Phone Plan",
+                lenderOrStore = "SPayLater",
+                installmentAmount = 950.0,
+                totalInstallments = 6,
+                paidInstallments = 6,
+                downPayment = 0.0,
+                frequency = InstallmentLoan.FREQ_SEMI_MONTHLY,
+                dueDayLabel = "15th & 30th",
+                startDateMillis = 1_750_000_000_000L,
+                autoLogExpense = false
+            )
+        )
+
+        val encoded = PreferenceJsonCodec.encodeInstallmentLoans(loans)
+        val decoded = PreferenceJsonCodec.decodeInstallmentLoans(encoded)
+        assertEquals(loans, decoded)
+    }
+
+    @Test
+    fun installmentLoan_computedHelpersAndFrequenciesWorkAccurately() {
+        val ref = LocalDate.of(2026, 5, 1)
+
+        val monthly = InstallmentLoan(
+            itemName = "Laptop",
+            installmentAmount = 2500.0,
+            totalInstallments = 12,
+            paidInstallments = 3,
+            downPayment = 5000.0,
+            frequency = InstallmentLoan.FREQ_MONTHLY
+        )
+        assertEquals(30000.0, monthly.totalFinancedAmount, 0.001)
+        assertEquals(35000.0, monthly.totalContractAmount, 0.001)
+        assertEquals(12500.0, monthly.paidAmount, 0.001)
+        assertEquals(9, monthly.remainingInstallments)
+        assertEquals(22500.0, monthly.remainingBalance, 0.001)
+        assertEquals(0.25f, monthly.progressFraction, 0.001f)
+        assertFalse(monthly.isCompleted)
+        assertEquals("mo", monthly.frequencyUnitSuffix())
+        assertEquals("9 mos left", monthly.remainingTimeLabel())
+        assertEquals("Ends Feb 2027", monthly.estimatedEndDateLabel(ref))
+
+        val semiMonthly = monthly.copy(frequency = InstallmentLoan.FREQ_SEMI_MONTHLY, totalInstallments = 5, paidInstallments = 2)
+        assertEquals("cutoff", semiMonthly.frequencyUnitSuffix())
+        assertEquals("3 cutoffs left", semiMonthly.remainingTimeLabel())
+        assertEquals("Ends Jun 2026", semiMonthly.estimatedEndDateLabel(ref))
+
+        val weekly = monthly.copy(frequency = InstallmentLoan.FREQ_WEEKLY, totalInstallments = 6, paidInstallments = 5)
+        assertEquals("wk", weekly.frequencyUnitSuffix())
+        assertEquals("1 wk left", weekly.remainingTimeLabel())
+
+        val everyday = monthly.copy(frequency = InstallmentLoan.FREQ_EVERYDAY, totalInstallments = 10, paidInstallments = 8)
+        assertEquals("day", everyday.frequencyUnitSuffix())
+        assertEquals("2 days left", everyday.remainingTimeLabel())
+
+        val completed = monthly.copy(paidInstallments = 12)
+        assertTrue(completed.isCompleted)
+        assertEquals(0.0, completed.remainingBalance, 0.001)
+        assertEquals("Completed", completed.remainingTimeLabel())
+        assertEquals("Completed", completed.estimatedEndDateLabel(ref))
     }
 }

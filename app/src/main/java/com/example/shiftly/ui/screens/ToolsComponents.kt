@@ -1,39 +1,39 @@
 package com.example.shiftly.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,11 +43,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -56,16 +55,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.ExpenseEntity
+import com.example.shiftly.data.local.InstallmentLoan
 import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.PaycheckDeductionsSetting
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
+import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyIosSwitch
+import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetCloseButton
+import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.shiftlyPressClickable
+import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -74,7 +80,6 @@ import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalTime
 import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -814,7 +819,945 @@ private fun IouInsetRow(
 }
 
 // =============================================================================
-// 3. Unified Shift & Spend Calendar Sheet Content
+// 3. Installment Loans (Contract & Installment Loan Tracker) Sheets
+// =============================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InstallmentLoansBottomSheet(
+    currencySymbol: String,
+    loans: List<InstallmentLoan>,
+    onAddOrUpdateLoan: (InstallmentLoan) -> Unit,
+    onPayInstallment: (InstallmentLoan) -> Unit,
+    onDeleteLoan: (InstallmentLoan) -> Unit,
+    onHelpClick: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showAddEditSheet by remember { mutableStateOf(false) }
+    var editingLoan by remember { mutableStateOf<InstallmentLoan?>(null) }
+    var pendingDeleteLoan by remember { mutableStateOf<InstallmentLoan?>(null) }
+
+    val sortedLoans = remember(loans) {
+        loans.sortedWith(
+            compareBy<InstallmentLoan> { it.isCompleted }
+                .thenByDescending { it.startDateMillis }
+        )
+    }
+    val activeLoans = remember(loans) { loans.filter { !it.isCompleted } }
+    val totalRemainingBalance = remember(activeLoans) { activeLoans.sumOf { it.remainingBalance } }
+    val nextInstallmentAmount = remember(activeLoans) {
+        activeLoans.firstOrNull()?.installmentAmount ?: 0.0
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
+        tonalElevation = 0.dp,
+        dragHandle = { ShiftlySheetDragHandle() },
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 20.dp)
+        ) {
+            ShiftlySheetHeader(
+                title = "Installment Loans",
+                onHelpClick = onHelpClick
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Summary Banner Card
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = colors.cardElevated,
+                    border = BorderStroke(0.5.dp, colors.separator),
+                    shadowElevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "TOTAL REMAINING CONTRACT BALANCE",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = InterFontFamily,
+                                    letterSpacing = 0.5.sp
+                                ),
+                                color = Color(0xFF8E8E93)
+                            )
+                            Text(
+                                text = ShiftlyFormatters.formatCurrency(currencySymbol, totalRemainingBalance),
+                                style = MaterialTheme.typography.headlineLarge.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 28.sp
+                                ).tabular(),
+                                color = colors.textPrimary
+                            )
+                        }
+
+                        ShiftlyHairlineDivider(startInset = 0.dp)
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(
+                                    text = "Active Contracts",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                                    color = Color(0xFF8E8E93)
+                                )
+                                val paidCount = loans.size - activeLoans.size
+                                val countLabel = if (paidCount > 0) {
+                                    "${activeLoans.size} active • $paidCount paid"
+                                } else {
+                                    "${activeLoans.size} active"
+                                }
+                                Text(
+                                    text = countLabel,
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold
+                                    ).tabular(),
+                                    color = colors.textPrimary
+                                )
+                            }
+
+                            Column(
+                                horizontalAlignment = Alignment.End,
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = "Next Installment",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                                    color = Color(0xFF8E8E93)
+                                )
+                                Text(
+                                    text = if (activeLoans.isNotEmpty()) {
+                                        ShiftlyFormatters.formatCurrency(currencySymbol, nextInstallmentAmount)
+                                    } else {
+                                        "—"
+                                    },
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold
+                                    ).tabular(),
+                                    color = if (activeLoans.isNotEmpty()) Color(0xFF64D2FF) else Color(0xFF8E8E93)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (sortedLoans.isEmpty()) {
+                    ShiftlyEmptyState(
+                        iconRes = R.drawable.ic_lucide_file_text,
+                        title = "No Installment Loans",
+                        subtitle = "Track financed laptops, phones, or salary loans to see your remaining balance, payments left, and contract end date.",
+                        actionText = "+ New Loan",
+                        onAction = {
+                            editingLoan = null
+                            showAddEditSheet = true
+                        },
+                        iconBackgroundColor = Color(0xFF64D2FF),
+                        containerColor = colors.cardElevated
+                    )
+                } else {
+                    sortedLoans.forEach { loan ->
+                        InstallmentLoanContractCard(
+                            loan = loan,
+                            currencySymbol = currencySymbol,
+                            onEditClick = {
+                                editingLoan = loan
+                                showAddEditSheet = true
+                            },
+                            onPayInstallment = { onPayInstallment(loan) },
+                            onDeleteClick = { pendingDeleteLoan = loan }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            ShiftlySheetBottomButtons(
+                onCancel = onDismiss,
+                onAction = {
+                    editingLoan = null
+                    showAddEditSheet = true
+                },
+                cancelLabel = "Close",
+                actionLabel = "+ New Loan"
+            )
+        }
+    }
+
+    if (showAddEditSheet) {
+        AddEditInstallmentLoanSheet(
+            currencySymbol = currencySymbol,
+            editingLoan = editingLoan,
+            onDismiss = { showAddEditSheet = false },
+            onSave = { savedLoan ->
+                onAddOrUpdateLoan(savedLoan)
+                showAddEditSheet = false
+            }
+        )
+    }
+
+    pendingDeleteLoan?.let { loanToDelete ->
+        ShiftlyDeleteConfirmDialog(
+            title = "Delete Loan Contract?",
+            message = "This installment contract for ${loanToDelete.itemName} will be permanently removed.",
+            onConfirm = {
+                onDeleteLoan(loanToDelete)
+                pendingDeleteLoan = null
+            },
+            onDismiss = { pendingDeleteLoan = null }
+        )
+    }
+}
+
+@Composable
+private fun InstallmentLoanContractCard(
+    loan: InstallmentLoan,
+    currencySymbol: String,
+    onEditClick: () -> Unit,
+    onPayInstallment: () -> Unit,
+    onDeleteClick: () -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
+    val accentGreen = Color(0xFF30D158)
+    val accentBlue = Color(0xFF0A84FF)
+    val accentCyan = Color(0xFF64D2FF)
+    val pctPaid = (loan.progressFraction * 100f).toInt()
+    val scheduleText = loan.dueDayLabel.ifBlank { loan.frequency }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = colors.cardElevated,
+        border = BorderStroke(0.5.dp, colors.separator),
+        shadowElevation = 0.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onEditClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Top Row: Item Name + Optional Lender Tag | Installment Rate
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = loan.itemName,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        ),
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    if (loan.lenderOrStore.isNotBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = colors.surface,
+                            shadowElevation = 0.dp
+                        ) {
+                            Text(
+                                text = loan.lenderOrStore,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontSize = 11.sp
+                                ),
+                                color = Color(0xFF8E8E93),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = "${ShiftlyFormatters.formatCurrency(currencySymbol, loan.installmentAmount)} / ${loan.frequencyUnitSuffix()}",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.sp
+                    ).tabular(),
+                    color = accentBlue,
+                    maxLines = 1
+                )
+            }
+
+            // Contract Timeline Subtitle
+            Text(
+                text = "Due: $scheduleText • ${loan.estimatedEndDateLabel()}",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = InterFontFamily,
+                    fontSize = 12.sp
+                ),
+                color = Color(0xFF8E8E93),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            // Progress Bar + Percentage Paid
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "$pctPaid% Paid",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.sp
+                        ).tabular(),
+                        color = if (loan.isCompleted) accentGreen else colors.textPrimary
+                    )
+                    Text(
+                        text = "${loan.paidInstallments}/${loan.totalInstallments} payments",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontSize = 12.sp
+                        ).tabular(),
+                        color = Color(0xFF8E8E93)
+                    )
+                }
+
+                ShiftlyProgressBar(
+                    progress = loan.progressFraction,
+                    color = if (loan.isCompleted) accentGreen else accentBlue,
+                    trackColor = colors.surface,
+                    height = 6.dp
+                )
+            }
+
+            // Contract Metrics Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Remaining: ${ShiftlyFormatters.formatCurrency(currencySymbol, loan.remainingBalance)} of ${ShiftlyFormatters.formatCurrency(currencySymbol, loan.totalContractAmount)}",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = InterFontFamily,
+                        fontSize = 12.sp
+                    ).tabular(),
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (loan.isCompleted) accentGreen.copy(alpha = 0.14f) else accentCyan.copy(alpha = 0.14f),
+                    shadowElevation = 0.dp
+                ) {
+                    Text(
+                        text = loan.remainingTimeLabel(),
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 11.sp
+                        ).tabular(),
+                        color = if (loan.isCompleted) accentGreen else accentCyan,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                    )
+                }
+            }
+
+            // Actions Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (!loan.isCompleted) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = accentBlue.copy(alpha = 0.14f),
+                        shadowElevation = 0.dp,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .shiftlyPressClickable {
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onPayInstallment()
+                            }
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        ) {
+                            Text(
+                                text = "+ Pay Installment (${ShiftlyFormatters.formatCurrency(currencySymbol, loan.installmentAmount)})",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp
+                                ).tabular(),
+                                color = accentBlue,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = accentGreen.copy(alpha = 0.14f),
+                        shadowElevation = 0.dp,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        ) {
+                            Text(
+                                text = "Contract Completed ✓",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp
+                                ),
+                                color = accentGreen,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+
+                IconButton(
+                    onClick = onDeleteClick,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_trash_2),
+                        contentDescription = "Delete ${loan.itemName}",
+                        tint = colors.coralInk,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddEditInstallmentLoanSheet(
+    currencySymbol: String,
+    editingLoan: InstallmentLoan? = null,
+    onDismiss: () -> Unit,
+    onSave: (InstallmentLoan) -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var itemName by remember(editingLoan) { mutableStateOf(editingLoan?.itemName.orEmpty()) }
+    var lenderOrStore by remember(editingLoan) { mutableStateOf(editingLoan?.lenderOrStore.orEmpty()) }
+    var frequency by remember(editingLoan) {
+        mutableStateOf(editingLoan?.frequency ?: InstallmentLoan.FREQ_MONTHLY)
+    }
+    var installmentAmountText by remember(editingLoan) {
+        mutableStateOf(
+            editingLoan?.installmentAmount
+                ?.takeIf { it > 0.0 }
+                ?.let { ShiftlyFormatters.formatNumber(it).replace(",", "") }
+                .orEmpty()
+        )
+    }
+    var totalInstallmentsText by remember(editingLoan) {
+        mutableStateOf(editingLoan?.totalInstallments?.toString().orEmpty())
+    }
+    var paidInstallmentsText by remember(editingLoan) {
+        mutableStateOf(editingLoan?.paidInstallments?.toString() ?: "0")
+    }
+    var downPaymentText by remember(editingLoan) {
+        mutableStateOf(
+            editingLoan?.downPayment
+                ?.takeIf { it > 0.0 }
+                ?.let { ShiftlyFormatters.formatNumber(it).replace(",", "") }
+                .orEmpty()
+        )
+    }
+    var dueDayLabel by remember(editingLoan) { mutableStateOf(editingLoan?.dueDayLabel.orEmpty()) }
+    var autoLogExpense by remember(editingLoan) { mutableStateOf(editingLoan?.autoLogExpense ?: true) }
+    var frequencyMenuExpanded by remember { mutableStateOf(false) }
+
+    val parsedInstallmentAmount = installmentAmountText.toDoubleOrNull()?.takeIf { it.isFinite() && it > 0.0 } ?: 0.0
+    val parsedTotalInstallments = totalInstallmentsText.toIntOrNull()?.coerceAtLeast(0) ?: 0
+    val parsedPaidInstallments = (paidInstallmentsText.toIntOrNull()?.coerceAtLeast(0) ?: 0)
+        .coerceAtMost(parsedTotalInstallments.coerceAtLeast(0))
+    val parsedDownPayment = downPaymentText.toDoubleOrNull()?.takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
+
+    val previewLoan = remember(
+        itemName,
+        lenderOrStore,
+        parsedInstallmentAmount,
+        parsedTotalInstallments,
+        parsedPaidInstallments,
+        parsedDownPayment,
+        frequency,
+        dueDayLabel,
+        autoLogExpense,
+        editingLoan
+    ) {
+        InstallmentLoan(
+            id = editingLoan?.id ?: UUID.randomUUID().toString(),
+            itemName = itemName.trim().ifEmpty { "Item" },
+            lenderOrStore = lenderOrStore.trim(),
+            installmentAmount = parsedInstallmentAmount,
+            totalInstallments = parsedTotalInstallments,
+            paidInstallments = parsedPaidInstallments,
+            downPayment = parsedDownPayment,
+            frequency = frequency,
+            dueDayLabel = dueDayLabel.trim(),
+            startDateMillis = editingLoan?.startDateMillis ?: System.currentTimeMillis(),
+            autoLogExpense = autoLogExpense
+        )
+    }
+
+    val isValid = itemName.trim().isNotEmpty() &&
+        parsedInstallmentAmount > 0.0 &&
+        parsedTotalInstallments > 0
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
+        tonalElevation = 0.dp,
+        dragHandle = { ShiftlySheetDragHandle() },
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 20.dp)
+        ) {
+            ShiftlySheetHeader(
+                title = if (editingLoan == null) "New Installment Loan" else "Edit Loan"
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = colors.cardElevated,
+                    border = BorderStroke(0.5.dp, colors.separator),
+                    shadowElevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        LoanInsetFieldRow(
+                            label = "Item / Loan Name",
+                            value = itemName,
+                            onValueChange = { itemName = it },
+                            placeholder = "e.g. Laptop"
+                        )
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+
+                        LoanInsetFieldRow(
+                            label = "Lender / Store",
+                            value = lenderOrStore,
+                            onValueChange = { lenderOrStore = it },
+                            placeholder = "Optional"
+                        )
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+
+                        // Payment Frequency Dropdown Row
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 50.dp)
+                                    .clickable { frequencyMenuExpanded = true }
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Payment Frequency",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = colors.textPrimary
+                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = frequency,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = colors.azureAccent
+                                    )
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                                        contentDescription = "Select frequency",
+                                        tint = colors.textSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+
+                            DropdownMenu(
+                                expanded = frequencyMenuExpanded,
+                                onDismissRequest = { frequencyMenuExpanded = false },
+                                containerColor = colors.cardElevated
+                            ) {
+                                InstallmentLoan.ALL_FREQUENCIES.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = option,
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontFamily = InterFontFamily,
+                                                    fontWeight = if (option == frequency) FontWeight.Bold else FontWeight.Medium
+                                                ),
+                                                color = if (option == frequency) colors.azureAccent else colors.textPrimary
+                                            )
+                                        },
+                                        onClick = {
+                                            frequency = option
+                                            frequencyMenuExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+
+                        LoanInsetFieldRow(
+                            label = "Installment Amount",
+                            value = installmentAmountText,
+                            onValueChange = { input ->
+                                val filtered = input.filter { it.isDigit() || it == '.' }
+                                if (filtered.count { it == '.' } <= 1) installmentAmountText = filtered
+                            },
+                            placeholder = "0.00",
+                            prefix = currencySymbol,
+                            keyboardType = KeyboardType.Decimal
+                        )
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+
+                        LoanInsetFieldRow(
+                            label = "Total Payments (Term)",
+                            value = totalInstallmentsText,
+                            onValueChange = { input ->
+                                totalInstallmentsText = input.filter { it.isDigit() }.take(4)
+                            },
+                            placeholder = "e.g. 12",
+                            keyboardType = KeyboardType.Number
+                        )
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+
+                        LoanInsetFieldRow(
+                            label = "Payments Already Made",
+                            value = paidInstallmentsText,
+                            onValueChange = { input ->
+                                paidInstallmentsText = input.filter { it.isDigit() }.take(4)
+                            },
+                            placeholder = "0",
+                            keyboardType = KeyboardType.Number
+                        )
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+
+                        LoanInsetFieldRow(
+                            label = "Down Payment",
+                            value = downPaymentText,
+                            onValueChange = { input ->
+                                val filtered = input.filter { it.isDigit() || it == '.' }
+                                if (filtered.count { it == '.' } <= 1) downPaymentText = filtered
+                            },
+                            placeholder = "Optional",
+                            prefix = currencySymbol,
+                            keyboardType = KeyboardType.Decimal
+                        )
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+
+                        LoanInsetFieldRow(
+                            label = "Due Schedule / Day",
+                            value = dueDayLabel,
+                            onValueChange = { dueDayLabel = it },
+                            placeholder = "e.g. Every 15th"
+                        )
+                        ShiftlyHairlineDivider(startInset = 16.dp)
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 52.dp)
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Auto-log payment as expense",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 15.sp
+                                ),
+                                color = colors.textPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            ShiftlyIosSwitch(
+                                checked = autoLogExpense,
+                                onCheckedChange = { autoLogExpense = it }
+                            )
+                        }
+                    }
+                }
+
+                // Live Contract Preview Card
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = colors.cardElevated,
+                    border = BorderStroke(0.5.dp, colors.separator),
+                    shadowElevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "LIVE CONTRACT PREVIEW",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = InterFontFamily,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = Color(0xFF8E8E93)
+                        )
+                        LoanPreviewRow(
+                            label = "Total Contract",
+                            value = ShiftlyFormatters.formatCurrency(currencySymbol, previewLoan.totalContractAmount)
+                        )
+                        LoanPreviewRow(
+                            label = "Remaining Balance",
+                            value = ShiftlyFormatters.formatCurrency(currencySymbol, previewLoan.remainingBalance),
+                            valueColor = colors.azureAccent
+                        )
+                        LoanPreviewRow(
+                            label = "Payments Left",
+                            value = if (parsedTotalInstallments > 0) {
+                                previewLoan.remainingTimeLabel()
+                            } else {
+                                "—"
+                            }
+                        )
+                        LoanPreviewRow(
+                            label = "Estimated End Date",
+                            value = if (parsedTotalInstallments > 0) {
+                                previewLoan.estimatedEndDateLabel()
+                            } else {
+                                "—"
+                            }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            ShiftlySheetBottomButtons(
+                onCancel = onDismiss,
+                onAction = {
+                    if (isValid) {
+                        onSave(
+                            previewLoan.copy(
+                                itemName = itemName.trim(),
+                                lenderOrStore = lenderOrStore.trim(),
+                                dueDayLabel = dueDayLabel.trim()
+                            )
+                        )
+                    }
+                },
+                cancelLabel = "Cancel",
+                actionLabel = "Save",
+                actionEnabled = isValid
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoanInsetFieldRow(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    prefix: String? = null,
+    keyboardType: KeyboardType = KeyboardType.Text
+) {
+    val colors = ShiftlyColors.current
+    val isNumeric = keyboardType != KeyboardType.Text
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 50.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            ),
+            color = colors.textPrimary,
+            maxLines = 1,
+            modifier = Modifier.padding(end = 10.dp)
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (prefix != null && value.isNotEmpty()) {
+                Text(
+                    text = prefix,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        color = colors.textPrimary
+                    )
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                cursorBrush = SolidColor(colors.azureAccent),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.End
+                ).let { if (isNumeric) it.tabular() else it },
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterEnd) {
+                        if (value.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    color = colors.textSecondary
+                                ),
+                                textAlign = TextAlign.End
+                            )
+                        }
+                        inner()
+                    }
+                },
+                modifier = Modifier.width(136.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoanPreviewRow(
+    label: String,
+    value: String,
+    valueColor: Color = ShiftlyColors.current.textPrimary
+) {
+    val colors = ShiftlyColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily),
+            color = colors.textSecondary
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold
+            ).tabular(),
+            color = valueColor
+        )
+    }
+}
+
+// =============================================================================
+// 4. Unified Shift & Spend Calendar Sheet Content
 // =============================================================================
 
 @Composable
