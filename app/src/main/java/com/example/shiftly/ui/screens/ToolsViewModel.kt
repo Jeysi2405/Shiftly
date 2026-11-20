@@ -21,10 +21,12 @@ import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.YearMonth
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -154,6 +156,28 @@ class ToolsViewModel(
     fun updateIouEntries(items: List<IouEntrySetting>) {
         viewModelScope.launch {
             repository.updateIouEntries(items)
+        }
+    }
+
+    fun addIouEntry(
+        personName: String,
+        amount: Double,
+        isLent: Boolean,
+        note: String
+    ) {
+        val cleanName = personName.trim()
+        if (cleanName.isEmpty() || !amount.isFinite() || amount <= 0.0) return
+        val newEntry = IouEntrySetting(
+            id = UUID.randomUUID().toString(),
+            personName = cleanName,
+            amount = amount,
+            isLent = isLent,
+            note = note.trim(),
+            isSettled = false
+        )
+        viewModelScope.launch {
+            val current = repository.iouEntries.first()
+            repository.updateIouEntries(listOf(newEntry) + current)
         }
     }
 

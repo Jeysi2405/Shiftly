@@ -38,8 +38,10 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +67,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -106,11 +109,16 @@ import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
+import com.example.shiftly.ui.screens.AddEditInstallmentLoanSheet
+import com.example.shiftly.ui.screens.AddIouBottomSheet
 import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
 import com.example.shiftly.ui.screens.ToolsScreen
+import com.example.shiftly.ui.screens.ToolsViewModel
 import com.example.shiftly.ui.screens.WelcomeScreen
+import com.example.shiftly.ui.screens.allowance.AddAllowanceBottomSheet
 import com.example.shiftly.ui.screens.allowance.AllowanceScreen
+import com.example.shiftly.ui.screens.allowance.AllowanceViewModel
 import com.example.shiftly.ui.screens.duties.DutiesScreen
 import com.example.shiftly.ui.screens.duties.DutiesViewModel
 import com.example.shiftly.ui.screens.duties.ManualShiftBottomSheet
@@ -120,7 +128,10 @@ import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.lock.AppLockGateScreen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.ProfileScreen
+import com.example.shiftly.ui.screens.recurring.AddEditRecurringBillBottomSheet
 import com.example.shiftly.ui.screens.recurring.RecurringBillsScreen
+import com.example.shiftly.ui.screens.recurring.RecurringBillsViewModel
+import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.splitbill.NewSplitBillBottomSheet
 import com.example.shiftly.ui.screens.splitbill.SplitBillScreen
 import com.example.shiftly.ui.screens.splitbill.SplitBillViewModel
@@ -141,6 +152,17 @@ import kotlinx.coroutines.withContext
 
 private val NavBarPillShape = RoundedCornerShape(50)
 private val SheetTopRoundedShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+
+private enum class ActiveQuickAddSheet {
+    LOG_SHIFT,
+    ADD_EXPENSE,
+    ADD_ALLOWANCE,
+    SPLIT_BILL,
+    NEW_RECURRING_BILL,
+    NEW_INSTALLMENT_LOAN,
+    NEW_SAVINGS_GOAL,
+    ADD_IOU
+}
 
 private data class MainTourStep(
     val title: String,
@@ -376,10 +398,8 @@ private fun MainDashboardShell(
     var tourStep by rememberSaveable { mutableIntStateOf(0) }
 
     var showQuickActionSheet by remember { mutableStateOf(false) }
-    var showQuickLogShiftSheet by remember { mutableStateOf(false) }
+    var activeQuickAddSheet by remember { mutableStateOf<ActiveQuickAddSheet?>(null) }
     var quickEditingShift by remember { mutableStateOf<ShiftEntity?>(null) }
-    var showQuickAddExpenseSheet by remember { mutableStateOf(false) }
-    var showQuickNewSplitSheet by remember { mutableStateOf(false) }
     var quickSplitTrigger by remember { mutableIntStateOf(0) }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -506,8 +526,8 @@ private fun MainDashboardShell(
     val onOpenAllowance = remember(navController) {
         { navController.navigate(Screen.Allowance.route) { launchSingleTop = true } }
     }
-    val onQuickLogShift = remember { { showQuickLogShiftSheet = true } }
-    val onQuickAddExpense = remember { { showQuickAddExpenseSheet = true } }
+    val onQuickLogShift = remember { { activeQuickAddSheet = ActiveQuickAddSheet.LOG_SHIFT } }
+    val onQuickAddExpense = remember { { activeQuickAddSheet = ActiveQuickAddSheet.ADD_EXPENSE } }
 
     ShiftlyBlueGradientBackground {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -728,30 +748,28 @@ private fun MainDashboardShell(
     if (showQuickActionSheet) {
         QuickAddActionSheet(
             onDismiss = { showQuickActionSheet = false },
-            onLogShift = {
+            onSelectAction = { action ->
                 showQuickActionSheet = false
-                showQuickLogShiftSheet = true
-            },
-            onAddExpense = {
-                showQuickActionSheet = false
-                showQuickAddExpenseSheet = true
-            },
-            onSplitBill = {
-                showQuickActionSheet = false
-                quickSplitTrigger++
-                showQuickNewSplitSheet = true
+                if (action == ActiveQuickAddSheet.SPLIT_BILL) {
+                    quickSplitTrigger++
+                }
+                activeQuickAddSheet = action
             }
         )
     }
 
-    if (showQuickLogShiftSheet || quickEditingShift != null) {
+    if (activeQuickAddSheet == ActiveQuickAddSheet.LOG_SHIFT || quickEditingShift != null) {
         QuickShiftSheetsHost(
             repository = repository,
-            showLogSheet = showQuickLogShiftSheet,
+            showLogSheet = activeQuickAddSheet == ActiveQuickAddSheet.LOG_SHIFT,
             editingShift = quickEditingShift,
-            onDismissLog = { showQuickLogShiftSheet = false },
+            onDismissLog = {
+                if (activeQuickAddSheet == ActiveQuickAddSheet.LOG_SHIFT) {
+                    activeQuickAddSheet = null
+                }
+            },
             onSwitchToEdit = { existing ->
-                showQuickLogShiftSheet = false
+                activeQuickAddSheet = null
                 quickEditingShift = existing
             },
             onDismissEdit = { quickEditingShift = null },
@@ -759,21 +777,65 @@ private fun MainDashboardShell(
         )
     }
 
-    if (showQuickAddExpenseSheet) {
-        QuickExpenseSheetHost(
-            repository = repository,
-            onDismiss = { showQuickAddExpenseSheet = false },
-            onShowMessage = showMessage
-        )
-    }
+    when (activeQuickAddSheet) {
+        ActiveQuickAddSheet.ADD_EXPENSE -> {
+            QuickExpenseSheetHost(
+                repository = repository,
+                onDismiss = { activeQuickAddSheet = null },
+                onShowMessage = showMessage
+            )
+        }
 
-    if (showQuickNewSplitSheet) {
-        QuickSplitSheetHost(
-            repository = repository,
-            prefillTrigger = quickSplitTrigger,
-            onDismiss = { showQuickNewSplitSheet = false },
-            onShowMessage = showMessage
-        )
+        ActiveQuickAddSheet.ADD_ALLOWANCE -> {
+            QuickAllowanceSheetHost(
+                repository = repository,
+                onDismiss = { activeQuickAddSheet = null },
+                onShowMessage = showMessage
+            )
+        }
+
+        ActiveQuickAddSheet.SPLIT_BILL -> {
+            QuickSplitSheetHost(
+                repository = repository,
+                prefillTrigger = quickSplitTrigger,
+                onDismiss = { activeQuickAddSheet = null },
+                onShowMessage = showMessage
+            )
+        }
+
+        ActiveQuickAddSheet.NEW_RECURRING_BILL -> {
+            QuickRecurringBillSheetHost(
+                repository = repository,
+                onDismiss = { activeQuickAddSheet = null },
+                onShowMessage = showMessage
+            )
+        }
+
+        ActiveQuickAddSheet.NEW_INSTALLMENT_LOAN -> {
+            QuickInstallmentLoanSheetHost(
+                repository = repository,
+                onDismiss = { activeQuickAddSheet = null },
+                onShowMessage = showMessage
+            )
+        }
+
+        ActiveQuickAddSheet.NEW_SAVINGS_GOAL -> {
+            QuickSavingsGoalSheetHost(
+                repository = repository,
+                onDismiss = { activeQuickAddSheet = null },
+                onShowMessage = showMessage
+            )
+        }
+
+        ActiveQuickAddSheet.ADD_IOU -> {
+            QuickIouSheetHost(
+                repository = repository,
+                onDismiss = { activeQuickAddSheet = null },
+                onShowMessage = showMessage
+            )
+        }
+
+        ActiveQuickAddSheet.LOG_SHIFT, null -> Unit
     }
 }
 
@@ -1053,6 +1115,28 @@ private fun QuickExpenseSheetHost(
 }
 
 @Composable
+private fun QuickAllowanceSheetHost(
+    repository: ShiftlyRepository,
+    onDismiss: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    val allowanceViewModel: AllowanceViewModel = viewModel(factory = AllowanceViewModel.Factory(repository))
+    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
+
+    AddAllowanceBottomSheet(
+        currencySymbol = currencySymbol,
+        onDismiss = onDismiss,
+        onSave = { title, amount, source, date ->
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            allowanceViewModel.addManualAllowance(title, amount, source, date)
+            onDismiss()
+            onShowMessage("Allowance added")
+        }
+    )
+}
+
+@Composable
 private fun QuickSplitSheetHost(
     repository: ShiftlyRepository,
     prefillTrigger: Int,
@@ -1086,20 +1170,140 @@ private fun QuickSplitSheetHost(
     )
 }
 
+@Composable
+private fun QuickRecurringBillSheetHost(
+    repository: ShiftlyRepository,
+    onDismiss: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
+    val recurringViewModel: RecurringBillsViewModel = viewModel(factory = RecurringBillsViewModel.Factory(repository))
+    val recurringState by recurringViewModel.uiState.collectAsStateWithLifecycle()
+
+    AddEditRecurringBillBottomSheet(
+        currencySymbol = recurringState.currencySymbol,
+        availableCategories = recurringState.availableCategories,
+        editingBill = null,
+        onDismiss = onDismiss,
+        onSave = { title, amount, category, frequency, dueDate, dueHour, dueMinute, isEnabled ->
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            recurringViewModel.saveBill(
+                existing = null,
+                title = title,
+                amount = amount,
+                category = category,
+                frequency = frequency,
+                dueDate = dueDate,
+                dueHour = dueHour,
+                dueMinute = dueMinute,
+                isEnabled = isEnabled
+            ) { posted ->
+                scope.launch(Dispatchers.IO) {
+                    val bills = repository.allRecurringBills.first()
+                    ShiftlyDailyWorker.scheduleNextRecurringCheck(
+                        context = context,
+                        nextDue = RecurringEngine.earliestNextDueDateTime(bills)
+                    )
+                }
+                onDismiss()
+                onShowMessage(
+                    if (posted > 0) "Saved & posted $posted due bill(s) to Expenses"
+                    else "Recurring bill added"
+                )
+            }
+        }
+    )
+}
+
+@Composable
+private fun QuickInstallmentLoanSheetHost(
+    repository: ShiftlyRepository,
+    onDismiss: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    val toolsViewModel: ToolsViewModel = viewModel(factory = ToolsViewModel.Factory(repository))
+    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
+
+    AddEditInstallmentLoanSheet(
+        currencySymbol = currencySymbol,
+        editingLoan = null,
+        onDismiss = onDismiss,
+        onSave = { loan ->
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            toolsViewModel.addOrUpdateInstallmentLoan(loan)
+            onDismiss()
+            onShowMessage("Loan contract saved")
+        }
+    )
+}
+
+@Composable
+private fun QuickSavingsGoalSheetHost(
+    repository: ShiftlyRepository,
+    onDismiss: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    val toolsViewModel: ToolsViewModel = viewModel(factory = ToolsViewModel.Factory(repository))
+    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
+
+    AddSavingsGoalSheet(
+        currencySymbol = currencySymbol,
+        onDismiss = onDismiss,
+        onCreateGoal = { title, targetAmount, targetDateEpochDay ->
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            toolsViewModel.createSavingsGoal(title, targetAmount, targetDateEpochDay)
+            onDismiss()
+            onShowMessage("Savings goal \"$title\" added")
+        }
+    )
+}
+
+@Composable
+private fun QuickIouSheetHost(
+    repository: ShiftlyRepository,
+    onDismiss: () -> Unit,
+    onShowMessage: (String) -> Unit
+) {
+    val haptics = LocalHapticFeedback.current
+    val toolsViewModel: ToolsViewModel = viewModel(factory = ToolsViewModel.Factory(repository))
+    val currencySymbol by repository.currencySymbol.collectAsStateWithLifecycle(initialValue = "₱")
+
+    AddIouBottomSheet(
+        currencySymbol = currencySymbol,
+        onDismiss = onDismiss,
+        onSave = { personName, amount, isLent, note ->
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            toolsViewModel.addIouEntry(
+                personName = personName,
+                amount = amount,
+                isLent = isLent,
+                note = note
+            )
+            onDismiss()
+            onShowMessage("IOU entry added")
+        }
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QuickAddActionSheet(
     onDismiss: () -> Unit,
-    onLogShift: () -> Unit,
-    onAddExpense: () -> Unit,
-    onSplitBill: () -> Unit
+    onSelectAction: (ActiveQuickAddSheet) -> Unit
 ) {
     val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetContainerColor = if (colors.isDark) Color(0xFF000000) else colors.background
+    val groupCardColor = if (colors.isDark) Color(0xFF1C1C1E) else colors.card
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = colors.surface,
+        containerColor = sheetContainerColor,
         scrimColor = shiftlySheetScrimColor(),
         tonalElevation = 0.dp,
         shape = SheetTopRoundedShape,
@@ -1115,33 +1319,109 @@ private fun QuickAddActionSheet(
         ) {
             ShiftlySheetHeader(title = "Quick Add")
 
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (colors.isDark) Color(0xFF2C2C2E) else colors.cardElevated,
-                shadowElevation = 0.dp,
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    QuickAddGroupedRow(
-                        title = "Log Duty Shift",
-                        iconRes = R.drawable.ic_lucide_clock,
-                        iconTint = Color(0xFF30D158),
-                        onClick = onLogShift
+                // Group 1: DAILY LOGGING
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "DAILY LOGGING",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
-                    ShiftlyHairlineDivider(startInset = 50.dp)
-                    QuickAddGroupedRow(
-                        title = "Add Expense",
-                        iconRes = R.drawable.ic_lucide_receipt_text,
-                        iconTint = Color(0xFFFF453A),
-                        onClick = onAddExpense
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = groupCardColor,
+                        shadowElevation = 0.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            QuickAddGroupedRow(
+                                title = "Log Duty Shift",
+                                iconRes = R.drawable.ic_lucide_clock,
+                                iconTint = Color(0xFF30D158),
+                                onClick = { onSelectAction(ActiveQuickAddSheet.LOG_SHIFT) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 50.dp)
+                            QuickAddGroupedRow(
+                                title = "Add Expense",
+                                iconRes = R.drawable.ic_lucide_receipt_text,
+                                iconTint = Color(0xFFFF453A),
+                                onClick = { onSelectAction(ActiveQuickAddSheet.ADD_EXPENSE) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 50.dp)
+                            QuickAddGroupedRow(
+                                title = "Add Allowance",
+                                iconRes = R.drawable.ic_lucide_wallet,
+                                iconTint = Color(0xFF0A84FF),
+                                onClick = { onSelectAction(ActiveQuickAddSheet.ADD_ALLOWANCE) }
+                            )
+                        }
+                    }
+                }
+
+                // Group 2: BILLS, LOANS & GOALS
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "BILLS, LOANS & GOALS",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = colors.textSecondary,
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
-                    ShiftlyHairlineDivider(startInset = 50.dp)
-                    QuickAddGroupedRow(
-                        title = "Split a Bill",
-                        iconRes = R.drawable.ic_lucide_split,
-                        iconTint = Color(0xFF0A84FF),
-                        onClick = onSplitBill
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = groupCardColor,
+                        shadowElevation = 0.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            QuickAddGroupedRow(
+                                title = "Split a Bill",
+                                iconRes = R.drawable.ic_lucide_split,
+                                iconTint = Color(0xFF0A84FF),
+                                onClick = { onSelectAction(ActiveQuickAddSheet.SPLIT_BILL) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 50.dp)
+                            QuickAddGroupedRow(
+                                title = "New Recurring Bill",
+                                iconRes = R.drawable.ic_lucide_repeat,
+                                iconTint = Color(0xFFBF5AF2),
+                                onClick = { onSelectAction(ActiveQuickAddSheet.NEW_RECURRING_BILL) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 50.dp)
+                            QuickAddGroupedRow(
+                                title = "New Installment Loan",
+                                iconRes = R.drawable.ic_lucide_file_text,
+                                iconTint = Color(0xFF64D2FF),
+                                onClick = { onSelectAction(ActiveQuickAddSheet.NEW_INSTALLMENT_LOAN) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 50.dp)
+                            QuickAddGroupedRow(
+                                title = "New Savings Goal",
+                                iconRes = R.drawable.ic_lucide_piggy_bank,
+                                iconTint = Color(0xFF30D158),
+                                onClick = { onSelectAction(ActiveQuickAddSheet.NEW_SAVINGS_GOAL) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 50.dp)
+                            QuickAddGroupedRow(
+                                title = "Add IOU / Borrow & Lend",
+                                iconRes = R.drawable.ic_lucide_circle_dollar_sign,
+                                iconTint = Color(0xFFFF9F0A),
+                                onClick = { onSelectAction(ActiveQuickAddSheet.ADD_IOU) }
+                            )
+                        }
+                    }
                 }
             }
 

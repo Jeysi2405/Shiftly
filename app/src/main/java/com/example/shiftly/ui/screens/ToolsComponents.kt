@@ -740,6 +740,148 @@ fun IouTrackerSheetContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddIouBottomSheet(
+    currencySymbol: String,
+    onDismiss: () -> Unit,
+    onSave: (personName: String, amount: Double, isLent: Boolean, note: String) -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var personName by remember { mutableStateOf("") }
+    var amountText by remember { mutableStateOf("") }
+    var isLent by remember { mutableStateOf(true) }
+    var noteText by remember { mutableStateOf("") }
+
+    val parsedAmount = remember(amountText) { amountText.toDoubleOrNull() ?: 0.0 }
+    val isValid = personName.trim().isNotEmpty() && parsedAmount.isFinite() && parsedAmount > 0.0
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = colors.surface,
+        scrimColor = shiftlySheetScrimColor(),
+        tonalElevation = 0.dp,
+        dragHandle = { ShiftlySheetDragHandle() },
+        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            ShiftlySheetHeader(title = "Add IOU")
+
+            // 2-option Segmented Toggle
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(colors.cardElevated)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(35.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(if (isLent) colors.mintContainer else Color.Transparent)
+                        .clickable { isLent = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Lent",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = if (isLent) FontWeight.SemiBold else FontWeight.Medium,
+                            fontSize = 13.sp
+                        ),
+                        color = if (isLent) colors.mintInk else colors.textSecondary
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(35.dp)
+                        .clip(RoundedCornerShape(7.dp))
+                        .background(if (!isLent) colors.coralContainer else Color.Transparent)
+                        .clickable { isLent = false },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Borrowed",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = if (!isLent) FontWeight.SemiBold else FontWeight.Medium,
+                            fontSize = 13.sp
+                        ),
+                        color = if (!isLent) colors.coralInk else colors.textSecondary
+                    )
+                }
+            }
+
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = colors.cardElevated,
+                border = BorderStroke(0.5.dp, colors.separator),
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    IouInsetRow(
+                        label = "Person Name",
+                        value = personName,
+                        onValueChange = { personName = it },
+                        placeholder = "Name"
+                    )
+                    ShiftlyHairlineDivider(startInset = 16.dp)
+
+                    IouInsetRow(
+                        label = "Amount ($currencySymbol)",
+                        value = amountText,
+                        onValueChange = { input ->
+                            val filtered = input.filter { it.isDigit() || it == '.' }
+                            if (filtered.count { it == '.' } <= 1) amountText = filtered
+                        },
+                        placeholder = "0.00",
+                        prefix = currencySymbol,
+                        isNumeric = true
+                    )
+                    ShiftlyHairlineDivider(startInset = 16.dp)
+
+                    IouInsetRow(
+                        label = "Note (optional)",
+                        value = noteText,
+                        onValueChange = { noteText = it },
+                        placeholder = "Note"
+                    )
+                }
+            }
+
+            ShiftlySheetBottomButtons(
+                onCancel = onDismiss,
+                onAction = {
+                    if (isValid) {
+                        onSave(personName.trim(), parsedAmount, isLent, noteText.trim())
+                    }
+                },
+                cancelLabel = "Cancel",
+                actionLabel = "Save",
+                actionEnabled = isValid
+            )
+        }
+    }
+}
+
 @Composable
 private fun IouInsetRow(
     label: String,
