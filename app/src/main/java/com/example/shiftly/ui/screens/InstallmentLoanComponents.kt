@@ -86,10 +86,16 @@ import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDefaults
+import androidx.compose.material3.rememberTimePickerState
+import com.example.shiftly.data.local.LoanPaymentEntity
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -102,6 +108,8 @@ fun InstallmentLoansBottomSheet(
     loans: List<InstallmentLoanWithPayments>,
     onAddOrUpdateLoan: (InstallmentLoanEntity) -> Unit,
     onMarkMonthPaid: (InstallmentLoanEntity) -> Unit,
+    onUpdateLoanPaymentDateTime: (LoanPaymentEntity, Long) -> Unit = { _, _ -> },
+    onDeleteLoanPayment: (InstallmentLoanEntity, LoanPaymentEntity) -> Unit = { _, _ -> },
     onDeleteLoan: (InstallmentLoanEntity) -> Unit,
     onHelpClick: () -> Unit,
     onDismiss: () -> Unit
@@ -266,6 +274,8 @@ fun InstallmentLoansBottomSheet(
             currencySymbol = currencySymbol,
             today = today,
             onMarkMonthPaid = { onMarkMonthPaid(entry.loan) },
+            onUpdateLoanPaymentDateTime = onUpdateLoanPaymentDateTime,
+            onDeleteLoanPayment = { payment -> onDeleteLoanPayment(entry.loan, payment) },
             onEdit = {
                 editingLoan = entry.loan
                 showAddEditSheet = true
@@ -573,6 +583,8 @@ fun InstallmentLoanDetailsSheet(
     currencySymbol: String,
     today: LocalDate = LocalDate.now(),
     onMarkMonthPaid: () -> Unit,
+    onUpdateLoanPaymentDateTime: (LoanPaymentEntity, Long) -> Unit = { _, _ -> },
+    onDeleteLoanPayment: (LoanPaymentEntity) -> Unit = {},
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit
@@ -580,8 +592,11 @@ fun InstallmentLoanDetailsSheet(
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
+    val dateTimeFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy • h:mm a", locale) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var paymentToEdit by remember { mutableStateOf<LoanPaymentEntity?>(null) }
+    var paymentToDelete by remember { mutableStateOf<LoanPaymentEntity?>(null) }
 
     val loan = entry.loan
     val sortedPayments = remember(entry.payments) {
@@ -831,17 +846,21 @@ fun InstallmentLoanDetailsSheet(
                                 if (idx > 0) {
                                     ShiftlyHairlineDivider(startInset = 16.dp)
                                 }
-                                val paidDate = Instant.ofEpochMilli(payment.datePaidMillis)
-                                    .atZone(zone)
-                                    .toLocalDate()
+                                val paidZoned = Instant.ofEpochMilli(payment.datePaidMillis).atZone(zone)
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .clickable { paymentToEdit = payment }
                                         .padding(horizontal = 16.dp, vertical = 12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Column(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(end = 8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
                                         Text(
                                             text = "Month ${payment.monthNumber}",
                                             style = MaterialTheme.typography.titleSmall.copy(
@@ -852,19 +871,40 @@ fun InstallmentLoanDetailsSheet(
                                             color = colors.textPrimary
                                         )
                                         Text(
-                                            text = "Paid on ${paidDate.format(dateFormatter)}",
-                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily),
+                                            text = "Paid on ${paidZoned.format(dateTimeFormatter)}",
+                                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily).tabular(),
                                             color = colors.textSecondary
                                         )
                                     }
-                                    Text(
-                                        text = ShiftlyFormatters.formatCurrency(currencySymbol, payment.amountPaid),
-                                        style = MaterialTheme.typography.titleSmall.copy(
-                                            fontFamily = InterFontFamily,
-                                            fontWeight = FontWeight.Bold
-                                        ).tabular(),
-                                        color = colors.mintInk
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Text(
+                                            text = ShiftlyFormatters.formatCurrency(currencySymbol, payment.amountPaid),
+                                            style = MaterialTheme.typography.titleSmall.copy(
+                                                fontFamily = InterFontFamily,
+                                                fontWeight = FontWeight.Bold
+                                            ).tabular(),
+                                            color = colors.mintInk
+                                        )
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_lucide_pencil),
+                                            contentDescription = "Edit Payment Date & Time",
+                                            tint = colors.azureInk,
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clickable { paymentToEdit = payment }
+                                        )
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_lucide_trash_2),
+                                            contentDescription = "Delete Payment",
+                                            tint = colors.coralBright,
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clickable { paymentToDelete = payment }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -964,6 +1004,196 @@ fun InstallmentLoanDetailsSheet(
                 onDelete()
             }
         )
+    }
+
+    if (paymentToEdit != null) {
+        EditPaymentDateTimeDialog(
+            payment = paymentToEdit!!,
+            onDismiss = { paymentToEdit = null },
+            onSave = { newMillis ->
+                onUpdateLoanPaymentDateTime(paymentToEdit!!, newMillis)
+                paymentToEdit = null
+            }
+        )
+    }
+
+    if (paymentToDelete != null) {
+        ShiftlyDeleteConfirmDialog(
+            title = "Delete Payment?",
+            message = "This payment record will be removed and your loan balance will be updated.",
+            confirmLabel = "Delete",
+            onConfirm = {
+                onDeleteLoanPayment(paymentToDelete!!)
+                paymentToDelete = null
+            },
+            onDismiss = { paymentToDelete = null }
+        )
+    }
+}
+
+@Composable
+private fun LoanTimePickerRow(
+    label: String,
+    formattedTime: String,
+    onClick: () -> Unit
+) {
+    val colors = ShiftlyColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 50.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            ),
+            color = colors.textPrimary,
+            maxLines = 1
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_clock),
+                contentDescription = null,
+                tint = colors.azureInk,
+                modifier = Modifier.size(17.dp)
+            )
+            Text(
+                text = formattedTime,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Medium
+                ).tabular(),
+                color = colors.textPrimary
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditPaymentDateTimeDialog(
+    payment: LoanPaymentEntity,
+    onDismiss: () -> Unit,
+    onSave: (Long) -> Unit
+) {
+    val colors = ShiftlyColors.current
+    val locale = LocalConfiguration.current.locales[0]
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
+    val timeFormatter = remember(locale) { DateTimeFormatter.ofPattern("h:mm a", locale) }
+
+    val zone = remember { ZoneId.systemDefault() }
+    val initialZoned = remember(payment.datePaidMillis) {
+        Instant.ofEpochMilli(payment.datePaidMillis).atZone(zone)
+    }
+
+    var selectedDate by remember { mutableStateOf(initialZoned.toLocalDate()) }
+    var selectedTime by remember { mutableStateOf(initialZoned.toLocalTime()) }
+
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    ShiftlyDialogShell(
+        title = "Edit Payment Date & Time",
+        onDismiss = onDismiss,
+        actionLabel = "Save",
+        onAction = {
+            val newZoned = ZonedDateTime.of(selectedDate, selectedTime, zone)
+            onSave(newZoned.toInstant().toEpochMilli())
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = colors.cardElevated,
+                border = BorderStroke(0.5.dp, colors.separator),
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    LoanDatePickerRow(
+                        label = "Date Paid",
+                        formattedDate = selectedDate.format(dateFormatter),
+                        onClick = { showDatePicker = true }
+                    )
+                    ShiftlyHairlineDivider(startInset = 16.dp)
+                    LoanTimePickerRow(
+                        label = "Time Paid",
+                        formattedTime = selectedTime.format(timeFormatter),
+                        onClick = { showTimePicker = true }
+                    )
+                }
+            }
+        }
+    }
+
+    if (showDatePicker) {
+        LoanDatePickerDialog(
+            title = "Date Paid",
+            initialDate = selectedDate,
+            onDismiss = { showDatePicker = false },
+            onConfirm = { pickedDate ->
+                selectedDate = pickedDate
+                showDatePicker = false
+            }
+        )
+    }
+
+    if (showTimePicker) {
+        val timePickerState = rememberTimePickerState(
+            initialHour = selectedTime.hour,
+            initialMinute = selectedTime.minute,
+            is24Hour = false
+        )
+        ShiftlyDialogShell(
+            title = "Select Time",
+            onDismiss = { showTimePicker = false },
+            actionLabel = "Done",
+            onAction = {
+                selectedTime = LocalTime.of(timePickerState.hour, timePickerState.minute)
+                showTimePicker = false
+            }
+        ) {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 8.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                TimePicker(
+                    state = timePickerState,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = colors.cardElevated,
+                        clockDialSelectedContentColor = colors.onAzurePrimary,
+                        clockDialUnselectedContentColor = colors.textSecondary,
+                        selectorColor = colors.azurePrimary,
+                        containerColor = colors.surface,
+                        periodSelectorBorderColor = Color.Transparent,
+                        periodSelectorSelectedContainerColor = colors.azurePrimary,
+                        periodSelectorUnselectedContainerColor = colors.cardElevated,
+                        periodSelectorSelectedContentColor = colors.onAzurePrimary,
+                        periodSelectorUnselectedContentColor = colors.textPrimary,
+                        timeSelectorSelectedContainerColor = colors.azurePrimary,
+                        timeSelectorUnselectedContainerColor = colors.cardElevated,
+                        timeSelectorSelectedContentColor = colors.onAzurePrimary,
+                        timeSelectorUnselectedContentColor = colors.textPrimary
+                    )
+                )
+            }
+        }
     }
 }
 
@@ -1119,10 +1349,10 @@ fun AddEditInstallmentLoanSheet(
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
                         LoanInsetFieldRow(
-                            label = "Gadget / Laptop Name",
+                            label = "Product Name",
                             value = gadgetName,
                             onValueChange = { gadgetName = it },
-                            placeholder = "e.g. MacBook Air"
+                            placeholder = "e.g. Laptop"
                         )
                         ShiftlyHairlineDivider(startInset = 16.dp)
 
@@ -1207,7 +1437,7 @@ fun AddEditInstallmentLoanSheet(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "LIVE SUMMARY",
+                            text = "SUMMARY",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = InterFontFamily,
                                 letterSpacing = 0.5.sp

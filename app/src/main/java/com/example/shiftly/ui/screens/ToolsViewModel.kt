@@ -9,6 +9,7 @@ import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.InstallmentLoanEntity
 import com.example.shiftly.data.local.InstallmentLoanWithPayments
+import com.example.shiftly.data.local.LoanPaymentEntity
 import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.LoanDueStatus
 import com.example.shiftly.data.local.ManagedCategorySetting
@@ -204,6 +205,18 @@ class ToolsViewModel(
     fun markLoanMonthAsPaid(loanId: Long) {
         viewModelScope.launch {
             repository.markLoanMonthAsPaid(loanId)
+        }
+    }
+
+    fun updateLoanPaymentDateTime(payment: LoanPaymentEntity, newDatePaidMillis: Long) {
+        viewModelScope.launch {
+            repository.updateLoanPayment(payment.copy(datePaidMillis = newDatePaidMillis))
+        }
+    }
+
+    fun deleteLoanPayment(loan: InstallmentLoanEntity, payment: LoanPaymentEntity) {
+        viewModelScope.launch {
+            repository.deleteLoanPayment(loan, payment)
         }
     }
 

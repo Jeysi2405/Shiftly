@@ -135,7 +135,7 @@ fun ToolsScreen(
     if (showBudgetsSheet) {
         val budgetsActionState = remember { ShiftlySheetActionState() }
         ShiftlyToolSheetContainer(
-            title = "Monthly & Category Budgets",
+            title = "Monthly Limits",
             onDismiss = {
                 showManageCategoriesSheet = false
                 showBudgetsSheet = false
@@ -268,6 +268,14 @@ fun ToolsScreen(
             onMarkMonthPaid = { loan ->
                 viewModel.markLoanMonthAsPaid(loan.id)
                 onShowMessage("Month marked as paid")
+            },
+            onUpdateLoanPaymentDateTime = { payment, newTime ->
+                viewModel.updateLoanPaymentDateTime(payment, newTime)
+                onShowMessage("Payment date & time updated")
+            },
+            onDeleteLoanPayment = { loan, payment ->
+                viewModel.deleteLoanPayment(loan, payment)
+                onShowMessage("Payment record deleted")
             },
             onDeleteLoan = { loan ->
                 viewModel.deleteInstallmentLoan(loan)
@@ -521,7 +529,7 @@ fun ToolsScreenContent(
                         contentPadding = PaddingValues(0.dp)
                     ) {
                         ToolGroupedRow(
-                            title = "Monthly & Category Budgets",
+                            title = "Monthly Limits",
                             metric = if (state.monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget) else "Set Budget",
                             iconRes = R.drawable.ic_lucide_wallet,
                             iconTint = ToolOrange,

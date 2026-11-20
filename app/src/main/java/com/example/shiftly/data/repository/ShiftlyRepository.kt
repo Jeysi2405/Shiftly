@@ -342,6 +342,23 @@ class ShiftlyRepository(context: Context) {
         }
     }
 
+    suspend fun updateLoanPayment(payment: LoanPaymentEntity) = withContext(Dispatchers.IO) {
+        installmentLoanMutex.withLock {
+            installmentLoanDao.updateLoanPayment(payment)
+        }
+    }
+
+    suspend fun deleteLoanPayment(loan: InstallmentLoanEntity, payment: LoanPaymentEntity) = withContext(Dispatchers.IO) {
+        installmentLoanMutex.withLock {
+            db.withTransaction {
+                installmentLoanDao.deleteLoanPayment(payment)
+                val existingLoan = installmentLoanDao.getLoanByIdOnce(loan.id) ?: loan
+                val newPaidMonths = (existingLoan.paidMonths - 1).coerceAtLeast(0)
+                installmentLoanDao.updateInstallmentLoan(existingLoan.copy(paidMonths = newPaidMonths))
+            }
+        }
+    }
+
     suspend fun deleteInstallmentLoan(loan: InstallmentLoanEntity) = withContext(Dispatchers.IO) {
         installmentLoanMutex.withLock {
             db.withTransaction {

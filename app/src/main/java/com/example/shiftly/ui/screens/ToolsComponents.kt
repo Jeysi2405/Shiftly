@@ -55,7 +55,6 @@ import com.example.shiftly.data.local.PaycheckDeductionsSetting
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
-import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyIosSwitch
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
@@ -1186,7 +1185,9 @@ fun ActivityCalendarSheetContent(
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold
                     ),
-                    color = colors.textPrimary
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
 
                 // Side by Side Summary
@@ -1207,8 +1208,10 @@ fun ActivityCalendarSheetContent(
                         ) {
                             Text(
                                 text = "Shift Worked",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = colors.textSecondary
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                                color = colors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = if (shiftsForSelectedDate.isNotEmpty()) {
@@ -1220,13 +1223,18 @@ fun ActivityCalendarSheetContent(
                                     fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Bold
                                 ).tabular(),
-                                color = if (shiftsForSelectedDate.isNotEmpty()) colors.mintInk else colors.textSecondary
+                                color = if (shiftsForSelectedDate.isNotEmpty()) colors.mintInk else colors.textSecondary,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                             if (shiftsForSelectedDate.isNotEmpty()) {
                                 Text(
                                     text = "${ShiftlyFormatters.formatHours(selectedShiftMinutes / 60.0, compact = true)} worked",
-                                    style = MaterialTheme.typography.bodySmall.tabular(),
-                                    color = colors.textSecondary
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily).tabular(),
+                                    color = colors.textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -1245,8 +1253,10 @@ fun ActivityCalendarSheetContent(
                         ) {
                             Text(
                                 text = "Expenses Logged",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = colors.textSecondary
+                                style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                                color = colors.textSecondary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = if (expensesForSelectedDate.isNotEmpty()) {
@@ -1258,13 +1268,18 @@ fun ActivityCalendarSheetContent(
                                     fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Bold
                                 ).tabular(),
-                                color = if (expensesForSelectedDate.isNotEmpty()) colors.coralInk else colors.textSecondary
+                                color = if (expensesForSelectedDate.isNotEmpty()) colors.coralInk else colors.textSecondary,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis
                             )
                             if (expensesForSelectedDate.isNotEmpty()) {
                                 Text(
                                     text = "${expensesForSelectedDate.size} expense(s)",
-                                    style = MaterialTheme.typography.bodySmall.tabular(),
-                                    color = colors.textSecondary
+                                    style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily).tabular(),
+                                    color = colors.textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -1273,81 +1288,135 @@ fun ActivityCalendarSheetContent(
 
                 // Detailed Entries List
                 if (shiftsForSelectedDate.isNotEmpty() || expensesForSelectedDate.isNotEmpty()) {
-                    ShiftlyHairlineDivider()
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        shiftsForSelectedDate.forEach { shift ->
-                            val zone = remember { ZoneId.systemDefault() }
-                            val startLocal = Instant.ofEpochMilli(shift.timeInMillis).atZone(zone).toLocalTime()
-                            val endLocal = Instant.ofEpochMilli(shift.timeOutMillis).atZone(zone).toLocalTime()
-                            val timeFormatter = DateTimeFormatter.ofPattern("h:mm a", locale)
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    ShiftlyIosIconTile(
-                                        iconRes = R.drawable.ic_lucide_clock,
-                                        backgroundColor = colors.azurePrimary,
-                                        size = 28.dp,
-                                        cornerRadius = 7.dp,
-                                        iconSize = 22.dp
-                                    )
-                                    Text(
-                                        text = "${startLocal.format(timeFormatter)} - ${endLocal.format(timeFormatter)}",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = InterFontFamily).tabular(),
-                                        color = colors.textPrimary
-                                    )
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = colors.surface,
+                        border = BorderStroke(0.5.dp, colors.separator),
+                        shadowElevation = 0.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            var isFirstItem = true
+                            shiftsForSelectedDate.forEach { shift ->
+                                if (!isFirstItem) {
+                                    ShiftlyHairlineDivider(startInset = 16.dp)
                                 }
-                                Text(
-                                    text = ShiftlyFormatters.formatCurrency(currencySymbol, shift.totalEarned),
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = InterFontFamily,
-                                        fontWeight = FontWeight.Bold
-                                    ).tabular(),
-                                    color = colors.mintInk
-                                )
-                            }
-                        }
+                                isFirstItem = false
+                                val zone = remember { ZoneId.systemDefault() }
+                                val startLocal = Instant.ofEpochMilli(shift.timeInMillis).atZone(zone).toLocalTime()
+                                val endLocal = Instant.ofEpochMilli(shift.timeOutMillis).atZone(zone).toLocalTime()
+                                val timeFormatter = remember(locale) { DateTimeFormatter.ofPattern("h:mm a", locale) }
 
-                        expensesForSelectedDate.forEach { expense ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    ShiftlyIosIconTile(
-                                        iconRes = R.drawable.ic_lucide_receipt_text,
-                                        backgroundColor = colors.coralBright,
-                                        size = 28.dp,
-                                        cornerRadius = 7.dp,
-                                        iconSize = 22.dp
-                                    )
+                                    Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(end = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_lucide_clock),
+                                            contentDescription = null,
+                                            tint = colors.azureInk,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(
+                                                text = "${startLocal.format(timeFormatter)} - ${endLocal.format(timeFormatter)}",
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontFamily = InterFontFamily,
+                                                    fontWeight = FontWeight.SemiBold
+                                                ).tabular(),
+                                                color = colors.textPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = "${ShiftlyFormatters.formatHours(shift.durationMinutes / 60.0, compact = true)} shift",
+                                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily),
+                                                color = colors.textSecondary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
                                     Text(
-                                        text = "${expense.category}: ${expense.title}",
-                                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = InterFontFamily),
-                                        color = colors.textPrimary,
+                                        text = ShiftlyFormatters.formatCurrency(currencySymbol, shift.totalEarned),
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.Bold
+                                        ).tabular(),
+                                        color = colors.mintInk,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        softWrap = false
                                     )
                                 }
-                                Text(
-                                    text = "-${ShiftlyFormatters.formatCurrency(currencySymbol, expense.amount)}",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = InterFontFamily,
-                                        fontWeight = FontWeight.Bold
-                                    ).tabular(),
-                                    color = colors.coralInk
-                                )
+                            }
+
+                            expensesForSelectedDate.forEach { expense ->
+                                if (!isFirstItem) {
+                                    ShiftlyHairlineDivider(startInset = 16.dp)
+                                }
+                                isFirstItem = false
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(end = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_lucide_receipt_text),
+                                            contentDescription = null,
+                                            tint = colors.coralBright,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                            Text(
+                                                text = expense.title.ifBlank { expense.category },
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontFamily = InterFontFamily,
+                                                    fontWeight = FontWeight.SemiBold
+                                                ),
+                                                color = colors.textPrimary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = expense.category,
+                                                style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily),
+                                                color = colors.textSecondary,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                    Text(
+                                        text = "-${ShiftlyFormatters.formatCurrency(currencySymbol, expense.amount)}",
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.Bold
+                                        ).tabular(),
+                                        color = colors.coralInk,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
                             }
                         }
                     }
