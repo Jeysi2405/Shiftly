@@ -6,9 +6,17 @@ plugins {
 }
 
 tasks.register<Copy>("stageReleaseApk") {
-    val signedReleaseApk = layout.projectDirectory.file("app/release/app-release.apk")
+    dependsOn(":app:assembleDebug")
+    val releaseDir = layout.projectDirectory.dir("release")
     val debugApk = layout.projectDirectory.file("app/build/outputs/apk/debug/app-debug.apk")
-    from(if (signedReleaseApk.asFile.exists()) signedReleaseApk else debugApk)
-    into(layout.projectDirectory.dir("release"))
-    rename { "Shiftly-v3.0.0.apk" }
+    doFirst {
+        releaseDir.asFile.listFiles()?.forEach { file ->
+            if (file.name.startsWith("Shiftly-") && file.name.endsWith(".apk")) {
+                file.delete()
+            }
+        }
+    }
+    from(debugApk)
+    into(releaseDir)
+    rename { "Shiftly-v3.2.0.apk" }
 }

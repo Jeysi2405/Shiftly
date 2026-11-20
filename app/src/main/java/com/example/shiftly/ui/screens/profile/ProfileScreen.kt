@@ -634,7 +634,7 @@ private fun ProfileScreenContent(
         runCatching {
             @Suppress("DEPRECATION")
             context.packageManager.getPackageInfo(context.packageName, 0).versionName
-        }.getOrNull()?.takeIf { it.isNotBlank() } ?: "3.0.0"
+        }.getOrNull()?.takeIf { it.isNotBlank() } ?: "3.2.0"
     }
 
     val isTitleCollapsed by remember {
@@ -890,7 +890,7 @@ private fun launchFeedbackEmail(
             val appVersion = runCatching {
                 @Suppress("DEPRECATION")
                 context.packageManager.getPackageInfo(context.packageName, 0).versionName
-            }.getOrNull()?.takeIf { it.isNotBlank() } ?: "3.0.0"
+            }.getOrNull()?.takeIf { it.isNotBlank() } ?: "3.2.0"
             val deviceModel = listOf(Build.MANUFACTURER, Build.MODEL)
                 .filter { it.isNotBlank() }
                 .joinToString(" ")
