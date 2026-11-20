@@ -2,6 +2,7 @@ package com.example.shiftly
 
 import com.example.shiftly.data.backup.BackupCodec
 import com.example.shiftly.data.backup.BackupExpenseRecord
+import com.example.shiftly.data.backup.BackupInstallmentLoan
 import com.example.shiftly.data.backup.BackupPayload
 import com.example.shiftly.data.backup.BackupSavingsGoal
 import com.example.shiftly.data.backup.BackupSplitBill
@@ -11,7 +12,8 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
-import com.example.shiftly.data.local.InstallmentLoan
+import com.example.shiftly.data.local.InstallmentLoanEntity
+import com.example.shiftly.data.local.LoanPaymentEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.RecurringEntrySetting
@@ -22,8 +24,10 @@ import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitParticipantEntity
+import com.example.shiftly.data.local.toUtcMillis
 import com.example.shiftly.utils.WageCalculator
 import java.io.ByteArrayOutputStream
+import java.time.LocalDate
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import org.junit.Assert.assertArrayEquals
@@ -39,6 +43,8 @@ class BackupCodecTest {
     @Test
     fun jsonAndZipRoundTrip_preservesAllEntitiesSettingsAndReceipts() {
         val receiptBytes = byteArrayOf(1, 2, 3, 4, 5, 6, 7)
+        val loanStartMillis = LocalDate.of(2026, 1, 15).toUtcMillis()
+        val loanFirstDueMillis = LocalDate.of(2026, 2, 15).toUtcMillis()
         val payload = BackupPayload(
             exportedAtMillis = 1_763_000_000_000L,
             userName = "Jeyzi",
@@ -198,18 +204,36 @@ class BackupCodecTest {
                 )
             ),
             installmentLoans = listOf(
-                InstallmentLoan(
-                    id = "loan-uuid-1",
-                    itemName = "Laptop",
-                    lenderOrStore = "Home Credit",
-                    installmentAmount = 2500.0,
-                    totalInstallments = 12,
-                    paidInstallments = 3,
-                    downPayment = 5000.0,
-                    frequency = InstallmentLoan.FREQ_MONTHLY,
-                    dueDayLabel = "Every 15th",
-                    startDateMillis = 1_763_000_000_000L,
-                    autoLogExpense = true
+                BackupInstallmentLoan(
+                    originalId = 5L,
+                    loan = InstallmentLoanEntity(
+                        id = 5L,
+                        gadgetName = "MacBook Air M3",
+                        cashPrice = 55000.0,
+                        downpayment = 5000.0,
+                        installmentPerMonth = 4500.0,
+                        termsInMonths = 12,
+                        paidMonths = 2,
+                        startDateMillis = loanStartMillis,
+                        monthlyDueDay = 15,
+                        firstDueDateMillis = loanFirstDueMillis
+                    ),
+                    payments = listOf(
+                        LoanPaymentEntity(
+                            id = 11L,
+                            loanId = 5L,
+                            monthNumber = 1,
+                            amountPaid = 4500.0,
+                            datePaidMillis = 1_771_113_600_000L
+                        ),
+                        LoanPaymentEntity(
+                            id = 12L,
+                            loanId = 5L,
+                            monthNumber = 2,
+                            amountPaid = 4500.0,
+                            datePaidMillis = 1_773_532_800_000L
+                        )
+                    )
                 )
             ),
             receiptFiles = mapOf("receipt_dinner.jpg" to receiptBytes)
@@ -264,17 +288,57 @@ class BackupCodecTest {
         assertEquals(AllowanceSource.BUSINESS, decoded.allowanceEntries[1].source)
         assertNull(decoded.allowanceEntries[1].cutoffKey)
         assertEquals(1, decoded.installmentLoans.size)
-        assertEquals("loan-uuid-1", decoded.installmentLoans[0].id)
-        assertEquals("Laptop", decoded.installmentLoans[0].itemName)
-        assertEquals("Home Credit", decoded.installmentLoans[0].lenderOrStore)
-        assertEquals(2500.0, decoded.installmentLoans[0].installmentAmount, 0.001)
-        assertEquals(12, decoded.installmentLoans[0].totalInstallments)
-        assertEquals(3, decoded.installmentLoans[0].paidInstallments)
-        assertEquals(5000.0, decoded.installmentLoans[0].downPayment, 0.001)
-        assertEquals(InstallmentLoan.FREQ_MONTHLY, decoded.installmentLoans[0].frequency)
-        assertEquals("Every 15th", decoded.installmentLoans[0].dueDayLabel)
-        assertTrue(decoded.installmentLoans[0].autoLogExpense)
+        val decodedLoan = decoded.installmentLoans[0]
+        assertEquals(5L, decodedLoan.originalId)
+        assertEquals("MacBook Air M3", decodedLoan.loan.gadgetName)
+        assertEquals(55000.0, decodedLoan.loan.cashPrice, 0.001)
+        assertEquals(5000.0, decodedLoan.loan.downpayment, 0.001)
+        assertEquals(4500.0, decodedLoan.loan.installmentPerMonth, 0.001)
+        assertEquals(12, decodedLoan.loan.termsInMonths)
+        assertEquals(2, decodedLoan.loan.paidMonths)
+        assertEquals(loanStartMillis, decodedLoan.loan.startDateMillis)
+        assertEquals(15, decodedLoan.loan.monthlyDueDay)
+        assertEquals(loanFirstDueMillis, decodedLoan.loan.firstDueDateMillis)
+        assertEquals(2, decodedLoan.payments.size)
+        assertEquals(1, decodedLoan.payments[0].monthNumber)
+        assertEquals(4500.0, decodedLoan.payments[0].amountPaid, 0.001)
+        assertEquals(2, decodedLoan.payments[1].monthNumber)
         assertArrayEquals(receiptBytes, decoded.receiptFiles["receipt_dinner.jpg"])
+    }
+
+    @Test
+    fun legacyInstallmentLoansJson_isConvertedIntoRoomLoanContracts() {
+        val legacyJson = """
+            {
+              "app": "Shiftly",
+              "version": 6,
+              "installmentLoans": [
+                {
+                  "id": "loan-uuid-1",
+                  "itemName": "Laptop",
+                  "lenderOrStore": "Home Credit",
+                  "installmentAmount": 2500.0,
+                  "totalInstallments": 12,
+                  "paidInstallments": 3,
+                  "downPayment": 5000.0,
+                  "frequency": "Monthly",
+                  "dueDayLabel": "Every 15th",
+                  "startDateMillis": 1763000000000,
+                  "autoLogExpense": true
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val decoded = BackupCodec.decodeJson(legacyJson)
+        assertEquals(1, decoded.installmentLoans.size)
+        val loan = decoded.installmentLoans.first().loan
+        assertEquals("Laptop (Home Credit)", loan.gadgetName)
+        assertEquals(2500.0, loan.installmentPerMonth, 0.001)
+        assertEquals(12, loan.termsInMonths)
+        assertEquals(3, loan.paidMonths)
+        assertEquals(5000.0, loan.downpayment, 0.001)
+        assertEquals(15, loan.monthlyDueDay)
     }
 
     @Test

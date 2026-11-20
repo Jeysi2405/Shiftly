@@ -8,6 +8,7 @@ import android.graphics.pdf.PdfDocument
 import androidx.room.withTransaction
 import com.example.shiftly.data.backup.BackupCodec
 import com.example.shiftly.data.backup.BackupExpenseRecord
+import com.example.shiftly.data.backup.BackupInstallmentLoan
 import com.example.shiftly.data.backup.BackupPayload
 import com.example.shiftly.data.backup.BackupSavingsGoal
 import com.example.shiftly.data.backup.BackupSplitBill
@@ -21,8 +22,10 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.InAppNotificationType
-import com.example.shiftly.data.local.InstallmentLoan
+import com.example.shiftly.data.local.InstallmentLoanEntity
+import com.example.shiftly.data.local.InstallmentLoanWithPayments
 import com.example.shiftly.data.local.IouEntrySetting
+import com.example.shiftly.data.local.LoanPaymentEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.NotificationLastDays
 import com.example.shiftly.data.local.PaycheckDeductionsSetting
@@ -41,6 +44,9 @@ import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.data.local.UserPreferencesManager
+import com.example.shiftly.data.local.normalizedOrNull
+import com.example.shiftly.data.local.paidMonthsClamped
+import com.example.shiftly.data.local.toInstallmentLoanEntity
 import com.example.shiftly.notifications.ShiftlyNotificationHelper
 import com.example.shiftly.utils.CutoffCalculator
 import com.example.shiftly.utils.CutoffShiftSummary
@@ -74,6 +80,7 @@ class ShiftlyRepository(context: Context) {
     private val allowanceDao = db.allowanceDao()
     private val splitBillDao = db.splitBillDao()
     private val savingsGoalDao = db.savingsGoalDao()
+    private val installmentLoanDao = db.installmentLoanDao()
     private val prefs = UserPreferencesManager(appContext)
     private val recurringMutex = Mutex()
     private val allowanceMutex = Mutex()
@@ -102,7 +109,6 @@ class ShiftlyRepository(context: Context) {
     val balancePrivacyHidden: Flow<Boolean> = prefs.balancePrivacyHidden
     val paycheckDeductions: Flow<PaycheckDeductionsSetting> = prefs.paycheckDeductions
     val iouEntries: Flow<List<IouEntrySetting>> = prefs.iouEntries
-    val installmentLoans: Flow<List<InstallmentLoan>> = prefs.installmentLoans
 
     suspend fun setBalancePrivacyHidden(hidden: Boolean) = withContext(Dispatchers.IO) {
         prefs.setBalancePrivacyHidden(hidden)
@@ -274,71 +280,73 @@ class ShiftlyRepository(context: Context) {
         prefs.setIouEntries(items)
     }
 
-    suspend fun updateInstallmentLoans(items: List<InstallmentLoan>) = withContext(Dispatchers.IO) {
-        prefs.setInstallmentLoans(items)
-    }
+    // Installment Loans (Room: installment_loans + loan_payments)
+    val allInstallmentLoans: Flow<List<InstallmentLoanWithPayments>> =
+        installmentLoanDao.getAllInstallmentLoansWithPayments()
 
-    suspend fun addOrUpdateInstallmentLoan(loan: InstallmentLoan) = withContext(Dispatchers.IO) {
-        val cleanName = loan.itemName.trim()
-        if (cleanName.isEmpty() || !loan.installmentAmount.isFinite() || loan.installmentAmount <= 0.0 || loan.totalInstallments <= 0) {
-            return@withContext
-        }
-        val normalized = loan.copy(
-            itemName = cleanName,
-            lenderOrStore = loan.lenderOrStore.trim(),
-            installmentAmount = round2(loan.installmentAmount),
-            totalInstallments = loan.totalInstallments.coerceAtLeast(1),
-            paidInstallments = loan.paidInstallments.coerceIn(0, loan.totalInstallments.coerceAtLeast(1)),
-            downPayment = round2(loan.downPayment.takeIf { it.isFinite() }?.coerceAtLeast(0.0) ?: 0.0),
-            frequency = InstallmentLoan.normalizeFrequency(loan.frequency),
-            dueDayLabel = loan.dueDayLabel.trim()
-        )
+    /**
+     * One-time, non-destructive move of loans saved by the earlier DataStore-based tracker into
+     * Room. Legacy rows are only cleared after they have been inserted successfully.
+     */
+    suspend fun migrateLegacyInstallmentLoans() = withContext(Dispatchers.IO) {
         installmentLoanMutex.withLock {
-            val current = prefs.installmentLoans.first()
-            val idx = current.indexOfFirst { it.id == normalized.id }
-            val updated = if (idx >= 0) {
-                current.toMutableList().apply { set(idx, normalized) }
-            } else {
-                listOf(normalized) + current
+            val legacy = prefs.installmentLoans.first()
+            if (legacy.isEmpty()) return@withLock
+            val converted = legacy.mapNotNull { it.toInstallmentLoanEntity().normalizedOrNull() }
+            db.withTransaction {
+                converted.forEach { installmentLoanDao.insertInstallmentLoan(it.copy(id = 0L)) }
             }
-            prefs.setInstallmentLoans(updated)
+            prefs.setInstallmentLoans(emptyList())
         }
     }
 
-    suspend fun recordLoanInstallmentPayment(loanId: String): InstallmentLoan? = withContext(Dispatchers.IO) {
+    /** Inserts a new loan (id == 0) or updates an existing one while preserving its paid progress. */
+    suspend fun addOrUpdateInstallmentLoan(loan: InstallmentLoanEntity): Long = withContext(Dispatchers.IO) {
+        val normalized = loan.normalizedOrNull() ?: return@withContext 0L
         installmentLoanMutex.withLock {
-            val current = prefs.installmentLoans.first()
-            val idx = current.indexOfFirst { it.id == loanId }
-            if (idx < 0) return@withLock null
-            val target = current[idx]
-            if (target.paidInstallments >= target.totalInstallments) return@withLock null
+            db.withTransaction {
+                if (normalized.id > 0L) {
+                    val existing = installmentLoanDao.getLoanByIdOnce(normalized.id)
+                    if (existing == null) {
+                        installmentLoanDao.insertInstallmentLoan(normalized.copy(id = 0L, paidMonths = 0))
+                    } else {
+                        val safePaid = existing.paidMonths.coerceIn(0, normalized.termsInMonths)
+                        installmentLoanDao.updateInstallmentLoan(normalized.copy(paidMonths = safePaid))
+                        normalized.id
+                    }
+                } else {
+                    installmentLoanDao.insertInstallmentLoan(normalized.copy(id = 0L))
+                }
+            }
+        }
+    }
 
-            val newPaid = (target.paidInstallments + 1).coerceAtMost(target.totalInstallments)
-            val updatedLoan = target.copy(paidInstallments = newPaid)
-            val updatedList = current.toMutableList().apply { set(idx, updatedLoan) }
-            prefs.setInstallmentLoans(updatedList)
-
-            if (target.autoLogExpense && target.installmentAmount.isFinite() && target.installmentAmount > 0.0) {
-                expenseDao.insertExpense(
-                    ExpenseEntity(
-                        title = "${target.itemName} Installment ($newPaid/${target.totalInstallments})",
-                        amount = round2(target.installmentAmount),
-                        category = "Bills",
-                        dateEpochDay = LocalDate.now().toEpochDay(),
-                        createdAtMillis = System.currentTimeMillis()
+    /** Records the next unpaid month as paid and advances `paidMonths`. Returns false when nothing changed. */
+    suspend fun markLoanMonthAsPaid(loanId: Long): Boolean = withContext(Dispatchers.IO) {
+        installmentLoanMutex.withLock {
+            db.withTransaction {
+                val loan = installmentLoanDao.getLoanByIdOnce(loanId) ?: return@withTransaction false
+                val paid = loan.paidMonthsClamped
+                if (paid >= loan.termsInMonths) return@withTransaction false
+                installmentLoanDao.insertLoanPayment(
+                    LoanPaymentEntity(
+                        loanId = loan.id,
+                        monthNumber = paid + 1,
+                        amountPaid = loan.installmentPerMonth,
+                        datePaidMillis = System.currentTimeMillis()
                     )
                 )
+                installmentLoanDao.updateInstallmentLoan(loan.copy(paidMonths = paid + 1))
+                true
             }
-            updatedLoan
         }
     }
 
-    suspend fun deleteInstallmentLoan(loanId: String) = withContext(Dispatchers.IO) {
+    suspend fun deleteInstallmentLoan(loan: InstallmentLoanEntity) = withContext(Dispatchers.IO) {
         installmentLoanMutex.withLock {
-            val current = prefs.installmentLoans.first()
-            val updated = current.filterNot { it.id == loanId }
-            if (updated.size != current.size) {
-                prefs.setInstallmentLoans(updated)
+            db.withTransaction {
+                installmentLoanDao.deletePaymentsForLoan(loan.id)
+                installmentLoanDao.deleteInstallmentLoan(loan)
             }
         }
     }
@@ -479,6 +487,22 @@ class ShiftlyRepository(context: Context) {
                     deposits.forEach { d ->
                         savingsGoalDao.updateDeposit(
                             d.copy(amount = round2(d.amount * conversionRate).coerceAtLeast(0.01))
+                        )
+                    }
+                }
+                installmentLoanDao.getAllInstallmentLoansWithPaymentsOnce().forEach { entry ->
+                    val loan = entry.loan
+                    installmentLoanDao.updateInstallmentLoan(
+                        loan.copy(
+                            cashPrice = round2(loan.cashPrice * conversionRate),
+                            downpayment = round2(loan.downpayment * conversionRate),
+                            installmentPerMonth = round2(loan.installmentPerMonth * conversionRate)
+                                .coerceAtLeast(0.01)
+                        )
+                    )
+                    entry.payments.forEach { p ->
+                        installmentLoanDao.updateLoanPayment(
+                            p.copy(amountPaid = round2(p.amountPaid * conversionRate))
                         )
                     }
                 }
@@ -1046,6 +1070,9 @@ class ShiftlyRepository(context: Context) {
     }
 
     private suspend fun buildCurrentBackupPayload(includeReceipts: Boolean): BackupPayload = withContext(Dispatchers.IO) {
+        // Make sure any loans still living in the legacy DataStore are part of the export.
+        migrateLegacyInstallmentLoans()
+
         val shifts = shiftDao.getAllShiftsOnce()
         val expenses = expenseDao.getAllExpensesOnce()
         val extraIncomes = extraIncomeDao.getAllExtraIncomesOnce()
@@ -1053,10 +1080,10 @@ class ShiftlyRepository(context: Context) {
         val goals = savingsGoalDao.getAllGoalsWithDepositsOnce()
         val recurringBills = recurringBillDao.getAllBillsOnce()
         val allowanceEntries = allowanceDao.getAllEntriesOnce()
+        val loans = installmentLoanDao.getAllInstallmentLoansWithPaymentsOnce()
         val settings = settingsSnapshot.first()
         val deductions = paycheckDeductions.first()
         val ious = iouEntries.first()
-        val loans = installmentLoans.first()
         val currency = currencySymbol.first()
         val rate = defaultHourlyRate.first()
         val minWage = minimumWagePerDay.first()
@@ -1098,6 +1125,14 @@ class ShiftlyRepository(context: Context) {
             )
         }
 
+        val backupLoans = loans.map { entry ->
+            BackupInstallmentLoan(
+                originalId = entry.loan.id,
+                loan = entry.loan,
+                payments = entry.payments.sortedBy { it.monthNumber }
+            )
+        }
+
         BackupPayload(
             userName = name,
             currencySymbol = currency,
@@ -1108,7 +1143,7 @@ class ShiftlyRepository(context: Context) {
             settings = settings,
             paycheckDeductions = deductions,
             iouEntries = ious,
-            installmentLoans = loans,
+            installmentLoans = backupLoans,
             shifts = shifts,
             expenses = backupExpenses,
             extraIncomes = extraIncomes,
@@ -1171,6 +1206,7 @@ class ShiftlyRepository(context: Context) {
         var restoredGoalsCount = 0
         var restoredRecurringBillsCount = 0
         var restoredAllowanceCount = 0
+        var restoredLoansCount = 0
 
         val receiptsToWrite = mutableListOf<Pair<File, ByteArray>>()
         val restoredReceiptPaths = mutableMapOf<String, String>()
@@ -1183,6 +1219,9 @@ class ShiftlyRepository(context: Context) {
             }
         }
 
+        // Fold any pending legacy loans into Room first so MERGE de-duplication sees them.
+        migrateLegacyInstallmentLoans()
+
         db.withTransaction {
             if (mode == RestoreMode.REPLACE) {
                 expenseDao.deleteAllExpenses()
@@ -1192,6 +1231,8 @@ class ShiftlyRepository(context: Context) {
                 savingsGoalDao.deleteAllSavingsGoals()
                 recurringBillDao.deleteAllBills()
                 allowanceDao.deleteAllEntries()
+                installmentLoanDao.deleteAllLoanPayments()
+                installmentLoanDao.deleteAllInstallmentLoans()
             }
 
             val existingShiftDates = if (mode == RestoreMode.MERGE) {
@@ -1287,6 +1328,27 @@ class ShiftlyRepository(context: Context) {
                 }
             }
 
+            val existingLoanSigs = if (mode == RestoreMode.MERGE) {
+                installmentLoanDao.getAllInstallmentLoansOnce().asSequence()
+                    .map { BackupCodec.installmentLoanSignature(it) }
+                    .toMutableSet()
+            } else {
+                mutableSetOf()
+            }
+
+            payload.installmentLoans.forEach { entry ->
+                val sig = BackupCodec.installmentLoanSignature(entry.loan)
+                if (mode == RestoreMode.REPLACE || existingLoanSigs.add(sig)) {
+                    val newLoanId = installmentLoanDao.insertInstallmentLoan(entry.loan.copy(id = 0L))
+                    entry.payments.forEach { payment ->
+                        installmentLoanDao.insertLoanPayment(
+                            payment.copy(id = 0L, loanId = newLoanId)
+                        )
+                    }
+                    restoredLoansCount++
+                }
+            }
+
             val existingRecurringSigs = if (mode == RestoreMode.MERGE) {
                 recurringBillDao.getAllBillsOnce().asSequence()
                     .map { BackupCodec.recurringBillSignature(it) }
@@ -1376,16 +1438,6 @@ class ShiftlyRepository(context: Context) {
             }
         }
 
-        val resolvedLoans: List<InstallmentLoan>? = when {
-            mode == RestoreMode.REPLACE -> payload.installmentLoans
-            payload.installmentLoans.isEmpty() -> null
-            else -> {
-                val existingLoans = installmentLoans.first()
-                val seenIds = existingLoans.map { it.id }.toMutableSet()
-                existingLoans + payload.installmentLoans.filter { seenIds.add(it.id) }
-            }
-        }
-
         prefs.applyRestoredSettings(
             userName = payload.userName,
             currencySymbol = payload.currencySymbol,
@@ -1396,7 +1448,7 @@ class ShiftlyRepository(context: Context) {
             settings = payload.settings,
             paycheckDeductions = payload.paycheckDeductions,
             iouEntries = resolvedIous,
-            installmentLoans = resolvedLoans
+            installmentLoans = null
         )
 
         processDueCutoffAllowances()
@@ -1405,6 +1457,7 @@ class ShiftlyRepository(context: Context) {
         return "$modeLabel $restoredShiftsCount shift(s), $restoredExpensesCount expense(s), " +
             "$restoredBillsCount split bill(s)" +
             (if (restoredGoalsCount > 0) ", $restoredGoalsCount savings goal(s)" else "") +
+            (if (restoredLoansCount > 0) ", $restoredLoansCount installment loan(s)" else "") +
             (if (restoredRecurringBillsCount > 0) ", $restoredRecurringBillsCount recurring bill(s)" else "") +
             (if (restoredAllowanceCount > 0) ", $restoredAllowanceCount allowance entry(s)" else "") +
             (if (restoredExtraIncomesCount > 0) ", $restoredExtraIncomesCount extra income(s)" else "") +

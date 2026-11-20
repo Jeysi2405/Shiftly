@@ -17,9 +17,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SplitBillEntity::class,
         SplitParticipantEntity::class,
         SavingsGoalEntity::class,
-        SavingsDepositEntity::class
+        SavingsDepositEntity::class,
+        InstallmentLoanEntity::class,
+        LoanPaymentEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class ShiftlyDatabase : RoomDatabase() {
@@ -30,6 +32,7 @@ abstract class ShiftlyDatabase : RoomDatabase() {
     abstract fun allowanceDao(): AllowanceDao
     abstract fun splitBillDao(): SplitBillDao
     abstract fun savingsGoalDao(): SavingsGoalDao
+    abstract fun installmentLoanDao(): InstallmentLoanDao
 
     companion object {
         @Volatile
@@ -156,6 +159,46 @@ abstract class ShiftlyDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds the Installment Loans tables. Purely additive: every existing table and row is left
+         * untouched, so upgrading from v3.0.0 / v3.2.0 never loses data.
+         */
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS installment_loans (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        gadgetName TEXT NOT NULL,
+                        cashPrice REAL NOT NULL,
+                        downpayment REAL NOT NULL,
+                        installmentPerMonth REAL NOT NULL,
+                        termsInMonths INTEGER NOT NULL,
+                        paidMonths INTEGER NOT NULL,
+                        startDateMillis INTEGER NOT NULL,
+                        monthlyDueDay INTEGER NOT NULL,
+                        firstDueDateMillis INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS loan_payments (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        loanId INTEGER NOT NULL,
+                        monthNumber INTEGER NOT NULL,
+                        amountPaid REAL NOT NULL,
+                        datePaidMillis INTEGER NOT NULL,
+                        FOREIGN KEY(loanId) REFERENCES installment_loans(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_loan_payments_loanId ON loan_payments(loanId)"
+                )
+            }
+        }
+
         fun getInstance(context: Context): ShiftlyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -169,7 +212,8 @@ abstract class ShiftlyDatabase : RoomDatabase() {
                         MIGRATION_3_4,
                         MIGRATION_4_5,
                         MIGRATION_5_6,
-                        MIGRATION_6_7
+                        MIGRATION_6_7,
+                        MIGRATION_7_8
                     )
                     .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()

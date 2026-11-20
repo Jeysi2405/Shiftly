@@ -7,8 +7,10 @@ import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
-import com.example.shiftly.data.local.InstallmentLoan
+import com.example.shiftly.data.local.InstallmentLoanEntity
+import com.example.shiftly.data.local.InstallmentLoanWithPayments
 import com.example.shiftly.data.local.IouEntrySetting
+import com.example.shiftly.data.local.LoanDueStatus
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.PaycheckDeductionsSetting
 import com.example.shiftly.data.local.RecurringBillEntity
@@ -18,8 +20,12 @@ import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillWithParticipants
+import com.example.shiftly.data.local.dueStatus
+import com.example.shiftly.data.local.isCompleted
+import com.example.shiftly.data.local.remainingBalance
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.utils.ShiftlyFormatters
+import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -52,9 +58,11 @@ data class ToolsUiState(
     val cutoffScheduleLabel: String = CutoffScheduleConfig().displayLabel(),
     val paycheckDeductions: PaycheckDeductionsSetting = PaycheckDeductionsSetting(),
     val iouEntries: List<IouEntrySetting> = emptyList(),
-    val installmentLoans: List<InstallmentLoan> = emptyList(),
+    val installmentLoans: List<InstallmentLoanWithPayments> = emptyList(),
     val totalRemainingLoanBalance: Double = 0.0,
     val activeInstallmentLoanCount: Int = 0,
+    val overdueLoanCount: Int = 0,
+    val dueSoonLoanCount: Int = 0,
     val installmentLoanSummaryText: String = "0 active",
     val netPayTakeHome: Double = 0.0,
     val totalDeductions: Double = 0.0,
@@ -69,6 +77,12 @@ class ToolsViewModel(
     private val repository: ShiftlyRepository
 ) : ViewModel() {
 
+    init {
+        viewModelScope.launch {
+            repository.migrateLegacyInstallmentLoans()
+        }
+    }
+
     private val corePrefsFlow = combine(
         repository.currencySymbol,
         repository.monthlyBudget,
@@ -80,7 +94,7 @@ class ToolsViewModel(
     private val trackerExtrasFlow = combine(
         repository.paycheckDeductions,
         repository.iouEntries,
-        repository.installmentLoans
+        repository.allInstallmentLoans
     ) { deductions, ious, loans ->
         Triple(deductions, ious, loans)
     }
@@ -110,7 +124,7 @@ class ToolsViewModel(
         @Suppress("UNCHECKED_CAST")
         val allowanceEntries = values[6] as List<AllowanceEntryEntity>
         @Suppress("UNCHECKED_CAST")
-        val trackerExtras = values[7] as Triple<PaycheckDeductionsSetting, List<IouEntrySetting>, List<InstallmentLoan>>
+        val trackerExtras = values[7] as Triple<PaycheckDeductionsSetting, List<IouEntrySetting>, List<InstallmentLoanWithPayments>>
 
         computeToolsUiState(
             currencySymbol = prefs.first,
@@ -181,21 +195,21 @@ class ToolsViewModel(
         }
     }
 
-    fun addOrUpdateInstallmentLoan(loan: InstallmentLoan) {
+    fun addOrUpdateInstallmentLoan(loan: InstallmentLoanEntity) {
         viewModelScope.launch {
             repository.addOrUpdateInstallmentLoan(loan)
         }
     }
 
-    fun recordLoanInstallmentPayment(loanId: String) {
+    fun markLoanMonthAsPaid(loanId: Long) {
         viewModelScope.launch {
-            repository.recordLoanInstallmentPayment(loanId)
+            repository.markLoanMonthAsPaid(loanId)
         }
     }
 
-    fun deleteInstallmentLoan(loanId: String) {
+    fun deleteInstallmentLoan(loan: InstallmentLoanEntity) {
         viewModelScope.launch {
-            repository.deleteInstallmentLoan(loanId)
+            repository.deleteInstallmentLoan(loan)
         }
     }
 
@@ -242,8 +256,9 @@ class ToolsViewModel(
             allowanceEntries: List<AllowanceEntryEntity>,
             paycheckDeductions: PaycheckDeductionsSetting = PaycheckDeductionsSetting(),
             iouEntries: List<IouEntrySetting> = emptyList(),
-            installmentLoans: List<InstallmentLoan> = emptyList(),
-            currentMonth: YearMonth = YearMonth.now()
+            installmentLoans: List<InstallmentLoanWithPayments> = emptyList(),
+            currentMonth: YearMonth = YearMonth.now(),
+            today: LocalDate = LocalDate.now()
         ): ToolsUiState {
             val monthStartEpoch = currentMonth.atDay(1).toEpochDay()
             val monthEndEpoch = currentMonth.atEndOfMonth().toEpochDay()
@@ -298,8 +313,17 @@ class ToolsViewModel(
                 else -> "Balanced debts"
             }
 
-            val activeLoans = installmentLoans.filter { !it.isCompleted }
-            val totalRemainingLoanBalance = activeLoans.sumOf { it.remainingBalance }
+            val activeLoans = installmentLoans.filter { !it.loan.isCompleted }
+            val totalRemainingLoanBalance = activeLoans.sumOf { it.loan.remainingBalance }
+            var overdueLoanCount = 0
+            var dueSoonLoanCount = 0
+            for (entry in activeLoans) {
+                when (entry.loan.dueStatus(today)) {
+                    LoanDueStatus.OVERDUE -> overdueLoanCount++
+                    LoanDueStatus.DUE_TODAY, LoanDueStatus.DUE_SOON -> dueSoonLoanCount++
+                    else -> Unit
+                }
+            }
             val installmentLoanSummaryText = when {
                 installmentLoans.isEmpty() -> "0 active"
                 activeLoans.isEmpty() -> "All paid"
@@ -330,6 +354,8 @@ class ToolsViewModel(
                 installmentLoans = installmentLoans,
                 totalRemainingLoanBalance = totalRemainingLoanBalance,
                 activeInstallmentLoanCount = activeLoans.size,
+                overdueLoanCount = overdueLoanCount,
+                dueSoonLoanCount = dueSoonLoanCount,
                 installmentLoanSummaryText = installmentLoanSummaryText,
                 netPayTakeHome = netPayTakeHome,
                 totalDeductions = totalDeductions,

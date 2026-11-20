@@ -265,13 +265,12 @@ fun ToolsScreen(
                 viewModel.addOrUpdateInstallmentLoan(loan)
                 onShowMessage("Loan contract saved")
             },
-            onPayInstallment = { loan ->
-                viewModel.recordLoanInstallmentPayment(loan.id)
-                val suffix = if (loan.autoLogExpense) " & logged to Expenses" else ""
-                onShowMessage("Installment paid$suffix")
+            onMarkMonthPaid = { loan ->
+                viewModel.markLoanMonthAsPaid(loan.id)
+                onShowMessage("Month marked as paid")
             },
             onDeleteLoan = { loan ->
-                viewModel.deleteInstallmentLoan(loan.id)
+                viewModel.deleteInstallmentLoan(loan)
                 onShowMessage("Loan contract deleted")
             },
             onHelpClick = { activeTutorial = ActiveToolTutorial.INSTALLMENT_LOANS },
@@ -350,11 +349,11 @@ fun ToolsScreen(
         ActiveToolTutorial.INSTALLMENT_LOANS -> {
             ShiftlyScreenTutorialSheet(
                 title = "Installment Loans Guide",
-                subtitle = "Track financed contracts, remaining balance, and payoff dates.",
+                subtitle = "Track financed contracts, due dates, and monthly payments.",
                 steps = listOf(
-                    "Add your loan contract" to "Tap + New Loan and enter the item, installment amount, term, and payment frequency.",
-                    "Watch your remaining balance" to "Each contract automatically shows how much balance and how many payments remain until completion.",
-                    "Log payments in one tap" to "Tap + Pay Installment to advance your progress—and optionally record it straight to Expenses."
+                    "Add your loan contract" to "Tap + Add Loan and enter the gadget or laptop, cash price, downpayment, monthly installment, terms, and due date.",
+                    "Spot due-soon & overdue alerts" to "Loans due within 7 days show an orange Due Soon badge and banner; missed due dates highlight in red as Overdue.",
+                    "Track payment history" to "Tap any loan card to view its breakdown and tap Mark Month as Paid to record each monthly payment."
                 ),
                 onDismiss = { activeTutorial = null }
             )
@@ -494,6 +493,8 @@ fun ToolsScreenContent(
                             iconRes = R.drawable.ic_lucide_file_text,
                             iconTint = ToolCyan,
                             metricColor = when {
+                                state.overdueLoanCount > 0 -> colors.coralInk
+                                state.dueSoonLoanCount > 0 -> colors.iosOrange
                                 state.installmentLoans.isNotEmpty() && state.activeInstallmentLoanCount == 0 -> colors.mintInk
                                 state.activeInstallmentLoanCount > 0 -> colors.textPrimary
                                 else -> colors.textSecondary

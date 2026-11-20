@@ -6,8 +6,9 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
-import com.example.shiftly.data.local.InstallmentLoan
+import com.example.shiftly.data.local.InstallmentLoanEntity
 import com.example.shiftly.data.local.IouEntrySetting
+import com.example.shiftly.data.local.LoanPaymentEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.PaycheckDeductionsSetting
 import com.example.shiftly.data.local.PreferenceJsonCodec
@@ -19,6 +20,8 @@ import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillEntity
 import com.example.shiftly.data.local.SplitParticipantEntity
+import com.example.shiftly.data.local.normalizedOrNull
+import com.example.shiftly.data.local.toInstallmentLoanEntity
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
@@ -47,6 +50,12 @@ data class BackupSavingsGoal(
     val deposits: List<SavingsDepositEntity>
 )
 
+data class BackupInstallmentLoan(
+    val originalId: Long,
+    val loan: InstallmentLoanEntity,
+    val payments: List<LoanPaymentEntity>
+)
+
 data class BackupExpenseRecord(
     val expense: ExpenseEntity,
     val receiptFileName: String? = null
@@ -64,7 +73,7 @@ data class BackupPayload(
     val settings: ShiftlySettingsSnapshot? = null,
     val paycheckDeductions: PaycheckDeductionsSetting? = null,
     val iouEntries: List<IouEntrySetting> = emptyList(),
-    val installmentLoans: List<InstallmentLoan> = emptyList(),
+    val installmentLoans: List<BackupInstallmentLoan> = emptyList(),
     val shifts: List<ShiftEntity> = emptyList(),
     val expenses: List<BackupExpenseRecord> = emptyList(),
     val extraIncomes: List<ExtraIncomeEntity> = emptyList(),
@@ -75,7 +84,7 @@ data class BackupPayload(
     val receiptFiles: Map<String, ByteArray> = emptyMap()
 ) {
     companion object {
-        const val CURRENT_VERSION = 6
+        const val CURRENT_VERSION = 7
     }
 }
 
@@ -86,6 +95,10 @@ object BackupCodec {
     private const val BACKUP_JSON_ENTRY = "shiftly_backup.json"
     private const val RECEIPTS_DIR_PREFIX = "receipts/"
     private const val MAX_ZIP_ENTRY_BYTES = 15 * 1024 * 1024 // 15 MB per entry safety cap
+
+    /** JSON key for Room-based installment loans (v7+). The legacy `installmentLoans` key is read-only. */
+    private const val LOAN_CONTRACTS_KEY = "loanContracts"
+    private const val LEGACY_LOANS_KEY = "installmentLoans"
 
     fun encodeJson(payload: BackupPayload): String {
         val root = JSONObject().apply {
@@ -162,7 +175,42 @@ object BackupCodec {
             }
 
             if (payload.installmentLoans.isNotEmpty()) {
-                put("installmentLoans", JSONArray(PreferenceJsonCodec.encodeInstallmentLoans(payload.installmentLoans)))
+                put(
+                    LOAN_CONTRACTS_KEY,
+                    JSONArray().apply {
+                        payload.installmentLoans.forEach { entry ->
+                            val l = entry.loan
+                            put(
+                                JSONObject().apply {
+                                    put("id", entry.originalId)
+                                    put("gadgetName", l.gadgetName)
+                                    put("cashPrice", l.cashPrice)
+                                    put("downpayment", l.downpayment)
+                                    put("installmentPerMonth", l.installmentPerMonth)
+                                    put("termsInMonths", l.termsInMonths)
+                                    put("paidMonths", l.paidMonths)
+                                    put("startDateMillis", l.startDateMillis)
+                                    put("monthlyDueDay", l.monthlyDueDay)
+                                    put("firstDueDateMillis", l.firstDueDateMillis)
+                                    put(
+                                        "payments",
+                                        JSONArray().apply {
+                                            entry.payments.forEach { p ->
+                                                put(
+                                                    JSONObject().apply {
+                                                        put("monthNumber", p.monthNumber)
+                                                        put("amountPaid", p.amountPaid)
+                                                        put("datePaidMillis", p.datePaidMillis)
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
+                )
             }
 
             put(
@@ -436,7 +484,65 @@ object BackupCodec {
         }
 
         val iouEntries = PreferenceJsonCodec.decodeIouEntries(root.optJSONArray("iouEntries")?.toString())
-        val installmentLoans = PreferenceJsonCodec.decodeInstallmentLoans(root.optJSONArray("installmentLoans")?.toString())
+
+        val loanContractsArray = root.optJSONArray(LOAN_CONTRACTS_KEY) ?: JSONArray()
+        val loanContracts = buildList {
+            for (i in 0 until loanContractsArray.length()) {
+                val obj = loanContractsArray.optJSONObject(i) ?: continue
+                val rawLoan = InstallmentLoanEntity(
+                    id = 0L,
+                    gadgetName = obj.optString("gadgetName", ""),
+                    cashPrice = obj.optDouble("cashPrice", 0.0),
+                    downpayment = obj.optDouble("downpayment", 0.0),
+                    installmentPerMonth = obj.optDouble("installmentPerMonth", Double.NaN),
+                    termsInMonths = obj.optInt("termsInMonths", 0),
+                    paidMonths = obj.optInt("paidMonths", 0),
+                    startDateMillis = obj.optLong("startDateMillis", 0L),
+                    monthlyDueDay = obj.optInt("monthlyDueDay", 1),
+                    firstDueDateMillis = obj.optLong("firstDueDateMillis", 0L)
+                )
+                val loan = rawLoan.normalizedOrNull() ?: continue
+                val paymentsArray = obj.optJSONArray("payments") ?: JSONArray()
+                val payments = buildList {
+                    for (j in 0 until paymentsArray.length()) {
+                        val pObj = paymentsArray.optJSONObject(j) ?: continue
+                        val amount = pObj.optDouble("amountPaid", Double.NaN)
+                        val month = pObj.optInt("monthNumber", 0)
+                        if (!amount.isFinite() || amount < 0.0 || month <= 0) continue
+                        add(
+                            LoanPaymentEntity(
+                                id = 0L,
+                                loanId = 0L,
+                                monthNumber = month,
+                                amountPaid = amount,
+                                datePaidMillis = pObj.optLong("datePaidMillis", 0L)
+                            )
+                        )
+                    }
+                }
+                add(
+                    BackupInstallmentLoan(
+                        originalId = obj.optLong("id", (i + 1).toLong()),
+                        loan = loan,
+                        payments = payments
+                    )
+                )
+            }
+        }
+
+        // Backups made before the Room-based tracker stored loans in the older DataStore shape.
+        val legacyLoans = PreferenceJsonCodec
+            .decodeInstallmentLoans(root.optJSONArray(LEGACY_LOANS_KEY)?.toString())
+            .mapIndexedNotNull { index, legacy ->
+                legacy.toInstallmentLoanEntity().normalizedOrNull()?.let { loan ->
+                    BackupInstallmentLoan(
+                        originalId = -(index + 1).toLong(),
+                        loan = loan,
+                        payments = emptyList()
+                    )
+                }
+            }
+        val installmentLoans = loanContracts + legacyLoans
 
         val shiftsArray = root.optJSONArray("shifts") ?: JSONArray()
         val shifts = buildList {
@@ -868,6 +974,9 @@ object BackupCodec {
 
     fun recurringBillSignature(b: RecurringBillEntity): String =
         "${b.title.trim().lowercase()}|${(b.amount * 100.0).roundToLong()}|${b.category.trim().lowercase()}|${b.frequency.trim().lowercase()}|${b.dueHour}:${b.dueMinute}"
+
+    fun installmentLoanSignature(l: InstallmentLoanEntity): String =
+        "${l.gadgetName.trim().lowercase()}|${(l.cashPrice * 100.0).roundToLong()}|${(l.downpayment * 100.0).roundToLong()}|${(l.installmentPerMonth * 100.0).roundToLong()}|${l.termsInMonths}|${l.firstDueDateMillis}"
 
     fun allowanceEntrySignature(a: AllowanceEntryEntity): String =
         if (!a.cutoffKey.isNullOrBlank()) {
