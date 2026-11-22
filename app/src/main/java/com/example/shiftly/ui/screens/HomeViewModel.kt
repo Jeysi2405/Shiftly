@@ -6,9 +6,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.AllowanceEntryEntity
+import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
 import com.example.shiftly.data.local.InAppNotificationItem
+import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
@@ -129,7 +131,6 @@ data class PaydayCutoffBannerInfo(
 @Immutable
 data class HomeUiState(
     val userName: String = "",
-    val profilePhotoPath: String? = null,
     val currencySymbol: String = "₱",
     val hourlyRate: Double = 0.0,
     val totalBalance: Double = 0.0,
@@ -138,6 +139,8 @@ data class HomeUiState(
     val mtdIncome: Double = 0.0,
     val mtdExpenses: Double = 0.0,
     val monthlyBudget: Double = 0.0,
+    val categoryBudgets: List<CategoryBudgetSetting> = emptyList(),
+    val managedCategories: List<ManagedCategorySetting> = emptyList(),
     val pendingSplitsOwed: Double = 0.0,
     val pendingSplitBillCount: Int = 0,
     val notifications: List<InAppNotificationItem> = emptyList(),
@@ -190,7 +193,6 @@ class HomeViewModel(
 
     private data class CorePrefs(
         val userName: String,
-        val profilePhotoPath: String?,
         val currency: String,
         val rate: Double,
         val budget: Double,
@@ -199,10 +201,9 @@ class HomeViewModel(
 
     private val identityPrefsFlow = combine(
         repository.userName,
-        repository.profilePhotoPath,
         repository.currencySymbol
-    ) { userName, photoPath, currency ->
-        Triple(userName, photoPath, currency)
+    ) { userName, currency ->
+        userName to currency
     }
 
     private val financePrefsFlow = combine(
@@ -216,8 +217,7 @@ class HomeViewModel(
     private val corePrefsFlow = combine(identityPrefsFlow, financePrefsFlow) { id, fin ->
         CorePrefs(
             userName = id.first,
-            profilePhotoPath = id.second,
-            currency = id.third,
+            currency = id.second,
             rate = fin.first,
             budget = fin.second,
             activeTimer = fin.third
@@ -444,7 +444,6 @@ class HomeViewModel(
 
         HomeUiState(
             userName = prefs.userName,
-            profilePhotoPath = prefs.profilePhotoPath,
             currencySymbol = prefs.currency,
             hourlyRate = prefs.rate,
             totalBalance = totalBalance,
@@ -453,6 +452,8 @@ class HomeViewModel(
             mtdIncome = mtdIncome,
             mtdExpenses = mtdExpenses,
             monthlyBudget = prefs.budget,
+            categoryBudgets = settings.categoryBudgets,
+            managedCategories = settings.managedCategories,
             pendingSplitsOwed = pendingSplitsOwed,
             pendingSplitBillCount = pendingSplitBillCount,
             notifications = inboxItems,
@@ -480,6 +481,19 @@ class HomeViewModel(
     fun toggleBalancePrivacy() {
         viewModelScope.launch {
             repository.setBalancePrivacyHidden(!uiState.value.isBalanceHidden)
+        }
+    }
+
+    fun updateBudgets(monthlyBudget: Double, categoryBudgets: List<CategoryBudgetSetting>) {
+        viewModelScope.launch {
+            repository.updateMonthlyBudget(monthlyBudget)
+            repository.updateCategoryBudgets(categoryBudgets)
+        }
+    }
+
+    fun updateManagedCategories(items: List<ManagedCategorySetting>) {
+        viewModelScope.launch {
+            repository.updateManagedCategories(items)
         }
     }
 

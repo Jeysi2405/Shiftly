@@ -34,9 +34,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
+import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlyToolSheetContainer
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
+import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
+import com.example.shiftly.ui.screens.profile.ShiftlySheetActionState
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -56,12 +60,15 @@ fun AnalyticsScreen(
 
     var showGoalDetailSheet by remember { mutableStateOf(false) }
     var showAddGoalSheet by remember { mutableStateOf(false) }
+    var showBudgetsSheet by remember { mutableStateOf(false) }
+    var showBudgetsTutorial by remember { mutableStateOf(false) }
 
     AnalyticsScreenContent(
         state = state,
         onBack = onBack,
         onSelectRange = { viewModel.selectRange(it) },
         onOpenSplitBill = onNavigateToSplitBill,
+        onOpenBudgetSettings = { showBudgetsSheet = true },
         onOpenGoalSettings = {
             if (state.savingsGoals.isEmpty()) {
                 showAddGoalSheet = true
@@ -112,14 +119,53 @@ fun AnalyticsScreen(
             }
         )
     }
+
+    if (showBudgetsSheet) {
+        val budgetsActionState = remember { ShiftlySheetActionState() }
+        ShiftlyToolSheetContainer(
+            title = "Monthly Limits",
+            onDismiss = { showBudgetsSheet = false },
+            onHelpClick = { showBudgetsTutorial = true }
+        ) {
+            BudgetsEditorSheetContent(
+                currencySymbol = state.currencySymbol,
+                currentMonthlyBudget = state.monthlyBudget,
+                currentCategoryBudgets = state.categoryBudgets,
+                managedCategories = state.managedCategories,
+                onDismiss = { showBudgetsSheet = false },
+                onSave = { monthly, categoryList, managedList ->
+                    viewModel.updateBudgets(monthly, categoryList)
+                    viewModel.updateManagedCategories(managedList)
+                    showBudgetsSheet = false
+                    onShowMessage("Budgets saved")
+                },
+                actionState = budgetsActionState
+            )
+        }
+    }
+
+    if (showBudgetsTutorial) {
+        ShiftlyScreenTutorialSheet(
+            title = "Budgets Guide",
+            subtitle = "Set comfortable limits for your month and top categories.",
+            steps = listOf(
+                "Set your monthly limit" to "Enter an overall monthly spending cap to unlock daily safe-to-spend guidance.",
+                "Assign category caps" to "Add optional limits for Food, Transport, or Bills to see individual progress bars.",
+                "Customize your categories" to "Enable, add, or organize the categories shown whenever you log an expense."
+            ),
+            onDismiss = { showBudgetsTutorial = false }
+        )
+    }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun AnalyticsScreenContent(
     state: AnalyticsUiState,
     onBack: () -> Unit,
     onSelectRange: (AnalyticsRange) -> Unit,
     onOpenSplitBill: () -> Unit = {},
+    onOpenBudgetSettings: () -> Unit = {},
     onOpenGoalSettings: () -> Unit = {},
     listState: LazyListState = rememberLazyListState()
 ) {
@@ -198,7 +244,8 @@ fun AnalyticsScreenContent(
                             streakDays = state.underBudgetStreakDays,
                             streakTargetDays = state.streakTargetDays,
                             dailyAllowance = state.dailyBudgetAllowance,
-                            currencySymbol = state.currencySymbol
+                            currencySymbol = state.currencySymbol,
+                            onOpenBudgetSettings = onOpenBudgetSettings
                         )
 
                         NetSavingsRateCard(

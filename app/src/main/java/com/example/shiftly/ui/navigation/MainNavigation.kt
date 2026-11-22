@@ -67,7 +67,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -349,17 +348,14 @@ fun MainAppScreen() {
 
                         false -> {
                             WelcomeScreen(
-                                onSaveSetupProfile = { name, rate, monthlyBudget, profilePhotoPath ->
+                                onSaveSetupProfile = { name, rate, monthlyBudget ->
                                     scope.launch {
                                         repository.updateUserName(name)
                                         repository.updateDefaultHourlyRate(rate)
                                         repository.updateMonthlyBudget(monthlyBudget)
-                                        if (!profilePhotoPath.isNullOrBlank()) {
-                                            repository.updateProfilePhotoPath(profilePhotoPath)
-                                        }
                                     }
                                 },
-                                onGetStartedComplete = { _, _, _, _ ->
+                                onGetStartedComplete = { _, _, _ ->
                                     scope.launch {
                                         repository.setOnboardingCompleted(completed = true)
                                     }
@@ -583,7 +579,9 @@ private fun MainDashboardShell(
                                         onClick = { data.performAction() },
                                         interactionSource = actionInteraction,
                                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                        modifier = Modifier.shiftlyPressEffect(actionInteraction)
+                                        modifier = Modifier
+                                            .heightIn(min = 48.dp)
+                                            .shiftlyPressEffect(actionInteraction)
                                     ) {
                                         Text(
                                             text = actionLabel,
@@ -1343,21 +1341,24 @@ private fun QuickAddActionSheet(
                         shadowElevation = 0.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
                             QuickAddGroupedRow(
                                 title = "Log Duty Shift",
                                 iconRes = R.drawable.ic_lucide_clock,
                                 iconTint = Color(0xFF30D158),
                                 onClick = { onSelectAction(ActiveQuickAddSheet.LOG_SHIFT) }
                             )
-                            ShiftlyHairlineDivider(startInset = 50.dp)
                             QuickAddGroupedRow(
                                 title = "Add Expense",
                                 iconRes = R.drawable.ic_lucide_receipt_text,
                                 iconTint = Color(0xFFFF453A),
                                 onClick = { onSelectAction(ActiveQuickAddSheet.ADD_EXPENSE) }
                             )
-                            ShiftlyHairlineDivider(startInset = 50.dp)
                             QuickAddGroupedRow(
                                 title = "Add Allowance",
                                 iconRes = R.drawable.ic_lucide_wallet,
@@ -1385,35 +1386,36 @@ private fun QuickAddActionSheet(
                         shadowElevation = 0.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
                             QuickAddGroupedRow(
                                 title = "Split a Bill",
                                 iconRes = R.drawable.ic_lucide_split,
                                 iconTint = Color(0xFF0A84FF),
                                 onClick = { onSelectAction(ActiveQuickAddSheet.SPLIT_BILL) }
                             )
-                            ShiftlyHairlineDivider(startInset = 50.dp)
                             QuickAddGroupedRow(
                                 title = "New Recurring Bill",
                                 iconRes = R.drawable.ic_lucide_repeat,
                                 iconTint = Color(0xFFBF5AF2),
                                 onClick = { onSelectAction(ActiveQuickAddSheet.NEW_RECURRING_BILL) }
                             )
-                            ShiftlyHairlineDivider(startInset = 50.dp)
                             QuickAddGroupedRow(
                                 title = "New Installment Loan",
                                 iconRes = R.drawable.ic_lucide_file_text,
                                 iconTint = Color(0xFF64D2FF),
                                 onClick = { onSelectAction(ActiveQuickAddSheet.NEW_INSTALLMENT_LOAN) }
                             )
-                            ShiftlyHairlineDivider(startInset = 50.dp)
                             QuickAddGroupedRow(
                                 title = "New Savings Goal",
                                 iconRes = R.drawable.ic_lucide_piggy_bank,
                                 iconTint = Color(0xFF30D158),
                                 onClick = { onSelectAction(ActiveQuickAddSheet.NEW_SAVINGS_GOAL) }
                             )
-                            ShiftlyHairlineDivider(startInset = 50.dp)
                             QuickAddGroupedRow(
                                 title = "Add IOU / Borrow & Lend",
                                 iconRes = R.drawable.ic_lucide_circle_dollar_sign,

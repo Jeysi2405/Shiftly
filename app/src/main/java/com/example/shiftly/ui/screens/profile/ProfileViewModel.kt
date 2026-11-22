@@ -30,7 +30,6 @@ data class ProfileUiState(
     val workplace: String = "",
     val workType: String = "Full-Time",
     val targetWeeklyHours: Double = 40.0,
-    val profilePhotoPath: String? = null,
     val defaultHourlyRate: Double = 0.0,
     val currencySymbol: String = "₱",
     val monthlyBudget: Double = 0.0,
@@ -49,7 +48,6 @@ class ProfileViewModel(
 
     private data class ProfileCorePrefs(
         val userName: String,
-        val profilePhotoPath: String?,
         val defaultHourlyRate: Double,
         val currencySymbol: String,
         val monthlyBudget: Double,
@@ -65,10 +63,9 @@ class ProfileViewModel(
 
     private val identityPrefsFlow = combine(
         repository.userName,
-        repository.profilePhotoPath,
         repository.defaultHourlyRate
-    ) { userName, photoPath, rate ->
-        Triple(userName, photoPath, rate)
+    ) { userName, rate ->
+        userName to rate
     }
 
     private val financePrefsFlow = combine(
@@ -85,8 +82,7 @@ class ProfileViewModel(
     ) { identity, finance ->
         ProfileCorePrefs(
             userName = identity.first,
-            profilePhotoPath = identity.second,
-            defaultHourlyRate = identity.third,
+            defaultHourlyRate = identity.second,
             currencySymbol = finance.first,
             monthlyBudget = finance.second,
             savingsBuffer = finance.third
@@ -133,7 +129,6 @@ class ProfileViewModel(
             workplace = settings.workplace,
             workType = settings.workType,
             targetWeeklyHours = settings.targetWeeklyHours,
-            profilePhotoPath = core.profilePhotoPath,
             defaultHourlyRate = core.defaultHourlyRate,
             currencySymbol = core.currencySymbol,
             monthlyBudget = core.monthlyBudget,
@@ -173,10 +168,6 @@ class ProfileViewModel(
                 targetWeeklyHours = targetWeeklyHours
             )
         }
-    }
-
-    fun updateProfilePhotoPath(path: String?) {
-        viewModelScope.launch { repository.updateProfilePhotoPath(path) }
     }
 
     fun changeCurrency(symbol: String, conversionRate: Double?) {

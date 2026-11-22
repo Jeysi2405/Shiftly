@@ -61,8 +61,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -74,9 +72,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.InAppNotificationType
@@ -94,7 +89,6 @@ import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
-import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -103,10 +97,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private val HERO_PAGE_LABELS = listOf("Total Balance", "Shift Earnings", "Savings Goals")
 private val HomePillShape = RoundedCornerShape(50)
@@ -184,17 +176,14 @@ private fun notificationVisualStyle(type: InAppNotificationType): NotificationVi
 
 /**
  * Top header displaying small uppercase date above the Home Large Title,
- * plus notifications and compact profile avatar aligned neatly at top right.
+ * plus notifications button aligned cleanly at top right.
  */
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun HomeGreetingHeader(
-    profilePhotoPath: String? = null,
     unreadCount: Int = 0,
     isInboxOpen: Boolean = false,
     todayOverride: LocalDate? = null,
     onNotificationClick: () -> Unit,
-    onProfileClick: () -> Unit = {},
     userName: String = "",
     greetingHourOverride: Int? = null
 ) {
@@ -261,14 +250,14 @@ fun HomeGreetingHeader(
         ) {
             val bellInteraction = remember { MutableInteractionSource() }
             Box(
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(48.dp),
                 contentAlignment = Alignment.Center
             ) {
                 IconButton(
                     onClick = onNotificationClick,
                     interactionSource = bellInteraction,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .shiftlyPressEffect(bellInteraction)
                         .semantics { contentDescription = notificationDescription }
                 ) {
@@ -283,7 +272,7 @@ fun HomeGreetingHeader(
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(top = 2.dp, end = 2.dp)
+                            .padding(top = 6.dp, end = 6.dp)
                             .defaultMinSize(minWidth = 16.dp, minHeight = 16.dp)
                             .clip(CircleShape)
                             .background(colors.coralBright)
@@ -435,9 +424,9 @@ fun NotificationInboxDropdown(
                             onClick = onClearAll,
                             enabled = notifications.isNotEmpty(),
                             interactionSource = clearInteraction,
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             modifier = Modifier
-                                .heightIn(min = 36.dp)
+                                .heightIn(min = 48.dp)
                                 .shiftlyPressEffect(clearInteraction, enabled = notifications.isNotEmpty())
                         ) {
                             Text(
@@ -450,8 +439,6 @@ fun NotificationInboxDropdown(
                             )
                         }
                     }
-
-                    ShiftlyHairlineDivider()
 
                     if (notifications.isEmpty()) {
                         Column(
@@ -488,14 +475,15 @@ fun NotificationInboxDropdown(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 360.dp),
-                            contentPadding = PaddingValues(vertical = 6.dp)
+                            contentPadding = PaddingValues(vertical = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             itemsIndexed(
                                 items = notifications,
                                 key = { _, item -> item.id },
                                 contentType = { _, _ -> "inbox_notification" }
-                            ) { idx, item ->
-                                Column(
+                            ) { _, item ->
+                                Box(
                                     modifier = Modifier.animateItem(
                                         fadeInSpec = spring(dampingRatio = 0.8f),
                                         placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
@@ -508,9 +496,6 @@ fun NotificationInboxDropdown(
                                         referenceTimeMillis = referenceTimeMillis,
                                         onClick = { onItemClick(item) }
                                     )
-                                    if (idx < notifications.lastIndex) {
-                                        ShiftlyHairlineDivider(startInset = 56.dp)
-                                    }
                                 }
                             }
                         }
@@ -546,7 +531,7 @@ private fun NotificationInboxRow(
                 else Color.Transparent
             )
             .shiftlyPressClickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top
     ) {
@@ -832,33 +817,6 @@ private fun NotificationHeadsUpCard(
 }
 
 @Composable
-fun DashboardGreetingBanner(
-    userName: String,
-    greetingHour: Int? = null
-) {
-    val colors = ShiftlyColors.current
-    val resolvedHour = remember(greetingHour) { greetingHour ?: LocalTime.now().hour }
-    val greeting = remember(resolvedHour) { greetingForHour(resolvedHour) }
-    val display = remember(userName) { userName.trim().ifEmpty { "Shiftly" } }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = greeting,
-            style = MaterialTheme.typography.labelLarge.copy(fontFamily = InterFontFamily),
-            color = colors.textSecondary
-        )
-        Text(
-            text = display,
-            style = MaterialTheme.typography.displaySmall,
-            color = colors.textPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.semantics { heading() }
-        )
-    }
-}
-
-@Composable
 fun HomeHeroPager(
     state: HomeUiState,
     onOpenGoalDetail: (goalId: Long?) -> Unit,
@@ -870,11 +828,11 @@ fun HomeHeroPager(
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
     val currency = state.currencySymbol
-    val uniformHeroHeight = 196.dp
+    val uniformHeroHeight = 216.dp
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         HorizontalPager(
             state = pagerState,
@@ -908,7 +866,7 @@ fun HomeHeroPager(
                                     )
                                     Box(
                                         modifier = Modifier
-                                            .size(28.dp)
+                                            .size(48.dp)
                                             .clip(CircleShape)
                                             .shiftlyPressClickable(onClick = onToggleBalancePrivacy)
                                             .semantics {
@@ -926,7 +884,6 @@ fun HomeHeroPager(
                                         )
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
                                 val displayBalance = if (state.isBalanceHidden) {
                                     "${currency}•••••"
                                 } else {
@@ -997,7 +954,9 @@ fun HomeHeroPager(
                         ) {
                             Column {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 48.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -1015,7 +974,6 @@ fun HomeHeroPager(
                                         color = colors.mintTextOnSurface
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = ShiftlyFormatters.formatCurrency(currency, cutoff.totalEarnings),
                                     style = MaterialTheme.typography.displayMedium.copy(
@@ -1081,6 +1039,7 @@ fun HomeHeroPager(
                 val active = pagerState.currentPage == index
                 Box(
                     modifier = Modifier
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                         .clip(HomePillShape)
                         .shiftlyPressClickable(
                             role = Role.Tab,
@@ -1149,7 +1108,9 @@ private fun SavingsGoalsHeroCard(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1199,7 +1160,7 @@ private fun SavingsGoalsHeroCard(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 42.dp)
+                        .heightIn(min = 48.dp)
                         .shiftlyPressEffect(addGoalInteraction)
                 ) {
                     Icon(
@@ -1246,12 +1207,13 @@ private fun SavingsGoalsHeroCard(
                         )
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             if (goals.size > 1) {
                                 Box(
                                     modifier = Modifier
-                                        .size(28.dp)
+                                        .size(48.dp)
+                                        .clip(CircleShape)
                                         .shiftlyPressClickable {
                                             val prev = if (safeIdx > 0) safeIdx - 1 else goals.lastIndex
                                             val targetId = goals[prev].goalWithDeposits.goal.id
@@ -1277,7 +1239,8 @@ private fun SavingsGoalsHeroCard(
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .size(28.dp)
+                                        .size(48.dp)
+                                        .clip(CircleShape)
                                         .shiftlyPressClickable {
                                             val next = if (safeIdx < goals.lastIndex) safeIdx + 1 else 0
                                             val targetId = goals[next].goalWithDeposits.goal.id
@@ -1331,7 +1294,7 @@ private fun SavingsGoalsHeroCard(
                     }
                 }
 
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -1365,7 +1328,7 @@ private fun SavingsGoalsHeroCard(
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = 34.dp)
+                            .heightIn(min = 48.dp)
                             .shiftlyPressEffect(viewGoalsInteraction)
                     ) {
                         Text(
@@ -1483,11 +1446,11 @@ fun MonthlyTopCategoriesCard(
             Row(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(top = 6.dp, end = 6.dp)
-                    .heightIn(min = 40.dp)
+                    .padding(top = 4.dp, end = 4.dp)
+                    .heightIn(min = 48.dp)
                     .clip(HomePillShape)
                     .shiftlyPressClickable(onClick = onViewInsights)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
@@ -1734,7 +1697,7 @@ fun PendingSplitsBanner(
                     )
                     Text(
                         text = "$billCount split bill(s) awaiting payment",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.tabular(),
                         color = colors.textSecondary
                     )
                 }
@@ -1885,7 +1848,7 @@ fun HomeRecentActivityHeader(
     val colors = ShiftlyColors.current
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1926,9 +1889,9 @@ fun HomeRecentActivityHeader(
             TextButton(
                 onClick = onToggleExpand,
                 interactionSource = seeAllInteraction,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                 modifier = Modifier
-                    .heightIn(min = 32.dp)
+                    .heightIn(min = 48.dp)
                     .shiftlyPressEffect(seeAllInteraction)
             ) {
                 Text(
@@ -1953,11 +1916,8 @@ fun HomeRecentActivityHeader(
                 val selected = selectedFilter == filter
                 Box(
                     modifier = Modifier
+                        .heightIn(min = 48.dp)
                         .clip(HomePillShape)
-                        .background(
-                            if (selected) colors.azurePrimary
-                            else colors.cardElevated
-                        )
                         .shiftlyPressClickable(
                             role = Role.Tab,
                             onClick = { onFilterSelected(filter) }
@@ -1965,18 +1925,28 @@ fun HomeRecentActivityHeader(
                         .semantics {
                             this.selected = selected
                             contentDescription = "${filter.label} filter"
-                        }
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                        },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = filter.label,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                        ),
-                        color = if (selected) colors.onAzurePrimary else colors.textSecondary
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(HomePillShape)
+                            .background(
+                                if (selected) colors.azurePrimary
+                                else colors.cardElevated
+                            )
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = filter.label,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                            ),
+                            color = if (selected) colors.onAzurePrimary else colors.textSecondary
+                        )
+                    }
                 }
             }
         }
@@ -1999,10 +1969,10 @@ fun HomeTimelineRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            .heightIn(min = 60.dp)
             .shiftlyPressClickable(onClick = onClick)
             .semantics(mergeDescendants = true) {}
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {

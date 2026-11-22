@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -90,6 +91,7 @@ import com.example.shiftly.R
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.tabular
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
@@ -284,7 +286,7 @@ fun ShiftlyHelpIconButton(
         },
         interactionSource = interactionSource,
         modifier = modifier
-            .size(40.dp)
+            .size(48.dp)
             .shiftlyPressEffect(interactionSource)
     ) {
         Icon(
@@ -316,7 +318,7 @@ fun ShiftlySheetHeader(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 40.dp)
+            .heightIn(min = 48.dp)
             .padding(vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -332,7 +334,7 @@ fun ShiftlySheetHeader(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
-                .then(if (onHelpClick != null) Modifier.padding(horizontal = 44.dp) else Modifier)
+                .then(if (onHelpClick != null) Modifier.padding(horizontal = 48.dp) else Modifier)
                 .semantics { heading() }
         )
         if (onHelpClick != null) {
@@ -587,7 +589,8 @@ fun ShiftlyDialogShell(
 }
 
 /**
- * iOS-style 51x31dp toggle switch with white thumb, #30D158 when on, dark gray when off.
+ * iOS-style 51x31dp toggle switch with white thumb, #30D158 when on, dark gray when off,
+ * wrapped in a >= 48dp touch target container.
  */
 @Composable
 fun ShiftlyIosSwitch(
@@ -615,9 +618,7 @@ fun ShiftlyIosSwitch(
 
     Box(
         modifier = modifier
-            .size(width = 51.dp, height = 31.dp)
-            .clip(PillShape)
-            .background(trackColor.copy(alpha = if (enabled) 1f else 0.5f))
+            .defaultMinSize(minWidth = 51.dp, minHeight = 48.dp)
             .clickable(
                 enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
@@ -628,15 +629,23 @@ fun ShiftlyIosSwitch(
                     onCheckedChange(!checked)
                 }
             ),
-        contentAlignment = Alignment.CenterStart
+        contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .offset { IntOffset(thumbOffset.roundToPx(), 0) }
-                .size(27.dp)
-                .clip(CircleShape)
-                .background(PureWhite.copy(alpha = if (enabled) 1f else 0.85f))
-        )
+                .size(width = 51.dp, height = 31.dp)
+                .clip(PillShape)
+                .background(trackColor.copy(alpha = if (enabled) 1f else 0.5f)),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(thumbOffset.roundToPx(), 0) }
+                    .size(27.dp)
+                    .clip(CircleShape)
+                    .background(PureWhite.copy(alpha = if (enabled) 1f else 0.85f))
+            )
+        }
     }
 }
 
@@ -673,7 +682,7 @@ fun ShiftlyIosSegmentedControl(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(36.dp)
+                    .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(segmentBg)
                     .clickable(
@@ -921,7 +930,7 @@ fun ShiftlySecondaryTextButton(
         interactionSource = interactionSource,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         modifier = modifier
-            .heightIn(min = 44.dp)
+            .heightIn(min = 48.dp)
             .shiftlyPressEffect(interactionSource = interactionSource, enabled = enabled)
     ) {
         if (leadingIcon != null) {
@@ -1026,7 +1035,7 @@ fun ShiftlyScreenHeader(
                     onClick = onBackClick,
                     interactionSource = backInteraction,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(48.dp)
                         .shiftlyPressEffect(backInteraction)
                 ) {
                     Icon(
@@ -1108,7 +1117,7 @@ fun ShiftlyMonthFilterBar(
             shadowElevation = 0.dp,
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = 46.dp)
+                .heightIn(min = 48.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -1121,7 +1130,7 @@ fun ShiftlyMonthFilterBar(
                     onClick = onPreviousMonth,
                     interactionSource = prevInteraction,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .shiftlyPressEffect(prevInteraction)
                 ) {
                     Icon(
@@ -1137,7 +1146,7 @@ fun ShiftlyMonthFilterBar(
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold
-                    ),
+                    ).tabular(),
                     color = colors.textPrimary,
                     textAlign = TextAlign.Center
                 )
@@ -1146,7 +1155,7 @@ fun ShiftlyMonthFilterBar(
                     onClick = onNextMonth,
                     interactionSource = nextInteraction,
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .shiftlyPressEffect(nextInteraction)
                 ) {
                     Icon(
@@ -1161,7 +1170,7 @@ fun ShiftlyMonthFilterBar(
 
         Box(
             modifier = Modifier
-                .heightIn(min = 46.dp)
+                .heightIn(min = 48.dp)
                 .clip(PillShape)
                 .background(if (isAllSelected) colors.azurePrimary else colors.card)
                 .shiftlyPressClickable(role = Role.Tab) {
@@ -1225,7 +1234,7 @@ fun ShiftlySectionHeader(
                 ) {
                     Text(
                         text = count.toString(),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.labelSmall.tabular(),
                         color = countTextColor,
                         modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
                     )
@@ -1236,7 +1245,7 @@ fun ShiftlySectionHeader(
             if (onTrailingClick != null) {
                 Box(
                     modifier = Modifier
-                        .heightIn(min = 44.dp)
+                        .heightIn(min = 48.dp)
                         .clip(PillShape)
                         .shiftlyPressClickable(onClick = onTrailingClick)
                         .padding(horizontal = 10.dp),
@@ -1853,7 +1862,6 @@ private fun FeatureGuideCategoryCard(
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = colors.cardElevated,
-        border = BorderStroke(0.5.dp, colors.separator),
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
@@ -1863,6 +1871,7 @@ private fun FeatureGuideCategoryCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = 48.dp)
                     .clickable(onClick = onToggle)
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -1899,35 +1908,33 @@ private fun FeatureGuideCategoryCard(
                 enter = expandVertically() + fadeIn(),
                 exit = shrinkVertically() + fadeOut()
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    ShiftlyHairlineDivider(startInset = 16.dp)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        category.features.forEach { feature ->
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(
-                                    text = feature.title,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = InterFontFamily,
-                                        fontWeight = FontWeight.SemiBold,
-                                        fontSize = 13.sp
-                                    ),
-                                    color = colors.textPrimary
-                                )
-                                Text(
-                                    text = feature.description,
-                                    style = MaterialTheme.typography.bodySmall.copy(
-                                        fontFamily = InterFontFamily,
-                                        fontSize = 12.sp,
-                                        lineHeight = 17.sp
-                                    ),
-                                    color = Color(0xFF8E8E93)
-                                )
-                            }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    category.features.forEach { feature ->
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = feature.title,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 13.sp
+                                ),
+                                color = colors.textPrimary
+                            )
+                            Text(
+                                text = feature.description,
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontSize = 12.sp,
+                                    lineHeight = 17.sp
+                                ),
+                                color = Color(0xFF8E8E93)
+                            )
                         }
                     }
                 }
@@ -2007,15 +2014,15 @@ fun ShiftlyScreenTutorialSheet(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = colors.cardElevated,
-                    border = BorderStroke(0.5.dp, colors.separator),
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                    ) {
                         steps.forEachIndexed { index, (stepTitle, stepDescription) ->
-                            if (index > 0) {
-                                ShiftlyHairlineDivider(startInset = 52.dp)
-                            }
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -2036,7 +2043,7 @@ fun ShiftlyScreenTutorialSheet(
                                             fontFamily = InterFontFamily,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp
-                                        ),
+                                        ).tabular(),
                                         color = Color(0xFF0A84FF)
                                     )
                                 }
@@ -2172,25 +2179,30 @@ fun ShiftlyMainTabTourOverlay(
                                         fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 12.sp
-                                    ),
+                                    ).tabular(),
                                     color = Color(0xFF0A84FF),
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 )
                             }
 
-                            Text(
-                                text = "Skip",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Medium,
-                                    fontSize = 14.sp
-                                ),
-                                color = Color(0xFF8E8E93),
+                            Box(
                                 modifier = Modifier
+                                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .shiftlyPressClickable(onClick = onSkip)
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
+                                    .padding(horizontal = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Skip",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.sp
+                                    ),
+                                    color = Color(0xFF8E8E93)
+                                )
+                            }
                         }
 
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

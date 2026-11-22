@@ -51,7 +51,6 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
-import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyHelpIconButton
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
@@ -321,20 +320,20 @@ fun DutiesScreenContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
+                    .padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     val backInteraction = remember { MutableInteractionSource() }
                     IconButton(
                         onClick = onBack,
                         interactionSource = backInteraction,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(48.dp)
                             .shiftlyPressEffect(backInteraction)
                     ) {
                         Icon(
@@ -361,7 +360,7 @@ fun DutiesScreenContent(
                         onClick = onOpenSettings,
                         interactionSource = settingsInteraction,
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(48.dp)
                             .shiftlyPressEffect(settingsInteraction)
                     ) {
                         Icon(
@@ -476,9 +475,13 @@ fun DutiesScreenContent(
                         )
                         .fillMaxWidth()
                         .shiftlySheetBodyBand(colors.surface)
-                        .padding(horizontal = 20.dp)
+                        .padding(
+                            start = 20.dp,
+                            end = 20.dp,
+                            bottom = if (idx < state.displayedShifts.lastIndex) 2.dp else 0.dp
+                        )
                 ) {
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(rowShape)
@@ -492,9 +495,6 @@ fun DutiesScreenContent(
                             containerColor = Color.Transparent,
                             shape = RectangleShape
                         )
-                        if (idx < state.displayedShifts.lastIndex) {
-                            ShiftlyHairlineDivider(startInset = 54.dp)
-                        }
                     }
                 }
             }

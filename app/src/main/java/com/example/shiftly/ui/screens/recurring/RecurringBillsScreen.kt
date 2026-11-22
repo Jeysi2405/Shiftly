@@ -45,7 +45,6 @@ import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
-import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyHelpIconButton
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
@@ -299,7 +298,11 @@ fun RecurringBillsScreenContent(
                         )
                         .fillMaxWidth()
                         .shiftlySheetBodyBand(colors.surface)
-                        .padding(horizontal = 20.dp)
+                        .padding(
+                            start = 20.dp,
+                            end = 20.dp,
+                            bottom = if (idx < state.bills.lastIndex) 2.dp else 0.dp
+                        )
                 ) {
                     Column(
                         modifier = Modifier
@@ -318,9 +321,6 @@ fun RecurringBillsScreenContent(
                             containerColor = Color.Transparent,
                             shape = RectangleShape
                         )
-                        if (idx < state.bills.lastIndex) {
-                            ShiftlyHairlineDivider(startInset = 54.dp)
-                        }
                     }
                 }
             }

@@ -1,8 +1,5 @@
 package com.example.shiftly.ui.screens
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,11 +14,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -29,19 +24,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,10 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -62,17 +49,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Scale
-import com.example.shiftly.R
-import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.ui.components.ShiftlyFeatureGuideSheet
-import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
-import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.LegalInfoBottomSheet
 import com.example.shiftly.ui.screens.profile.LegalTopic
 import com.example.shiftly.ui.theme.InterFontFamily
@@ -80,10 +60,6 @@ import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.tabular
-import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 private val ObsidianBackground = Color(0xFF0B0F17)
 private val ElectricBlue = Color(0xFF3B82F6)
@@ -93,8 +69,7 @@ private val TextSecondary = Color(0xFF94A3B8)
 private data class PendingSetupProfile(
     val name: String,
     val rate: Double,
-    val monthlyBudget: Double,
-    val profilePhotoPath: String?
+    val monthlyBudget: Double
 )
 
 private fun filterDecimal(raw: String, current: String): String {
@@ -108,14 +83,12 @@ fun WelcomeScreen(
     onSaveSetupProfile: (
         name: String,
         rate: Double,
-        monthlyBudget: Double,
-        profilePhotoPath: String?
-    ) -> Unit = { _, _, _, _ -> },
+        monthlyBudget: Double
+    ) -> Unit = { _, _, _ -> },
     onGetStartedComplete: (
         name: String,
         rate: Double,
-        monthlyBudget: Double,
-        profilePhotoPath: String?
+        monthlyBudget: Double
     ) -> Unit
 ) {
     val colors = ShiftlyColors.current
@@ -204,22 +177,27 @@ fun WelcomeScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                Text(
-                    text = "By continuing, you agree to our Terms & Privacy Policy",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = InterFontFamily,
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp
-                    ),
-                    color = Color(0xFF8E8E93),
-                    textAlign = TextAlign.Center,
+                Box(
                     modifier = Modifier
+                        .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .clickable { showLegalSheet = true }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                )
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "By continuing, you agree to our Terms & Privacy Policy",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        ),
+                        color = Color(0xFF8E8E93),
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
     }
@@ -232,14 +210,10 @@ fun WelcomeScreen(
     }
 
     if (showSetupSheet) {
-        val context = LocalContext.current
-        val coroutineScope = rememberCoroutineScope()
-        val suppressNextRelock = LocalSuppressNextRelock.current
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         var nameInput by remember { mutableStateOf("") }
         var rateInput by remember { mutableStateOf("") }
         var budgetInput by remember { mutableStateOf("") }
-        var photoPath by remember { mutableStateOf<String?>(null) }
         var validationError by remember { mutableStateOf<String?>(null) }
 
         val submitSetup: () -> Unit = {
@@ -263,42 +237,10 @@ fun WelcomeScreen(
                 }
                 else -> {
                     showSetupSheet = false
-                    pendingSetupProfile = PendingSetupProfile(cleanName, parsedRate, parsedBudget, photoPath)
-                    onSaveSetupProfile(cleanName, parsedRate, parsedBudget, photoPath)
+                    pendingSetupProfile = PendingSetupProfile(cleanName, parsedRate, parsedBudget)
+                    onSaveSetupProfile(cleanName, parsedRate, parsedBudget)
                     showFeatureGuideSheet = true
                 }
-            }
-        }
-
-        val photoPicker = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.PickVisualMedia()
-        ) { uri ->
-            if (uri != null) {
-                coroutineScope.launch {
-                    val saved = withContext(Dispatchers.IO) {
-                        ProfilePhotoHelper.saveProfilePhotoFromUri(context, uri)
-                    }
-                    if (saved != null) {
-                        photoPath = saved
-                    }
-                }
-            }
-        }
-
-        val photoFile by produceState<File?>(initialValue = null, photoPath) {
-            value = withContext(Dispatchers.IO) {
-                photoPath?.let(::File)?.takeIf { it.exists() && it.isFile }
-            }
-        }
-        val avatarSizePx = with(LocalDensity.current) { 68.dp.roundToPx() }
-        val avatarRequest = remember(photoFile, avatarSizePx, context) {
-            photoFile?.let { file ->
-                ImageRequest.Builder(context)
-                    .data(file)
-                    .size(avatarSizePx, avatarSizePx)
-                    .scale(Scale.FILL)
-                    .crossfade(true)
-                    .build()
             }
         }
 
@@ -324,7 +266,7 @@ fun WelcomeScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 44.dp),
+                        .heightIn(min = 48.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -339,83 +281,6 @@ fun WelcomeScreen(
                     )
                 }
 
-                // Clean Avatar Picker Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(colors.cardElevated)
-                            .clickable {
-                                suppressNextRelock()
-                                photoPicker.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (avatarRequest != null) {
-                            AsyncImage(
-                                model = avatarRequest,
-                                contentDescription = "Selected profile photo",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_camera),
-                                contentDescription = "Choose photo",
-                                tint = colors.azureAccent,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(
-                            onClick = {
-                                suppressNextRelock()
-                                photoPicker.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
-                            }
-                        ) {
-                            Text(
-                                text = if (photoPath != null) "Change Photo" else "Choose Photo",
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = colors.azureAccent
-                            )
-                        }
-                        if (photoPath != null) {
-                            TextButton(
-                                onClick = {
-                                    val oldPath = photoPath
-                                    photoPath = null
-                                    coroutineScope.launch(Dispatchers.IO) {
-                                        ProfilePhotoHelper.deleteProfilePhoto(oldPath)
-                                    }
-                                }
-                            ) {
-                                Text(
-                                    text = "Remove",
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        fontFamily = InterFontFamily,
-                                        fontWeight = FontWeight.SemiBold
-                                    ),
-                                    color = colors.coralTextOnSurface
-                                )
-                            }
-                        }
-                    }
-                }
-
                 // Unified iOS Inset-Grouped Form Container
                 Surface(
                     shape = RoundedCornerShape(16.dp),
@@ -423,7 +288,12 @@ fun WelcomeScreen(
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
                         // Row 1: Display Name
                         TrackerFormInsetRow(
                             label = "Display Name",
@@ -434,7 +304,6 @@ fun WelcomeScreen(
                             },
                             placeholder = "Your name"
                         )
-                        ShiftlyHairlineDivider(startInset = 16.dp)
 
                         // Row 2: Hourly Rate
                         TrackerFormInsetRow(
@@ -448,7 +317,6 @@ fun WelcomeScreen(
                             prefix = "₱",
                             isNumeric = true
                         )
-                        ShiftlyHairlineDivider(startInset = 16.dp)
 
                         // Row 3: Monthly Budget
                         TrackerFormInsetRow(
@@ -491,8 +359,7 @@ fun WelcomeScreen(
                 onGetStartedComplete(
                     savedProfile?.name.orEmpty(),
                     savedProfile?.rate ?: 0.0,
-                    savedProfile?.monthlyBudget ?: 0.0,
-                    savedProfile?.profilePhotoPath
+                    savedProfile?.monthlyBudget ?: 0.0
                 )
             }
         )
@@ -512,8 +379,8 @@ private fun TrackerFormInsetRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 50.dp)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .heightIn(min = 52.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -581,7 +448,7 @@ private fun TrackerFormInsetRow(
 private fun WelcomeScreenPreview() {
     ShiftlyTheme {
         WelcomeScreen(
-            onGetStartedComplete = { _, _, _, _ -> }
+            onGetStartedComplete = { _, _, _ -> }
         )
     }
 }

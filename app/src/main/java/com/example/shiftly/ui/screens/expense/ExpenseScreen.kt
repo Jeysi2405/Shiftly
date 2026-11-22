@@ -46,7 +46,6 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
-import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyHelpIconButton
 import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
@@ -323,7 +322,11 @@ fun ExpenseScreenContent(
                         )
                         .fillMaxWidth()
                         .shiftlySheetBodyBand(colors.surface)
-                        .padding(horizontal = 20.dp)
+                        .padding(
+                            start = 20.dp,
+                            end = 20.dp,
+                            bottom = if (idx < state.filteredExpenses.lastIndex) 2.dp else 0.dp
+                        )
                 ) {
                     Column(
                         modifier = Modifier
@@ -341,9 +344,6 @@ fun ExpenseScreenContent(
                             containerColor = Color.Transparent,
                             shape = RectangleShape
                         )
-                        if (idx < state.filteredExpenses.lastIndex) {
-                            ShiftlyHairlineDivider(startInset = 54.dp)
-                        }
                     }
                 }
             }

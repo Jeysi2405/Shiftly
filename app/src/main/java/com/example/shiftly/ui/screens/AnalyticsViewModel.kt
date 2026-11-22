@@ -5,12 +5,15 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.shiftly.data.local.AllowanceEntryEntity
+import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.ExtraIncomeEntity
+import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillWithParticipants
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.utils.SavingsGoalMath
@@ -42,6 +45,8 @@ enum class AnalyticsRange(val shortLabel: String, val fullLabel: String) {
     YEAR("Y", "This Year")
 }
 
+private val YEAR_MONTH_INITIALS = listOf("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D")
+
 @Immutable
 data class IncomeExpenseBarBucket(
     val label: String,
@@ -70,6 +75,8 @@ data class AnalyticsUiState(
     val currencySymbol: String = "₱",
     val hourlyRate: Double = 0.0,
     val monthlyBudget: Double = 0.0,
+    val categoryBudgets: List<CategoryBudgetSetting> = emptyList(),
+    val managedCategories: List<ManagedCategorySetting> = emptyList(),
     val periodIncome: Double = 0.0,
     val periodExpenses: Double = 0.0,
     val chartBuckets: List<IncomeExpenseBarBucket> = emptyList(),
@@ -113,20 +120,23 @@ class AnalyticsViewModel(
         val range: AnalyticsRange,
         val currency: String,
         val rate: Double,
-        val monthlyBudget: Double
+        val monthlyBudget: Double,
+        val settings: ShiftlySettingsSnapshot
     )
 
     private val prefsFlow = combine(
         _selectedRange,
         repository.currencySymbol,
         repository.defaultHourlyRate,
-        repository.monthlyBudget
-    ) { range, currency, rate, budget ->
+        repository.monthlyBudget,
+        repository.settingsSnapshot
+    ) { range, currency, rate, budget, settings ->
         AnalyticsPrefsBundle(
             range = range,
             currency = currency,
             rate = rate,
-            monthlyBudget = budget
+            monthlyBudget = budget,
+            settings = settings
         )
     }
 
@@ -144,6 +154,7 @@ class AnalyticsViewModel(
         val currency = prefs.currency
         val rate = prefs.rate
         val monthlyBudget = prefs.monthlyBudget
+        val settings = prefs.settings
         @Suppress("UNCHECKED_CAST")
         val shifts = values[1] as List<ShiftEntity>
         @Suppress("UNCHECKED_CAST")
@@ -342,6 +353,8 @@ class AnalyticsViewModel(
             currencySymbol = currency,
             hourlyRate = rate,
             monthlyBudget = monthlyBudget,
+            categoryBudgets = settings.categoryBudgets,
+            managedCategories = settings.managedCategories,
             periodIncome = totalIncome,
             periodExpenses = totalExpense,
             chartBuckets = buckets,
@@ -384,6 +397,19 @@ class AnalyticsViewModel(
 
     fun selectRange(range: AnalyticsRange) {
         _selectedRange.value = range
+    }
+
+    fun updateBudgets(monthlyBudget: Double, categoryBudgets: List<CategoryBudgetSetting>) {
+        viewModelScope.launch {
+            repository.updateMonthlyBudget(monthlyBudget)
+            repository.updateCategoryBudgets(categoryBudgets)
+        }
+    }
+
+    fun updateManagedCategories(items: List<ManagedCategorySetting>) {
+        viewModelScope.launch {
+            repository.updateManagedCategories(items)
+        }
     }
 
     fun createSavingsGoal(title: String, targetAmount: Double, targetDateEpochDay: Long) {
@@ -547,10 +573,8 @@ class AnalyticsViewModel(
                 }
 
                 (1..12).map { month ->
-                    val ym = YearMonth.of(currentYear, month)
-                    val label = ym.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
                     IncomeExpenseBarBucket(
-                        label = label,
+                        label = YEAR_MONTH_INITIALS[month - 1],
                         income = monthlyIncome[month - 1],
                         expense = monthlyExpense[month - 1]
                     )

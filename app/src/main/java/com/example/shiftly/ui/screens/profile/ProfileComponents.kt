@@ -2,9 +2,9 @@ package com.example.shiftly.ui.screens.profile
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -45,25 +44,21 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -78,14 +73,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
-import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
@@ -100,6 +91,7 @@ import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
+import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
 import com.example.shiftly.ui.theme.InterFontFamily
@@ -108,9 +100,6 @@ import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.PinSecurity
 import com.example.shiftly.utils.ShiftlyFormatters
-import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 private val THEME_MODE_OPTIONS = listOf(
     "SYSTEM" to "System Default",
@@ -293,7 +282,11 @@ fun SettingsGroupCard(
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(content = content)
+            Column(
+                modifier = Modifier.padding(vertical = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                content = content
+            )
         }
     }
 }
@@ -543,11 +536,13 @@ fun ThemeSelectorSheetContent(
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.selectableGroup()) {
-                THEME_MODE_OPTIONS.forEachIndexed { index, (modeKey, modeLabel) ->
-                    if (index > 0) {
-                        ShiftlyHairlineDivider(startInset = 16.dp)
-                    }
+            Column(
+                modifier = Modifier
+                    .selectableGroup()
+                    .padding(vertical = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                THEME_MODE_OPTIONS.forEach { (modeKey, modeLabel) ->
                     val isSelected = currentThemeMode.equals(modeKey, ignoreCase = true)
                     Row(
                         modifier = Modifier
@@ -601,19 +596,13 @@ fun AccountEditSheetContent(
     workplace: String = "",
     workType: String = "Full-Time",
     targetWeeklyHours: Double = 40.0,
-    profilePhotoPath: String?,
     hourlyRate: Double = 0.0,
     currencySymbol: String = "₱",
-    onChangePhoto: () -> Unit,
-    onRemovePhoto: () -> Unit,
     onSave: (name: String, jobTitle: String, workplace: String, workType: String, targetWeeklyHours: Double) -> Unit,
     onDismiss: () -> Unit = {},
     actionState: ShiftlySheetActionState? = null
 ) {
     val colors = ShiftlyColors.current
-    val context = LocalContext.current
-    val density = LocalDensity.current
-    val avatarSizePx = remember(density) { with(density) { 64.dp.roundToPx() } }
 
     var nameInput by remember { mutableStateOf(currentName) }
     var jobTitleInput by remember { mutableStateOf(jobTitle) }
@@ -621,28 +610,6 @@ fun AccountEditSheetContent(
     var selectedWorkType by remember { mutableStateOf(if (workType.isBlank()) "Full-Time" else workType) }
     var hoursInput by remember {
         mutableStateOf(if (targetWeeklyHours > 0.0) formatEditableNumber(targetWeeklyHours) else "40")
-    }
-
-    val photoFile by produceState<File?>(initialValue = null, key1 = profilePhotoPath) {
-        value = if (profilePhotoPath.isNullOrBlank()) {
-            null
-        } else {
-            withContext(Dispatchers.IO) {
-                val file = File(profilePhotoPath)
-                if (file.exists()) file else null
-            }
-        }
-    }
-    val hasPhoto = photoFile != null
-    val avatarRequest = remember(photoFile, avatarSizePx, context) {
-        photoFile?.let { file ->
-            ImageRequest.Builder(context)
-                .data(file)
-                .size(avatarSizePx)
-                .scale(Scale.FILL)
-                .crossfade(true)
-                .build()
-        }
     }
 
     val isValid = nameInput.isNotBlank()
@@ -663,80 +630,24 @@ fun AccountEditSheetContent(
         }
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(colors.cardElevated)
-                .clickable(onClick = onChangePhoto),
-            contentAlignment = Alignment.Center
-        ) {
-            if (avatarRequest != null) {
-                AsyncImage(
-                    model = avatarRequest,
-                    contentDescription = "Profile photo",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(64.dp)
-                )
-            } else {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_user),
-                    contentDescription = "Profile photo",
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        }
-
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ShiftlySecondaryTextButton(
-                    text = if (hasPhoto) "Change Photo" else "Add Photo",
-                    onClick = onChangePhoto,
-                    leadingIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_camera),
-                            contentDescription = null,
-                            tint = colors.azureAccent,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                )
-                if (hasPhoto) {
-                    TextButton(
-                        onClick = onRemovePhoto,
-                        modifier = Modifier.heightIn(min = 44.dp)
-                    ) {
-                        Text(
-                            text = "Remove",
-                            style = MaterialTheme.typography.labelMedium.copy(fontFamily = InterFontFamily),
-                            color = colors.coralTextOnSurface
-                        )
-                    }
-                }
-            }
-        }
-    }
-
     Surface(
         shape = RoundedCornerShape(18.dp),
         color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             ProfileInsetRow(
                 label = "Display Name",
                 value = nameInput,
                 onValueChange = { nameInput = it },
                 placeholder = "Your name"
             )
-            ShiftlyHairlineDivider(startInset = 16.dp)
 
             ProfileInsetRow(
                 label = "Job Title",
@@ -744,7 +655,6 @@ fun AccountEditSheetContent(
                 onValueChange = { jobTitleInput = it },
                 placeholder = "Role / Job Title"
             )
-            ShiftlyHairlineDivider(startInset = 16.dp)
 
             ProfileInsetRow(
                 label = "Workplace",
@@ -752,7 +662,6 @@ fun AccountEditSheetContent(
                 onValueChange = { workplaceInput = it },
                 placeholder = "Company / Workplace"
             )
-            ShiftlyHairlineDivider(startInset = 16.dp)
 
             Column(
                 modifier = Modifier
@@ -782,7 +691,7 @@ fun AccountEditSheetContent(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(35.dp)
+                                .heightIn(min = 48.dp)
                                 .clip(RoundedCornerShape(7.dp))
                                 .background(if (isSelected) colors.azurePrimary else Color.Transparent)
                                 .clickable { selectedWorkType = option },
@@ -803,7 +712,6 @@ fun AccountEditSheetContent(
                     }
                 }
             }
-            ShiftlyHairlineDivider(startInset = 16.dp)
 
             Row(
                 modifier = Modifier
@@ -953,11 +861,8 @@ private fun ProfileInsetRow(
 @Composable
 fun AccountEditSheetContent(
     currentName: String,
-    profilePhotoPath: String?,
     hourlyRate: Double,
     currencySymbol: String,
-    onChangePhoto: () -> Unit,
-    onRemovePhoto: () -> Unit,
     onSave: (String) -> Unit,
     onDismiss: () -> Unit = {},
     actionState: ShiftlySheetActionState? = null
@@ -968,11 +873,8 @@ fun AccountEditSheetContent(
         workplace = "",
         workType = "Full-Time",
         targetWeeklyHours = 40.0,
-        profilePhotoPath = profilePhotoPath,
         hourlyRate = hourlyRate,
         currencySymbol = currencySymbol,
-        onChangePhoto = onChangePhoto,
-        onRemovePhoto = onRemovePhoto,
         onSave = { name, _, _, _, _ -> onSave(name) },
         onDismiss = onDismiss,
         actionState = actionState
@@ -1001,11 +903,13 @@ fun CurrencyPickerSheetContent(
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.selectableGroup()) {
-                    CURRENCY_OPTIONS.forEachIndexed { index, (symbol, label) ->
-                        if (index > 0) {
-                            ShiftlyHairlineDivider(startInset = 16.dp)
-                        }
+                Column(
+                    modifier = Modifier
+                        .selectableGroup()
+                        .padding(vertical = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    CURRENCY_OPTIONS.forEach { (symbol, label) ->
                         val isSelected = symbol == currentCurrency
                         Row(
                             modifier = Modifier
@@ -1091,15 +995,14 @@ fun CurrencyPickerSheetContent(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            ShiftlyHairlineDivider()
-
             Text(
                 text = "Or Convert All Saved Amounts",
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontFamily = InterFontFamily,
                     fontSize = 15.sp
                 ),
-                color = colors.textPrimary
+                color = colors.textPrimary,
+                modifier = Modifier.padding(top = 4.dp)
             )
             OutlinedTextField(
                 value = rateInput,
@@ -1178,28 +1081,28 @@ fun NotificationsSheetContent(
         color = colors.cardElevated,
         shadowElevation = 0.dp
     ) {
-        Column {
+        Column(
+            modifier = Modifier.padding(vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             NotificationToggleRow(
                 title = "Allow Notifications",
                 checked = masterEnabled,
                 enabled = true,
                 onCheckedChange = { masterEnabled = it }
             )
-            ShiftlyHairlineDivider(startInset = 14.dp)
             NotificationToggleRow(
                 title = "Recurring Bills Due",
                 checked = masterEnabled && billRem,
                 enabled = masterEnabled,
                 onCheckedChange = { billRem = it }
             )
-            ShiftlyHairlineDivider(startInset = 14.dp)
             NotificationToggleRow(
                 title = "Log Shift Reminder",
                 checked = masterEnabled && shiftRem,
                 enabled = masterEnabled,
                 onCheckedChange = { shiftRem = it }
             )
-            ShiftlyHairlineDivider(startInset = 14.dp)
             NotificationToggleRow(
                 title = "Savings & Deposit",
                 checked = masterEnabled && savingsRem,
@@ -1260,7 +1163,7 @@ private fun SelectableRulePill(
     val colors = ShiftlyColors.current
     Box(
         modifier = modifier
-            .heightIn(min = 46.dp)
+            .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(50))
             .background(if (selected) colors.azurePrimary else colors.cardElevated)
             .clickable(role = Role.Tab, onClick = onClick)
@@ -1451,7 +1354,7 @@ fun BudgetsEditorSheetContent(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
-                            ),
+                            ).tabular(),
                             color = if (parsedMonthly != null && parsedMonthly > 0.0) colors.azureAccent else colors.textSecondary
                         )
                         Icon(
@@ -1474,9 +1377,8 @@ fun BudgetsEditorSheetContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
-                            .padding(bottom = 14.dp)
+                            .padding(top = 4.dp, bottom = 14.dp)
                     ) {
-                        ShiftlyHairlineDivider(modifier = Modifier.padding(bottom = 12.dp))
                         CompactBudgetAmountField(
                             currencySymbol = currencySymbol,
                             value = monthlyInput,
@@ -1528,7 +1430,7 @@ fun BudgetsEditorSheetContent(
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.Medium
-                                ),
+                                ).tabular(),
                                 color = if (activeCapsCount > 0) colors.azureAccent else colors.textSecondary
                             )
                             Icon(
@@ -1547,16 +1449,17 @@ fun BudgetsEditorSheetContent(
                         enter = expandVertically() + fadeIn(),
                         exit = shrinkVertically() + fadeOut()
                     ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            ShiftlyHairlineDivider(startInset = 16.dp)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
                             editedBudgets.forEachIndexed { idx, (cat, limitStr) ->
-                                if (idx > 0) {
-                                    ShiftlyHairlineDivider(startInset = 50.dp)
-                                }
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(min = 48.dp)
+                                        .heightIn(min = 52.dp)
                                         .padding(horizontal = 12.dp, vertical = 6.dp),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -1634,7 +1537,7 @@ fun BudgetsEditorSheetContent(
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
-                            ),
+                            ).tabular(),
                             color = colors.azureAccent
                         )
                         Icon(
@@ -1653,9 +1556,12 @@ fun BudgetsEditorSheetContent(
                     enter = expandVertically() + fadeIn(),
                     exit = shrinkVertically() + fadeOut()
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        ShiftlyHairlineDivider(startInset = 16.dp)
-
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 6.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
                         // Compact Add Category Row
                         Row(
                             modifier = Modifier
@@ -1667,7 +1573,7 @@ fun BudgetsEditorSheetContent(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .height(40.dp)
+                                    .heightIn(min = 48.dp)
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(colors.surface)
                                     .padding(horizontal = 12.dp),
@@ -1699,7 +1605,7 @@ fun BudgetsEditorSheetContent(
                                 color = colors.azurePrimary,
                                 shadowElevation = 0.dp,
                                 modifier = Modifier
-                                    .size(width = 44.dp, height = 40.dp)
+                                    .size(48.dp)
                                     .clip(RoundedCornerShape(10.dp))
                                     .clickable {
                                         val clean = newCategoryName.trim()
@@ -1727,16 +1633,14 @@ fun BudgetsEditorSheetContent(
                             }
                         }
 
-                        // Unified Category Rows with Hairline Dividers
                         managedCategoriesList.forEachIndexed { idx, item ->
                             val isCustomCategory = ExpenseViewModel.EXPENSE_CATEGORIES.none {
                                 it.equals(item.name.trim(), ignoreCase = true)
                             }
-                            ShiftlyHairlineDivider(startInset = 50.dp)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(min = 48.dp)
+                                    .heightIn(min = 52.dp)
                                     .padding(horizontal = 12.dp, vertical = 6.dp),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -1763,7 +1667,7 @@ fun BudgetsEditorSheetContent(
                                 if (isCustomCategory) {
                                     IconButton(
                                         onClick = { pendingDeleteCategory = item },
-                                        modifier = Modifier.size(36.dp)
+                                        modifier = Modifier.size(48.dp)
                                     ) {
                                         Icon(
                                             painter = painterResource(R.drawable.ic_lucide_trash_2),
@@ -1841,10 +1745,10 @@ private fun CompactBudgetAmountField(
     val colors = ShiftlyColors.current
     Row(
         modifier = modifier
-            .heightIn(min = 36.dp)
+            .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(10.dp))
             .background(colors.surface)
-            .padding(horizontal = 10.dp, vertical = 7.dp),
+            .padding(horizontal = 10.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -1975,7 +1879,7 @@ fun ManageCategoriesSheetContent(
             if (isCustomCategory) {
                 IconButton(
                     onClick = { pendingDeleteCategory = item },
-                    modifier = Modifier.size(36.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_trash_2),
@@ -2094,14 +1998,14 @@ fun RecurringEntriesSheetContent(
         }
     }
 
-    ShiftlyHairlineDivider()
     Text(
         "Add Entry",
         style = MaterialTheme.typography.titleMedium.copy(
             fontFamily = InterFontFamily,
             fontSize = 15.sp
         ),
-        color = colors.textPrimary
+        color = colors.textPrimary,
+        modifier = Modifier.padding(top = 4.dp)
     )
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
@@ -2319,12 +2223,11 @@ fun AppLockSheetContent(
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
             .background(colors.cardElevated)
-            .selectableGroup()
+            .padding(vertical = 2.dp)
+            .selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        APP_LOCK_METHOD_OPTIONS.forEachIndexed { index, option ->
-            if (index > 0) {
-                ShiftlyHairlineDivider(startInset = 16.dp)
-            }
+        APP_LOCK_METHOD_OPTIONS.forEach { option ->
             val isSelected = method == option
             val displayLabel = option.replace(" Only", "")
             Row(
@@ -2478,14 +2381,18 @@ fun BackupAndExportSheetContent(
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_cloud_upload,
                 label = "Export JSON Backup",
                 iconTint = colors.azureAccent,
                 onClick = onExportJson
             )
-            ShiftlyHairlineDivider(startInset = 42.dp)
 
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_rotate_ccw,
@@ -2512,14 +2419,18 @@ fun BackupAndExportSheetContent(
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_file_spreadsheet,
                 label = "Export Shifts (CSV)",
                 iconTint = colors.mintInk,
                 onClick = onExportShiftsCsv
             )
-            ShiftlyHairlineDivider(startInset = 42.dp)
 
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_file_spreadsheet,
@@ -2617,7 +2528,7 @@ private fun privacyClauses(): List<LegalClause> = listOf(
     ),
     LegalClause(
         heading = "Receipts & Biometric Lock",
-        body = "Attached receipt photos, profile images, and App Lock credentials (hashed PINs and biometric lock state) are stored privately on your device and are never shared with third parties."
+        body = "Attached receipt photos and App Lock credentials (hashed PINs and biometric lock state) are stored privately on your device and are never shared with third parties."
     )
 )
 
@@ -2693,11 +2604,13 @@ fun LegalInfoBottomSheet(
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        section.clauses.forEachIndexed { index, clause ->
-                            if (index > 0) {
-                                ShiftlyHairlineDivider(startInset = 16.dp)
-                            }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        section.clauses.forEach { clause ->
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -2795,7 +2708,12 @@ fun FeedbackBottomSheet(
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     FeedbackInsetTextField(
                         label = "Subject",
                         value = subjectInput,
@@ -2804,7 +2722,6 @@ fun FeedbackBottomSheet(
                         singleLine = true,
                         capitalization = KeyboardCapitalization.Sentences
                     )
-                    ShiftlyHairlineDivider(startInset = 16.dp)
 
                     FeedbackInsetTextField(
                         label = "Name (Optional)",
@@ -2814,7 +2731,6 @@ fun FeedbackBottomSheet(
                         singleLine = true,
                         capitalization = KeyboardCapitalization.Words
                     )
-                    ShiftlyHairlineDivider(startInset = 16.dp)
 
                     FeedbackInsetTextField(
                         label = "Details",

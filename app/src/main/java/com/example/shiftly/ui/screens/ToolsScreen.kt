@@ -49,7 +49,6 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlyGlassCard
-import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlyToolSheetContainer
@@ -457,58 +456,56 @@ fun ToolsScreenContent(
                     )
                     ShiftlyGlassCard(
                         cornerRadius = 18.dp,
-                        contentPadding = PaddingValues(0.dp)
+                        contentPadding = PaddingValues(vertical = 2.dp)
                     ) {
-                        ToolGroupedRow(
-                            title = "Duties & Shifts",
-                            metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthShiftEarnings),
-                            iconRes = R.drawable.ic_lucide_clock,
-                            iconTint = ToolGreen,
-                            metricColor = colors.mintInk,
-                            onClick = onOpenDuties
-                        )
-                        ShiftlyHairlineDivider(startInset = 48.dp)
-                        ToolGroupedRow(
-                            title = "Expenses & Receipts",
-                            metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthSpent),
-                            iconRes = R.drawable.ic_lucide_receipt_text,
-                            iconTint = ToolRed,
-                            metricColor = colors.coralInk,
-                            onClick = onOpenExpense
-                        )
-                        ShiftlyHairlineDivider(startInset = 48.dp)
-                        ToolGroupedRow(
-                            title = "Split Bill",
-                            metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.pendingSplitsAmount),
-                            iconRes = R.drawable.ic_lucide_split,
-                            iconTint = ToolBlue,
-                            metricColor = colors.azureInk,
-                            onClick = onOpenSplitBill
-                        )
-                        ShiftlyHairlineDivider(startInset = 48.dp)
-                        ToolGroupedRow(
-                            title = "Personal IOUs",
-                            metric = state.iouSummaryText,
-                            iconRes = R.drawable.ic_lucide_circle_dollar_sign,
-                            iconTint = ToolRed,
-                            metricColor = if (state.iouSummaryText.contains("you owe", ignoreCase = true)) colors.coralInk else colors.mintInk,
-                            onClick = onOpenIouTracker
-                        )
-                        ShiftlyHairlineDivider(startInset = 48.dp)
-                        ToolGroupedRow(
-                            title = "Installment Loans",
-                            metric = state.installmentLoanSummaryText,
-                            iconRes = R.drawable.ic_lucide_file_text,
-                            iconTint = ToolCyan,
-                            metricColor = when {
-                                state.overdueLoanCount > 0 -> colors.coralInk
-                                state.dueSoonLoanCount > 0 -> colors.iosOrange
-                                state.installmentLoans.isNotEmpty() && state.activeInstallmentLoanCount == 0 -> colors.mintInk
-                                state.activeInstallmentLoanCount > 0 -> colors.textPrimary
-                                else -> colors.textSecondary
-                            },
-                            onClick = onOpenInstallmentLoans
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            ToolGroupedRow(
+                                title = "Duties & Shifts",
+                                metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthShiftEarnings),
+                                iconRes = R.drawable.ic_lucide_clock,
+                                iconTint = ToolGreen,
+                                metricColor = colors.mintInk,
+                                onClick = onOpenDuties
+                            )
+                            ToolGroupedRow(
+                                title = "Expenses & Receipts",
+                                metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.monthSpent),
+                                iconRes = R.drawable.ic_lucide_receipt_text,
+                                iconTint = ToolRed,
+                                metricColor = colors.coralInk,
+                                onClick = onOpenExpense
+                            )
+                            ToolGroupedRow(
+                                title = "Split Bill",
+                                metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.pendingSplitsAmount),
+                                iconRes = R.drawable.ic_lucide_split,
+                                iconTint = ToolBlue,
+                                metricColor = colors.azureInk,
+                                onClick = onOpenSplitBill
+                            )
+                            ToolGroupedRow(
+                                title = "Personal IOUs",
+                                metric = state.iouSummaryText,
+                                iconRes = R.drawable.ic_lucide_circle_dollar_sign,
+                                iconTint = ToolRed,
+                                metricColor = if (state.iouSummaryText.contains("you owe", ignoreCase = true)) colors.coralInk else colors.mintInk,
+                                onClick = onOpenIouTracker
+                            )
+                            ToolGroupedRow(
+                                title = "Installment Loans",
+                                metric = state.installmentLoanSummaryText,
+                                iconRes = R.drawable.ic_lucide_file_text,
+                                iconTint = ToolCyan,
+                                metricColor = when {
+                                    state.overdueLoanCount > 0 -> colors.coralInk
+                                    state.dueSoonLoanCount > 0 -> colors.iosOrange
+                                    state.installmentLoans.isNotEmpty() && state.activeInstallmentLoanCount == 0 -> colors.mintInk
+                                    state.activeInstallmentLoanCount > 0 -> colors.textPrimary
+                                    else -> colors.textSecondary
+                                },
+                                onClick = onOpenInstallmentLoans
+                            )
+                        }
                     }
                 }
             }
@@ -526,52 +523,50 @@ fun ToolsScreenContent(
                     )
                     ShiftlyGlassCard(
                         cornerRadius = 18.dp,
-                        contentPadding = PaddingValues(0.dp)
+                        contentPadding = PaddingValues(vertical = 2.dp)
                     ) {
-                        ToolGroupedRow(
-                            title = "Monthly Limits",
-                            metric = if (state.monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget) else "Set Budget",
-                            iconRes = R.drawable.ic_lucide_wallet,
-                            iconTint = ToolOrange,
-                            metricColor = colors.textPrimary,
-                            onClick = onOpenBudgets
-                        )
-                        ShiftlyHairlineDivider(startInset = 48.dp)
-                        ToolGroupedRow(
-                            title = "Savings Goals",
-                            metric = state.activeGoalTitle ?: "Add Goal",
-                            iconRes = R.drawable.ic_lucide_piggy_bank,
-                            iconTint = ToolGreen,
-                            metricColor = colors.mintInk,
-                            onClick = onOpenSavingsGoals
-                        )
-                        ShiftlyHairlineDivider(startInset = 48.dp)
-                        ToolGroupedRow(
-                            title = "Recurring Bills",
-                            metric = "${state.enabledRecurringCount} active",
-                            iconRes = R.drawable.ic_lucide_repeat,
-                            iconTint = ToolPurple,
-                            metricColor = colors.textPrimary,
-                            onClick = onOpenRecurringBills
-                        )
-                        ShiftlyHairlineDivider(startInset = 48.dp)
-                        ToolGroupedRow(
-                            title = "Allowance",
-                            metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.totalAllowanceAmount),
-                            iconRes = R.drawable.ic_lucide_wallet,
-                            iconTint = ToolBlue,
-                            metricColor = colors.azureInk,
-                            onClick = onOpenAllowance
-                        )
-                        ShiftlyHairlineDivider(startInset = 48.dp)
-                        ToolGroupedRow(
-                            title = "Paycheck Estimator",
-                            metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.netPayTakeHome),
-                            iconRes = R.drawable.ic_lucide_receipt_text,
-                            iconTint = ToolGreen,
-                            metricColor = colors.mintInk,
-                            onClick = onOpenPaycheckEstimator
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            ToolGroupedRow(
+                                title = "Monthly Limits",
+                                metric = if (state.monthlyBudget > 0.0) ShiftlyFormatters.formatCurrency(currencySymbol, state.monthlyBudget) else "Set Budget",
+                                iconRes = R.drawable.ic_lucide_wallet,
+                                iconTint = ToolOrange,
+                                metricColor = colors.textPrimary,
+                                onClick = onOpenBudgets
+                            )
+                            ToolGroupedRow(
+                                title = "Savings Goals",
+                                metric = state.activeGoalTitle ?: "Add Goal",
+                                iconRes = R.drawable.ic_lucide_piggy_bank,
+                                iconTint = ToolGreen,
+                                metricColor = colors.mintInk,
+                                onClick = onOpenSavingsGoals
+                            )
+                            ToolGroupedRow(
+                                title = "Recurring Bills",
+                                metric = "${state.enabledRecurringCount} active",
+                                iconRes = R.drawable.ic_lucide_repeat,
+                                iconTint = ToolPurple,
+                                metricColor = colors.textPrimary,
+                                onClick = onOpenRecurringBills
+                            )
+                            ToolGroupedRow(
+                                title = "Allowance",
+                                metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.totalAllowanceAmount),
+                                iconRes = R.drawable.ic_lucide_wallet,
+                                iconTint = ToolBlue,
+                                metricColor = colors.azureInk,
+                                onClick = onOpenAllowance
+                            )
+                            ToolGroupedRow(
+                                title = "Paycheck Estimator",
+                                metric = ShiftlyFormatters.formatCurrency(currencySymbol, state.netPayTakeHome),
+                                iconRes = R.drawable.ic_lucide_receipt_text,
+                                iconTint = ToolGreen,
+                                metricColor = colors.mintInk,
+                                onClick = onOpenPaycheckEstimator
+                            )
+                        }
                     }
                 }
             }
@@ -612,6 +607,7 @@ fun ToolsScreenContent(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ToolsScreenContent(
     currencySymbol: String,
@@ -690,7 +686,7 @@ private fun ToolGroupedRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 52.dp)
+            .heightIn(min = 54.dp)
             .shiftlyPressClickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),

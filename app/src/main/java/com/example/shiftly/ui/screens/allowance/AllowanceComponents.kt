@@ -277,7 +277,7 @@ fun AllowanceCutoffScheduleCard(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
-                        ),
+                        ).tabular(),
                         color = colors.textPrimary
                     )
                 }
@@ -288,43 +288,50 @@ fun AllowanceCutoffScheduleCard(
                 )
             }
 
-            ShiftlyHairlineDivider()
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = colors.cardElevated,
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = "Pending Duties Earnings",
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
+                            color = colors.textSecondary
+                        )
+                        Text(
+                            text = if (pendingShiftCount > 0) {
+                                "$pendingShiftCount shift(s) • credits $formattedEndDate"
+                            } else {
+                                "Current cycle: ${activeWindow.label}"
+                            },
+                            style = MaterialTheme.typography.bodySmall.tabular(),
+                            color = colors.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Pending Duties Earnings",
-                        style = MaterialTheme.typography.labelSmall.copy(fontFamily = InterFontFamily),
-                        color = colors.textSecondary
-                    )
-                    Text(
-                        text = if (pendingShiftCount > 0) {
-                            "$pendingShiftCount shift(s) • credits $formattedEndDate"
-                        } else {
-                            "Current cycle: ${activeWindow.label}"
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = colors.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        text = ShiftlyFormatters.formatCurrency(currencySymbol, pendingDutiesEarnings),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold
+                        ).tabular(),
+                        color = colors.azureInk
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = ShiftlyFormatters.formatCurrency(currencySymbol, pendingDutiesEarnings),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Bold
-                    ).tabular(),
-                    color = colors.azureInk
-                )
             }
         }
     }
@@ -443,7 +450,7 @@ fun AllowanceHistoryItemCard(
                 if (!isAutoFromDuties) {
                     IconButton(
                         onClick = onDelete,
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_trash_2),
@@ -532,117 +539,64 @@ fun AddAllowanceBottomSheet(
             var isSourceExpanded by remember { mutableStateOf(false) }
 
             // Card 1: Amount & Description
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.cardElevated,
-                shadowElevation = 0.dp,
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp)),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    // Row 1: Amount
+                // Row 1: Amount
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colors.cardElevated)
+                        .heightIn(min = 52.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Amount",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 52.dp)
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = "Amount",
+                            text = "$currencySymbol ",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp
-                            ),
-                            color = colors.textPrimary
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = "$currencySymbol ",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.mintInk
-                                )
+                                fontWeight = FontWeight.Bold,
+                                color = colors.mintInk
                             )
-                            BasicTextField(
-                                value = amountText,
-                                onValueChange = { input ->
-                                    val filtered = input.filter { it.isDigit() || it == '.' }
-                                    if (filtered.count { it == '.' } <= 1) amountText = filtered
-                                },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                                cursorBrush = SolidColor(colors.mintInk),
-                                textStyle = MaterialTheme.typography.titleLarge.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    color = colors.textPrimary,
-                                    textAlign = TextAlign.End
-                                ).tabular(),
-                                decorationBox = { inner ->
-                                    Box(contentAlignment = Alignment.CenterEnd) {
-                                        if (amountText.isEmpty()) {
-                                            Text(
-                                                text = "0.00",
-                                                style = MaterialTheme.typography.titleLarge.copy(
-                                                    fontFamily = InterFontFamily,
-                                                    color = colors.textSecondary
-                                                ),
-                                                textAlign = TextAlign.End
-                                            )
-                                        }
-                                        inner()
-                                    }
-                                },
-                                modifier = Modifier
-                                    .width(120.dp)
-                                    .focusRequester(amountFocusRequester)
-                            )
-                        }
-                    }
-
-                    ShiftlyHairlineDivider(startInset = 16.dp)
-
-                    // Row 2: Description
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 50.dp)
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Description",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp
-                            ),
-                            color = colors.textPrimary
                         )
                         BasicTextField(
-                            value = title,
-                            onValueChange = { title = it },
+                            value = amountText,
+                            onValueChange = { input ->
+                                val filtered = input.filter { it.isDigit() || it == '.' }
+                                if (filtered.count { it == '.' } <= 1) amountText = filtered
+                            },
                             singleLine = true,
-                            cursorBrush = SolidColor(colors.azureAccent),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            cursorBrush = SolidColor(colors.mintInk),
+                            textStyle = MaterialTheme.typography.titleLarge.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.Bold,
                                 color = colors.textPrimary,
                                 textAlign = TextAlign.End
-                            ),
+                            ).tabular(),
                             decorationBox = { inner ->
                                 Box(contentAlignment = Alignment.CenterEnd) {
-                                    if (title.isEmpty()) {
+                                    if (amountText.isEmpty()) {
                                         Text(
-                                            text = "e.g., Weekly allowance",
-                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                            text = "0.00",
+                                            style = MaterialTheme.typography.titleLarge.copy(
                                                 fontFamily = InterFontFamily,
                                                 color = colors.textSecondary
                                             ),
@@ -653,165 +607,214 @@ fun AddAllowanceBottomSheet(
                                 }
                             },
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(start = 16.dp)
+                                .width(120.dp)
+                                .focusRequester(amountFocusRequester)
                         )
                     }
+                }
+
+                // Row 2: Description
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colors.cardElevated)
+                        .heightIn(min = 50.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Description",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
+                    BasicTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        singleLine = true,
+                        cursorBrush = SolidColor(colors.azureAccent),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium,
+                            color = colors.textPrimary,
+                            textAlign = TextAlign.End
+                        ),
+                        decorationBox = { inner ->
+                            Box(contentAlignment = Alignment.CenterEnd) {
+                                if (title.isEmpty()) {
+                                    Text(
+                                        text = "e.g., Weekly allowance",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontFamily = InterFontFamily,
+                                            color = colors.textSecondary
+                                        ),
+                                        textAlign = TextAlign.End
+                                    )
+                                }
+                                inner()
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 16.dp)
+                    )
                 }
             }
 
             // Card 2: Source Dropdown & Date
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.cardElevated,
-                shadowElevation = 0.dp,
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp)),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colors.cardElevated)
+                        .heightIn(min = 50.dp)
+                        .clickable { isSourceExpanded = !isSourceExpanded }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Source",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                            .clickable { isSourceExpanded = !isSourceExpanded }
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        ShiftlyIosIconTile(
+                            iconRes = allowanceSourceIcon(selectedSource),
+                            backgroundColor = colors.mintBright,
+                            size = 24.dp,
+                            cornerRadius = 6.dp,
+                            iconSize = 20.dp
+                        )
                         Text(
-                            text = "Source",
-                            style = MaterialTheme.typography.titleMedium.copy(
+                            text = selectedSource,
+                            style = MaterialTheme.typography.bodyMedium.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp
+                                fontWeight = FontWeight.Medium
                             ),
                             color = colors.textPrimary
                         )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            ShiftlyIosIconTile(
-                                iconRes = allowanceSourceIcon(selectedSource),
-                                backgroundColor = colors.mintBright,
-                                size = 24.dp,
-                                cornerRadius = 6.dp,
-                                iconSize = 20.dp
-                            )
-                            Text(
-                                text = selectedSource,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                color = colors.textPrimary
-                            )
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                                contentDescription = "Toggle source dropdown",
-                                tint = colors.textSecondary,
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .graphicsLayer { rotationZ = if (isSourceExpanded) 90f else 0f }
-                            )
-                        }
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            contentDescription = "Toggle source dropdown",
+                            tint = colors.textSecondary,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .graphicsLayer { rotationZ = if (isSourceExpanded) 90f else 0f }
+                        )
                     }
+                }
 
-                    AnimatedVisibility(
-                        visible = isSourceExpanded,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
+                AnimatedVisibility(
+                    visible = isSourceExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            ShiftlyHairlineDivider(startInset = 16.dp)
-                            AllowanceSource.ALL.forEachIndexed { idx, source ->
-                                val isSelected = selectedSource == source
+                        AllowanceSource.ALL.forEach { source ->
+                            val isSelected = selectedSource == source
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 50.dp)
+                                    .background(if (isSelected) colors.mintContainer else colors.cardElevated)
+                                    .clickable {
+                                        selectedSource = source
+                                        isSourceExpanded = false
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(if (isSelected) colors.mintContainer else Color.Transparent)
-                                        .clickable {
-                                            selectedSource = source
-                                            isSourceExpanded = false
-                                        }
-                                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(allowanceSourceIcon(source)),
-                                            contentDescription = null,
-                                            tint = if (isSelected) colors.mintInk else colors.textSecondary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Text(
-                                            text = source,
-                                            style = MaterialTheme.typography.titleSmall.copy(
-                                                fontFamily = InterFontFamily,
-                                                fontWeight = FontWeight.SemiBold
-                                            ),
-                                            color = colors.textPrimary
-                                        )
-                                    }
-                                    if (isSelected) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_lucide_check),
-                                            contentDescription = "Selected",
-                                            tint = colors.mintInk,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
+                                    Icon(
+                                        painter = painterResource(allowanceSourceIcon(source)),
+                                        contentDescription = null,
+                                        tint = if (isSelected) colors.mintInk else colors.textSecondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Text(
+                                        text = source,
+                                        style = MaterialTheme.typography.titleSmall.copy(
+                                            fontFamily = InterFontFamily,
+                                            fontWeight = FontWeight.SemiBold
+                                        ),
+                                        color = colors.textPrimary
+                                    )
                                 }
-                                if (idx < AllowanceSource.ALL.lastIndex) {
-                                    ShiftlyHairlineDivider(startInset = 42.dp)
+                                if (isSelected) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_lucide_check),
+                                        contentDescription = "Selected",
+                                        tint = colors.mintInk,
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                 }
                             }
                         }
                     }
+                }
 
-                    ShiftlyHairlineDivider(startInset = 16.dp)
-
-                    // Date Row
+                // Date Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colors.cardElevated)
+                        .heightIn(min = 50.dp)
+                        .clickable { showDatePicker = true }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Date",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-                            .clickable { showDatePicker = true }
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_calendar),
+                            contentDescription = null,
+                            tint = colors.azureInk,
+                            modifier = Modifier.size(17.dp)
+                        )
                         Text(
-                            text = "Date",
-                            style = MaterialTheme.typography.titleMedium.copy(
+                            text = formattedSelectedDate,
+                            style = MaterialTheme.typography.bodyMedium.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp
-                            ),
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
                             color = colors.textPrimary
                         )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_calendar),
-                                contentDescription = null,
-                                tint = colors.azureInk,
-                                modifier = Modifier.size(17.dp)
-                            )
-                            Text(
-                                text = formattedSelectedDate,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Medium
-                                ).tabular(),
-                                color = colors.textPrimary
-                            )
-                        }
                     }
                 }
             }
@@ -935,7 +938,7 @@ fun ChangeCutoffScheduleSheet(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .heightIn(min = 44.dp)
+                            .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(50))
                             .background(if (isSelected) colors.azurePrimary else colors.cardElevated)
                             .clickable(role = Role.Tab) {
@@ -1055,7 +1058,7 @@ fun ChangeCutoffScheduleSheet(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .heightIn(min = 44.dp)
+                                        .heightIn(min = 48.dp)
                                         .clip(RoundedCornerShape(10.dp))
                                         .background(if (isSelected) colors.azurePrimary else colors.cardElevated)
                                         .clickable(role = Role.Tab) { weeklyDay = dow.value }
@@ -1092,12 +1095,12 @@ fun ChangeCutoffScheduleSheet(
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
-                        ),
+                        ).tabular(),
                         color = colors.textPrimary
                     )
                     Text(
                         text = "Current cycle: ${previewWindow.label}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.tabular(),
                         color = colors.textSecondary
                     )
                 }
@@ -1123,7 +1126,7 @@ private fun PresetChip(
     val colors = ShiftlyColors.current
     Box(
         modifier = modifier
-            .heightIn(min = 40.dp)
+            .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(50))
             .background(if (selected) colors.mintContainer else colors.cardElevated)
             .clickable(role = Role.Tab, onClick = onClick)
@@ -1183,41 +1186,51 @@ private fun DayStepperRow(
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = if (canDecrease) colors.surface else colors.surface.copy(alpha = 0.45f),
-                    shadowElevation = 0.dp,
+                Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .clickable(enabled = canDecrease, onClick = onDecrease)
+                        .clickable(enabled = canDecrease, onClick = onDecrease),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "−",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (canDecrease) colors.textPrimary else colors.textSecondary
-                        )
+                    Surface(
+                        shape = CircleShape,
+                        color = if (canDecrease) colors.surface else colors.surface.copy(alpha = 0.45f),
+                        shadowElevation = 0.dp,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "−",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = if (canDecrease) colors.textPrimary else colors.textSecondary
+                            )
+                        }
                     }
                 }
-                Surface(
-                    shape = CircleShape,
-                    color = if (canIncrease) colors.surface else colors.surface.copy(alpha = 0.45f),
-                    shadowElevation = 0.dp,
+                Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .clickable(enabled = canIncrease, onClick = onIncrease)
+                        .clickable(enabled = canIncrease, onClick = onIncrease),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "+",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = if (canIncrease) colors.textPrimary else colors.textSecondary
-                        )
+                    Surface(
+                        shape = CircleShape,
+                        color = if (canIncrease) colors.surface else colors.surface.copy(alpha = 0.45f),
+                        shadowElevation = 0.dp,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "+",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = if (canIncrease) colors.textPrimary else colors.textSecondary
+                            )
+                        }
                     }
                 }
             }

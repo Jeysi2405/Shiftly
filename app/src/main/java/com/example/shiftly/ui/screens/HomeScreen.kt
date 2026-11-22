@@ -13,14 +13,18 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -33,12 +37,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.shiftly.R
 import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.InAppNotificationType
 import com.example.shiftly.data.local.SavingsGoalEntity
@@ -46,14 +53,18 @@ import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
-import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyProgressBar
+import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlyToolSheetContainer
+import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
+import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
+import com.example.shiftly.ui.screens.profile.ShiftlySheetActionState
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
 import com.example.shiftly.ui.theme.InterFontFamily
@@ -86,6 +97,8 @@ fun HomeScreen(
     var showAddGoalSheet by remember { mutableStateOf(false) }
     var viewingGoalId by remember { mutableStateOf<Long?>(null) }
     var showGoalDetailSheet by remember { mutableStateOf(false) }
+    var showBudgetsSheet by remember { mutableStateOf(false) }
+    var showBudgetsTutorial by remember { mutableStateOf(false) }
     var isInboxOpen by remember { mutableStateOf(false) }
 
     PredictiveBackHandler(enabled = isInboxOpen) { progress ->
@@ -137,10 +150,10 @@ fun HomeScreen(
         onDismissHeadsUpToast = { id ->
             viewModel.markNotificationToastShown(id)
         },
-        onProfileClick = onNavigateToProfile,
         onOpenPendingSplits = onNavigateToSplitBill,
         onViewInsights = onNavigateToAnalytics,
         onToggleBalancePrivacy = { viewModel.toggleBalancePrivacy() },
+        onOpenBudgetSettings = { showBudgetsSheet = true },
         onNavigateToRecurringBills = onNavigateToRecurringBills,
         onNavigateToAllowance = onNavigateToAllowance,
         onNavigateToDuties = onNavigateToDuties,
@@ -199,15 +212,53 @@ fun HomeScreen(
             }
         )
     }
+
+    if (showBudgetsSheet) {
+        val budgetsActionState = remember { ShiftlySheetActionState() }
+        ShiftlyToolSheetContainer(
+            title = "Monthly Limits",
+            onDismiss = { showBudgetsSheet = false },
+            onHelpClick = { showBudgetsTutorial = true }
+        ) {
+            BudgetsEditorSheetContent(
+                currencySymbol = state.currencySymbol,
+                currentMonthlyBudget = state.monthlyBudget,
+                currentCategoryBudgets = state.categoryBudgets,
+                managedCategories = state.managedCategories,
+                onDismiss = { showBudgetsSheet = false },
+                onSave = { monthly, categoryList, managedList ->
+                    viewModel.updateBudgets(monthly, categoryList)
+                    viewModel.updateManagedCategories(managedList)
+                    showBudgetsSheet = false
+                    onShowMessage("Budgets saved")
+                },
+                actionState = budgetsActionState
+            )
+        }
+    }
+
+    if (showBudgetsTutorial) {
+        ShiftlyScreenTutorialSheet(
+            title = "Budgets Guide",
+            subtitle = "Set comfortable limits for your month and top categories.",
+            steps = listOf(
+                "Set your monthly limit" to "Enter an overall monthly spending cap to unlock daily safe-to-spend guidance.",
+                "Assign category caps" to "Add optional limits for Food, Transport, or Bills to see individual progress bars.",
+                "Customize your categories" to "Enable, add, or organize the categories shown whenever you log an expense."
+            ),
+            onDismiss = { showBudgetsTutorial = false }
+        )
+    }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun HomeScreenContent(
     state: HomeUiState,
     onNotificationClick: () -> Unit,
-    onProfileClick: () -> Unit,
     onOpenPendingSplits: () -> Unit,
     onViewInsights: () -> Unit,
+    onProfileClick: () -> Unit = {},
     isInboxOpen: Boolean = false,
     onDismissInbox: () -> Unit = {},
     onClearAllNotifications: () -> Unit = {},
@@ -218,6 +269,7 @@ fun HomeScreenContent(
     onSelectActiveGoal: (Long) -> Unit = {},
     onTimelineItemClick: (TimelineActivityItem) -> Unit = {},
     onToggleBalancePrivacy: () -> Unit = {},
+    onOpenBudgetSettings: () -> Unit = {},
     onNavigateToRecurringBills: () -> Unit = {},
     onNavigateToAllowance: () -> Unit = {},
     onNavigateToDuties: () -> Unit = {},
@@ -285,13 +337,11 @@ fun HomeScreenContent(
                 ) {
                     HomeGreetingHeader(
                         userName = state.userName,
-                        profilePhotoPath = state.profilePhotoPath,
                         unreadCount = state.unreadNotificationCount,
                         isInboxOpen = isInboxOpen,
                         todayOverride = todayOverride,
                         greetingHourOverride = greetingHourOverride,
-                        onNotificationClick = onNotificationClick,
-                        onProfileClick = onProfileClick
+                        onNotificationClick = onNotificationClick
                     )
                 }
             }
@@ -321,22 +371,69 @@ fun HomeScreenContent(
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = "Monthly Budget",
                                 style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                                 color = colors.textPrimary
                             )
-                            Text(
-                                text = if (state.monthlyBudget > 0.0) {
-                                    "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} of ${ShiftlyFormatters.formatCurrency(currency, state.monthlyBudget)}"
-                                } else {
-                                    "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} spent • No cap set"
-                                },
-                                style = MaterialTheme.typography.labelMedium.tabular(),
-                                color = if (nearLimit && state.monthlyBudget > 0.0) colors.coralInk else colors.mintInk
-                            )
+                            if (state.monthlyBudget > 0.0) {
+                                Text(
+                                    text = "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} of ${ShiftlyFormatters.formatCurrency(currency, state.monthlyBudget)}",
+                                    style = MaterialTheme.typography.labelMedium.tabular(),
+                                    color = if (nearLimit) colors.coralInk else colors.mintInk
+                                )
+                            } else {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Text(
+                                        text = "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} spent",
+                                        style = MaterialTheme.typography.labelMedium.tabular(),
+                                        color = colors.mintInk
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .heightIn(min = 48.dp)
+                                            .clip(RoundedCornerShape(50))
+                                            .shiftlyPressClickable(onClick = onOpenBudgetSettings)
+                                            .semantics(mergeDescendants = true) {
+                                                contentDescription = "No monthly budget cap set, tap to set monthly budget"
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Surface(
+                                            shape = RoundedCornerShape(50),
+                                            color = colors.cardElevated,
+                                            shadowElevation = 0.dp
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                            ) {
+                                                Text(
+                                                    text = "No cap set",
+                                                    style = MaterialTheme.typography.labelSmall.copy(
+                                                        fontFamily = InterFontFamily,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    ),
+                                                    color = colors.azureInk
+                                                )
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                                                    contentDescription = null,
+                                                    tint = colors.azureInk,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                         ShiftlyProgressBar(
                             progress = budgetRatio,
@@ -464,6 +561,7 @@ fun HomeScreenContent(
                             .fillMaxWidth()
                             .shiftlySheetBodyBand(colors.surface)
                             .padding(horizontal = 20.dp)
+                            .padding(bottom = if (idx < displayedTimeline.lastIndex) 2.dp else 0.dp)
                     ) {
                         Column(
                             modifier = Modifier
@@ -475,9 +573,6 @@ fun HomeScreenContent(
                                 item = item,
                                 currencySymbol = currency
                             ) { onTimelineItemClick(item) }
-                            if (idx < displayedTimeline.lastIndex) {
-                                ShiftlyHairlineDivider(startInset = 56.dp)
-                            }
                         }
                     }
                 }

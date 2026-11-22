@@ -7,9 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,14 +16,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,33 +28,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.size.Scale
 import com.example.shiftly.R
 import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
-import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
@@ -68,10 +54,8 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlyFeatureGuideSheet
-import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
-import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
@@ -123,32 +107,6 @@ fun ProfileScreen(
     var showAddSavingsGoalSheet by remember { mutableStateOf(false) }
     var pendingFileRestoreMode by remember { mutableStateOf(RestoreMode.MERGE) }
     var pendingNotificationAction by remember { mutableStateOf<(() -> Unit)?>(null) }
-
-    val profilePhotoLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            val savedPath = withContext(Dispatchers.IO) {
-                ProfilePhotoHelper.saveProfilePhotoFromUri(context, uri)
-            }
-            if (savedPath != null) {
-                viewModel.updateProfilePhotoPath(savedPath)
-                onShowMessage("Profile photo updated")
-            } else {
-                onShowMessage("Could not load selected photo")
-            }
-        }
-    }
-
-    val launchProfilePhotoPicker: () -> Unit = remember(suppressNextRelock, profilePhotoLauncher) {
-        {
-            suppressNextRelock()
-            profilePhotoLauncher.launch(
-                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-            )
-        }
-    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -282,15 +240,7 @@ fun ProfileScreen(
 
     ProfileScreenContent(
         state = state,
-        onAvatarClick = launchProfilePhotoPicker,
         onOpenSheet = onOpenSheet,
-        onOpenSavingsGoals = {
-            if (state.savingsGoals.isEmpty()) {
-                showAddSavingsGoalSheet = true
-            } else {
-                showSavingsGoalDetailSheet = true
-            }
-        },
         onToggleNotifications = { enabled ->
             if (enabled) {
                 ensureNotificationPermissionThen {
@@ -383,14 +333,8 @@ fun ProfileScreen(
                     workplace = state.workplace,
                     workType = state.workType,
                     targetWeeklyHours = state.targetWeeklyHours,
-                    profilePhotoPath = state.profilePhotoPath,
                     hourlyRate = state.defaultHourlyRate,
                     currencySymbol = state.currencySymbol,
-                    onChangePhoto = launchProfilePhotoPicker,
-                    onRemovePhoto = {
-                        viewModel.updateProfilePhotoPath(null)
-                        onShowMessage("Profile photo removed")
-                    },
                     onSave = { newName, newJobTitle, newWorkplace, newWorkType, newTargetHours ->
                         viewModel.updateProfileDetails(
                             userName = newName,
@@ -618,9 +562,7 @@ fun ProfileScreen(
 @Composable
 private fun ProfileScreenContent(
     state: ProfileUiState,
-    onAvatarClick: () -> Unit,
     onOpenSheet: (ActiveSettingsSheet) -> Unit,
-    onOpenSavingsGoals: () -> Unit,
     onToggleNotifications: (Boolean) -> Unit,
     onToggleAppLock: (Boolean) -> Unit,
     onReplayTutorial: () -> Unit = {},
@@ -628,7 +570,6 @@ private fun ProfileScreenContent(
 ) {
     val colors = ShiftlyColors.current
     val context = LocalContext.current
-    val avatarSizePx = with(LocalDensity.current) { 52.dp.roundToPx() }
     val currency = state.currencySymbol
     val appVersion = remember(context) {
         runCatching {
@@ -649,28 +590,6 @@ private fun ProfileScreenContent(
         }
     }
 
-    val hasPhoto by produceState(initialValue = false, state.profilePhotoPath) {
-        val path = state.profilePhotoPath
-        value = if (path.isNullOrBlank()) {
-            false
-        } else {
-            withContext(Dispatchers.IO) { File(path).exists() }
-        }
-    }
-    val avatarRequest = remember(state.profilePhotoPath, hasPhoto, avatarSizePx) {
-        val path = state.profilePhotoPath
-        if (hasPhoto && !path.isNullOrBlank()) {
-            ImageRequest.Builder(context)
-                .data(File(path))
-                .size(avatarSizePx)
-                .scale(Scale.FILL)
-                .crossfade(true)
-                .build()
-        } else {
-            null
-        }
-    }
-
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
@@ -684,36 +603,10 @@ private fun ProfileScreenContent(
                 ShiftlyScreenHeader(
                     title = "Profile",
                     largeTitle = true,
-                    subtitle = null,
+                    subtitle = state.userName.trim().takeIf { it.isNotEmpty() },
                     modifier = Modifier
                         .padding(horizontal = 20.dp)
-                        .graphicsLayer { alpha = headerAlpha },
-                    trailing = {
-                        Box(
-                            modifier = Modifier
-                                .size(52.dp)
-                                .clip(CircleShape)
-                                .background(colors.card)
-                                .shiftlyPressClickable(onClick = onAvatarClick),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (avatarRequest != null) {
-                                AsyncImage(
-                                    model = avatarRequest,
-                                    contentDescription = "Profile photo",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(52.dp)
-                                )
-                            } else {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_user),
-                                    contentDescription = "Profile photo",
-                                    tint = colors.textSecondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                    }
+                        .graphicsLayer { alpha = headerAlpha }
                 )
             }
 
@@ -759,14 +652,12 @@ private fun ProfileScreenContent(
                                 iconTint = colors.azurePrimary,
                                 onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
                             )
-                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_circle_dollar_sign,
                                 title = "Currency",
                                 iconTint = colors.mintBright,
                                 onClick = { onOpenSheet(ActiveSettingsSheet.CURRENCY) }
                             )
-                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsSwitchRow(
                                 iconRes = R.drawable.ic_lucide_bell,
                                 title = "Notifications",
@@ -775,7 +666,6 @@ private fun ProfileScreenContent(
                                 onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) },
                                 iconTint = colors.iosOrange
                             )
-                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_palette,
                                 title = "App Theme",
@@ -798,7 +688,6 @@ private fun ProfileScreenContent(
                                 onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },
                                 iconTint = colors.nightDiffPurple
                             )
-                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_cloud_upload,
                                 title = "Data Export & Restore",
@@ -814,14 +703,12 @@ private fun ProfileScreenContent(
                                 iconTint = Color(0xFF0A84FF),
                                 onClick = { onOpenSheet(ActiveSettingsSheet.FEATURE_GUIDE) }
                             )
-                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_rotate_ccw,
                                 title = "Replay App Tutorial",
                                 iconTint = Color(0xFF0A84FF),
                                 onClick = onReplayTutorial
                             )
-                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_message_square,
                                 title = "Suggestions & Bug Report",
@@ -837,21 +724,18 @@ private fun ProfileScreenContent(
                                 iconTint = Color(0xFF8E8E93),
                                 onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_TERMS) }
                             )
-                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_lock,
                                 title = "Privacy Policy",
                                 iconTint = Color(0xFF30D158),
                                 onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_PRIVACY) }
                             )
-                            ShiftlyHairlineDivider(startInset = 48.dp)
                             SettingsChevronRow(
                                 iconRes = R.drawable.ic_lucide_info,
                                 title = "Payroll & Tax Disclaimer",
                                 iconTint = Color(0xFF0A84FF),
                                 onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_DISCLAIMER) }
                             )
-                            ShiftlyHairlineDivider(startInset = 16.dp)
                             SettingsStaticRow(
                                 title = "Version",
                                 value = appVersion
@@ -1009,9 +893,7 @@ private fun ProfileSnapshotAndBackupPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 ProfileScreenContent(
                     state = previewProfileState(),
-                    onAvatarClick = {},
                     onOpenSheet = {},
-                    onOpenSavingsGoals = {},
                     onToggleNotifications = {},
                     onToggleAppLock = {}
                 )
@@ -1034,9 +916,7 @@ private fun ProfileSettingsListPreview() {
             Box(modifier = Modifier.fillMaxSize()) {
                 ProfileScreenContent(
                     state = previewProfileState(),
-                    onAvatarClick = {},
                     onOpenSheet = {},
-                    onOpenSavingsGoals = {},
                     onToggleNotifications = {},
                     onToggleAppLock = {},
                     listState = rememberLazyListState(initialFirstVisibleItemIndex = 2)

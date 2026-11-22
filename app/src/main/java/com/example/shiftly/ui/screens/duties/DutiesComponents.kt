@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -207,7 +208,7 @@ fun DutiesWageRateCard(
                             minWageInput = if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else ""
                             isEditing = true
                         },
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_pencil),
@@ -223,7 +224,7 @@ fun DutiesWageRateCard(
                             minWageInput = if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else ""
                             isEditing = false
                         },
-                        modifier = Modifier.heightIn(min = 44.dp)
+                        modifier = Modifier.heightIn(min = 48.dp)
                     ) {
                         Text(
                             text = "Cancel",
@@ -510,16 +511,17 @@ fun DayTypePromptSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(colors.cardElevated)
+                    .clip(RoundedCornerShape(18.dp)),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 val options = DayType.orderedForSelection
-                options.forEachIndexed { idx, dayType ->
+                options.forEach { dayType ->
                     val isSelected = dayType == selectedDayType
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(if (isSelected) colors.azureContainer else Color.Transparent)
+                            .heightIn(min = 52.dp)
+                            .background(if (isSelected) colors.azureContainer else colors.cardElevated)
                             .clickable(role = Role.RadioButton) {
                                 onSelect(dayType)
                                 onDismiss()
@@ -570,9 +572,6 @@ fun DayTypePromptSheet(
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-                    }
-                    if (idx < options.lastIndex) {
-                        ShiftlyHairlineDivider(startInset = 16.dp)
                     }
                 }
             }
@@ -629,41 +628,47 @@ fun TimeBreakdownCard(
 
                 if (defaultHourlyRate > 0.0 || onOpenSettings != null) {
                     val hasRate = defaultHourlyRate > 0.0
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = if (hasRate) colors.cardElevated else colors.azureContainer,
-                        shadowElevation = 0.dp,
+                    Box(
                         modifier = if (onOpenSettings != null) {
                             Modifier
+                                .heightIn(min = 48.dp)
+                                .widthIn(min = 48.dp)
                                 .clip(RoundedCornerShape(50))
                                 .clickable(onClick = onOpenSettings)
                         } else {
                             Modifier
-                        }
+                        },
+                        contentAlignment = Alignment.CenterEnd
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (hasRate) colors.cardElevated else colors.azureContainer,
+                            shadowElevation = 0.dp
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_banknote),
-                                contentDescription = null,
-                                tint = if (hasRate) colors.mintTextOnSurface else colors.azureInk,
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Text(
-                                text = if (hasRate) {
-                                    "${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr"
-                                } else {
-                                    "Set rate"
-                                },
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.SemiBold
-                                ).tabular(),
-                                color = if (hasRate) colors.textPrimary else colors.azureInk
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_lucide_banknote),
+                                    contentDescription = null,
+                                    tint = if (hasRate) colors.mintTextOnSurface else colors.azureInk,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = if (hasRate) {
+                                        "${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr"
+                                    } else {
+                                        "Set rate"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold
+                                    ).tabular(),
+                                    color = if (hasRate) colors.textPrimary else colors.azureInk
+                                )
+                            }
                         }
                     }
                 }
@@ -811,11 +816,11 @@ fun ShiftCalendarCard(
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     IconButton(
                         onClick = onPreviousMonth,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_chevron_left),
@@ -827,7 +832,7 @@ fun ShiftCalendarCard(
 
                     IconButton(
                         onClick = onNextMonth,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_chevron_right),
@@ -1163,7 +1168,7 @@ fun ShiftHistoryItemCard(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    IconButton(onClick = onEditNote, modifier = Modifier.size(44.dp)) {
+                    IconButton(onClick = onEditNote, modifier = Modifier.size(48.dp)) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_square_pen),
                             contentDescription = "Edit Shift",
@@ -1171,7 +1176,7 @@ fun ShiftHistoryItemCard(
                             modifier = Modifier.size(19.dp)
                         )
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(44.dp)) {
+                    IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_trash_2),
                             contentDescription = "Delete Shift",

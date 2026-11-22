@@ -51,6 +51,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -76,6 +77,7 @@ private val SegmentedOuterShape = RoundedCornerShape(10.dp)
 private val SegmentedThumbShape = RoundedCornerShape(8.dp)
 private val AnalyticsCardShape = RoundedCornerShape(18.dp)
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun AnalyticsTopBar(
     rangeLabel: String,
@@ -124,7 +126,7 @@ fun AnalyticsRangeSegmentedControl(
                 modifier = Modifier
                     .offset { IntOffset(thumbOffset.roundToPx(), 0) }
                     .width(segmentWidth)
-                    .height(32.dp)
+                    .height(42.dp)
                     .clip(SegmentedThumbShape)
                     .background(thumbColor)
             )
@@ -140,7 +142,7 @@ fun AnalyticsRangeSegmentedControl(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(32.dp)
+                            .heightIn(min = 42.dp)
                             .clip(SegmentedThumbShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
@@ -299,8 +301,6 @@ fun IncomeVsExpenseGlassChartCard(
                                 val h = size.height
                                 val paddingTop = 12.dp.toPx()
                                 val paddingBottom = 12.dp.toPx()
-                                val paddingLeft = 18.dp.toPx()
-                                val paddingRight = 18.dp.toPx()
                                 val gridStrokePx = 0.5.dp.toPx()
                                 val lineStroke = Stroke(
                                     width = 3.dp.toPx(),
@@ -312,16 +312,15 @@ fun IncomeVsExpenseGlassChartCard(
                                 val dotInnerRadius = 1.5.dp.toPx()
 
                                 val chartHeight = h - paddingTop - paddingBottom
-                                val chartWidth = w - paddingLeft - paddingRight
                                 val gridLines = 3
                                 val horizontalYs = FloatArray(gridLines + 1) { i ->
                                     paddingTop + (chartHeight / gridLines) * i
                                 }
 
                                 val count = buckets.size
-                                val stepX = if (count > 1) chartWidth / (count - 1) else 0f
+                                val slotWidth = if (count > 0) w / count else 0f
                                 val verticalXs = FloatArray(count) { idx ->
-                                    paddingLeft + idx * stepX
+                                    slotWidth * (idx + 0.5f)
                                 }
                                 val incPoints = if (count > 0) {
                                     List(count) { idx ->
@@ -357,15 +356,16 @@ fun IncomeVsExpenseGlassChartCard(
                                 }
                                 val hGridColor = gridBorderColor.copy(alpha = 0.75f)
                                 val vGridColor = gridBorderColor.copy(alpha = 0.45f)
-                                val endX = w - paddingRight
+                                val gridStartX = 6.dp.toPx()
+                                val gridEndX = (w - 6.dp.toPx()).coerceAtLeast(gridStartX)
                                 val bottomY = h - paddingBottom
 
                                 onDrawBehind {
                                     for (y in horizontalYs) {
                                         drawLine(
                                             color = hGridColor,
-                                            start = Offset(paddingLeft, y),
-                                            end = Offset(endX, y),
+                                            start = Offset(gridStartX, y),
+                                            end = Offset(gridEndX, y),
                                             strokeWidth = gridStrokePx,
                                             pathEffect = ChartDashEffect
                                         )
@@ -409,10 +409,7 @@ fun IncomeVsExpenseGlassChartCard(
                 }
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     state.chartBuckets.forEach { bucket ->
@@ -422,7 +419,11 @@ fun IncomeVsExpenseGlassChartCard(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
                             ).tabular(),
-                            color = colors.textSecondary
+                            color = colors.textSecondary,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -507,10 +508,10 @@ fun InsightCardContainer(
                 if (trailingActionText != null && onTrailingAction != null) {
                     Box(
                         modifier = Modifier
-                            .heightIn(min = 40.dp)
+                            .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(50))
                             .shiftlyPressClickable(onClick = onTrailingAction)
-                            .padding(horizontal = 10.dp),
+                            .padding(horizontal = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -545,8 +546,8 @@ fun TopSpendingCategoriesCard(
                 color = colors.textSecondary
             )
         } else {
-            Column {
-                categories.forEachIndexed { index, item ->
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                categories.forEach { item ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -594,9 +595,6 @@ fun TopSpendingCategoriesCard(
                                     contentDescription = "${item.category}, ${item.percentage}% of period spending"
                                 }
                         )
-                    }
-                    if (index < categories.lastIndex) {
-                        ShiftlyHairlineDivider(startInset = 38.dp)
                     }
                 }
             }
@@ -768,8 +766,8 @@ fun HoursOfWorkCostCard(
                 color = colors.textSecondary
             )
         } else {
-            Column {
-                items.forEachIndexed { index, entry ->
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items.forEach { entry ->
                     val ratio = (entry.dutyHours / maxHours).toFloat().coerceIn(0.08f, 1f)
                     Column(
                         modifier = Modifier
@@ -812,21 +810,20 @@ fun HoursOfWorkCostCard(
                                 }
                         )
                     }
-                    if (index < items.lastIndex) {
-                        ShiftlyHairlineDivider(startInset = 38.dp)
-                    }
                 }
             }
         }
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun OnBudgetStreakCard(
     streakDays: Int,
     streakTargetDays: Int,
     dailyAllowance: Double,
-    currencySymbol: String
+    currencySymbol: String,
+    onOpenBudgetSettings: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
     val hasBudget = dailyAllowance > 0.0
@@ -855,14 +852,54 @@ fun OnBudgetStreakCard(
                     cornerRadius = 9.dp,
                     iconSize = 22.dp
                 )
-                Text(
-                    text = if (hasBudget) "$streakDays-day streak" else "No budget set",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold
-                    ).tabular(),
-                    color = colors.textPrimary
-                )
+                if (hasBudget) {
+                    Text(
+                        text = "$streakDays-day streak",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold
+                        ).tabular(),
+                        color = colors.textPrimary
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(50))
+                            .shiftlyPressClickable(onClick = onOpenBudgetSettings)
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = "No budget set, tap to set monthly budget"
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = colors.surface,
+                            shadowElevation = 0.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "No budget set",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = colors.azureInk
+                                )
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                                    contentDescription = null,
+                                    tint = colors.azureInk,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
             Surface(
                 shape = RoundedCornerShape(50),
@@ -945,7 +982,7 @@ fun UnsettledSplitsTrackerCard(
                         } else {
                             "Zero pending classmate balances"
                         },
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodySmall.tabular(),
                         color = colors.textSecondary
                     )
                 }
@@ -955,9 +992,9 @@ fun UnsettledSplitsTrackerCard(
             TextButton(
                 onClick = onOpenSplitBill,
                 interactionSource = openInteraction,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                 modifier = Modifier
-                    .heightIn(min = 40.dp)
+                    .heightIn(min = 48.dp)
                     .shiftlyPressEffect(openInteraction)
             ) {
                 Text(
@@ -1068,7 +1105,7 @@ fun PeakShiftSpendPatternCard(
     val colors = ShiftlyColors.current
 
     InsightCardContainer(title = "Shift & Spending Patterns") {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             // Row 1: Best Earning Day
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1105,8 +1142,6 @@ fun PeakShiftSpendPatternCard(
                     color = colors.mintInk
                 )
             }
-
-            ShiftlyHairlineDivider(startInset = 38.dp)
 
             // Row 2: Peak Spend Day
             Row(

@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
@@ -46,8 +45,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -56,7 +53,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
@@ -64,7 +61,6 @@ import com.example.shiftly.data.local.ShiftTimePreset
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyDialogShell
-import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetCloseButton
@@ -132,26 +128,70 @@ private fun CompactShiftScheduleGrid(
     val endLocal = remember(endHour24, endMinute) { LocalTime.of(endHour24, endMinute) }
     val endsNextDay = !endLocal.isAfter(startLocal)
 
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = colors.cardElevated,
-        shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp)),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Row 1: Date
+        // Row 1: Date
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 50.dp)
+                .background(colors.cardElevated)
+                .clickable { showDatePicker = true }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Date",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                ),
+                color = colors.textPrimary
+            )
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 50.dp)
-                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .clickable { showDatePicker = true }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_calendar),
+                    contentDescription = null,
+                    tint = colors.azureInk,
+                    modifier = Modifier.size(17.dp)
+                )
+                Text(
+                    text = date.format(dateFormatter),
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Medium
+                    ).tabular(),
+                    color = colors.textPrimary
+                )
+            }
+        }
+
+        // Row 2: Day Type
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 50.dp)
+                .background(colors.cardElevated)
+                .clickable(onClick = onDayTypeClick)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "Date",
+                    text = "Day Type",
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.SemiBold,
@@ -159,228 +199,177 @@ private fun CompactShiftScheduleGrid(
                     ),
                     color = colors.textPrimary
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_calendar),
-                        contentDescription = null,
-                        tint = colors.azureInk,
-                        modifier = Modifier.size(17.dp)
-                    )
-                    Text(
-                        text = date.format(dateFormatter),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Medium
-                        ).tabular(),
-                        color = colors.textPrimary
-                    )
-                }
-            }
-
-            ShiftlyHairlineDivider(startInset = 16.dp)
-
-            // Row 2: Day Type
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 50.dp)
-                    .clickable(onClick = onDayTypeClick)
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Day Type",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        ),
-                        color = colors.textPrimary
-                    )
-                    selectedDayType.holidayBadge?.let { badge ->
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = colors.coralContainer,
-                            shadowElevation = 0.dp
-                        ) {
-                            Text(
-                                text = badge,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 9.sp
-                                ),
-                                color = colors.coralInk,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                            )
-                        }
+                selectedDayType.holidayBadge?.let { badge ->
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = colors.coralContainer,
+                        shadowElevation = 0.dp
+                    ) {
+                        Text(
+                            text = badge,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp
+                            ),
+                            color = colors.coralInk,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                        )
                     }
                 }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = selectedDayType.label,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = colors.textPrimary
-                    )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                        contentDescription = "Choose day type",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
             }
-
-            ShiftlyHairlineDivider(startInset = 16.dp)
-
-            // Row 3: Start Time
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 50.dp)
-                    .clickable { showStartTimePicker = true }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "Start Time",
-                    style = MaterialTheme.typography.titleMedium.copy(
+                    text = selectedDayType.label,
+                    style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
+                        fontWeight = FontWeight.Medium
                     ),
                     color = colors.textPrimary
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_clock),
-                        contentDescription = null,
-                        tint = colors.azureInk,
-                        modifier = Modifier.size(17.dp)
-                    )
-                    Text(
-                        text = format12HourTime(startLocal),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Bold
-                        ).tabular(),
-                        color = colors.textPrimary
-                    )
-                }
-            }
-
-            ShiftlyHairlineDivider(startInset = 16.dp)
-
-            // Row 4: End Time
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 50.dp)
-                    .clickable { showEndTimePicker = true }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (endsNextDay) "End (+1 day)" else "End Time",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = if (endsNextDay) colors.azureAccent else colors.textPrimary
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                    contentDescription = "Choose day type",
+                    tint = colors.textSecondary,
+                    modifier = Modifier.size(18.dp)
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_clock),
-                        contentDescription = null,
-                        tint = colors.azureInk,
-                        modifier = Modifier.size(17.dp)
-                    )
-                    Text(
-                        text = format12HourTime(endLocal),
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Bold
-                        ).tabular(),
-                        color = colors.textPrimary
-                    )
-                }
             }
+        }
 
-            ShiftlyHairlineDivider(startInset = 16.dp)
-
-            // Row 5: Shift Note
+        // Row 3: Start Time
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 50.dp)
+                .background(colors.cardElevated)
+                .clickable { showStartTimePicker = true }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Start Time",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                ),
+                color = colors.textPrimary
+            )
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 50.dp)
-                    .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_clock),
+                    contentDescription = null,
+                    tint = colors.azureInk,
+                    modifier = Modifier.size(17.dp)
+                )
                 Text(
-                    text = "Shift Note",
-                    style = MaterialTheme.typography.titleMedium.copy(
+                    text = format12HourTime(startLocal),
+                    style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
                     color = colors.textPrimary
                 )
-                BasicTextField(
-                    value = shiftNote,
-                    onValueChange = onShiftNoteChange,
-                    singleLine = true,
-                    cursorBrush = SolidColor(colors.azureAccent),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+            }
+        }
+
+        // Row 4: End Time
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 50.dp)
+                .background(colors.cardElevated)
+                .clickable { showEndTimePicker = true }
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (endsNextDay) "End (+1 day)" else "End Time",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                ),
+                color = if (endsNextDay) colors.azureAccent else colors.textPrimary
+            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lucide_clock),
+                    contentDescription = null,
+                    tint = colors.azureInk,
+                    modifier = Modifier.size(17.dp)
+                )
+                Text(
+                    text = format12HourTime(endLocal),
+                    style = MaterialTheme.typography.bodyMedium.copy(
                         fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        color = colors.textPrimary,
-                        textAlign = TextAlign.End
-                    ),
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterEnd) {
-                            if (shiftNote.isEmpty()) {
-                                Text(
-                                    text = "Optional",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = InterFontFamily,
-                                        color = colors.textSecondary
-                                    ),
-                                    textAlign = TextAlign.End
-                                )
-                            }
-                            inner()
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = colors.textPrimary
+                )
+            }
+        }
+
+        // Row 5: Shift Note
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 50.dp)
+                .background(colors.cardElevated)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Shift Note",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                ),
+                color = colors.textPrimary
+            )
+            BasicTextField(
+                value = shiftNote,
+                onValueChange = onShiftNoteChange,
+                singleLine = true,
+                cursorBrush = SolidColor(colors.azureAccent),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Medium,
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.End
+                ),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterEnd) {
+                        if (shiftNote.isEmpty()) {
+                            Text(
+                                text = "Optional",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    color = colors.textSecondary
+                                ),
+                                textAlign = TextAlign.End
+                            )
                         }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 16.dp)
-                )
-            }
+                        inner()
+                    }
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 16.dp)
+            )
         }
     }
 
@@ -537,7 +526,7 @@ private fun ShiftTimePresetsStrip(
         }
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -552,35 +541,40 @@ private fun ShiftTimePresetsStrip(
                 color = colors.textSecondary
             )
 
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = if (alreadyExists) colors.cardElevated else colors.azureContainer,
-                shadowElevation = 0.dp,
+            Box(
                 modifier = Modifier
+                    .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(50))
-                    .shiftlyPressClickable(enabled = !alreadyExists, onClick = onSaveCurrentAsPreset)
+                    .shiftlyPressClickable(enabled = !alreadyExists, onClick = onSaveCurrentAsPreset),
+                contentAlignment = Alignment.Center
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = if (alreadyExists) colors.cardElevated else colors.azureContainer,
+                    shadowElevation = 0.dp
                 ) {
-                    Icon(
-                        painter = painterResource(
-                            if (alreadyExists) R.drawable.ic_lucide_check else R.drawable.ic_lucide_plus
-                        ),
-                        contentDescription = null,
-                        tint = if (alreadyExists) colors.mintTextOnSurface else colors.azureAccent,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Text(
-                        text = if (alreadyExists) "Saved" else "Save Time",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = if (alreadyExists) colors.mintTextOnSurface else colors.azureAccent
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(
+                                if (alreadyExists) R.drawable.ic_lucide_check else R.drawable.ic_lucide_plus
+                            ),
+                            contentDescription = null,
+                            tint = if (alreadyExists) colors.mintTextOnSurface else colors.azureAccent,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = if (alreadyExists) "Saved" else "Save Time",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = if (alreadyExists) colors.mintTextOnSurface else colors.azureAccent
+                        )
+                    }
                 }
             }
         }
@@ -598,11 +592,9 @@ private fun ShiftTimePresetsStrip(
                         preset.endHour24 == currentEndHour24 &&
                         preset.endMinute == currentEndMinute
 
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = if (isActive) colors.azurePrimary else colors.cardElevated,
-                        shadowElevation = 0.dp,
+                    Box(
                         modifier = Modifier
+                            .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(50))
                             .shiftlyPressClickable {
                                 if (!isActive) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -611,17 +603,24 @@ private fun ShiftTimePresetsStrip(
                             .semantics(mergeDescendants = true) {
                                 selected = isActive
                                 contentDescription = "Preset shift ${preset.label}"
-                            }
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = preset.label,
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
-                            ).tabular(),
-                            color = if (isActive) colors.onAzurePrimary else colors.textSecondary,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (isActive) colors.azurePrimary else colors.cardElevated,
+                            shadowElevation = 0.dp
+                        ) {
+                            Text(
+                                text = preset.label,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
+                                ).tabular(),
+                                color = if (isActive) colors.onAzurePrimary else colors.textSecondary,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -977,7 +976,7 @@ fun ManualShiftSheetContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -991,24 +990,29 @@ fun ManualShiftSheetContent(
                         modifier = Modifier.weight(1f)
                     )
                     if (onSwitchToEdit != null) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = colors.surface,
-                            shadowElevation = 0.dp,
+                        Box(
                             modifier = Modifier
                                 .padding(start = 8.dp)
+                                .heightIn(min = 48.dp)
                                 .clip(RoundedCornerShape(50))
-                                .shiftlyPressClickable { onSwitchToEdit(pickedDate) }
+                                .shiftlyPressClickable { onSwitchToEdit(pickedDate) },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "Edit Existing",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = colors.coralInk,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = colors.surface,
+                                shadowElevation = 0.dp
+                            ) {
+                                Text(
+                                    text = "Edit Existing",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = colors.coralInk,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -1093,8 +1097,6 @@ fun DutiesSettingsSheet(
                 onShowMessage = onShowMessage
             )
 
-            ShiftlyHairlineDivider()
-
             Text(
                 text = "Shift Time Presets",
                 style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
@@ -1117,14 +1119,16 @@ fun DutiesSettingsSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(colors.cardElevated)
+                        .clip(RoundedCornerShape(16.dp)),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    presets.forEachIndexed { idx, preset ->
+                    presets.forEach { preset ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                                .heightIn(min = 52.dp)
+                                .background(colors.cardElevated)
+                                .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -1141,7 +1145,7 @@ fun DutiesSettingsSheet(
                                 onClick = { pendingDeletePreset = preset },
                                 interactionSource = deletePresetInteraction,
                                 modifier = Modifier
-                                    .size(36.dp)
+                                    .size(48.dp)
                                     .shiftlyPressEffect(deletePresetInteraction)
                             ) {
                                 Icon(
@@ -1152,14 +1156,9 @@ fun DutiesSettingsSheet(
                                 )
                             }
                         }
-                        if (idx < presets.lastIndex) {
-                            ShiftlyHairlineDivider(startInset = 14.dp)
-                        }
                     }
                 }
             }
-
-            ShiftlyHairlineDivider()
 
             Text(
                 text = "Add New Preset",

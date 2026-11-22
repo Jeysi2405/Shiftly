@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -54,9 +52,7 @@ import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.PaycheckDeductionsSetting
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
-import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosSwitch
-import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
@@ -144,7 +140,6 @@ fun PaycheckEstimatorSheetContent(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Summary Card
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = colors.mintContainer,
@@ -153,7 +148,7 @@ fun PaycheckEstimatorSheetContent(
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text(
                     text = "ESTIMATED NET TAKE-HOME PAY",
@@ -172,7 +167,6 @@ fun PaycheckEstimatorSheetContent(
                     ).tabular(),
                     color = colors.mintTextOnSurface
                 )
-                ShiftlyHairlineDivider(startInset = 0.dp)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -192,7 +186,6 @@ fun PaycheckEstimatorSheetContent(
             }
         }
 
-        // Deductions List Card
         Text(
             text = "DEDUCTIONS BREAKDOWN",
             style = MaterialTheme.typography.labelSmall.copy(
@@ -209,8 +202,12 @@ fun PaycheckEstimatorSheetContent(
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                // SSS
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 DeductionConfigRow(
                     title = "SSS Contribution",
                     enabled = updatedSetting.sssEnabled,
@@ -224,9 +221,7 @@ fun PaycheckEstimatorSheetContent(
                         updateAndNotify(updatedSetting.copy(sssAmount = input.toDoubleOrNull() ?: 0.0))
                     }
                 )
-                ShiftlyHairlineDivider(startInset = 16.dp)
 
-                // PhilHealth
                 DeductionConfigRow(
                     title = "PhilHealth",
                     enabled = updatedSetting.philhealthEnabled,
@@ -240,9 +235,7 @@ fun PaycheckEstimatorSheetContent(
                         updateAndNotify(updatedSetting.copy(philhealthAmount = input.toDoubleOrNull() ?: 0.0))
                     }
                 )
-                ShiftlyHairlineDivider(startInset = 16.dp)
 
-                // Pag-IBIG
                 DeductionConfigRow(
                     title = "Pag-IBIG Fund",
                     enabled = updatedSetting.pagibigEnabled,
@@ -256,9 +249,7 @@ fun PaycheckEstimatorSheetContent(
                         updateAndNotify(updatedSetting.copy(pagibigAmount = input.toDoubleOrNull() ?: 0.0))
                     }
                 )
-                ShiftlyHairlineDivider(startInset = 16.dp)
 
-                // Withholding Tax
                 DeductionConfigRow(
                     title = "Withholding Tax",
                     enabled = updatedSetting.taxEnabled,
@@ -273,9 +264,7 @@ fun PaycheckEstimatorSheetContent(
                         updateAndNotify(updatedSetting.copy(taxPercent = input.toDoubleOrNull() ?: 0.0))
                     }
                 )
-                ShiftlyHairlineDivider(startInset = 16.dp)
 
-                // Custom Deduction
                 DeductionConfigRow(
                     title = "Other / Custom",
                     enabled = updatedSetting.customEnabled,
@@ -408,7 +397,7 @@ fun IouTrackerSheetContent(
 
     var personName by remember { mutableStateOf("") }
     var amountText by remember { mutableStateOf("") }
-    var isLent by remember { mutableStateOf(true) } // true = Lent, false = Borrowed
+    var isLent by remember { mutableStateOf(true) }
     var noteText by remember { mutableStateOf("") }
     var pendingDeleteEntry by remember { mutableStateOf<IouEntrySetting?>(null) }
 
@@ -419,11 +408,15 @@ fun IouTrackerSheetContent(
         itemList.filter { !it.isSettled && !it.isLent }.sumOf { it.amount }
     }
 
+    val parsedAmount = remember(amountText) { amountText.toDoubleOrNull() ?: 0.0 }
+    val hasValidNewEntry = personName.isNotBlank() && parsedAmount.isFinite() && parsedAmount > 0.0
+    val hasEmptyNewForm = personName.isBlank() && amountText.isBlank() && noteText.isBlank()
+    val canSaveIou = hasValidNewEntry || (hasEmptyNewForm && itemList.isNotEmpty())
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Balance Summary Card
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = colors.cardElevated,
@@ -474,7 +467,6 @@ fun IouTrackerSheetContent(
             }
         }
 
-        // Add Entry Section
         Text(
             text = "ADD NEW ENTRY",
             style = MaterialTheme.typography.labelSmall.copy(
@@ -485,7 +477,6 @@ fun IouTrackerSheetContent(
             modifier = Modifier.padding(horizontal = 4.dp)
         )
 
-        // 2-option Segmented Toggle
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -497,7 +488,7 @@ fun IouTrackerSheetContent(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(35.dp)
+                    .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(7.dp))
                     .background(if (isLent) colors.mintContainer else Color.Transparent)
                     .clickable { isLent = true },
@@ -517,7 +508,7 @@ fun IouTrackerSheetContent(
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(35.dp)
+                    .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(7.dp))
                     .background(if (!isLent) colors.coralContainer else Color.Transparent)
                     .clickable { isLent = false },
@@ -535,21 +526,24 @@ fun IouTrackerSheetContent(
             }
         }
 
-        // Single clean iOS Inset-Grouped Container
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = colors.cardElevated,
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 IouInsetRow(
                     label = "Person Name",
                     value = personName,
                     onValueChange = { personName = it },
                     placeholder = "Name"
                 )
-                ShiftlyHairlineDivider(startInset = 16.dp)
 
                 IouInsetRow(
                     label = "Amount ($currencySymbol)",
@@ -562,7 +556,6 @@ fun IouTrackerSheetContent(
                     prefix = currencySymbol,
                     isNumeric = true
                 )
-                ShiftlyHairlineDivider(startInset = 16.dp)
 
                 IouInsetRow(
                     label = "Note (optional)",
@@ -573,38 +566,13 @@ fun IouTrackerSheetContent(
             }
         }
 
-        ShiftlySecondaryTextButton(
-            text = "Add Entry",
-            onClick = {
-                val amt = amountText.toDoubleOrNull() ?: 0.0
-                if (personName.isNotBlank() && amt > 0.0) {
-                    itemList.add(
-                        0,
-                        IouEntrySetting(
-                            id = UUID.randomUUID().toString(),
-                            personName = personName.trim(),
-                            amount = amt,
-                            isLent = isLent,
-                            note = noteText.trim(),
-                            isSettled = false
-                        )
-                    )
-                    personName = ""
-                    amountText = ""
-                    noteText = ""
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // Active / Settled Entries List
         if (itemList.isNotEmpty()) {
             Text(
                 text = "ENTRIES (${itemList.size})",
                 style = MaterialTheme.typography.labelSmall.copy(
                     fontFamily = InterFontFamily,
                     letterSpacing = 0.5.sp
-                ),
+                ).tabular(),
                 color = colors.textSecondary,
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
@@ -615,15 +583,17 @@ fun IouTrackerSheetContent(
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     itemList.forEachIndexed { idx, entry ->
-                        if (idx > 0) {
-                            ShiftlyHairlineDivider(startInset = 16.dp)
-                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 54.dp)
+                                .heightIn(min = 56.dp)
                                 .padding(horizontal = 14.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -654,7 +624,11 @@ fun IouTrackerSheetContent(
                                     }
                                 }
 
-                                val subText = if (entry.isLent) "Lent • ${entry.note.ifBlank { "No note" }}" else "Borrowed • ${entry.note.ifBlank { "No note" }}"
+                                val subText = if (entry.isLent) {
+                                    "Lent • ${entry.note.ifBlank { "No note" }}"
+                                } else {
+                                    "Borrowed • ${entry.note.ifBlank { "No note" }}"
+                                }
                                 Text(
                                     text = subText,
                                     style = MaterialTheme.typography.bodySmall,
@@ -666,7 +640,7 @@ fun IouTrackerSheetContent(
 
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
                                     text = "${if (entry.isLent) "+" else "-"}${ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount)}",
@@ -685,12 +659,13 @@ fun IouTrackerSheetContent(
                                     checked = entry.isSettled,
                                     onCheckedChange = { settled ->
                                         itemList[idx] = entry.copy(isSettled = settled)
+                                        onSaveEntries(itemList.toList())
                                     }
                                 )
 
                                 IconButton(
                                     onClick = { pendingDeleteEntry = entry },
-                                    modifier = Modifier.size(36.dp)
+                                    modifier = Modifier.size(48.dp)
                                 ) {
                                     Icon(
                                         painter = painterResource(R.drawable.ic_lucide_trash_2),
@@ -709,11 +684,28 @@ fun IouTrackerSheetContent(
         ShiftlySheetBottomButtons(
             onCancel = onDismiss,
             onAction = {
-                onSaveEntries(itemList.toList())
-                onDismiss()
+                if (hasValidNewEntry) {
+                    itemList.add(
+                        0,
+                        IouEntrySetting(
+                            id = UUID.randomUUID().toString(),
+                            personName = personName.trim(),
+                            amount = parsedAmount,
+                            isLent = isLent,
+                            note = noteText.trim(),
+                            isSettled = false
+                        )
+                    )
+                    onSaveEntries(itemList.toList())
+                    onDismiss()
+                } else if (hasEmptyNewForm && itemList.isNotEmpty()) {
+                    onSaveEntries(itemList.toList())
+                    onDismiss()
+                }
             },
             cancelLabel = "Cancel",
-            actionLabel = "Save"
+            actionLabel = "Save IOU",
+            actionEnabled = canSaveIou
         )
     }
 
@@ -724,6 +716,7 @@ fun IouTrackerSheetContent(
             onDismiss = { pendingDeleteEntry = null },
             onConfirm = {
                 itemList.removeAll { it.id == entryToDelete.id }
+                onSaveEntries(itemList.toList())
                 pendingDeleteEntry = null
             }
         )
@@ -769,7 +762,6 @@ fun AddIouBottomSheet(
         ) {
             ShiftlySheetHeader(title = "Add IOU")
 
-            // 2-option Segmented Toggle
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -781,7 +773,7 @@ fun AddIouBottomSheet(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(35.dp)
+                        .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(7.dp))
                         .background(if (isLent) colors.mintContainer else Color.Transparent)
                         .clickable { isLent = true },
@@ -801,7 +793,7 @@ fun AddIouBottomSheet(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(35.dp)
+                        .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(7.dp))
                         .background(if (!isLent) colors.coralContainer else Color.Transparent)
                         .clickable { isLent = false },
@@ -822,18 +814,21 @@ fun AddIouBottomSheet(
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = colors.cardElevated,
-                border = BorderStroke(0.5.dp, colors.separator),
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     IouInsetRow(
                         label = "Person Name",
                         value = personName,
                         onValueChange = { personName = it },
                         placeholder = "Name"
                     )
-                    ShiftlyHairlineDivider(startInset = 16.dp)
 
                     IouInsetRow(
                         label = "Amount ($currencySymbol)",
@@ -846,7 +841,6 @@ fun AddIouBottomSheet(
                         prefix = currencySymbol,
                         isNumeric = true
                     )
-                    ShiftlyHairlineDivider(startInset = 16.dp)
 
                     IouInsetRow(
                         label = "Note (optional)",
@@ -865,7 +859,7 @@ fun AddIouBottomSheet(
                     }
                 },
                 cancelLabel = "Cancel",
-                actionLabel = "Save",
+                actionLabel = "Save IOU",
                 actionEnabled = isValid
             )
         }
@@ -1011,7 +1005,6 @@ fun ActivityCalendarSheetContent(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Month Navigation Header
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = colors.cardElevated,
@@ -1031,7 +1024,7 @@ fun ActivityCalendarSheetContent(
                 ) {
                     IconButton(
                         onClick = { displayedMonth = displayedMonth.minusMonths(1) },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_chevron_left),
@@ -1046,13 +1039,13 @@ fun ActivityCalendarSheetContent(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold
-                        ),
+                        ).tabular(),
                         color = colors.textPrimary
                     )
 
                     IconButton(
                         onClick = { displayedMonth = displayedMonth.plusMonths(1) },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_lucide_chevron_right),
@@ -1063,7 +1056,6 @@ fun ActivityCalendarSheetContent(
                     }
                 }
 
-                // Weekday Headers (S M T W T F S)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -1082,7 +1074,6 @@ fun ActivityCalendarSheetContent(
                     }
                 }
 
-                // Days Grid
                 val firstDayOfMonth = displayedMonth.atDay(1)
                 val dayOfWeekOffset = firstDayOfMonth.dayOfWeek.value % 7
                 val daysInMonth = displayedMonth.lengthOfMonth()
@@ -1110,7 +1101,7 @@ fun ActivityCalendarSheetContent(
                                     Box(
                                         modifier = Modifier
                                             .weight(1f)
-                                            .height(44.dp)
+                                            .heightIn(min = 48.dp)
                                             .clip(RoundedCornerShape(10.dp))
                                             .background(if (isSelected) colors.azurePrimary else Color.Transparent)
                                             .clickable { selectedDate = cellDate },
@@ -1129,7 +1120,6 @@ fun ActivityCalendarSheetContent(
                                                 color = if (isSelected) PureWhite else colors.textPrimary
                                             )
 
-                                            // Indicator Dots Row (Green = Shift, Red = Expense)
                                             if (hasShift || hasExpense) {
                                                 Row(
                                                     horizontalArrangement = Arrangement.spacedBy(3.dp),
@@ -1166,7 +1156,6 @@ fun ActivityCalendarSheetContent(
             }
         }
 
-        // Selected Date Summary & Details Card
         Surface(
             shape = RoundedCornerShape(18.dp),
             color = colors.cardElevated,
@@ -1190,12 +1179,10 @@ fun ActivityCalendarSheetContent(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                // Side by Side Summary
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Shift Summary
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = colors.surface,
@@ -1240,7 +1227,6 @@ fun ActivityCalendarSheetContent(
                         }
                     }
 
-                    // Expense Summary
                     Surface(
                         shape = RoundedCornerShape(12.dp),
                         color = colors.surface,
@@ -1286,22 +1272,20 @@ fun ActivityCalendarSheetContent(
                     }
                 }
 
-                // Detailed Entries List
                 if (shiftsForSelectedDate.isNotEmpty() || expensesForSelectedDate.isNotEmpty()) {
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = colors.surface,
-                        border = BorderStroke(0.5.dp, colors.separator),
                         shadowElevation = 0.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            var isFirstItem = true
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
                             shiftsForSelectedDate.forEach { shift ->
-                                if (!isFirstItem) {
-                                    ShiftlyHairlineDivider(startInset = 16.dp)
-                                }
-                                isFirstItem = false
                                 val zone = remember { ZoneId.systemDefault() }
                                 val startLocal = Instant.ofEpochMilli(shift.timeInMillis).atZone(zone).toLocalTime()
                                 val endLocal = Instant.ofEpochMilli(shift.timeOutMillis).atZone(zone).toLocalTime()
@@ -1361,11 +1345,6 @@ fun ActivityCalendarSheetContent(
                             }
 
                             expensesForSelectedDate.forEach { expense ->
-                                if (!isFirstItem) {
-                                    ShiftlyHairlineDivider(startInset = 16.dp)
-                                }
-                                isFirstItem = false
-
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
