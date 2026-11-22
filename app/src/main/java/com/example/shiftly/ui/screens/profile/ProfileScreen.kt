@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.R
@@ -47,8 +47,6 @@ import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.RecurringEntrySetting
-import com.example.shiftly.data.local.SavingsGoalEntity
-import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
@@ -60,17 +58,13 @@ import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
-import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
-import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.workers.ShiftlyDailyWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.time.LocalDate
 
 private const val DEVELOPER_FEEDBACK_EMAIL = "jameschristian.huelar24@gmail.com"
 private val BACKUP_PICKER_MIME_TYPES = arrayOf("application/zip", "application/json", "text/plain", "*/*")
@@ -103,8 +97,6 @@ fun ProfileScreen(
     val scope = rememberCoroutineScope()
     val suppressNextRelock = LocalSuppressNextRelock.current
     var activeSheet by remember { mutableStateOf<ActiveSettingsSheet?>(null) }
-    var showSavingsGoalDetailSheet by remember { mutableStateOf(false) }
-    var showAddSavingsGoalSheet by remember { mutableStateOf(false) }
     var pendingFileRestoreMode by remember { mutableStateOf(RestoreMode.MERGE) }
     var pendingNotificationAction by remember { mutableStateOf<(() -> Unit)?>(null) }
 
@@ -274,48 +266,6 @@ fun ProfileScreen(
         onReplayTutorial = onReplayTutorial
     )
 
-    if (showSavingsGoalDetailSheet) {
-        val activeGoalId = remember(state.savingsGoals) {
-            (state.savingsGoals.firstOrNull { it.goal.isActive }
-                ?: state.savingsGoals.firstOrNull())?.goal?.id
-        }
-        SavingsGoalDetailSheet(
-            goals = state.savingsGoals,
-            initialGoalId = activeGoalId,
-            currencySymbol = state.currencySymbol,
-            onDismiss = { showSavingsGoalDetailSheet = false },
-            onSelectActiveGoal = { goalId -> viewModel.setActiveSavingsGoal(goalId) },
-            onOpenAddNewGoal = {
-                showSavingsGoalDetailSheet = false
-                showAddSavingsGoalSheet = true
-            },
-            onAddDeposit = { goal, amount, note ->
-                viewModel.addSavingsDeposit(goal, amount, note)
-                onShowMessage("Saved ${ShiftlyFormatters.formatCurrency(state.currencySymbol, amount)} & logged expense")
-            },
-            onDeleteDeposit = { dep ->
-                viewModel.deleteSavingsDeposit(dep)
-                onShowMessage("Savings deposit removed")
-            },
-            onDeleteGoal = { goal ->
-                viewModel.deleteSavingsGoal(goal)
-                onShowMessage("Savings goal deleted")
-            }
-        )
-    }
-
-    if (showAddSavingsGoalSheet) {
-        AddSavingsGoalSheet(
-            currencySymbol = state.currencySymbol,
-            onDismiss = { showAddSavingsGoalSheet = false },
-            onCreateGoal = { title, targetAmount, targetDateEpochDay ->
-                viewModel.createSavingsGoal(title, targetAmount, targetDateEpochDay)
-                showAddSavingsGoalSheet = false
-                onShowMessage("Savings goal \"$title\" added")
-            }
-        )
-    }
-
     val sheetActionState = remember(activeSheet) { ShiftlySheetActionState() }
 
     when (activeSheet) {
@@ -333,8 +283,6 @@ fun ProfileScreen(
                     workplace = state.workplace,
                     workType = state.workType,
                     targetWeeklyHours = state.targetWeeklyHours,
-                    hourlyRate = state.defaultHourlyRate,
-                    currencySymbol = state.currencySymbol,
                     onSave = { newName, newJobTitle, newWorkplace, newWorkType, newTargetHours ->
                         viewModel.updateProfileDetails(
                             userName = newName,
@@ -785,7 +733,7 @@ private fun launchFeedbackEmail(
         }
     }
 
-    val mailtoIntent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$DEVELOPER_FEEDBACK_EMAIL")).apply {
+    val mailtoIntent = Intent(Intent.ACTION_SENDTO, "mailto:$DEVELOPER_FEEDBACK_EMAIL".toUri()).apply {
         putExtra(Intent.EXTRA_EMAIL, arrayOf(DEVELOPER_FEEDBACK_EMAIL))
         putExtra(Intent.EXTRA_SUBJECT, emailSubject)
         putExtra(Intent.EXTRA_TEXT, emailBody)
@@ -839,18 +787,6 @@ private fun previewProfileState(): ProfileUiState = ProfileUiState(
     totalHoursWorked = 82.5,
     totalEarnings = 8420.0,
     totalExpenses = 3190.0,
-    savingsGoals = listOf(
-        SavingsGoalWithDeposits(
-            goal = SavingsGoalEntity(
-                id = 1L,
-                title = "Laptop Fund",
-                targetAmount = 5000.0,
-                targetDateEpochDay = LocalDate.of(2026, 12, 15).toEpochDay(),
-                isActive = true
-            ),
-            deposits = emptyList()
-        )
-    ),
     settings = ShiftlySettingsSnapshot(
         notificationsEnabled = true,
         payCycleSchedule = "15th & 30th",

@@ -22,6 +22,7 @@ object ReceiptStorageHelper {
 
     private const val WATERMARK_DATE_PATTERN = "yyyy-MM-dd hh:mm:ss a"
     private const val MAX_CAMERA_DIMENSION_PX = 2048
+    private const val DEFAULT_ORPHAN_GRACE_MILLIS = 60 * 60 * 1000L
 
     private fun getReceiptsDir(context: Context): File {
         val dir = File(context.filesDir, "receipts")
@@ -274,5 +275,59 @@ object ReceiptStorageHelper {
             }
         } catch (_: Exception) {
         }
+    }
+
+    /**
+     * Prunes orphaned receipt files in `filesDir/receipts/` that are no longer referenced by any
+     * saved expense and are at least [maxUnreferencedAgeMillis] old (protecting in-progress drafts).
+     */
+    fun pruneOrphanedReceipts(
+        context: Context,
+        referencedPaths: Set<String>,
+        maxUnreferencedAgeMillis: Long = DEFAULT_ORPHAN_GRACE_MILLIS
+    ): Int {
+        val dir = File(context.filesDir, "receipts")
+        return pruneOrphanedReceipts(
+            receiptsDir = dir,
+            referencedPaths = referencedPaths,
+            nowMillis = System.currentTimeMillis(),
+            maxUnreferencedAgeMillis = maxUnreferencedAgeMillis
+        )
+    }
+
+    internal fun pruneOrphanedReceipts(
+        receiptsDir: File,
+        referencedPaths: Set<String>,
+        nowMillis: Long = System.currentTimeMillis(),
+        maxUnreferencedAgeMillis: Long = DEFAULT_ORPHAN_GRACE_MILLIS
+    ): Int {
+        if (!receiptsDir.exists() || !receiptsDir.isDirectory) return 0
+        val normalizedRefs = referencedPaths
+            .asSequence()
+            .filter { it.isNotBlank() }
+            .map { path -> runCatching { File(path).canonicalPath }.getOrElse { File(path).absolutePath } }
+            .toSet()
+
+        var deletedCount = 0
+        val files = receiptsDir.listFiles() ?: return 0
+        for (file in files) {
+            if (!file.isFile) continue
+            val canonical = runCatching { file.canonicalPath }.getOrElse { file.absolutePath }
+            if (canonical in normalizedRefs) continue
+            val ageMillis = (nowMillis - file.lastModified()).coerceAtLeast(0L)
+            if (ageMillis >= maxUnreferencedAgeMillis && runCatching { file.delete() }.getOrDefault(false)) {
+                deletedCount++
+            }
+        }
+        return deletedCount
+    }
+
+    /**
+     * Removes the legacy `filesDir/profile/` directory left behind by removed profile avatars.
+     */
+    fun deleteLegacyProfilePhotosDir(context: Context): Boolean {
+        val legacyDir = File(context.filesDir, "profile")
+        if (!legacyDir.exists()) return false
+        return runCatching { legacyDir.deleteRecursively() }.getOrDefault(false)
     }
 }

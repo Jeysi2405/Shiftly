@@ -379,7 +379,6 @@ fun DutiesScreenContent(
             Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
                 TimeBreakdownCard(
                     monthlyTotalEarnings = state.monthlyTotalEarnings,
-                    monthlyTotalHours = state.monthlyTotalHours,
                     timeBreakdown = state.monthlyTimeBreakdown,
                     currencySymbol = state.currencySymbol,
                     displayedMonth = state.displayedMonth,

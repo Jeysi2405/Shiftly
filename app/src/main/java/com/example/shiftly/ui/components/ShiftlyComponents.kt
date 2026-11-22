@@ -1579,25 +1579,6 @@ fun ShiftlyDeleteConfirmDialog(
     }
 }
 
-/**
- * Consistent destructive delete confirmation modal.
- */
-@Composable
-fun ShiftlyConfirmDeleteDialog(
-    title: String,
-    message: String,
-    onDismiss: () -> Unit,
-    onConfirm: () -> Unit
-) {
-    ShiftlyDeleteConfirmDialog(
-        title = title,
-        message = message,
-        confirmLabel = "Delete",
-        onConfirm = onConfirm,
-        onDismiss = onDismiss
-    )
-}
-
 private data class FeatureGuideItem(
     val title: String,
     val description: String

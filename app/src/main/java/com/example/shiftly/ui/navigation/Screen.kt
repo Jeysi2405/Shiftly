@@ -9,13 +9,6 @@ sealed class Screen(
     @DrawableRes val selectedIconRes: Int,
     @DrawableRes val unselectedIconRes: Int
 ) {
-    data object Welcome : Screen(
-        route = "welcome",
-        label = "Welcome",
-        selectedIconRes = R.drawable.ic_lucide_house,
-        unselectedIconRes = R.drawable.ic_lucide_house
-    )
-
     data object Home : Screen(
         route = "home",
         label = "Home",

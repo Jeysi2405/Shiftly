@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -400,80 +401,6 @@ private fun WageRateDisplayTile(
     }
 }
 
-@Composable
-fun DayTypeSelectorRow(
-    selectedDayType: DayType,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val colors = ShiftlyColors.current
-    Surface(
-        shape = RoundedCornerShape(14.dp),
-        color = colors.cardElevated,
-        shadowElevation = 0.dp,
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 58.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "Day Type",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = colors.textSecondary
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = selectedDayType.label,
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ),
-                        color = colors.textPrimary
-                    )
-                    selectedDayType.holidayBadge?.let { badge ->
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = colors.coralContainer,
-                            shadowElevation = 0.dp
-                        ) {
-                            Text(
-                                text = badge,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = colors.coralInk,
-                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-            }
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                contentDescription = "Choose day type",
-                tint = colors.textSecondary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DayTypePromptSheet(
@@ -511,7 +438,8 @@ fun DayTypePromptSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp)),
+                    .clip(RoundedCornerShape(18.dp))
+                    .selectableGroup(),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 val options = DayType.orderedForSelection
@@ -587,7 +515,6 @@ fun DayTypePromptSheet(
 @Composable
 fun TimeBreakdownCard(
     monthlyTotalEarnings: Double,
-    monthlyTotalHours: Double,
     timeBreakdown: TimeBreakdown,
     currencySymbol: String,
     displayedMonth: YearMonth = YearMonth.now(),

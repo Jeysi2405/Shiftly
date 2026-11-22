@@ -1,4 +1,4 @@
-package com.example.shiftly.ui.screens
+package com.example.shiftly.ui.screens.loans
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -1034,7 +1034,6 @@ fun InstallmentLoanDetailsSheet(
 
 @Composable
 private fun LoanTimePickerRow(
-    label: String,
     formattedTime: String,
     onClick: () -> Unit
 ) {
@@ -1049,7 +1048,7 @@ private fun LoanTimePickerRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            text = label,
+            text = "Time Paid",
             style = MaterialTheme.typography.titleMedium.copy(
                 fontFamily = InterFontFamily,
                 fontWeight = FontWeight.SemiBold,
@@ -1136,7 +1135,6 @@ private fun EditPaymentDateTimeDialog(
                         onClick = { showDatePicker = true }
                     )
                     LoanTimePickerRow(
-                        label = "Time Paid",
                         formattedTime = selectedTime.format(timeFormatter),
                         onClick = { showTimePicker = true }
                     )

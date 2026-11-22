@@ -957,9 +957,6 @@ object BackupCodec {
         return out.toByteArray()
     }
 
-    fun shiftSignature(s: ShiftEntity): String =
-        "${s.dateEpochDay}|${s.timeInMillis}|${s.timeOutMillis}"
-
     fun expenseSignature(e: ExpenseEntity): String =
         "${e.dateEpochDay}|${e.title.trim().lowercase()}|${(e.amount * 100.0).roundToLong()}|${e.category.trim().lowercase()}"
 

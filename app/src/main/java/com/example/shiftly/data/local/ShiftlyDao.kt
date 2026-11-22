@@ -59,6 +59,9 @@ interface ExpenseDao {
     @Query("SELECT * FROM expenses WHERE linkedSplitBillId = :billId")
     suspend fun getExpensesByLinkedSplitBillIdOnce(billId: Long): List<ExpenseEntity>
 
+    @Query("SELECT receiptImagePath FROM expenses WHERE receiptImagePath IS NOT NULL")
+    suspend fun getAllReferencedReceiptPathsOnce(): List<String>
+
     @Query(
         "SELECT EXISTS(SELECT 1 FROM expenses WHERE linkedRecurringBillId = :billId AND recurringOccurrenceEpochDay = :occurrenceEpochDay)"
     )

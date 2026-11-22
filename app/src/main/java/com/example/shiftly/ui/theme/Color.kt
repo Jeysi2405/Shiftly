@@ -12,7 +12,6 @@ val DarkSurface = Color(0xFF1C1C1E)          // Grouped cards, secondary surface
 val DarkCard = Color(0xFF1C1C1E)             // Top-level cards on #000000
 val DarkCardElevated = Color(0xFF2C2C2E)     // Nested / elevated elements & cards inside sheets
 val DarkSeparator = Color(0xFF38383A)        // 0.5dp hairline dividers
-val DarkBorder = DarkSeparator
 val DarkDisabledContainer = Color(0xFF2C2C2E)
 val DarkDisabledContent = Color(0xFF8E8E93)
 
@@ -25,15 +24,9 @@ val TextLightMuted = Color(0xFF8E8E93)       // Captions & placeholders (same se
 val AzurePrimaryButton = Color(0xFF0A84FF)   // Interactive blue
 val AzureAccent = Color(0xFF0A84FF)          // Interactive blue
 val AzureDarkContainer = Color(0xFF14273D)   // Subtle tinted blue container
-val OrbSkyLight = Color(0xFF0A84FF)
 
 // Core Neutrals
 val PureWhite = Color(0xFFFFFFFF)
-val InkBlack = Color(0xFF000000)
-
-// Frosted / Grouped Bottom Bar Surfaces
-val GlassNavTop = Color(0xF01C1C1E)
-val GlassNavBottom = Color(0xFA1C1C1E)
 
 // Green — Income, Positive, Safe Progress
 val MintBright = Color(0xFF30D158)
@@ -57,17 +50,6 @@ val IosOrangeContainer = Color(0xFF38260B)
 
 // Azure Accent for Neutral / Split Bill Chips
 val AzureInkOnWhite = AzureAccent
-val AzureSoftContainer = AzureDarkContainer
-
-// =============================================================================
-// Token Aliases (Mapped to Dark Mode Hierarchy)
-// =============================================================================
-val SlateSurface = DarkCard
-val TextPrimary = TextLightPrimary
-val TextSecondary = TextLightSecondary
-val BorderSubtle = DarkSeparator
-val RoseAlert = CoralInkOnWhite
-val RoseContainer = CoralSoftContainer
 
 // =============================================================================
 // Shiftly Light Mode Tokens

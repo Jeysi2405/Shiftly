@@ -28,7 +28,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -64,7 +63,6 @@ import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
 import com.example.shiftly.ui.components.shiftlyPressClickable
-import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
@@ -77,10 +75,8 @@ private val SegmentedOuterShape = RoundedCornerShape(10.dp)
 private val SegmentedThumbShape = RoundedCornerShape(8.dp)
 private val AnalyticsCardShape = RoundedCornerShape(18.dp)
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun AnalyticsTopBar(
-    rangeLabel: String,
     onBack: (() -> Unit)? = null
 ) {
     ShiftlyScreenHeader(
@@ -816,13 +812,11 @@ fun HoursOfWorkCostCard(
     }
 }
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun OnBudgetStreakCard(
     streakDays: Int,
     streakTargetDays: Int,
     dailyAllowance: Double,
-    currencySymbol: String,
     onOpenBudgetSettings: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
@@ -923,108 +917,6 @@ fun OnBudgetStreakCard(
             trackColor = colors.separator,
             modifier = Modifier.semantics {
                 contentDescription = "$streakDays of $streakTargetDays days on budget"
-            }
-        )
-    }
-}
-
-@Composable
-fun UnsettledSplitsTrackerCard(
-    unsettledAmount: Double,
-    totalSplitAmount: Double,
-    unsettledCount: Int,
-    currencySymbol: String,
-    onOpenSplitBill: () -> Unit
-) {
-    val colors = ShiftlyColors.current
-    val settledFraction = remember(totalSplitAmount, unsettledAmount) {
-        if (totalSplitAmount > 0.0) {
-            ((totalSplitAmount - unsettledAmount) / totalSplitAmount).toFloat().coerceIn(0.05f, 1f)
-        } else {
-            1f
-        }
-    }
-
-    InsightCardContainer(title = "Unsettled Split Bills") {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                ShiftlyIosIconTile(
-                    iconRes = R.drawable.ic_lucide_split,
-                    backgroundColor = colors.azurePrimary,
-                    size = 28.dp,
-                    cornerRadius = 9.dp,
-                    iconSize = 22.dp
-                )
-                Column {
-                    Text(
-                        text = if (unsettledAmount > 0.0) {
-                            "${ShiftlyFormatters.formatCurrency(currencySymbol, unsettledAmount)} owed by friends"
-                        } else {
-                            "All split bills settled"
-                        },
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ).tabular(),
-                        color = colors.textPrimary
-                    )
-                    Text(
-                        text = if (unsettledCount > 0) {
-                            "$unsettledCount unpaid friend share(s)"
-                        } else {
-                            "Zero pending classmate balances"
-                        },
-                        style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = colors.textSecondary
-                    )
-                }
-            }
-
-            val openInteraction = remember { MutableInteractionSource() }
-            TextButton(
-                onClick = onOpenSplitBill,
-                interactionSource = openInteraction,
-                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .shiftlyPressEffect(openInteraction)
-            ) {
-                Text(
-                    text = "Open",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold
-                    ),
-                    color = colors.azureAccent
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_arrow_right),
-                    contentDescription = "Open Split Bill",
-                    tint = colors.azureAccent,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-
-        ShiftlyProgressBar(
-            progress = settledFraction,
-            color = colors.mintBright,
-            trackColor = colors.separator,
-            modifier = Modifier.semantics {
-                contentDescription = if (unsettledAmount > 0.0) {
-                    "${ShiftlyFormatters.formatCurrency(currencySymbol, unsettledAmount)} unsettled across $unsettledCount friend share(s)"
-                } else {
-                    "All split bills settled"
-                }
             }
         )
     }

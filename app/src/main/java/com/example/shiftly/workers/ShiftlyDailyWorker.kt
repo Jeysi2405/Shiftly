@@ -48,7 +48,12 @@ class ShiftlyDailyWorker(
             scheduleNextRecurringCheck(applicationContext, earliestDue)
         }
 
-        // 4. Evaluate the 3 allowed reminders + in-app inbox sync
+        // 4. Prune aged orphaned receipt files, stale export cache, and legacy profile dir
+        runCatching {
+            repository.pruneOrphanedStorage()
+        }
+
+        // 5. Evaluate the 3 allowed reminders + in-app inbox sync
         val settings = repository.settingsSnapshot.first()
         if (!settings.notificationsEnabled) return Result.success()
 

@@ -214,13 +214,6 @@ data class InstallmentLoan(
         const val FREQ_WEEKLY = "Weekly"
         const val FREQ_EVERYDAY = "Everyday"
 
-        val ALL_FREQUENCIES = listOf(
-            FREQ_MONTHLY,
-            FREQ_SEMI_MONTHLY,
-            FREQ_WEEKLY,
-            FREQ_EVERYDAY
-        )
-
         fun normalizeFrequency(raw: String): String = when {
             raw.equals(FREQ_SEMI_MONTHLY, ignoreCase = true) -> FREQ_SEMI_MONTHLY
             raw.equals(FREQ_WEEKLY, ignoreCase = true) -> FREQ_WEEKLY
@@ -855,7 +848,6 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
         private val KEY_HAS_SEEN_APP_TUTORIAL = booleanPreferencesKey("has_seen_app_tutorial")
         private val KEY_USER_NAME = stringPreferencesKey("user_name")
-        private val KEY_PROFILE_PHOTO_PATH = stringPreferencesKey("profile_photo_path")
         private val KEY_MONTHLY_BUDGET = doublePreferencesKey("monthly_budget")
         private val KEY_SAVINGS_BUFFER = doublePreferencesKey("savings_buffer")
 
@@ -875,9 +867,6 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_BILL_REMINDER = booleanPreferencesKey("bill_reminder")
         private val KEY_SAVINGS_REMINDER = booleanPreferencesKey("savings_reminder")
         private val KEY_NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
-        private val KEY_ND_START_HOUR = intPreferencesKey("night_diff_start_hour")
-        private val KEY_ND_MULTIPLIER = doublePreferencesKey("night_diff_multiplier")
-        private val KEY_OT_MULTIPLIER = doublePreferencesKey("overtime_multiplier")
         private val KEY_SAVINGS_GOAL_TITLE = stringPreferencesKey("savings_goal_title")
         private val KEY_SAVINGS_GOAL_TARGET = doublePreferencesKey("savings_goal_target")
         private val KEY_CATEGORY_BUDGETS = stringPreferencesKey("category_budgets_serialized")
@@ -944,26 +933,6 @@ class UserPreferencesManager(private val context: Context) {
 
     val userName: Flow<String> = safeData.map { prefs ->
         prefs[KEY_USER_NAME] ?: ""
-    }.distinctUntilChanged()
-
-    val jobTitle: Flow<String> = safeData.map { prefs ->
-        prefs[KEY_JOB_TITLE] ?: ""
-    }.distinctUntilChanged()
-
-    val workplace: Flow<String> = safeData.map { prefs ->
-        prefs[KEY_WORKPLACE] ?: ""
-    }.distinctUntilChanged()
-
-    val workType: Flow<String> = safeData.map { prefs ->
-        prefs[KEY_WORK_TYPE] ?: "Full-Time"
-    }.distinctUntilChanged()
-
-    val targetWeeklyHours: Flow<Double> = safeData.map { prefs ->
-        prefs[KEY_TARGET_WEEKLY_HOURS] ?: 40.0
-    }.distinctUntilChanged()
-
-    val profilePhotoPath: Flow<String?> = safeData.map { prefs ->
-        prefs[KEY_PROFILE_PHOTO_PATH]?.takeIf { it.isNotBlank() }
     }.distinctUntilChanged()
 
     val monthlyBudget: Flow<Double> = safeData.map { prefs ->
@@ -1342,38 +1311,10 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    suspend fun setProfilePhotoPath(path: String?) {
-        context.dataStore.edit { prefs ->
-            if (path.isNullOrBlank()) {
-                prefs.remove(KEY_PROFILE_PHOTO_PATH)
-            } else {
-                prefs[KEY_PROFILE_PHOTO_PATH] = path
-            }
-        }
-    }
-
     suspend fun setMonthlyBudget(budget: Double) {
         if (!budget.isFinite()) return
         context.dataStore.edit { prefs ->
             prefs[KEY_MONTHLY_BUDGET] = budget.coerceAtLeast(0.0)
-        }
-    }
-
-    suspend fun setSavingsBuffer(buffer: Double) {
-        if (!buffer.isFinite()) return
-        context.dataStore.edit { prefs ->
-            prefs[KEY_SAVINGS_BUFFER] = buffer.coerceAtLeast(0.0)
-        }
-    }
-
-    suspend fun setPayCycleSchedule(schedule: String) {
-        val config = CutoffScheduleConfig.fromLegacySchedule(schedule).normalized()
-        context.dataStore.edit { prefs ->
-            prefs[KEY_PAY_CYCLE_SCHEDULE] = schedule
-            prefs[KEY_CUTOFF_MODE] = config.mode
-            prefs[KEY_CUTOFF_DAY_1] = config.day1
-            prefs[KEY_CUTOFF_DAY_2] = config.day2
-            prefs[KEY_CUTOFF_WEEKLY_DAY] = config.weeklyDayOfWeek
         }
     }
 
@@ -1470,7 +1411,6 @@ class UserPreferencesManager(private val context: Context) {
         monthlyBudget: Double?,
         savingsBuffer: Double?,
         settings: ShiftlySettingsSnapshot?,
-        profilePhotoPath: String? = null,
         paycheckDeductions: PaycheckDeductionsSetting? = null,
         iouEntries: List<IouEntrySetting>? = null,
         installmentLoans: List<InstallmentLoan>? = null
@@ -1490,9 +1430,6 @@ class UserPreferencesManager(private val context: Context) {
             if (savingsBuffer != null && savingsBuffer.isFinite() && savingsBuffer >= 0.0) {
                 prefs[KEY_SAVINGS_BUFFER] = savingsBuffer
             }
-            if (!profilePhotoPath.isNullOrBlank()) {
-                prefs[KEY_PROFILE_PHOTO_PATH] = profilePhotoPath
-            }
             if (settings != null) {
                 val normCutoff = settings.cutoffScheduleConfig()
                 prefs[KEY_PAY_CYCLE_SCHEDULE] = settings.payCycleSchedule
@@ -1506,9 +1443,6 @@ class UserPreferencesManager(private val context: Context) {
                 prefs[KEY_BILL_REMINDER] = settings.billReminderEnabled
                 prefs[KEY_SAVINGS_REMINDER] = settings.savingsReminderEnabled
                 prefs[KEY_NOTIFICATIONS_ENABLED] = settings.notificationsEnabled
-                prefs[KEY_ND_START_HOUR] = 22
-                prefs[KEY_ND_MULTIPLIER] = 1.10
-                prefs[KEY_OT_MULTIPLIER] = 1.25
                 prefs[KEY_SAVINGS_GOAL_TITLE] = settings.savingsGoalTitle
                 prefs[KEY_SAVINGS_GOAL_TARGET] = settings.savingsGoalTarget.coerceAtLeast(0.0)
                 prefs[KEY_JOB_TITLE] = settings.jobTitle.trim()
@@ -1543,22 +1477,6 @@ class UserPreferencesManager(private val context: Context) {
             if (installmentLoans != null) {
                 prefs[KEY_INSTALLMENT_LOANS] = PreferenceJsonCodec.encodeInstallmentLoans(installmentLoans)
             }
-        }
-    }
-
-    suspend fun startActiveTimer(startTimeMillis: Long, dateEpochDay: Long, lockedRate: Double) {
-        context.dataStore.edit { prefs ->
-            prefs[KEY_ACTIVE_TIMER_START] = startTimeMillis
-            prefs[KEY_ACTIVE_TIMER_DATE] = dateEpochDay
-            prefs[KEY_ACTIVE_TIMER_RATE] = lockedRate
-        }
-    }
-
-    suspend fun clearActiveTimer() {
-        context.dataStore.edit { prefs ->
-            prefs.remove(KEY_ACTIVE_TIMER_START)
-            prefs.remove(KEY_ACTIVE_TIMER_DATE)
-            prefs.remove(KEY_ACTIVE_TIMER_RATE)
         }
     }
 

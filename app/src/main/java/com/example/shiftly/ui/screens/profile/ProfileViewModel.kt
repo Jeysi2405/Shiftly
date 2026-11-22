@@ -8,10 +8,6 @@ import com.example.shiftly.data.backup.RestoreMode
 import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
-import com.example.shiftly.data.local.RecurringEntrySetting
-import com.example.shiftly.data.local.SavingsDepositEntity
-import com.example.shiftly.data.local.SavingsGoalEntity
-import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.repository.ShiftlyRepository
 import java.io.File
@@ -38,7 +34,6 @@ data class ProfileUiState(
     val totalHoursWorked: Double = 0.0,
     val totalEarnings: Double = 0.0,
     val totalExpenses: Double = 0.0,
-    val savingsGoals: List<SavingsGoalWithDeposits> = emptyList(),
     val settings: ShiftlySettingsSnapshot = ShiftlySettingsSnapshot()
 )
 
@@ -120,9 +115,8 @@ class ProfileViewModel(
     val uiState: StateFlow<ProfileUiState> = combine(
         corePrefsFlow,
         totalsFlow,
-        repository.allSavingsGoals,
         repository.settingsSnapshot
-    ) { core, totals, goals, settings ->
+    ) { core, totals, settings ->
         ProfileUiState(
             userName = core.userName,
             jobTitle = settings.jobTitle,
@@ -137,7 +131,6 @@ class ProfileViewModel(
             totalHoursWorked = totals.totalMinutes / 60.0,
             totalEarnings = totals.totalEarnings,
             totalExpenses = totals.totalExpenses,
-            savingsGoals = goals,
             settings = settings
         )
     }
@@ -147,10 +140,6 @@ class ProfileViewModel(
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = ProfileUiState()
         )
-
-    fun updateUserName(name: String) {
-        viewModelScope.launch { repository.updateUserName(name) }
-    }
 
     fun updateProfileDetails(
         userName: String,
@@ -211,50 +200,12 @@ class ProfileViewModel(
         }
     }
 
-    fun createSavingsGoal(title: String, targetAmount: Double, targetDateEpochDay: Long) {
-        viewModelScope.launch {
-            repository.createSavingsGoal(title, targetAmount, targetDateEpochDay)
-        }
-    }
-
-    fun setActiveSavingsGoal(goalId: Long) {
-        viewModelScope.launch {
-            repository.setActiveSavingsGoal(goalId)
-        }
-    }
-
-    fun addSavingsDeposit(goal: SavingsGoalEntity, amount: Double, note: String) {
-        viewModelScope.launch {
-            repository.addSavingsDeposit(goal = goal, amount = amount, note = note)
-        }
-    }
-
-    fun deleteSavingsDeposit(deposit: SavingsDepositEntity) {
-        viewModelScope.launch {
-            repository.deleteSavingsDeposit(deposit)
-        }
-    }
-
-    fun deleteSavingsGoal(goal: SavingsGoalEntity) {
-        viewModelScope.launch {
-            repository.deleteSavingsGoal(goal)
-        }
-    }
-
     fun updateManagedCategories(items: List<ManagedCategorySetting>) {
         viewModelScope.launch { repository.updateManagedCategories(items) }
     }
 
     fun updateThemeMode(mode: String) {
         viewModelScope.launch { repository.updateThemeMode(mode) }
-    }
-
-    fun updateRecurringEntries(items: List<RecurringEntrySetting>, onProcessed: (Int) -> Unit = {}) {
-        viewModelScope.launch {
-            repository.updateRecurringEntries(items)
-            val posted = repository.processDueRecurringEntries()
-            onProcessed(posted)
-        }
     }
 
     fun updateAppLock(enabled: Boolean, method: String, newPin: String?) {
@@ -267,27 +218,9 @@ class ProfileViewModel(
         }
     }
 
-    fun exportBackupZip(onResult: (Result<File>) -> Unit) {
-        viewModelScope.launch {
-            onResult(runCatching { repository.generateBackupZipFile() })
-        }
-    }
-
-    fun restoreBackup(rawJson: String, mode: RestoreMode, onResult: (Result<String>) -> Unit) {
-        viewModelScope.launch {
-            onResult(repository.restoreFromBackupJson(rawJson, mode))
-        }
-    }
-
     fun restoreBackupBytes(bytes: ByteArray, mode: RestoreMode, onResult: (Result<String>) -> Unit) {
         viewModelScope.launch {
             onResult(repository.restoreFromBackupBytes(bytes, mode))
-        }
-    }
-
-    fun exportCsv(onResult: (Result<File>) -> Unit) {
-        viewModelScope.launch {
-            onResult(runCatching { repository.generateCsvExportFile() })
         }
     }
 
@@ -300,12 +233,6 @@ class ProfileViewModel(
     fun exportExpensesCsv(onResult: (Result<File>) -> Unit) {
         viewModelScope.launch {
             onResult(runCatching { repository.generateExpensesCsvExportFile() })
-        }
-    }
-
-    fun exportPdf(onResult: (Result<File>) -> Unit) {
-        viewModelScope.launch {
-            onResult(runCatching { repository.generatePdfSummaryFile() })
         }
     }
 

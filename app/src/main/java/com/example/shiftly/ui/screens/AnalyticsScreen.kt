@@ -196,9 +196,7 @@ fun AnalyticsScreenContent(
         ) {
             item(key = "analytics_top_bar", contentType = "top_bar") {
                 Box(modifier = Modifier.graphicsLayer { alpha = headerAlpha }) {
-                    AnalyticsTopBar(
-                        rangeLabel = state.selectedRange.fullLabel
-                    )
+                    AnalyticsTopBar()
                 }
             }
 
@@ -244,7 +242,6 @@ fun AnalyticsScreenContent(
                             streakDays = state.underBudgetStreakDays,
                             streakTargetDays = state.streakTargetDays,
                             dailyAllowance = state.dailyBudgetAllowance,
-                            currencySymbol = state.currencySymbol,
                             onOpenBudgetSettings = onOpenBudgetSettings
                         )
 

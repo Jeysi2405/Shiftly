@@ -156,7 +156,6 @@ fun HomeScreen(
         onOpenBudgetSettings = { showBudgetsSheet = true },
         onNavigateToRecurringBills = onNavigateToRecurringBills,
         onNavigateToAllowance = onNavigateToAllowance,
-        onNavigateToDuties = onNavigateToDuties,
         onOpenGoalDetail = { goalId ->
             viewingGoalId = goalId
             showGoalDetailSheet = true
@@ -251,14 +250,12 @@ fun HomeScreen(
     }
 }
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun HomeScreenContent(
     state: HomeUiState,
     onNotificationClick: () -> Unit,
     onOpenPendingSplits: () -> Unit,
     onViewInsights: () -> Unit,
-    onProfileClick: () -> Unit = {},
     isInboxOpen: Boolean = false,
     onDismissInbox: () -> Unit = {},
     onClearAllNotifications: () -> Unit = {},
@@ -272,7 +269,6 @@ fun HomeScreenContent(
     onOpenBudgetSettings: () -> Unit = {},
     onNavigateToRecurringBills: () -> Unit = {},
     onNavigateToAllowance: () -> Unit = {},
-    onNavigateToDuties: () -> Unit = {},
     todayOverride: LocalDate? = null,
     greetingHourOverride: Int? = null,
     notificationReferenceTimeMillis: Long? = null,
@@ -716,7 +712,6 @@ private fun HomeScreenPreview() {
                 HomeScreenContent(
                     state = sampleHomePreviewState(today, notifications = sampleNotifications),
                     onNotificationClick = {},
-                    onProfileClick = {},
                     onOpenPendingSplits = {},
                     onViewInsights = {},
                     todayOverride = today,
@@ -779,7 +774,6 @@ private fun HomeScreenInboxOpenPreview() {
                     state = sampleHomePreviewState(today, notifications = sampleNotifications),
                     isInboxOpen = true,
                     onNotificationClick = {},
-                    onProfileClick = {},
                     onOpenPendingSplits = {},
                     onViewInsights = {},
                     todayOverride = today,
@@ -823,7 +817,6 @@ private fun HomeScreenHeadsUpToastPreview() {
                         pendingHeadsUp = toastItem
                     ),
                     onNotificationClick = {},
-                    onProfileClick = {},
                     onOpenPendingSplits = {},
                     onViewInsights = {},
                     todayOverride = today,

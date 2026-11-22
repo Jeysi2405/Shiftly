@@ -76,7 +76,6 @@ import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
-import com.example.shiftly.data.local.RecurringEntrySetting
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
@@ -90,7 +89,6 @@ import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
-import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
 import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
@@ -104,7 +102,7 @@ import com.example.shiftly.utils.ShiftlyFormatters
 private val THEME_MODE_OPTIONS = listOf(
     "SYSTEM" to "System Default",
     "DARK" to "Dark Mode",
-    "LIGHT" to "Light Mode"
+    "LIGHT" to "Light Mode",
 )
 
 private val CURRENCY_OPTIONS = listOf(
@@ -120,8 +118,6 @@ private val APP_LOCK_METHOD_OPTIONS = listOf(
     "4-Digit PIN",
     "Fingerprint Only"
 )
-
-private val DEFAULT_RECURRING_CATEGORIES = listOf("Food", "Transport", "Bills", "Supplies", "Other")
 
 class ShiftlySheetActionState {
     var onSave: (() -> Unit)? = null
@@ -588,7 +584,6 @@ fun ThemeSelectorSheetContent(
 
 private val WORK_TYPE_OPTIONS = listOf("Full-Time", "Part-Time", "Freelance")
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun AccountEditSheetContent(
     currentName: String,
@@ -596,8 +591,6 @@ fun AccountEditSheetContent(
     workplace: String = "",
     workType: String = "Full-Time",
     targetWeeklyHours: Double = 40.0,
-    hourlyRate: Double = 0.0,
-    currencySymbol: String = "₱",
     onSave: (name: String, jobTitle: String, workplace: String, workType: String, targetWeeklyHours: Double) -> Unit,
     onDismiss: () -> Unit = {},
     actionState: ShiftlySheetActionState? = null
@@ -607,7 +600,7 @@ fun AccountEditSheetContent(
     var nameInput by remember { mutableStateOf(currentName) }
     var jobTitleInput by remember { mutableStateOf(jobTitle) }
     var workplaceInput by remember { mutableStateOf(workplace) }
-    var selectedWorkType by remember { mutableStateOf(if (workType.isBlank()) "Full-Time" else workType) }
+    var selectedWorkType by remember { mutableStateOf(workType.ifBlank { "Full-Time" }) }
     var hoursInput by remember {
         mutableStateOf(if (targetWeeklyHours > 0.0) formatEditableNumber(targetWeeklyHours) else "40")
     }
@@ -857,30 +850,6 @@ private fun ProfileInsetRow(
     }
 }
 
-@Suppress("UNUSED_PARAMETER")
-@Composable
-fun AccountEditSheetContent(
-    currentName: String,
-    hourlyRate: Double,
-    currencySymbol: String,
-    onSave: (String) -> Unit,
-    onDismiss: () -> Unit = {},
-    actionState: ShiftlySheetActionState? = null
-) {
-    AccountEditSheetContent(
-        currentName = currentName,
-        jobTitle = "",
-        workplace = "",
-        workType = "Full-Time",
-        targetWeeklyHours = 40.0,
-        hourlyRate = hourlyRate,
-        currencySymbol = currencySymbol,
-        onSave = { name, _, _, _, _ -> onSave(name) },
-        onDismiss = onDismiss,
-        actionState = actionState
-    )
-}
-
 @Composable
 fun CurrencyPickerSheetContent(
     currentCurrency: String,
@@ -1026,7 +995,7 @@ fun CurrencyPickerSheetContent(
                 colors = shiftlySheetFieldColors(),
                 modifier = Modifier.fillMaxWidth()
             )
-            if (rateValid && parsedRate != null) {
+            if (parsedRate != null && parsedRate.isFinite() && parsedRate > 0.0) {
                 val sample = 100.0 * parsedRate
                 Text(
                     text = "Preview: ${ShiftlyFormatters.formatCurrency(currentCurrency, 100.0)} -> ${ShiftlyFormatters.formatCurrency(targetSymbol, sample)}",
@@ -1067,55 +1036,89 @@ fun NotificationsSheetContent(
 ) {
     val colors = ShiftlyColors.current
     var masterEnabled by remember { mutableStateOf(notificationsEnabled) }
-    var billRem by remember { mutableStateOf(billReminderEnabled) }
-    var shiftRem by remember { mutableStateOf(shiftReminderEnabled) }
-    var savingsRem by remember { mutableStateOf(savingsReminderEnabled) }
+    var billsEnabled by remember { mutableStateOf(billReminderEnabled) }
+    var shiftsEnabled by remember { mutableStateOf(shiftReminderEnabled) }
+    var savingsEnabled by remember { mutableStateOf(savingsReminderEnabled) }
 
-    LaunchedEffect(masterEnabled, billRem, shiftRem, savingsRem) {
+    LaunchedEffect(masterEnabled, billsEnabled, shiftsEnabled, savingsEnabled) {
         actionState?.enabled = true
-        actionState?.onSave = { onSave(masterEnabled, billRem, shiftRem, savingsRem) }
+        actionState?.onSave = {
+            onSave(masterEnabled, billsEnabled, shiftsEnabled, savingsEnabled)
+        }
     }
 
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        color = colors.cardElevated,
-        shadowElevation = 0.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(vertical = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            NotificationToggleRow(
-                title = "Allow Notifications",
-                checked = masterEnabled,
-                enabled = true,
-                onCheckedChange = { masterEnabled = it }
-            )
-            NotificationToggleRow(
-                title = "Recurring Bills Due",
-                checked = masterEnabled && billRem,
-                enabled = masterEnabled,
-                onCheckedChange = { billRem = it }
-            )
-            NotificationToggleRow(
-                title = "Log Shift Reminder",
-                checked = masterEnabled && shiftRem,
-                enabled = masterEnabled,
-                onCheckedChange = { shiftRem = it }
-            )
-            NotificationToggleRow(
-                title = "Savings & Deposit",
-                checked = masterEnabled && savingsRem,
-                enabled = masterEnabled,
-                onCheckedChange = { savingsRem = it }
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Enable Notifications",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    ),
+                    color = colors.textPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+                ShiftlyIosSwitch(
+                    checked = masterEnabled,
+                    onCheckedChange = { masterEnabled = it }
+                )
+            }
+        }
+
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                NotificationToggleRow(
+                    title = "Recurring Bill Due Reminders",
+                    checked = billsEnabled,
+                    enabled = masterEnabled,
+                    onCheckedChange = { billsEnabled = it }
+                )
+                NotificationToggleRow(
+                    title = "Scheduled Shift Reminders",
+                    checked = shiftsEnabled,
+                    enabled = masterEnabled,
+                    onCheckedChange = { shiftsEnabled = it }
+                )
+                NotificationToggleRow(
+                    title = "Savings Goal Check-Ins",
+                    checked = savingsEnabled,
+                    enabled = masterEnabled,
+                    onCheckedChange = { savingsEnabled = it }
+                )
+            }
         }
     }
 
     ShiftlySheetBottomButtons(
         onCancel = onDismiss,
-        onAction = { onSave(masterEnabled, billRem, shiftRem, savingsRem) },
-        actionLabel = "Save"
+        onAction = { onSave(masterEnabled, billsEnabled, shiftsEnabled, savingsEnabled) },
+        cancelLabel = "Cancel",
+        actionLabel = "Save",
+        modifier = Modifier.padding(top = 4.dp)
     )
 }
 
@@ -1130,9 +1133,9 @@ private fun NotificationToggleRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .heightIn(min = 50.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -1154,43 +1157,11 @@ private fun NotificationToggleRow(
 }
 
 @Composable
-private fun SelectableRulePill(
-    label: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val colors = ShiftlyColors.current
-    Box(
-        modifier = modifier
-            .heightIn(min = 48.dp)
-            .clip(RoundedCornerShape(50))
-            .background(if (selected) colors.azurePrimary else colors.cardElevated)
-            .clickable(role = Role.Tab, onClick = onClick)
-            .semantics(mergeDescendants = true) {
-                this.selected = selected
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.SemiBold
-            ).tabular(),
-            color = if (selected) PureWhite else colors.textPrimary
-        )
-    }
-}
-
-@Suppress("UNUSED_PARAMETER")
-@Composable
 fun BudgetsEditorSheetContent(
     currencySymbol: String,
     currentMonthlyBudget: Double,
     currentCategoryBudgets: List<CategoryBudgetSetting>,
     managedCategories: List<ManagedCategorySetting> = emptyList(),
-    onManageCategories: (() -> Unit)? = null,
     onDismiss: () -> Unit = {},
     onSave: (monthlyBudget: Double, categoryBudgets: List<CategoryBudgetSetting>, managedCategories: List<ManagedCategorySetting>) -> Unit,
     actionState: ShiftlySheetActionState? = null
@@ -1712,29 +1683,6 @@ fun BudgetsEditorSheetContent(
 }
 
 @Composable
-fun BudgetsEditorSheetContent(
-    currencySymbol: String,
-    currentMonthlyBudget: Double,
-    currentCategoryBudgets: List<CategoryBudgetSetting>,
-    managedCategories: List<ManagedCategorySetting> = emptyList(),
-    onManageCategories: (() -> Unit)? = null,
-    onDismiss: () -> Unit = {},
-    onSave: (Double, List<CategoryBudgetSetting>) -> Unit,
-    actionState: ShiftlySheetActionState? = null
-) {
-    BudgetsEditorSheetContent(
-        currencySymbol = currencySymbol,
-        currentMonthlyBudget = currentMonthlyBudget,
-        currentCategoryBudgets = currentCategoryBudgets,
-        managedCategories = managedCategories,
-        onManageCategories = onManageCategories,
-        onDismiss = onDismiss,
-        onSave = { monthly, list, _ -> onSave(monthly, list) },
-        actionState = actionState
-    )
-}
-
-@Composable
 private fun CompactBudgetAmountField(
     currencySymbol: String,
     value: String,
@@ -1911,247 +1859,6 @@ fun ManageCategoriesSheetContent(
             onConfirm = {
                 list.removeAll { it.name.equals(categoryToDelete.name, ignoreCase = true) }
                 pendingDeleteCategory = null
-            }
-        )
-    }
-}
-
-@Composable
-fun RecurringEntriesSheetContent(
-    currencySymbol: String,
-    currentEntries: List<RecurringEntrySetting>,
-    availableCategories: List<String> = DEFAULT_RECURRING_CATEGORIES,
-    onSave: (List<RecurringEntrySetting>) -> Unit,
-    onDismiss: () -> Unit = {}
-) {
-    val colors = ShiftlyColors.current
-    val entries = remember { mutableStateListOf<RecurringEntrySetting>().apply { addAll(currentEntries) } }
-    val selectableCategories = remember(availableCategories) {
-        availableCategories
-            .filter { !it.equals("Split Bill", ignoreCase = true) && !it.equals("All", ignoreCase = true) }
-            .ifEmpty { listOf("Other") }
-    }
-    var newTitle by remember { mutableStateOf("") }
-    var newAmount by remember { mutableStateOf("") }
-    var isIncome by remember { mutableStateOf(true) }
-    var newCategory by remember(selectableCategories) { mutableStateOf(selectableCategories.first()) }
-    var showCategoryPrompt by remember { mutableStateOf(false) }
-    var pendingDeleteEntry by remember { mutableStateOf<RecurringEntrySetting?>(null) }
-
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (entries.isEmpty()) {
-            Text(
-                text = "No recurring entries",
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textSecondary
-            )
-        }
-        entries.forEachIndexed { idx, entry ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(colors.cardElevated)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        entry.title,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        ),
-                        color = colors.textPrimary
-                    )
-                    val subtitle = if (entry.isIncome) {
-                        "${entry.frequency} • ${ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount, showPlus = true)}"
-                    } else {
-                        "${entry.frequency} • ${entry.category} • ${ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount, showMinus = true)}"
-                    }
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall.tabular(),
-                        color = if (entry.isIncome) colors.mintInk else colors.coralInk
-                    )
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    ShiftlyIosSwitch(
-                        checked = entry.isEnabled,
-                        onCheckedChange = { entries[idx] = entry.copy(isEnabled = it) }
-                    )
-                    IconButton(
-                        onClick = { pendingDeleteEntry = entry },
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_trash_2),
-                            contentDescription = "Remove ${entry.title}",
-                            tint = colors.coralInk,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    Text(
-        "Add Entry",
-        style = MaterialTheme.typography.titleMedium.copy(
-            fontFamily = InterFontFamily,
-            fontSize = 15.sp
-        ),
-        color = colors.textPrimary,
-        modifier = Modifier.padding(top = 4.dp)
-    )
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = newTitle,
-            onValueChange = { newTitle = it },
-            label = { Text("Label", fontFamily = InterFontFamily) },
-            singleLine = true,
-            shape = RoundedCornerShape(14.dp),
-            colors = shiftlySheetFieldColors(),
-            modifier = Modifier.weight(1.2f)
-        )
-        OutlinedTextField(
-            value = newAmount,
-            onValueChange = { newAmount = filterSingleDecimalInput(it, newAmount) },
-            label = { Text(currencySymbol, fontFamily = InterFontFamily) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            shape = RoundedCornerShape(14.dp),
-            colors = shiftlySheetFieldColors(),
-            modifier = Modifier.weight(0.8f)
-        )
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        SelectableRulePill(
-            label = "Allowance (+)",
-            selected = isIncome,
-            onClick = { isIncome = true },
-            modifier = Modifier.weight(1f)
-        )
-        SelectableRulePill(
-            label = "Subscription (-)",
-            selected = !isIncome,
-            onClick = { isIncome = false },
-            modifier = Modifier.weight(1f)
-        )
-    }
-
-    if (!isIncome) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = colors.cardElevated,
-            shadowElevation = 0.dp,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 52.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .clickable { showCategoryPrompt = true }
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    ShiftlyIosIconTile(
-                        iconRes = categoryIcon(newCategory),
-                        backgroundColor = colors.coralBright,
-                        size = 28.dp,
-                        cornerRadius = 8.dp,
-                        iconSize = 22.dp
-                    )
-                    Column {
-                        Text(
-                            text = "Expense Category",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = colors.textSecondary
-                        )
-                        Text(
-                            text = newCategory,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp
-                            ),
-                            color = colors.textPrimary
-                        )
-                    }
-                }
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                    contentDescription = "Select Category",
-                    tint = colors.textSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-    }
-
-    if (showCategoryPrompt) {
-        CategoryPromptSheet(
-            categoryOptions = selectableCategories,
-            selectedCategory = newCategory,
-            onSelectCategory = { newCategory = it },
-            onDismiss = { showCategoryPrompt = false }
-        )
-    }
-
-    ShiftlySecondaryTextButton(
-        text = "Add to List",
-        onClick = {
-            val amt = newAmount.toDoubleOrNull() ?: 0.0
-            if (newTitle.isNotBlank() && amt.isFinite() && amt > 0.0) {
-                entries.add(
-                    RecurringEntrySetting(
-                        id = "r_${System.currentTimeMillis()}",
-                        title = newTitle.trim(),
-                        amount = amt,
-                        frequency = if (isIncome) "Weekly" else "Monthly",
-                        isIncome = isIncome,
-                        isEnabled = true,
-                        category = if (isIncome) "Income" else newCategory
-                    )
-                )
-                newTitle = ""
-                newAmount = ""
-            }
-        },
-        modifier = Modifier.fillMaxWidth()
-    )
-
-    ShiftlySheetBottomButtons(
-        onCancel = onDismiss,
-        onAction = { onSave(entries.toList()) },
-        cancelLabel = "Cancel",
-        actionLabel = "Save"
-    )
-
-    pendingDeleteEntry?.let { entryToDelete ->
-        ShiftlyDeleteConfirmDialog(
-            title = "Delete Recurring Bill?",
-            message = "The recurring schedule for \"${entryToDelete.title}\" will be permanently removed.",
-            onDismiss = { pendingDeleteEntry = null },
-            onConfirm = {
-                entries.removeAll { it.id == entryToDelete.id }
-                pendingDeleteEntry = null
             }
         )
     }

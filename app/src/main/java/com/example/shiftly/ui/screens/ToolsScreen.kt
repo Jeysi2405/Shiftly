@@ -55,6 +55,7 @@ import com.example.shiftly.ui.components.ShiftlyToolSheetContainer
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
+import com.example.shiftly.ui.screens.loans.InstallmentLoansBottomSheet
 import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
 import com.example.shiftly.ui.screens.profile.ManageCategoriesSheetContent
 import com.example.shiftly.ui.screens.profile.ShiftlySheetActionState
@@ -84,8 +85,6 @@ fun ToolsScreen(
     onOpenSplitBill: () -> Unit,
     onOpenRecurringBills: () -> Unit = {},
     onOpenAllowance: () -> Unit = {},
-    onQuickLogShift: () -> Unit,
-    onQuickAddExpense: () -> Unit,
     onShowMessage: (String) -> Unit = {}
 ) {
     val viewModel: ToolsViewModel = viewModel(factory = ToolsViewModel.Factory(repository))
@@ -607,7 +606,6 @@ fun ToolsScreenContent(
     }
 }
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ToolsScreenContent(
     currencySymbol: String,
@@ -622,8 +620,6 @@ fun ToolsScreenContent(
     onOpenDuties: () -> Unit,
     onOpenExpense: () -> Unit,
     onOpenSplitBill: () -> Unit,
-    onQuickLogShift: () -> Unit,
-    onQuickAddExpense: () -> Unit,
     onOpenBudgets: () -> Unit = {},
     onOpenSavingsGoals: () -> Unit = {},
     onOpenRecurringBills: () -> Unit = {},
@@ -771,9 +767,7 @@ private fun ToolsScreenPreview() {
                     monthlyBudget = 3000.0,
                     onOpenDuties = {},
                     onOpenExpense = {},
-                    onOpenSplitBill = {},
-                    onQuickLogShift = {},
-                    onQuickAddExpense = {}
+                    onOpenSplitBill = {}
                 )
                 FloatingPillBottomBar(
                     items = Screen.bottomNavItems,

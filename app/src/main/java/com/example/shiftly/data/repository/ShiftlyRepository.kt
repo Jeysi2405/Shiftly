@@ -3,8 +3,6 @@ package com.example.shiftly.data.repository
 import android.annotation.SuppressLint
 import android.content.Context
 import android.database.sqlite.SQLiteConstraintException
-import android.graphics.Paint
-import android.graphics.pdf.PdfDocument
 import androidx.room.withTransaction
 import com.example.shiftly.data.backup.BackupCodec
 import com.example.shiftly.data.backup.BackupExpenseRecord
@@ -29,7 +27,6 @@ import com.example.shiftly.data.local.LoanPaymentEntity
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.data.local.NotificationLastDays
 import com.example.shiftly.data.local.PaycheckDeductionsSetting
-import com.example.shiftly.data.local.ProfilePhotoHelper
 import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.local.RecurringEntrySetting
@@ -55,12 +52,10 @@ import com.example.shiftly.utils.RecurringEngine
 import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.utils.SplitBillMath
 import java.io.File
-import java.io.FileOutputStream
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlin.math.abs
 import kotlin.math.roundToLong
 import kotlinx.coroutines.Dispatchers
@@ -97,11 +92,6 @@ class ShiftlyRepository(context: Context) {
     val hasCompletedOnboarding: Flow<Boolean> = prefs.hasCompletedOnboarding
     val hasSeenAppTutorial: Flow<Boolean> = prefs.hasSeenAppTutorial
     val userName: Flow<String> = prefs.userName
-    val jobTitle: Flow<String> = prefs.jobTitle
-    val workplace: Flow<String> = prefs.workplace
-    val workType: Flow<String> = prefs.workType
-    val targetWeeklyHours: Flow<Double> = prefs.targetWeeklyHours
-    val profilePhotoPath: Flow<String?> = prefs.profilePhotoPath
     val monthlyBudget: Flow<Double> = prefs.monthlyBudget
     val savingsBuffer: Flow<Double> = prefs.savingsBuffer
     val settingsSnapshot: Flow<ShiftlySettingsSnapshot> = prefs.settingsSnapshot
@@ -368,25 +358,8 @@ class ShiftlyRepository(context: Context) {
         }
     }
 
-    suspend fun updateProfilePhotoPath(path: String?) = withContext(Dispatchers.IO) {
-        val previous = prefs.profilePhotoPath.first()
-        prefs.setProfilePhotoPath(path)
-        if (!previous.isNullOrBlank() && previous != path) {
-            ProfilePhotoHelper.deleteProfilePhoto(previous)
-        }
-    }
-
     suspend fun updateMonthlyBudget(budget: Double) = withContext(Dispatchers.IO) {
         prefs.setMonthlyBudget(budget)
-    }
-
-    suspend fun updateSavingsBuffer(buffer: Double) = withContext(Dispatchers.IO) {
-        prefs.setSavingsBuffer(buffer)
-    }
-
-    suspend fun updatePayCycleSchedule(schedule: String) = withContext(Dispatchers.IO) {
-        prefs.setPayCycleSchedule(schedule)
-        processDueCutoffAllowances()
     }
 
     suspend fun updateCutoffSchedule(config: CutoffScheduleConfig) = withContext(Dispatchers.IO) {
@@ -412,20 +385,12 @@ class ShiftlyRepository(context: Context) {
         prefs.setNotificationsEnabled(enabled)
     }
 
-    suspend fun updateSavingsGoal(title: String, target: Double) = withContext(Dispatchers.IO) {
-        prefs.setSavingsGoal(title, target)
-    }
-
     suspend fun updateCategoryBudgets(items: List<CategoryBudgetSetting>) = withContext(Dispatchers.IO) {
         prefs.setCategoryBudgets(items)
     }
 
     suspend fun updateManagedCategories(items: List<ManagedCategorySetting>) = withContext(Dispatchers.IO) {
         prefs.setManagedCategories(items)
-    }
-
-    suspend fun updateRecurringEntries(items: List<RecurringEntrySetting>) = withContext(Dispatchers.IO) {
-        prefs.setRecurringEntries(items)
     }
 
     suspend fun updateShiftTimePresets(items: List<ShiftTimePreset>) = withContext(Dispatchers.IO) {
@@ -541,23 +506,11 @@ class ShiftlyRepository(context: Context) {
         prefs.updateThemeMode(mode)
     }
 
-    suspend fun startShiftTimer(startMillis: Long, dateEpochDay: Long, lockedRate: Double) = withContext(Dispatchers.IO) {
-        prefs.startActiveTimer(startMillis, dateEpochDay, lockedRate)
-    }
-
-    suspend fun stopShiftTimer() = withContext(Dispatchers.IO) {
-        prefs.clearActiveTimer()
-    }
-
     // Shifts (one shift per dateEpochDay enforced at repository + DB levels)
     val allShifts: Flow<List<ShiftEntity>> = shiftDao.getAllShifts()
     val totalShiftCount: Flow<Int> = shiftDao.getTotalShiftCount()
     val totalMinutesWorked: Flow<Int?> = shiftDao.getTotalMinutesWorked()
     val totalLifetimeEarnings: Flow<Double?> = shiftDao.getTotalLifetimeEarnings()
-
-    suspend fun getShiftByDateOnce(dateEpochDay: Long): ShiftEntity? = withContext(Dispatchers.IO) {
-        shiftDao.getShiftByDateOnce(dateEpochDay)
-    }
 
     suspend fun insertShift(shift: ShiftEntity): Long = withContext(Dispatchers.IO) {
         if (shiftDao.getShiftByDateOnce(shift.dateEpochDay) != null) return@withContext -1L
@@ -848,15 +801,6 @@ class ShiftlyRepository(context: Context) {
             savingsGoalDao.getGoalByIdOnce(goalId)
         }
         if (goal != null) {
-            prefs.setSavingsGoal(goal.title, goal.targetAmount)
-        }
-    }
-
-    suspend fun updateSavingsGoalItem(goal: SavingsGoalEntity) = withContext(Dispatchers.IO) {
-        db.withTransaction {
-            savingsGoalDao.updateGoal(goal)
-        }
-        if (goal.isActive) {
             prefs.setSavingsGoal(goal.title, goal.targetAmount)
         }
     }
@@ -1177,27 +1121,6 @@ class ShiftlyRepository(context: Context) {
         BackupCodec.encodeJson(buildCurrentBackupPayload(includeReceipts = false))
     }
 
-    // Complete Offline ZIP Backup (JSON + Split Bills + Savings Goals + Recurring + Allowance + Settings + Receipt Photos)
-    suspend fun generateBackupZipFile(): File = withContext(Dispatchers.IO) {
-        val payload = buildCurrentBackupPayload(includeReceipts = true)
-        val zipBytes = BackupCodec.encodeZipBytes(payload)
-        val exportDir = File(appContext.cacheDir, "exports").apply { mkdirs() }
-        val stamp = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
-        val zipFile = File(exportDir, "shiftly_backup_$stamp.zip")
-        zipFile.writeBytes(zipBytes)
-        zipFile
-    }
-
-    suspend fun restoreFromBackupJson(
-        rawJson: String,
-        mode: RestoreMode = RestoreMode.MERGE
-    ): Result<String> = withContext(Dispatchers.IO) {
-        runCatching {
-            val payload = BackupCodec.decodeJson(rawJson)
-            applyBackupPayload(payload, mode)
-        }
-    }
-
     suspend fun restoreFromBackupBytes(
         rawBytes: ByteArray,
         mode: RestoreMode = RestoreMode.MERGE
@@ -1481,29 +1404,34 @@ class ShiftlyRepository(context: Context) {
             if (restoredReceiptsCount > 0) ", $restoredReceiptsCount receipt(s)" else ""
     }
 
-    suspend fun generateCsvExportFile(): File = withContext(Dispatchers.IO) {
-        val shifts = allShifts.first()
-        val extraIncomes = allExtraIncomes.first()
-        val expenses = allExpenses.first()
-        val allowanceEntries = allAllowanceEntries.first()
-        val currency = currencySymbol.first()
+    private fun prepareExportsDir(): File {
         val exportDir = File(appContext.cacheDir, "exports").apply { mkdirs() }
-        val csvFile = File(exportDir, "shiftly_export.csv")
-        val csvContent = BackupCodec.buildCsvExport(
-            shifts = shifts,
-            extraIncomes = extraIncomes,
-            expenses = expenses,
-            currencySymbol = currency,
-            allowanceEntries = allowanceEntries
-        )
-        csvFile.writeText(csvContent)
-        csvFile
+        exportDir.listFiles()?.forEach { file ->
+            if (file.isFile) {
+                file.delete()
+            }
+        }
+        return exportDir
+    }
+
+    suspend fun pruneOrphanedStorage() = withContext(Dispatchers.IO) {
+        val referencedPaths = expenseDao.getAllReferencedReceiptPathsOnce().toSet()
+        ReceiptStorageHelper.pruneOrphanedReceipts(appContext, referencedPaths)
+        ReceiptStorageHelper.deleteLegacyProfilePhotosDir(appContext)
+        val exportDir = File(appContext.cacheDir, "exports")
+        if (exportDir.exists() && exportDir.isDirectory) {
+            exportDir.listFiles()?.forEach { file ->
+                if (file.isFile) {
+                    file.delete()
+                }
+            }
+        }
     }
 
     suspend fun generateShiftsCsvExportFile(): File = withContext(Dispatchers.IO) {
         val shifts = allShifts.first()
         val currency = currencySymbol.first()
-        val exportDir = File(appContext.cacheDir, "exports").apply { mkdirs() }
+        val exportDir = prepareExportsDir()
         val csvFile = File(exportDir, "shiftly_shifts.csv")
         val csvContent = BackupCodec.buildShiftsCsvExport(
             shifts = shifts,
@@ -1516,7 +1444,7 @@ class ShiftlyRepository(context: Context) {
     suspend fun generateExpensesCsvExportFile(): File = withContext(Dispatchers.IO) {
         val expenses = allExpenses.first()
         val currency = currencySymbol.first()
-        val exportDir = File(appContext.cacheDir, "exports").apply { mkdirs() }
+        val exportDir = prepareExportsDir()
         val csvFile = File(exportDir, "shiftly_expenses.csv")
         val csvContent = BackupCodec.buildExpensesCsvExport(
             expenses = expenses,
@@ -1524,153 +1452,6 @@ class ShiftlyRepository(context: Context) {
         )
         csvFile.writeText(csvContent)
         csvFile
-    }
-
-    suspend fun generatePdfSummaryFile(): File = withContext(Dispatchers.IO) {
-        val shifts = allShifts.first()
-        val extraIncomes = allExtraIncomes.first()
-        val expenses = allExpenses.first()
-        val allowanceEntries = allAllowanceEntries.first()
-        val manualAllowances = allowanceEntries.filter { it.cutoffKey == null }
-        val currency = currencySymbol.first()
-        val name = userName.first().ifBlank { "Shiftly User" }
-        val totalIncome = shifts.sumOf { it.totalEarned } +
-            manualAllowances.sumOf { it.amount } +
-            extraIncomes.sumOf { it.amount }
-        val totalExpense = expenses.sumOf { it.amount }
-        val netBalance = totalIncome - totalExpense
-        val totalHours = shifts.sumOf { it.durationMinutes } / 60.0
-
-        val exportDir = File(appContext.cacheDir, "exports").apply { mkdirs() }
-        val pdfFile = File(exportDir, "shiftly_statement.pdf")
-
-        val pageWidth = 595
-        val pageHeight = 842
-        val marginX = 40f
-        val usableWidth = pageWidth - marginX * 2f
-        val maxY = pageHeight - 48f
-
-        val titlePaint = Paint().apply { textSize = 20f; isFakeBoldText = true }
-        val headerPaint = Paint().apply { textSize = 13f; isFakeBoldText = true }
-        val bodyPaint = Paint().apply { textSize = 11f }
-
-        fun fitText(raw: String, paint: Paint): String {
-            val cleaned = raw.replace('\n', ' ').replace('\r', ' ').trim()
-            if (paint.measureText(cleaned) <= usableWidth) return cleaned
-            val ellipsis = "..."
-            val allowed = (usableWidth - paint.measureText(ellipsis)).coerceAtLeast(24f)
-            val count = paint.breakText(cleaned, true, allowed, null)
-            return if (count <= 0) ellipsis else cleaned.substring(0, count).trimEnd() + ellipsis
-        }
-
-        val doc = PdfDocument()
-        try {
-            var pageNumber = 1
-            var page = doc.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
-            var canvas = page.canvas
-            var y = 52f
-
-            fun ensureSpace(neededHeight: Float) {
-                if (y + neededHeight > maxY) {
-                    doc.finishPage(page)
-                    pageNumber++
-                    page = doc.startPage(PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create())
-                    canvas = page.canvas
-                    y = 52f
-                    canvas.drawText(
-                        fitText("Shiftly Statement — $name (Page $pageNumber)", headerPaint),
-                        marginX,
-                        y,
-                        headerPaint
-                    )
-                    y += 24f
-                }
-            }
-
-            fun drawLine(text: String, paint: Paint, lineHeight: Float) {
-                ensureSpace(lineHeight)
-                canvas.drawText(fitText(text, paint), marginX, y, paint)
-                y += lineHeight
-            }
-
-            drawLine("Shiftly Statement — $name", titlePaint, 24f)
-            drawLine(
-                "Shifts: ${shifts.size} (${"%.1f".format(totalHours)}h)   |   " +
-                    "Income: $currency${"%,.2f".format(totalIncome)}   |   " +
-                    "Expenses: $currency${"%,.2f".format(totalExpense)}",
-                bodyPaint,
-                16f
-            )
-            drawLine(
-                "Net Balance: $currency${"%,.2f".format(netBalance)}",
-                bodyPaint,
-                26f
-            )
-
-            drawLine("Logged Shifts (${shifts.size})", headerPaint, 18f)
-            if (shifts.isEmpty()) {
-                drawLine("No shifts logged yet.", bodyPaint, 16f)
-            } else {
-                shifts.forEach { s ->
-                    val date = LocalDate.ofEpochDay(s.dateEpochDay)
-                    val noteSuffix = if (s.overtimeNote.isNotBlank()) "  ${s.overtimeNote}" else ""
-                    drawLine(
-                        "$date  •  ${s.durationMinutes}m  •  +$currency${"%,.2f".format(s.totalEarned)}$noteSuffix",
-                        bodyPaint,
-                        16f
-                    )
-                }
-            }
-
-            if (manualAllowances.isNotEmpty()) {
-                y += 10f
-                drawLine("Additional Allowance (${manualAllowances.size})", headerPaint, 18f)
-                manualAllowances.forEach { a ->
-                    val date = LocalDate.ofEpochDay(a.dateEpochDay)
-                    drawLine(
-                        "$date  •  ${a.source}  •  +$currency${"%,.2f".format(a.amount)}  ${a.title}",
-                        bodyPaint,
-                        16f
-                    )
-                }
-            }
-
-            if (extraIncomes.isNotEmpty()) {
-                y += 10f
-                drawLine("Extra Incomes (${extraIncomes.size})", headerPaint, 18f)
-                extraIncomes.forEach { inc ->
-                    val date = LocalDate.ofEpochDay(inc.dateEpochDay)
-                    drawLine(
-                        "$date  •  +$currency${"%,.2f".format(inc.amount)}  •  ${inc.title}",
-                        bodyPaint,
-                        16f
-                    )
-                }
-            }
-
-            y += 10f
-            drawLine("Logged Expenses (${expenses.size})", headerPaint, 18f)
-            if (expenses.isEmpty()) {
-                drawLine("No expenses logged yet.", bodyPaint, 16f)
-            } else {
-                expenses.forEach { e ->
-                    val date = LocalDate.ofEpochDay(e.dateEpochDay)
-                    drawLine(
-                        "$date  •  ${e.category}  •  -$currency${"%,.2f".format(e.amount)}  ${e.title}",
-                        bodyPaint,
-                        16f
-                    )
-                }
-            }
-
-            doc.finishPage(page)
-            FileOutputStream(pdfFile).use { out ->
-                doc.writeTo(out)
-            }
-        } finally {
-            doc.close()
-        }
-        pdfFile
     }
 
     companion object {

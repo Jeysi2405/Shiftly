@@ -108,7 +108,6 @@ import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
-import com.example.shiftly.ui.screens.AddEditInstallmentLoanSheet
 import com.example.shiftly.ui.screens.AddIouBottomSheet
 import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
@@ -124,6 +123,7 @@ import com.example.shiftly.ui.screens.duties.ManualShiftBottomSheet
 import com.example.shiftly.ui.screens.expense.AddExpenseBottomSheet
 import com.example.shiftly.ui.screens.expense.ExpenseScreen
 import com.example.shiftly.ui.screens.expense.ExpenseViewModel
+import com.example.shiftly.ui.screens.loans.AddEditInstallmentLoanSheet
 import com.example.shiftly.ui.screens.lock.AppLockGateScreen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.profile.ProfileScreen
@@ -522,8 +522,6 @@ private fun MainDashboardShell(
     val onOpenAllowance = remember(navController) {
         { navController.navigate(Screen.Allowance.route) { launchSingleTop = true } }
     }
-    val onQuickLogShift = remember { { activeQuickAddSheet = ActiveQuickAddSheet.LOG_SHIFT } }
-    val onQuickAddExpense = remember { { activeQuickAddSheet = ActiveQuickAddSheet.ADD_EXPENSE } }
 
     ShiftlyBlueGradientBackground {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -655,8 +653,6 @@ private fun MainDashboardShell(
                             onOpenSplitBill = onOpenSplitBill,
                             onOpenRecurringBills = onOpenRecurringBills,
                             onOpenAllowance = onOpenAllowance,
-                            onQuickLogShift = onQuickLogShift,
-                            onQuickAddExpense = onQuickAddExpense,
                             onShowMessage = showMessage
                         )
                     }

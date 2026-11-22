@@ -167,10 +167,6 @@ class ExpenseViewModel(
         _selectedCategory.value = category
     }
 
-    fun selectMonth(month: YearMonth?) {
-        _selectedMonth.value = month
-    }
-
     fun shiftMonth(delta: Long) {
         val base = _selectedMonth.value ?: YearMonth.now()
         _selectedMonth.value = base.plusMonths(delta)
