@@ -5,7 +5,6 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -93,6 +92,7 @@ import com.example.shiftly.data.local.ReceiptStorageHelper
 import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
@@ -852,64 +852,117 @@ fun AddExpenseSheetContent(
         ShiftlySheetHeader(title = if (isEditing) "Edit Expense" else "Add Expense")
 
         // Card 1: Amount & Title
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Row 1: Amount
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.cardElevated)
-                    .heightIn(min = 52.dp)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Amount",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = colors.textPrimary
-                )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Row 1: Amount
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "$currencySymbol ",
+                        text = "Amount",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Bold,
-                            color = colors.coralInk
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "$currencySymbol ",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.coralInk
+                            )
                         )
+                        BasicTextField(
+                            value = amountText,
+                            onValueChange = { input ->
+                                val filtered = input.filter { it.isDigit() || it == '.' }
+                                if (filtered.count { it == '.' } <= 1) amountText = filtered
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            cursorBrush = SolidColor(colors.coralInk),
+                            textStyle = MaterialTheme.typography.titleLarge.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary,
+                                textAlign = TextAlign.End
+                            ).tabular(),
+                            decorationBox = { inner ->
+                                Box(contentAlignment = Alignment.CenterEnd) {
+                                    if (amountText.isEmpty()) {
+                                        Text(
+                                            text = "0.00",
+                                            style = MaterialTheme.typography.titleLarge.copy(
+                                                fontFamily = InterFontFamily,
+                                                color = colors.textSecondary
+                                            ),
+                                            textAlign = TextAlign.End
+                                        )
+                                    }
+                                    inner()
+                                }
+                            },
+                            modifier = Modifier
+                                .width(120.dp)
+                                .focusRequester(amountFocusRequester)
+                        )
+                    }
+                }
+
+                ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
+                // Row 2: Title / Description
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Title",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
                     )
                     BasicTextField(
-                        value = amountText,
-                        onValueChange = { input ->
-                            val filtered = input.filter { it.isDigit() || it == '.' }
-                            if (filtered.count { it == '.' } <= 1) amountText = filtered
-                        },
+                        value = title,
+                        onValueChange = { title = it },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        cursorBrush = SolidColor(colors.coralInk),
-                        textStyle = MaterialTheme.typography.titleLarge.copy(
+                        cursorBrush = SolidColor(colors.azureAccent),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.Medium,
                             color = colors.textPrimary,
                             textAlign = TextAlign.End
-                        ).tabular(),
+                        ),
                         decorationBox = { inner ->
                             Box(contentAlignment = Alignment.CenterEnd) {
-                                if (amountText.isEmpty()) {
+                                if (title.isEmpty()) {
                                     Text(
-                                        text = "0.00",
-                                        style = MaterialTheme.typography.titleLarge.copy(
+                                        text = "e.g., Tapsilog & Coffee",
+                                        style = MaterialTheme.typography.bodyMedium.copy(
                                             fontFamily = InterFontFamily,
                                             color = colors.textSecondary
                                         ),
@@ -920,198 +973,150 @@ fun AddExpenseSheetContent(
                             }
                         },
                         modifier = Modifier
-                            .width(120.dp)
-                            .focusRequester(amountFocusRequester)
+                            .weight(1f)
+                            .padding(start = 16.dp)
                     )
                 }
-            }
-
-            // Row 2: Title / Description
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.cardElevated)
-                    .heightIn(min = 50.dp)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Title",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = colors.textPrimary
-                )
-                BasicTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    singleLine = true,
-                    cursorBrush = SolidColor(colors.azureAccent),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        color = colors.textPrimary,
-                        textAlign = TextAlign.End
-                    ),
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterEnd) {
-                            if (title.isEmpty()) {
-                                Text(
-                                    text = "e.g., Tapsilog & Coffee",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = InterFontFamily,
-                                        color = colors.textSecondary
-                                    ),
-                                    textAlign = TextAlign.End
-                                )
-                            }
-                            inner()
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 16.dp)
-                )
             }
         }
 
         // Card 2: Category, Date & Time
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Category Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.cardElevated)
-                    .heightIn(min = 50.dp)
-                    .clickable { showCategoryPrompt = true }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Category",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = colors.textPrimary
-                )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                // Category Row
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .shiftlyPressClickable { showCategoryPrompt = true }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    ShiftlyIosIconTile(
-                        iconRes = categoryIcon(selectedCategory),
-                        backgroundColor = colors.coralBright,
-                        size = 24.dp,
-                        cornerRadius = 6.dp,
-                        iconSize = 20.dp
-                    )
                     Text(
-                        text = selectedCategory,
-                        style = MaterialTheme.typography.bodyMedium.copy(
+                        text = "Category",
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
                         ),
                         color = colors.textPrimary
                     )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                        contentDescription = "Select Category",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        ShiftlyIosIconTile(
+                            iconRes = categoryIcon(selectedCategory),
+                            backgroundColor = colors.coralBright,
+                            size = 24.dp,
+                            cornerRadius = 6.dp,
+                            iconSize = 20.dp
+                        )
+                        Text(
+                            text = selectedCategory,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = colors.textPrimary
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            contentDescription = "Select Category",
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
-            }
 
-            // Date Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.cardElevated)
-                    .heightIn(min = 50.dp)
-                    .clickable { showDatePicker = true }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Date",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = colors.textPrimary
-                )
+                ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
+                // Date Row
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .shiftlyPressClickable { showDatePicker = true }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_calendar),
-                        contentDescription = null,
-                        tint = colors.azureInk,
-                        modifier = Modifier.size(17.dp)
-                    )
                     Text(
-                        text = selectedDate.format(dateFormatter),
-                        style = MaterialTheme.typography.bodyMedium.copy(
+                        text = "Date",
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Medium
-                        ).tabular(),
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
                         color = colors.textPrimary
                     )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_calendar),
+                            contentDescription = null,
+                            tint = colors.azureInk,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Text(
+                            text = selectedDate.format(dateFormatter),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
+                            color = colors.textPrimary
+                        )
+                    }
                 }
-            }
 
-            // Time Row
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.cardElevated)
-                    .heightIn(min = 50.dp)
-                    .clickable { showTimePicker = true }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Time",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = colors.textPrimary
-                )
+                ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
+                // Time Row
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .shiftlyPressClickable { showTimePicker = true }
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_clock),
-                        contentDescription = null,
-                        tint = colors.azureInk,
-                        modifier = Modifier.size(17.dp)
-                    )
                     Text(
-                        text = selectedTime.format(timeFormatter),
-                        style = MaterialTheme.typography.bodyMedium.copy(
+                        text = "Time",
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Medium
-                        ).tabular(),
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
                         color = colors.textPrimary
                     )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_clock),
+                            contentDescription = null,
+                            tint = colors.azureInk,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Text(
+                            text = selectedTime.format(timeFormatter),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Medium
+                            ).tabular(),
+                            color = colors.textPrimary
+                        )
+                    }
                 }
             }
         }
@@ -1377,57 +1382,62 @@ fun CategoryPromptSheet(
         ) {
             ShiftlySheetHeader(title = "Select Category")
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp)),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = colors.cardElevated,
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                categoryOptions.forEach { category ->
-                    val isSelected = category.equals(selectedCategory, ignoreCase = true)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 52.dp)
-                            .background(if (isSelected) colors.coralContainer else colors.cardElevated)
-                            .shiftlyPressClickable(role = Role.RadioButton) {
-                                onSelectCategory(category)
-                                onDismiss()
-                            }
-                            .semantics(mergeDescendants = true) {
-                                this.selected = isSelected
-                            }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    categoryOptions.forEachIndexed { idx, category ->
+                        val isSelected = category.equals(selectedCategory, ignoreCase = true)
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 52.dp)
+                                .background(if (isSelected) colors.coralContainer else Color.Transparent)
+                                .shiftlyPressClickable(role = Role.RadioButton) {
+                                    onSelectCategory(category)
+                                    onDismiss()
+                                }
+                                .semantics(mergeDescendants = true) {
+                                    this.selected = isSelected
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            ShiftlyIosIconTile(
-                                iconRes = categoryIcon(category),
-                                backgroundColor = if (isSelected) colors.coralBright else colors.textSecondary,
-                                size = 28.dp,
-                                cornerRadius = 8.dp,
-                                iconSize = 22.dp
-                            )
-                            Text(
-                                text = category,
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.SemiBold
-                                ),
-                                color = colors.textPrimary
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                ShiftlyIosIconTile(
+                                    iconRes = categoryIcon(category),
+                                    backgroundColor = if (isSelected) colors.coralBright else colors.textSecondary,
+                                    size = 28.dp,
+                                    cornerRadius = 8.dp,
+                                    iconSize = 22.dp
+                                )
+                                Text(
+                                    text = category,
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = colors.textPrimary
+                                )
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_lucide_check),
+                                    contentDescription = "Selected",
+                                    tint = colors.coralBright,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
-                        if (isSelected) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_check),
-                                contentDescription = "Selected",
-                                tint = colors.coralBright,
-                                modifier = Modifier.size(18.dp)
-                            )
+                        if (idx < categoryOptions.lastIndex) {
+                            ShiftlyHairlineDivider(startInset = 56.dp)
                         }
                     }
                 }

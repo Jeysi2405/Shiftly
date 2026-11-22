@@ -37,6 +37,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,7 +46,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -75,9 +78,11 @@ import com.example.shiftly.data.local.startDate
 import com.example.shiftly.data.local.toUtcMillis
 import com.example.shiftly.data.local.totalInterest
 import com.example.shiftly.data.local.totalPaid
+import com.example.shiftly.ui.components.ShiftlyConfettiOverlay
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyEmptyState
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
@@ -594,6 +599,8 @@ fun InstallmentLoanDetailsSheet(
     val dateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
     val dateTimeFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy • h:mm a", locale) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val haptics = LocalHapticFeedback.current
+    var confettiTrigger by remember { mutableIntStateOf(0) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var paymentToEdit by remember { mutableStateOf<LoanPaymentEntity?>(null) }
     var paymentToDelete by remember { mutableStateOf<LoanPaymentEntity?>(null) }
@@ -622,6 +629,7 @@ fun InstallmentLoanDetailsSheet(
         dragHandle = { ShiftlySheetDragHandle() },
         shape = SheetTopRoundedShape
     ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -720,7 +728,13 @@ fun InstallmentLoanDetailsSheet(
                 if (!loan.isCompleted) {
                     ShiftlyPrimaryPillButton(
                         text = "Mark Month as Paid (${ShiftlyFormatters.formatCurrency(currencySymbol, loan.installmentPerMonth)})",
-                        onClick = onMarkMonthPaid
+                        onClick = {
+                            if ((loan.paidMonthsClamped + 1) >= loan.termsInMonths) {
+                                confettiTrigger++
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
+                            onMarkMonthPaid()
+                        }
                     )
                 }
 
@@ -993,6 +1007,11 @@ fun InstallmentLoanDetailsSheet(
                 onClick = onDismiss
             )
         }
+            ShiftlyConfettiOverlay(
+                triggerCount = confettiTrigger,
+                modifier = Modifier.matchParentSize()
+            )
+        }
     }
 
     if (showDeleteConfirm) {
@@ -1042,7 +1061,7 @@ private fun LoanTimePickerRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 50.dp)
-            .clickable(onClick = onClick)
+            .shiftlyPressClickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -1346,22 +1365,17 @@ fun AddEditInstallmentLoanSheet(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = colors.cardElevated,
-                    border = BorderStroke(0.5.dp, colors.separator),
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         LoanInsetFieldRow(
                             label = "Product Name",
                             value = gadgetName,
                             onValueChange = { gadgetName = it },
                             placeholder = "e.g. Laptop"
                         )
+                        ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
                         LoanInsetFieldRow(
                             label = "Cash Price",
@@ -1374,6 +1388,7 @@ fun AddEditInstallmentLoanSheet(
                             prefix = currencySymbol,
                             keyboardType = KeyboardType.Decimal
                         )
+                        ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
                         LoanInsetFieldRow(
                             label = "Downpayment",
@@ -1386,6 +1401,7 @@ fun AddEditInstallmentLoanSheet(
                             prefix = currencySymbol,
                             keyboardType = KeyboardType.Decimal
                         )
+                        ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
                         LoanInsetFieldRow(
                             label = "Installment / Month",
@@ -1398,6 +1414,7 @@ fun AddEditInstallmentLoanSheet(
                             prefix = currencySymbol,
                             keyboardType = KeyboardType.Decimal
                         )
+                        ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
                         LoanInsetFieldRow(
                             label = "Terms (Months)",
@@ -1409,12 +1426,14 @@ fun AddEditInstallmentLoanSheet(
                             placeholder = "12",
                             keyboardType = KeyboardType.Number
                         )
+                        ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
                         LoanDatePickerRow(
                             label = "Start Date",
                             formattedDate = startDate.format(dateFormatter),
                             onClick = { showStartDatePicker = true }
                         )
+                        ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
                         LoanDatePickerRow(
                             label = "Monthly Due Date",
@@ -1427,7 +1446,6 @@ fun AddEditInstallmentLoanSheet(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = colors.cardElevated,
-                    border = BorderStroke(0.5.dp, colors.separator),
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -1598,7 +1616,7 @@ private fun LoanDatePickerRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 50.dp)
-            .clickable(onClick = onClick)
+            .shiftlyPressClickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically

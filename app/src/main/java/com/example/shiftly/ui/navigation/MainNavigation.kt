@@ -7,11 +7,15 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -19,7 +23,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,6 +53,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -67,6 +71,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -322,49 +327,72 @@ fun MainAppScreen() {
                         .fillMaxSize()
                         .background(colors.background)
                 )
-            } else if (shouldShowLockGate) {
-                AppLockGateScreen(
-                    method = loadedSettings.appLockMethod,
-                    pinHash = loadedSettings.appLockPinHash,
-                    userName = userName.ifBlank { "Shiftly" },
-                    onUnlocked = { isSessionUnlocked = true }
-                )
             } else {
                 AnimatedContent(
-                    targetState = hasCompletedOnboarding,
+                    targetState = shouldShowLockGate,
                     transitionSpec = {
-                        fadeIn(shiftlyNavSpring<Float>()) togetherWith fadeOut(shiftlyNavSpring<Float>())
+                        if (!targetState) {
+                            (fadeIn(tween(260)) + scaleIn(
+                                initialScale = 0.96f,
+                                animationSpec = spring(
+                                    dampingRatio = 0.85f,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            )) togetherWith (fadeOut(tween(200)) + scaleOut(
+                                targetScale = 1.04f,
+                                animationSpec = tween(200)
+                            ))
+                        } else {
+                            fadeIn(tween(120)) togetherWith fadeOut(tween(100))
+                        }
                     },
-                    label = "OnboardingToMainTransition",
-                ) { completed ->
-                    when (completed) {
-                        null -> {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(colors.background)
-                            )
-                        }
-
-                        false -> {
-                            WelcomeScreen(
-                                onSaveSetupProfile = { name, rate, monthlyBudget ->
-                                    scope.launch {
-                                        repository.updateUserName(name)
-                                        repository.updateDefaultHourlyRate(rate)
-                                        repository.updateMonthlyBudget(monthlyBudget)
-                                    }
-                                },
-                                onGetStartedComplete = { _, _, _ ->
-                                    scope.launch {
-                                        repository.setOnboardingCompleted(completed = true)
-                                    }
+                    label = "AppLockGateTransition"
+                ) { isLocked ->
+                    if (isLocked) {
+                        AppLockGateScreen(
+                            method = loadedSettings.appLockMethod,
+                            pinHash = loadedSettings.appLockPinHash,
+                            userName = userName.ifBlank { "Shiftly" },
+                            onUnlocked = { isSessionUnlocked = true }
+                        )
+                    } else {
+                        AnimatedContent(
+                            targetState = hasCompletedOnboarding,
+                            transitionSpec = {
+                                fadeIn(shiftlyNavSpring<Float>()) togetherWith fadeOut(shiftlyNavSpring<Float>())
+                            },
+                            label = "OnboardingToMainTransition",
+                        ) { completed ->
+                            when (completed) {
+                                null -> {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(colors.background)
+                                    )
                                 }
-                            )
-                        }
 
-                        true -> {
-                            MainDashboardShell(repository = repository)
+                                false -> {
+                                    WelcomeScreen(
+                                        onSaveSetupProfile = { name, rate, monthlyBudget ->
+                                            scope.launch {
+                                                repository.updateUserName(name)
+                                                repository.updateDefaultHourlyRate(rate)
+                                                repository.updateMonthlyBudget(monthlyBudget)
+                                            }
+                                        },
+                                        onGetStartedComplete = { _, _, _ ->
+                                            scope.launch {
+                                                repository.setOnboardingCompleted(completed = true)
+                                            }
+                                        }
+                                    )
+                                }
+
+                                true -> {
+                                    MainDashboardShell(repository = repository)
+                                }
+                            }
                         }
                     }
                 }
@@ -435,6 +463,24 @@ private fun MainDashboardShell(
                     message = message,
                     duration = SnackbarDuration.Short
                 )
+            }
+        }
+    }
+
+    val showUndoMessage: (String, () -> Unit, () -> Unit) -> Unit = remember(scope, snackbarHostState) {
+        { message: String, onUndo: () -> Unit, onDismissed: () -> Unit ->
+            scope.launch {
+                snackbarHostState.currentSnackbarData?.dismiss()
+                val result = snackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = "Undo",
+                    duration = SnackbarDuration.Short
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    onUndo()
+                } else {
+                    onDismissed()
+                }
             }
         }
     }
@@ -667,7 +713,8 @@ private fun MainDashboardShell(
                         ExpenseScreen(
                             repository = repository,
                             onBack = onPopBack,
-                            onShowMessage = showMessage
+                            onShowMessage = showMessage,
+                            onShowUndoMessage = showUndoMessage
                         )
                     }
                     composable(Screen.SplitBill.route) {
@@ -681,7 +728,8 @@ private fun MainDashboardShell(
                         RecurringBillsScreen(
                             repository = repository,
                             onBack = onPopBack,
-                            onShowMessage = showMessage
+                            onShowMessage = showMessage,
+                            onShowUndoMessage = showUndoMessage
                         )
                     }
                     composable(Screen.Allowance.route) {
@@ -898,12 +946,20 @@ private fun TourHighlightedBottomBar(
                 modifier = Modifier.weight(1f)
             ) {
                 if (isPlusHighlighted) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_plus),
-                        contentDescription = "Quick add action",
-                        tint = Color(0xFF0A84FF),
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(width = 48.dp, height = 36.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(colors.azurePrimary),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_plus),
+                            contentDescription = "Quick add action",
+                            tint = PureWhite,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
 
@@ -1291,8 +1347,8 @@ private fun QuickAddActionSheet(
 ) {
     val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val sheetContainerColor = if (colors.isDark) Color(0xFF000000) else colors.background
-    val groupCardColor = if (colors.isDark) Color(0xFF1C1C1E) else colors.card
+    val sheetContainerColor = colors.surface
+    val groupCardColor = colors.cardElevated
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1320,55 +1376,37 @@ private fun QuickAddActionSheet(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Group 1: DAILY LOGGING
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = "DAILY LOGGING",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = InterFontFamily,
-                            letterSpacing = 0.5.sp
-                        ),
-                        color = colors.textSecondary,
-                        modifier = Modifier.padding(horizontal = 4.dp)
+                // Featured Primary Actions: Log Shift & Add Expense
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    QuickAddPrimaryTile(
+                        title = "Log Shift",
+                        subtitle = "Hours & pay",
+                        iconRes = R.drawable.ic_lucide_clock,
+                        iconTint = colors.mintBright,
+                        iconContainerColor = colors.mintContainer,
+                        surfaceColor = groupCardColor,
+                        onClick = { onSelectAction(ActiveQuickAddSheet.LOG_SHIFT) },
+                        modifier = Modifier.weight(1f)
                     )
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = groupCardColor,
-                        shadowElevation = 0.dp,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            QuickAddGroupedRow(
-                                title = "Log Duty Shift",
-                                iconRes = R.drawable.ic_lucide_clock,
-                                iconTint = Color(0xFF30D158),
-                                onClick = { onSelectAction(ActiveQuickAddSheet.LOG_SHIFT) }
-                            )
-                            QuickAddGroupedRow(
-                                title = "Add Expense",
-                                iconRes = R.drawable.ic_lucide_receipt_text,
-                                iconTint = Color(0xFFFF453A),
-                                onClick = { onSelectAction(ActiveQuickAddSheet.ADD_EXPENSE) }
-                            )
-                            QuickAddGroupedRow(
-                                title = "Add Allowance",
-                                iconRes = R.drawable.ic_lucide_wallet,
-                                iconTint = Color(0xFF0A84FF),
-                                onClick = { onSelectAction(ActiveQuickAddSheet.ADD_ALLOWANCE) }
-                            )
-                        }
-                    }
+                    QuickAddPrimaryTile(
+                        title = "Add Expense",
+                        subtitle = "Spend & receipt",
+                        iconRes = R.drawable.ic_lucide_receipt_text,
+                        iconTint = colors.coralBright,
+                        iconContainerColor = colors.coralContainer,
+                        surfaceColor = groupCardColor,
+                        onClick = { onSelectAction(ActiveQuickAddSheet.ADD_EXPENSE) },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
-                // Group 2: BILLS, LOANS & GOALS
+                // Group: INCOME, BILLS & GOALS
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "BILLS, LOANS & GOALS",
+                        text = "INCOME, BILLS & GOALS",
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontFamily = InterFontFamily,
                             letterSpacing = 0.5.sp
@@ -1382,40 +1420,52 @@ private fun QuickAddActionSheet(
                         shadowElevation = 0.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            QuickAddGroupedRow(
+                                title = "Add Allowance",
+                                subtitle = "Manual or extra income",
+                                iconRes = R.drawable.ic_lucide_wallet,
+                                iconTint = colors.azureAccent,
+                                onClick = { onSelectAction(ActiveQuickAddSheet.ADD_ALLOWANCE) }
+                            )
+                            ShiftlyHairlineDivider(startInset = 62.dp)
                             QuickAddGroupedRow(
                                 title = "Split a Bill",
+                                subtitle = "Divide group expenses",
                                 iconRes = R.drawable.ic_lucide_split,
-                                iconTint = Color(0xFF0A84FF),
+                                iconTint = colors.azureAccent,
                                 onClick = { onSelectAction(ActiveQuickAddSheet.SPLIT_BILL) }
                             )
+                            ShiftlyHairlineDivider(startInset = 62.dp)
                             QuickAddGroupedRow(
                                 title = "New Recurring Bill",
+                                subtitle = "Auto-post & due reminders",
                                 iconRes = R.drawable.ic_lucide_repeat,
-                                iconTint = Color(0xFFBF5AF2),
+                                iconTint = colors.nightDiffPurple,
                                 onClick = { onSelectAction(ActiveQuickAddSheet.NEW_RECURRING_BILL) }
                             )
+                            ShiftlyHairlineDivider(startInset = 62.dp)
                             QuickAddGroupedRow(
                                 title = "New Installment Loan",
+                                subtitle = "Track financed contracts",
                                 iconRes = R.drawable.ic_lucide_file_text,
-                                iconTint = Color(0xFF64D2FF),
+                                iconTint = if (colors.isDark) Color(0xFF64D2FF) else Color(0xFF32ADE6),
                                 onClick = { onSelectAction(ActiveQuickAddSheet.NEW_INSTALLMENT_LOAN) }
                             )
+                            ShiftlyHairlineDivider(startInset = 62.dp)
                             QuickAddGroupedRow(
                                 title = "New Savings Goal",
+                                subtitle = "Target amount & daily pace",
                                 iconRes = R.drawable.ic_lucide_piggy_bank,
-                                iconTint = Color(0xFF30D158),
+                                iconTint = colors.mintBright,
                                 onClick = { onSelectAction(ActiveQuickAddSheet.NEW_SAVINGS_GOAL) }
                             )
+                            ShiftlyHairlineDivider(startInset = 62.dp)
                             QuickAddGroupedRow(
                                 title = "Add IOU / Borrow & Lend",
+                                subtitle = "Record who owes whom",
                                 iconRes = R.drawable.ic_lucide_circle_dollar_sign,
-                                iconTint = Color(0xFFFF9F0A),
+                                iconTint = colors.iosOrange,
                                 onClick = { onSelectAction(ActiveQuickAddSheet.ADD_IOU) }
                             )
                         }
@@ -1432,10 +1482,82 @@ private fun QuickAddActionSheet(
 }
 
 @Composable
+private fun QuickAddPrimaryTile(
+    title: String,
+    subtitle: String,
+    @DrawableRes iconRes: Int,
+    iconTint: Color,
+    iconContainerColor: Color,
+    surfaceColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = surfaceColor,
+        shadowElevation = 0.dp,
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .shiftlyPressClickable(role = Role.Button) {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(iconContainerColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    tint = iconTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp
+                    ),
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = InterFontFamily,
+                        fontSize = 12.sp
+                    ),
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun QuickAddGroupedRow(
     title: String,
     @DrawableRes iconRes: Int,
     iconTint: Color,
+    subtitle: String? = null,
     onClick: () -> Unit
 ) {
     val colors = ShiftlyColors.current
@@ -1443,33 +1565,57 @@ private fun QuickAddGroupedRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 54.dp)
-            .clickable {
+            .heightIn(min = 58.dp)
+            .shiftlyPressClickable(role = Role.Button) {
                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 onClick()
             }
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = null,
-            tint = iconTint,
-            modifier = Modifier.size(22.dp)
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleSmall.copy(
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp
-            ),
-            color = colors.textPrimary,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(iconTint.copy(alpha = if (colors.isDark) 0.18f else 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = iconTint,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                ),
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = InterFontFamily,
+                        fontSize = 12.sp
+                    ),
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
         Icon(
             painter = painterResource(R.drawable.ic_lucide_chevron_right),
             contentDescription = null,
@@ -1534,7 +1680,7 @@ fun FloatingPillBottomBar(
                 )
             }
 
-            // Center Quick Add Button (Icon Only, Larger, Brighter)
+            // Center Quick Add Pill Button
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -1548,14 +1694,22 @@ fun FloatingPillBottomBar(
                     },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_plus),
-                    contentDescription = "Quick add action",
-                    tint = Color(0xFF0A84FF),
+                Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .graphicsLayer { rotationZ = fabRotationState.value }
-                )
+                        .size(width = 48.dp, height = 36.dp)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(colors.azurePrimary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_plus),
+                        contentDescription = "Quick add action",
+                        tint = PureWhite,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer { rotationZ = fabRotationState.value }
+                    )
+                }
             }
 
             rightItems.forEach { screen ->
@@ -1585,6 +1739,21 @@ private fun BottomNavItemSlot(
         animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
         label = "navContentTint"
     )
+    var wasSelected by remember { mutableStateOf(selected) }
+    val iconBounce = remember { Animatable(1f) }
+    LaunchedEffect(selected) {
+        if (selected && !wasSelected) {
+            iconBounce.snapTo(1.18f)
+            iconBounce.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(
+                    dampingRatio = 0.45f,
+                    stiffness = Spring.StiffnessMedium
+                )
+            )
+        }
+        wasSelected = selected
+    }
 
     Box(
         modifier = modifier
@@ -1609,7 +1778,12 @@ private fun BottomNavItemSlot(
                 ),
                 contentDescription = null,
                 tint = contentTint,
-                modifier = Modifier.size(25.dp)
+                modifier = Modifier
+                    .size(25.dp)
+                    .graphicsLayer {
+                        scaleX = iconBounce.value
+                        scaleY = iconBounce.value
+                    }
             )
             Spacer(modifier = Modifier.height(3.dp))
             Text(

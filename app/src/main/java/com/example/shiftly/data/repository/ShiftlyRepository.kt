@@ -11,7 +11,6 @@ import com.example.shiftly.data.backup.BackupPayload
 import com.example.shiftly.data.backup.BackupSavingsGoal
 import com.example.shiftly.data.backup.BackupSplitBill
 import com.example.shiftly.data.backup.RestoreMode
-import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.AllowanceSource
 import com.example.shiftly.data.local.CategoryBudgetSetting
@@ -84,11 +83,10 @@ class ShiftlyRepository(context: Context) {
 
     private fun round2(value: Double): Double = (value * 100.0).roundToLong() / 100.0
 
-    // Preferences & Active Timer
+    // Preferences
     val defaultHourlyRate: Flow<Double> = prefs.defaultHourlyRate
     val minimumWagePerDay: Flow<Double> = prefs.minimumWagePerDay
     val currencySymbol: Flow<String> = prefs.currencySymbol
-    val activeTimerState: Flow<ActiveTimerState> = prefs.activeTimerState
     val hasCompletedOnboarding: Flow<Boolean> = prefs.hasCompletedOnboarding
     val hasSeenAppTutorial: Flow<Boolean> = prefs.hasSeenAppTutorial
     val userName: Flow<String> = prefs.userName
@@ -186,11 +184,10 @@ class ShiftlyRepository(context: Context) {
 
                 val shifts = shiftDao.getAllShiftsOnce()
                 val hasLoggedToday = shifts.any { it.dateEpochDay == todayEpoch }
-                val isTimerRunning = activeTimerState.first().isRunning
                 if (RecurringEngine.shouldSendShiftReminder(
                         settings = settings,
                         hasLoggedShiftToday = hasLoggedToday,
-                        isTimerRunning = isTimerRunning,
+                        isTimerRunning = false,
                         hourOfDay = now.hour
                     )
                 ) {
@@ -697,7 +694,10 @@ class ShiftlyRepository(context: Context) {
         }
     }
 
-    suspend fun deleteExpense(expense: ExpenseEntity) = withContext(Dispatchers.IO) {
+    suspend fun deleteExpense(
+        expense: ExpenseEntity,
+        deleteReceiptFile: Boolean = true
+    ) = withContext(Dispatchers.IO) {
         db.withTransaction {
             expenseDao.deleteExpense(expense)
             expense.linkedSplitBillId?.let { billId ->
@@ -707,7 +707,13 @@ class ShiftlyRepository(context: Context) {
                 savingsGoalDao.deleteDepositById(depositId)
             }
         }
-        ReceiptStorageHelper.deleteReceiptFile(expense.receiptImagePath)
+        if (deleteReceiptFile) {
+            ReceiptStorageHelper.deleteReceiptFile(expense.receiptImagePath)
+        }
+    }
+
+    suspend fun deleteReceiptFile(path: String?) = withContext(Dispatchers.IO) {
+        ReceiptStorageHelper.deleteReceiptFile(path)
     }
 
     // Split Bills

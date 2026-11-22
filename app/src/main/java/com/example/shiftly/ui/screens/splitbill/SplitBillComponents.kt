@@ -59,11 +59,14 @@ import com.example.shiftly.data.local.SplitParticipantEntity
 import com.example.shiftly.ui.components.ShiftlyConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyIosSwitch
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
@@ -292,81 +295,115 @@ fun NewSplitBillSheetContent(
             .padding(bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 44.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "New Split",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 17.sp
-                ),
-                color = colors.textPrimary,
-                textAlign = TextAlign.Center
-            )
-        }
+        ShiftlySheetHeader(title = "New Split")
 
         // Total + Label Fields in a single inset-grouped container
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp)),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.cardElevated)
-                    .heightIn(min = 50.dp)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Total Amount",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = colors.textPrimary
-                )
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "$currencySymbol ",
-                        style = MaterialTheme.typography.bodyMedium.copy(
+                        text = "Total Amount",
+                        style = MaterialTheme.typography.titleMedium.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold,
-                            color = colors.azureAccent
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "$currencySymbol ",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.azureAccent
+                            )
                         )
+                        BasicTextField(
+                            value = amountInput,
+                            onValueChange = { input ->
+                                val filtered = input.filter { it.isDigit() || it == '.' }
+                                if (filtered.count { it == '.' } <= 1) amountInput = filtered
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            cursorBrush = SolidColor(colors.azureAccent),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                color = colors.textPrimary,
+                                textAlign = TextAlign.End
+                            ).tabular(),
+                            decorationBox = { inner ->
+                                Box(contentAlignment = Alignment.CenterEnd) {
+                                    if (amountInput.isEmpty()) {
+                                        Text(
+                                            text = "0.00",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontFamily = InterFontFamily,
+                                                color = colors.textSecondary
+                                            ),
+                                            textAlign = TextAlign.End
+                                        )
+                                    }
+                                    inner()
+                                }
+                            },
+                            modifier = Modifier.width(100.dp)
+                        )
+                    }
+                }
+
+                ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Bill Label",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
                     )
                     BasicTextField(
-                        value = amountInput,
-                        onValueChange = { input ->
-                            val filtered = input.filter { it.isDigit() || it == '.' }
-                            if (filtered.count { it == '.' } <= 1) amountInput = filtered
-                        },
+                        value = titleInput,
+                        onValueChange = { titleInput = it },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         cursorBrush = SolidColor(colors.azureAccent),
                         textStyle = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Medium,
                             color = colors.textPrimary,
                             textAlign = TextAlign.End
-                        ).tabular(),
+                        ),
                         decorationBox = { inner ->
                             Box(contentAlignment = Alignment.CenterEnd) {
-                                if (amountInput.isEmpty()) {
+                                if (titleInput.isEmpty()) {
                                     Text(
-                                        text = "0.00",
+                                        text = "e.g. Dinner",
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontFamily = InterFontFamily,
                                             color = colors.textSecondary
@@ -377,59 +414,11 @@ fun NewSplitBillSheetContent(
                                 inner()
                             }
                         },
-                        modifier = Modifier.width(100.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 16.dp)
                     )
                 }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(colors.cardElevated)
-                    .heightIn(min = 50.dp)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Bill Label",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = colors.textPrimary
-                )
-                BasicTextField(
-                    value = titleInput,
-                    onValueChange = { titleInput = it },
-                    singleLine = true,
-                    cursorBrush = SolidColor(colors.azureAccent),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium,
-                        color = colors.textPrimary,
-                        textAlign = TextAlign.End
-                    ),
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterEnd) {
-                            if (titleInput.isEmpty()) {
-                                Text(
-                                    text = "e.g. Dinner",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = InterFontFamily,
-                                        color = colors.textSecondary
-                                    ),
-                                    textAlign = TextAlign.End
-                                )
-                            }
-                            inner()
-                        }
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 16.dp)
-                )
             }
         }
 
@@ -458,7 +447,7 @@ fun NewSplitBillSheetContent(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .clickable(enabled = personCount > 2) {
+                            .shiftlyPressClickable(enabled = personCount > 2) {
                                 if (personCount > 2) personCount--
                             },
                         contentAlignment = Alignment.Center
@@ -486,7 +475,7 @@ fun NewSplitBillSheetContent(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .clickable(enabled = personCount < 20) {
+                            .shiftlyPressClickable(enabled = personCount < 20) {
                                 if (personCount < 20) {
                                     personCount++
                                     ensureNameCapacity(personCount)
@@ -516,82 +505,86 @@ fun NewSplitBillSheetContent(
                 }
             }
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp)),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = colors.cardElevated,
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                for (index in 0 until personCount) {
-                    val isSelf = index == 0
-                    val nameValue = customNames.getOrElse(index) { if (isSelf) "You" else "Person ${index + 1}" }
-                    val isPaid = customPaidStates.getOrElse(index) { isSelf }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    for (index in 0 until personCount) {
+                        val isSelf = index == 0
+                        val nameValue = customNames.getOrElse(index) { if (isSelf) "You" else "Person ${index + 1}" }
+                        val isPaid = customPaidStates.getOrElse(index) { isSelf }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(colors.cardElevated)
-                            .heightIn(min = 52.dp)
-                            .padding(horizontal = 14.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        BasicTextField(
-                            value = nameValue,
-                            onValueChange = { updated ->
-                                ensureNameCapacity(index + 1)
-                                customNames[index] = updated
-                            },
-                            singleLine = true,
-                            cursorBrush = SolidColor(colors.azureAccent),
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium,
-                                color = colors.textPrimary
-                            ),
+                        Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 12.dp)
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
-                                .clip(RoundedCornerShape(20.dp))
-                                .clickable {
-                                    ensurePaidCapacity(index + 1)
-                                    customPaidStates[index] = !isPaid
-                                },
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .heightIn(min = 52.dp)
+                                .padding(horizontal = 14.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = if (isPaid) colors.mintContainer else colors.surface,
-                                shadowElevation = 0.dp
+                            BasicTextField(
+                                value = nameValue,
+                                onValueChange = { updated ->
+                                    ensureNameCapacity(index + 1)
+                                    customNames[index] = updated
+                                },
+                                singleLine = true,
+                                cursorBrush = SolidColor(colors.azureAccent),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Medium,
+                                    color = colors.textPrimary
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 12.dp)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .shiftlyPressClickable {
+                                        ensurePaidCapacity(index + 1)
+                                        customPaidStates[index] = !isPaid
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = if (isPaid) colors.mintContainer else colors.surface,
+                                    shadowElevation = 0.dp
                                 ) {
-                                    Icon(
-                                        painter = painterResource(
-                                            if (isPaid) R.drawable.ic_lucide_check else R.drawable.ic_lucide_x
-                                        ),
-                                        contentDescription = null,
-                                        tint = if (isPaid) colors.mintInk else colors.textSecondary,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Text(
-                                        text = if (isPaid) "Paid" else "Unpaid",
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = InterFontFamily,
-                                            fontWeight = FontWeight.SemiBold
-                                        ),
-                                        color = if (isPaid) colors.mintInk else colors.textSecondary
-                                    )
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(
+                                                if (isPaid) R.drawable.ic_lucide_check else R.drawable.ic_lucide_x
+                                            ),
+                                            contentDescription = null,
+                                            tint = if (isPaid) colors.mintInk else colors.textSecondary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Text(
+                                            text = if (isPaid) "Paid" else "Unpaid",
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontFamily = InterFontFamily,
+                                                fontWeight = FontWeight.SemiBold
+                                            ),
+                                            color = if (isPaid) colors.mintInk else colors.textSecondary
+                                        )
+                                    }
                                 }
                             }
+                        }
+                        if (index < personCount - 1) {
+                            ShiftlyHairlineDivider(startInset = 14.dp, endInset = 14.dp)
                         }
                     }
                 }

@@ -30,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -53,6 +52,8 @@ import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySwipeAction
+import com.example.shiftly.ui.components.ShiftlySwipeActionRow
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.components.shiftlySheetTopBand
@@ -69,6 +70,10 @@ fun ExpenseScreen(
     repository: ShiftlyRepository,
     onBack: () -> Unit = {},
     onShowMessage: (String) -> Unit = {},
+    onShowUndoMessage: (message: String, onUndo: () -> Unit, onDismissed: () -> Unit) -> Unit = { msg, _, onDismissed ->
+        onShowMessage(msg)
+        onDismissed()
+    }
 ) {
     val viewModel: ExpenseViewModel = viewModel(factory = ExpenseViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -99,6 +104,19 @@ fun ExpenseScreen(
         onResetFilters = { viewModel.resetFilters() },
         onViewReceipt = { viewingReceiptExpense = it },
         onDeleteExpense = { pendingDeleteExpense = it },
+        onSwipeDeleteExpense = { expense ->
+            if (expense.linkedSavingsDepositId != null || expense.linkedSplitBillId != null) {
+                pendingDeleteExpense = expense
+            } else {
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                viewModel.deleteExpense(expense, deleteReceiptFile = false)
+                onShowUndoMessage(
+                    "Deleted \"${expense.title}\"",
+                    { viewModel.restoreExpense(expense) },
+                    { viewModel.cleanupReceiptFile(expense.receiptImagePath) }
+                )
+            }
+        }
     )
 
     if (showTutorialSheet) {
@@ -182,6 +200,7 @@ fun ExpenseScreenContent(
     onNextMonth: () -> Unit = {},
     onToggleAllMonths: () -> Unit = {},
     onResetFilters: () -> Unit = { onSelectCategory("All") },
+    onSwipeDeleteExpense: (ExpenseEntity) -> Unit = onDeleteExpense,
     listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
@@ -328,22 +347,31 @@ fun ExpenseScreenContent(
                             bottom = if (idx < state.filteredExpenses.lastIndex) 2.dp else 0.dp
                         )
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(rowShape)
-                            .background(colors.cardElevated)
-                    ) {
-                        ExpenseItemCard(
-                            expense = expense,
-                            currencySymbol = state.currencySymbol,
-                            onViewReceipt = onViewReceipt,
-                            onDelete = { onDeleteExpense(expense) },
-                            onClick = { onEditExpense(expense) },
-                            dateFormatter = itemDateFormatter,
-                            containerColor = Color.Transparent,
-                            shape = RectangleShape
+                    ShiftlySwipeActionRow(
+                        shape = rowShape,
+                        endToStartAction = ShiftlySwipeAction(
+                            iconRes = R.drawable.ic_lucide_trash_2,
+                            label = "Delete",
+                            backgroundColor = colors.coralBright,
+                            onTrigger = { onSwipeDeleteExpense(expense) }
                         )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(colors.cardElevated)
+                        ) {
+                            ExpenseItemCard(
+                                expense = expense,
+                                currencySymbol = state.currencySymbol,
+                                onViewReceipt = onViewReceipt,
+                                onDelete = { onDeleteExpense(expense) },
+                                onClick = { onEditExpense(expense) },
+                                dateFormatter = itemDateFormatter,
+                                containerColor = Color.Transparent,
+                                shape = RectangleShape
+                            )
+                        }
                     }
                 }
             }

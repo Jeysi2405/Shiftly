@@ -1,7 +1,6 @@
 package com.example.shiftly.ui.screens.savings
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,6 +35,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -44,7 +44,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,9 +58,11 @@ import com.example.shiftly.R
 import com.example.shiftly.data.local.SavingsDepositEntity
 import com.example.shiftly.data.local.SavingsGoalEntity
 import com.example.shiftly.data.local.SavingsGoalWithDeposits
+import com.example.shiftly.ui.components.ShiftlyConfettiOverlay
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyEmptyState
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
@@ -68,6 +72,7 @@ import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
@@ -134,74 +139,79 @@ fun AddSavingsGoalSheet(
         ) {
             ShiftlySheetHeader(title = "New Savings Goal")
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp)),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = colors.cardElevated,
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                // Row 1: Goal Name
-                GoalFormInsetRow(
-                    label = "Goal Name",
-                    value = titleInput,
-                    onValueChange = {
-                        titleInput = it
-                        errorText = null
-                    },
-                    placeholder = "e.g. Laptop"
-                )
-
-                // Row 2: Target Amount
-                GoalFormInsetRow(
-                    label = "Target Amount",
-                    value = targetInput,
-                    onValueChange = {
-                        targetInput = filterSingleDecimal(it, targetInput)
-                        errorText = null
-                    },
-                    placeholder = "0.00",
-                    prefix = currencySymbol,
-                    isNumeric = true
-                )
-
-                // Row 3: Target Date
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 50.dp)
-                        .background(colors.cardElevated)
-                        .clickable { showDatePicker = true }
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Target Date",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 15.sp
-                        ),
-                        color = colors.textPrimary
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    // Row 1: Goal Name
+                    GoalFormInsetRow(
+                        label = "Goal Name",
+                        value = titleInput,
+                        onValueChange = {
+                            titleInput = it
+                            errorText = null
+                        },
+                        placeholder = "e.g. Laptop"
                     )
+
+                    ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
+                    // Row 2: Target Amount
+                    GoalFormInsetRow(
+                        label = "Target Amount",
+                        value = targetInput,
+                        onValueChange = {
+                            targetInput = filterSingleDecimal(it, targetInput)
+                            errorText = null
+                        },
+                        placeholder = "0.00",
+                        prefix = currencySymbol,
+                        isNumeric = true
+                    )
+
+                    ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
+                    // Row 3: Target Date
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 50.dp)
+                            .shiftlyPressClickable { showDatePicker = true }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_calendar),
-                            contentDescription = null,
-                            tint = colors.azureInk,
-                            modifier = Modifier.size(17.dp)
-                        )
                         Text(
-                            text = formattedTargetDate,
-                            style = MaterialTheme.typography.bodyMedium.copy(
+                            text = "Target Date",
+                            style = MaterialTheme.typography.titleMedium.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium
-                            ).tabular(),
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp
+                            ),
                             color = colors.textPrimary
                         )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_calendar),
+                                contentDescription = null,
+                                tint = colors.azureInk,
+                                modifier = Modifier.size(17.dp)
+                            )
+                            Text(
+                                text = formattedTargetDate,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Medium
+                                ).tabular(),
+                                color = colors.textPrimary
+                            )
+                        }
                     }
                 }
             }
@@ -331,6 +341,8 @@ fun SavingsGoalDetailSheet(
     var pendingDeleteGoal by remember { mutableStateOf<SavingsGoalEntity?>(null) }
     var pendingDeleteDeposit by remember { mutableStateOf<SavingsDepositEntity?>(null) }
     var showTutorialSheet by remember { mutableStateOf(false) }
+    var confettiTrigger by remember { mutableIntStateOf(0) }
+    val haptics = LocalHapticFeedback.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -341,6 +353,7 @@ fun SavingsGoalDetailSheet(
         shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         dragHandle = { ShiftlySheetDragHandle() }
     ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -430,7 +443,7 @@ fun SavingsGoalDetailSheet(
                                 modifier = Modifier
                                     .heightIn(min = 48.dp)
                                     .clip(RoundedCornerShape(50))
-                                    .clickable {
+                                    .shiftlyPressClickable {
                                         selectedGoalId = entry.goal.id
                                         onSelectActiveGoal(entry.goal.id)
                                     },
@@ -530,7 +543,7 @@ fun SavingsGoalDetailSheet(
                             ShiftlyProgressBar(
                                 progress = progress.progressFraction,
                                 color = colors.mintBright,
-                                trackColor = colors.separator
+                                trackColor = colors.surface
                             )
                         }
 
@@ -601,30 +614,34 @@ fun SavingsGoalDetailSheet(
                     color = colors.textPrimary
                 )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(16.dp)),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = colors.cardElevated,
+                    shadowElevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    GoalFormInsetRow(
-                        label = "Amount ($currencySymbol)",
-                        value = depositAmountInput,
-                        onValueChange = {
-                            depositAmountInput = filterSingleDecimal(it, depositAmountInput)
-                            depositError = null
-                        },
-                        placeholder = "0.00",
-                        prefix = currencySymbol,
-                        isNumeric = true
-                    )
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        GoalFormInsetRow(
+                            label = "Amount ($currencySymbol)",
+                            value = depositAmountInput,
+                            onValueChange = {
+                                depositAmountInput = filterSingleDecimal(it, depositAmountInput)
+                                depositError = null
+                            },
+                            placeholder = "0.00",
+                            prefix = currencySymbol,
+                            isNumeric = true
+                        )
 
-                    GoalFormInsetRow(
-                        label = "Note (optional)",
-                        value = depositNoteInput,
-                        onValueChange = { depositNoteInput = it },
-                        placeholder = "Note"
-                    )
+                        ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
+                        GoalFormInsetRow(
+                            label = "Note (optional)",
+                            value = depositNoteInput,
+                            onValueChange = { depositNoteInput = it },
+                            placeholder = "Note"
+                        )
+                    }
                 }
                 if (!depositError.isNullOrBlank()) {
                     Text(
@@ -641,6 +658,10 @@ fun SavingsGoalDetailSheet(
                         if (amt == null || !amt.isFinite() || amt <= 0.0) {
                             depositError = "Enter a valid deposit amount above 0."
                         } else {
+                            if (!progress.isCompleted && (progress.savedAmount + amt) >= goal.targetAmount) {
+                                confettiTrigger++
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }
                             onAddDeposit(goal, amt, depositNoteInput)
                             depositAmountInput = ""
                             depositNoteInput = ""
@@ -684,49 +705,53 @@ fun SavingsGoalDetailSheet(
                         }
                 }
                 if (sortedDepositsWithLabels.isNotEmpty()) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(18.dp)),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = colors.cardElevated,
+                        shadowElevation = 0.dp,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        sortedDepositsWithLabels.forEach { (dep, dtText) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(colors.cardElevated)
-                                    .padding(start = 14.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = ShiftlyFormatters.formatCurrency(currencySymbol, dep.amount, showPlus = true),
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontFamily = InterFontFamily,
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 15.sp
-                                        ).tabular(),
-                                        color = colors.mintTextOnSurface
-                                    )
-                                    Text(
-                                        text = if (dep.note.isNotBlank()) "$dtText • ${dep.note}" else dtText,
-                                        style = MaterialTheme.typography.bodySmall.tabular(),
-                                        color = colors.textSecondary,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                IconButton(
-                                    onClick = { pendingDeleteDeposit = dep },
-                                    modifier = Modifier.size(48.dp)
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            sortedDepositsWithLabels.forEachIndexed { idx, (dep, dtText) ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 14.dp, end = 6.dp, top = 8.dp, bottom = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_lucide_trash_2),
-                                        contentDescription = "Delete deposit",
-                                        tint = colors.coralInk,
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = ShiftlyFormatters.formatCurrency(currencySymbol, dep.amount, showPlus = true),
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontFamily = InterFontFamily,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 15.sp
+                                            ).tabular(),
+                                            color = colors.mintTextOnSurface
+                                        )
+                                        Text(
+                                            text = if (dep.note.isNotBlank()) "$dtText • ${dep.note}" else dtText,
+                                            style = MaterialTheme.typography.bodySmall.tabular(),
+                                            color = colors.textSecondary,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { pendingDeleteDeposit = dep },
+                                        modifier = Modifier.size(48.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_lucide_trash_2),
+                                            contentDescription = "Delete deposit",
+                                            tint = colors.coralInk,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                if (idx < sortedDepositsWithLabels.lastIndex) {
+                                    ShiftlyHairlineDivider(startInset = 14.dp, endInset = 14.dp)
                                 }
                             }
                         }
@@ -738,6 +763,11 @@ fun SavingsGoalDetailSheet(
                     onClick = onDismiss
                 )
             }
+        }
+            ShiftlyConfettiOverlay(
+                triggerCount = confettiTrigger,
+                modifier = Modifier.matchParentSize()
+            )
         }
     }
 
@@ -821,7 +851,6 @@ private fun GoalFormInsetRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 50.dp)
-            .background(colors.cardElevated)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically

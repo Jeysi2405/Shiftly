@@ -1,7 +1,11 @@
 package com.example.shiftly.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,9 +30,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,8 +45,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -51,13 +61,19 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.local.IouEntrySetting
 import com.example.shiftly.data.local.PaycheckDeductionsSetting
 import com.example.shiftly.data.local.ShiftEntity
+import com.example.shiftly.ui.components.ShiftlyAnimatedCurrencyText
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosSwitch
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.ShiftlySwipeAction
+import com.example.shiftly.ui.components.ShiftlySwipeActionRow
+import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
+import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -71,6 +87,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.UUID
+import kotlinx.coroutines.delay
 
 // =============================================================================
 // 1. Paycheck Estimator Sheet Content
@@ -158,13 +175,14 @@ fun PaycheckEstimatorSheetContent(
                     ),
                     color = colors.mintInk
                 )
-                Text(
-                    text = ShiftlyFormatters.formatCurrency(currencySymbol, netTakeHome),
+                ShiftlyAnimatedCurrencyText(
+                    currencySymbol = currencySymbol,
+                    amount = netTakeHome,
                     style = MaterialTheme.typography.headlineLarge.copy(
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold,
                         fontSize = 32.sp
-                    ).tabular(),
+                    ),
                     color = colors.mintTextOnSurface
                 )
                 Row(
@@ -202,12 +220,7 @@ fun PaycheckEstimatorSheetContent(
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 DeductionConfigRow(
                     title = "SSS Contribution",
                     enabled = updatedSetting.sssEnabled,
@@ -221,6 +234,7 @@ fun PaycheckEstimatorSheetContent(
                         updateAndNotify(updatedSetting.copy(sssAmount = input.toDoubleOrNull() ?: 0.0))
                     }
                 )
+                ShiftlyHairlineDivider(startInset = 14.dp, endInset = 14.dp)
 
                 DeductionConfigRow(
                     title = "PhilHealth",
@@ -235,6 +249,7 @@ fun PaycheckEstimatorSheetContent(
                         updateAndNotify(updatedSetting.copy(philhealthAmount = input.toDoubleOrNull() ?: 0.0))
                     }
                 )
+                ShiftlyHairlineDivider(startInset = 14.dp, endInset = 14.dp)
 
                 DeductionConfigRow(
                     title = "Pag-IBIG Fund",
@@ -249,6 +264,7 @@ fun PaycheckEstimatorSheetContent(
                         updateAndNotify(updatedSetting.copy(pagibigAmount = input.toDoubleOrNull() ?: 0.0))
                     }
                 )
+                ShiftlyHairlineDivider(startInset = 14.dp, endInset = 14.dp)
 
                 DeductionConfigRow(
                     title = "Withholding Tax",
@@ -264,6 +280,7 @@ fun PaycheckEstimatorSheetContent(
                         updateAndNotify(updatedSetting.copy(taxPercent = input.toDoubleOrNull() ?: 0.0))
                     }
                 )
+                ShiftlyHairlineDivider(startInset = 14.dp, endInset = 14.dp)
 
                 DeductionConfigRow(
                     title = "Other / Custom",
@@ -330,50 +347,57 @@ private fun DeductionConfigRow(
         }
 
         if (enabled) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = colors.surface,
+                shadowElevation = 0.dp
             ) {
-                BasicTextField(
-                    value = amountText,
-                    onValueChange = { input ->
-                        val filtered = input.filter { it.isDigit() || it == '.' }
-                        if (filtered.count { it == '.' } <= 1) onAmountChange(filtered)
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    cursorBrush = SolidColor(colors.azureAccent),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        color = colors.textPrimary,
-                        textAlign = TextAlign.End
-                    ).tabular(),
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterEnd) {
-                            if (amountText.isEmpty()) {
-                                Text(
-                                    text = placeholder,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = InterFontFamily,
-                                        color = colors.textSecondary
-                                    ),
-                                    textAlign = TextAlign.End
-                                )
+                Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    BasicTextField(
+                        value = amountText,
+                        onValueChange = { input ->
+                            val filtered = input.filter { it.isDigit() || it == '.' }
+                            if (filtered.count { it == '.' } <= 1) onAmountChange(filtered)
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        cursorBrush = SolidColor(colors.azureAccent),
+                        textStyle = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            color = colors.textPrimary,
+                            textAlign = TextAlign.End
+                        ).tabular(),
+                        decorationBox = { inner ->
+                            Box(contentAlignment = Alignment.CenterEnd) {
+                                if (amountText.isEmpty()) {
+                                    Text(
+                                        text = placeholder,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontFamily = InterFontFamily,
+                                            color = colors.textSecondary
+                                        ),
+                                        textAlign = TextAlign.End
+                                    )
+                                }
+                                inner()
                             }
-                            inner()
-                        }
-                    },
-                    modifier = Modifier.width(64.dp)
-                )
-                Text(
-                    text = suffix,
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = colors.textSecondary
-                )
+                        },
+                        modifier = Modifier.width(64.dp)
+                    )
+                    Text(
+                        text = suffix,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = colors.textSecondary
+                    )
+                }
             }
         }
     }
@@ -391,6 +415,7 @@ fun IouTrackerSheetContent(
     onDismiss: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
     val itemList = remember(entries) {
         mutableStateListOf<IouEntrySetting>().apply { addAll(entries) }
     }
@@ -400,6 +425,14 @@ fun IouTrackerSheetContent(
     var isLent by remember { mutableStateOf(true) }
     var noteText by remember { mutableStateOf("") }
     var pendingDeleteEntry by remember { mutableStateOf<IouEntrySetting?>(null) }
+    var lastDeletedIou by remember { mutableStateOf<Pair<Int, IouEntrySetting>?>(null) }
+
+    LaunchedEffect(lastDeletedIou) {
+        if (lastDeletedIou != null) {
+            delay(4_000L)
+            lastDeletedIou = null
+        }
+    }
 
     val totalLent = remember(itemList.toList()) {
         itemList.filter { !it.isSettled && it.isLent }.sumOf { it.amount }
@@ -477,94 +510,21 @@ fun IouTrackerSheetContent(
             modifier = Modifier.padding(horizontal = 4.dp)
         )
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(9.dp))
-                .background(colors.surface)
-                .padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(if (isLent) colors.mintContainer else Color.Transparent)
-                    .clickable { isLent = true },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Lent",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = if (isLent) FontWeight.SemiBold else FontWeight.Medium,
-                        fontSize = 13.sp
-                    ),
-                    color = if (isLent) colors.mintInk else colors.textSecondary
-                )
-            }
+        IouDirectionToggle(
+            isLent = isLent,
+            onSelectLent = { isLent = it },
+            containerColor = colors.cardElevated
+        )
 
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(7.dp))
-                    .background(if (!isLent) colors.coralContainer else Color.Transparent)
-                    .clickable { isLent = false },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Borrowed",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = if (!isLent) FontWeight.SemiBold else FontWeight.Medium,
-                        fontSize = 13.sp
-                    ),
-                    color = if (!isLent) colors.coralInk else colors.textSecondary
-                )
-            }
-        }
-
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = colors.cardElevated,
-            shadowElevation = 0.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                IouInsetRow(
-                    label = "Person Name",
-                    value = personName,
-                    onValueChange = { personName = it },
-                    placeholder = "Name"
-                )
-
-                IouInsetRow(
-                    label = "Amount ($currencySymbol)",
-                    value = amountText,
-                    onValueChange = { input ->
-                        val filtered = input.filter { it.isDigit() || it == '.' }
-                        if (filtered.count { it == '.' } <= 1) amountText = filtered
-                    },
-                    placeholder = "0.00",
-                    prefix = currencySymbol,
-                    isNumeric = true
-                )
-
-                IouInsetRow(
-                    label = "Note (optional)",
-                    value = noteText,
-                    onValueChange = { noteText = it },
-                    placeholder = "Note"
-                )
-            }
-        }
+        IouFormCard(
+            currencySymbol = currencySymbol,
+            personName = personName,
+            onPersonNameChange = { personName = it },
+            amountText = amountText,
+            onAmountTextChange = { amountText = it },
+            noteText = noteText,
+            onNoteTextChange = { noteText = it }
+        )
 
         if (itemList.isNotEmpty()) {
             Text(
@@ -583,98 +543,190 @@ fun IouTrackerSheetContent(
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     itemList.forEachIndexed { idx, entry ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp)
-                                .padding(horizontal = 14.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                        key(entry.id) {
+                            val rowShape = when {
+                                itemList.size == 1 -> RoundedCornerShape(18.dp)
+                                idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+                                idx == itemList.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+                                else -> RoundedCornerShape(0.dp)
+                            }
+                            ShiftlySwipeActionRow(
+                                shape = rowShape,
+                                startToEndAction = ShiftlySwipeAction(
+                                    iconRes = if (entry.isSettled) R.drawable.ic_lucide_rotate_ccw else R.drawable.ic_lucide_check,
+                                    label = if (entry.isSettled) "Reopen" else "Settle",
+                                    backgroundColor = if (entry.isSettled) colors.azurePrimary else colors.mintBright,
+                                    onTrigger = {
+                                        val currentIdx = itemList.indexOfFirst { it.id == entry.id }
+                                        if (currentIdx >= 0) {
+                                            val currentEntry = itemList[currentIdx]
+                                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                            itemList[currentIdx] = currentEntry.copy(isSettled = !currentEntry.isSettled)
+                                            onSaveEntries(itemList.toList())
+                                        }
+                                    }
+                                ),
+                                endToStartAction = ShiftlySwipeAction(
+                                    iconRes = R.drawable.ic_lucide_trash_2,
+                                    label = "Delete",
+                                    backgroundColor = colors.coralBright,
+                                    onTrigger = {
+                                        val currentIdx = itemList.indexOfFirst { it.id == entry.id }
+                                        if (currentIdx >= 0) {
+                                            val removed = itemList.removeAt(currentIdx)
+                                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            onSaveEntries(itemList.toList())
+                                            lastDeletedIou = currentIdx to removed
+                                        }
+                                    }
+                                )
                             ) {
                                 Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(colors.cardElevated)
+                                        .heightIn(min = 56.dp)
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = entry.personName,
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontFamily = InterFontFamily,
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 15.sp
-                                        ),
-                                        color = if (entry.isSettled) colors.textSecondary else colors.textPrimary
-                                    )
-                                    if (entry.isSettled) {
+                                    Column(
+                                        modifier = Modifier.weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Text(
+                                                text = entry.personName,
+                                                style = MaterialTheme.typography.titleMedium.copy(
+                                                    fontFamily = InterFontFamily,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 15.sp
+                                                ),
+                                                color = if (entry.isSettled) colors.textSecondary else colors.textPrimary
+                                            )
+                                            if (entry.isSettled) {
+                                                Text(
+                                                    text = "• Settled",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = colors.mintInk
+                                                )
+                                            }
+                                        }
+
+                                        val subText = if (entry.isLent) {
+                                            "Lent • ${entry.note.ifBlank { "No note" }}"
+                                        } else {
+                                            "Borrowed • ${entry.note.ifBlank { "No note" }}"
+                                        }
                                         Text(
-                                            text = "• Settled",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = colors.mintInk
+                                            text = subText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = colors.textSecondary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                     }
-                                }
 
-                                val subText = if (entry.isLent) {
-                                    "Lent • ${entry.note.ifBlank { "No note" }}"
-                                } else {
-                                    "Borrowed • ${entry.note.ifBlank { "No note" }}"
-                                }
-                                Text(
-                                    text = subText,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = colors.textSecondary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "${if (entry.isLent) "+" else "-"}${ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount)}",
+                                            style = MaterialTheme.typography.titleMedium.copy(
+                                                fontFamily = InterFontFamily,
+                                                fontWeight = FontWeight.Bold
+                                            ).tabular(),
+                                            color = when {
+                                                entry.isSettled -> colors.textSecondary
+                                                entry.isLent -> colors.mintInk
+                                                else -> colors.coralInk
+                                            }
+                                        )
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Text(
-                                    text = "${if (entry.isLent) "+" else "-"}${ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount)}",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontFamily = InterFontFamily,
-                                        fontWeight = FontWeight.Bold
-                                    ).tabular(),
-                                    color = when {
-                                        entry.isSettled -> colors.textSecondary
-                                        entry.isLent -> colors.mintInk
-                                        else -> colors.coralInk
+                                        ShiftlyIosSwitch(
+                                            checked = entry.isSettled,
+                                            onCheckedChange = { settled ->
+                                                val currentIdx = itemList.indexOfFirst { it.id == entry.id }
+                                                if (currentIdx >= 0) {
+                                                    itemList[currentIdx] = itemList[currentIdx].copy(isSettled = settled)
+                                                    onSaveEntries(itemList.toList())
+                                                }
+                                            }
+                                        )
+
+                                        IconButton(
+                                            onClick = { pendingDeleteEntry = entry },
+                                            modifier = Modifier.size(48.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_lucide_trash_2),
+                                                contentDescription = "Delete entry",
+                                                tint = colors.coralInk,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
-                                )
-
-                                ShiftlyIosSwitch(
-                                    checked = entry.isSettled,
-                                    onCheckedChange = { settled ->
-                                        itemList[idx] = entry.copy(isSettled = settled)
-                                        onSaveEntries(itemList.toList())
-                                    }
-                                )
-
-                                IconButton(
-                                    onClick = { pendingDeleteEntry = entry },
-                                    modifier = Modifier.size(48.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_lucide_trash_2),
-                                        contentDescription = "Delete entry",
-                                        tint = colors.coralInk,
-                                        modifier = Modifier.size(18.dp)
-                                    )
                                 }
                             }
+                            if (idx < itemList.lastIndex) {
+                                ShiftlyHairlineDivider(startInset = 14.dp, endInset = 14.dp)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = lastDeletedIou != null,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
+        ) {
+            lastDeletedIou?.let { (deletedIdx, deletedEntry) ->
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = colors.cardElevated,
+                    shadowElevation = 0.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Removed ${deletedEntry.personName}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            onClick = {
+                                val insertAt = deletedIdx.coerceIn(0, itemList.size)
+                                itemList.add(insertAt, deletedEntry)
+                                onSaveEntries(itemList.toList())
+                                lastDeletedIou = null
+                            },
+                            modifier = Modifier.heightIn(min = 40.dp)
+                        ) {
+                            Text(
+                                text = "Undo",
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.azureAccent
+                            )
                         }
                     }
                 }
@@ -762,94 +814,21 @@ fun AddIouBottomSheet(
         ) {
             ShiftlySheetHeader(title = "Add IOU")
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(colors.cardElevated)
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(if (isLent) colors.mintContainer else Color.Transparent)
-                        .clickable { isLent = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Lent",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = if (isLent) FontWeight.SemiBold else FontWeight.Medium,
-                            fontSize = 13.sp
-                        ),
-                        color = if (isLent) colors.mintInk else colors.textSecondary
-                    )
-                }
+            IouDirectionToggle(
+                isLent = isLent,
+                onSelectLent = { isLent = it },
+                containerColor = colors.cardElevated
+            )
 
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = 48.dp)
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(if (!isLent) colors.coralContainer else Color.Transparent)
-                        .clickable { isLent = false },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Borrowed",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = if (!isLent) FontWeight.SemiBold else FontWeight.Medium,
-                            fontSize = 13.sp
-                        ),
-                        color = if (!isLent) colors.coralInk else colors.textSecondary
-                    )
-                }
-            }
-
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = colors.cardElevated,
-                shadowElevation = 0.dp,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    IouInsetRow(
-                        label = "Person Name",
-                        value = personName,
-                        onValueChange = { personName = it },
-                        placeholder = "Name"
-                    )
-
-                    IouInsetRow(
-                        label = "Amount ($currencySymbol)",
-                        value = amountText,
-                        onValueChange = { input ->
-                            val filtered = input.filter { it.isDigit() || it == '.' }
-                            if (filtered.count { it == '.' } <= 1) amountText = filtered
-                        },
-                        placeholder = "0.00",
-                        prefix = currencySymbol,
-                        isNumeric = true
-                    )
-
-                    IouInsetRow(
-                        label = "Note (optional)",
-                        value = noteText,
-                        onValueChange = { noteText = it },
-                        placeholder = "Note"
-                    )
-                }
-            }
+            IouFormCard(
+                currencySymbol = currencySymbol,
+                personName = personName,
+                onPersonNameChange = { personName = it },
+                amountText = amountText,
+                onAmountTextChange = { amountText = it },
+                noteText = noteText,
+                onNoteTextChange = { noteText = it }
+            )
 
             ShiftlySheetBottomButtons(
                 onCancel = onDismiss,
@@ -861,6 +840,110 @@ fun AddIouBottomSheet(
                 cancelLabel = "Cancel",
                 actionLabel = "Save IOU",
                 actionEnabled = isValid
+            )
+        }
+    }
+}
+
+@Composable
+private fun IouDirectionToggle(
+    isLent: Boolean,
+    onSelectLent: (Boolean) -> Unit,
+    containerColor: Color
+) {
+    val colors = ShiftlyColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(9.dp))
+            .background(containerColor)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(7.dp))
+                .background(if (isLent) colors.mintContainer else Color.Transparent)
+                .shiftlyPressClickable(role = Role.Tab) { onSelectLent(true) },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Lent",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = if (isLent) FontWeight.SemiBold else FontWeight.Medium,
+                    fontSize = 13.sp
+                ),
+                color = if (isLent) colors.mintInk else colors.textSecondary
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(7.dp))
+                .background(if (!isLent) colors.coralContainer else Color.Transparent)
+                .shiftlyPressClickable(role = Role.Tab) { onSelectLent(false) },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Borrowed",
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = if (!isLent) FontWeight.SemiBold else FontWeight.Medium,
+                    fontSize = 13.sp
+                ),
+                color = if (!isLent) colors.coralInk else colors.textSecondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun IouFormCard(
+    currencySymbol: String,
+    personName: String,
+    onPersonNameChange: (String) -> Unit,
+    amountText: String,
+    onAmountTextChange: (String) -> Unit,
+    noteText: String,
+    onNoteTextChange: (String) -> Unit
+) {
+    val colors = ShiftlyColors.current
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = colors.cardElevated,
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            IouInsetRow(
+                label = "Person Name",
+                value = personName,
+                onValueChange = onPersonNameChange,
+                placeholder = "Name"
+            )
+            ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+            IouInsetRow(
+                label = "Amount ($currencySymbol)",
+                value = amountText,
+                onValueChange = { input ->
+                    val filtered = input.filter { it.isDigit() || it == '.' }
+                    if (filtered.count { it == '.' } <= 1) onAmountTextChange(filtered)
+                },
+                placeholder = "0.00",
+                prefix = currencySymbol,
+                isNumeric = true
+            )
+            ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+            IouInsetRow(
+                label = "Note (optional)",
+                value = noteText,
+                onValueChange = onNoteTextChange,
+                placeholder = "Note"
             )
         }
     }
@@ -958,8 +1041,9 @@ fun ActivityCalendarSheetContent(
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
 
-    var displayedMonth by remember { mutableStateOf(YearMonth.now()) }
-    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    val todayDate = remember { LocalDate.now() }
+    var displayedMonth by remember { mutableStateOf(YearMonth.from(todayDate)) }
+    var selectedDate by remember { mutableStateOf(todayDate) }
 
     val monthFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMMM yyyy", locale) }
     val fullDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy", locale) }
@@ -1094,6 +1178,7 @@ fun ActivityCalendarSheetContent(
                                     val cellDate = displayedMonth.atDay(dayNum)
                                     val cellEpoch = cellDate.toEpochDay()
                                     val isSelected = cellDate == selectedDate
+                                    val isToday = cellDate == todayDate
 
                                     val hasShift = shiftsByDay.containsKey(cellEpoch)
                                     val hasExpense = expensesByDay.containsKey(cellEpoch)
@@ -1103,8 +1188,14 @@ fun ActivityCalendarSheetContent(
                                             .weight(1f)
                                             .heightIn(min = 48.dp)
                                             .clip(RoundedCornerShape(10.dp))
-                                            .background(if (isSelected) colors.azurePrimary else Color.Transparent)
-                                            .clickable { selectedDate = cellDate },
+                                            .background(
+                                                when {
+                                                    isSelected -> colors.azurePrimary
+                                                    isToday -> colors.azureContainer.copy(alpha = 0.45f)
+                                                    else -> Color.Transparent
+                                                }
+                                            )
+                                            .shiftlyPressClickable { selectedDate = cellDate },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Column(
@@ -1115,9 +1206,17 @@ fun ActivityCalendarSheetContent(
                                                 text = dayNum.toString(),
                                                 style = MaterialTheme.typography.bodyMedium.copy(
                                                     fontFamily = InterFontFamily,
-                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                                    fontWeight = when {
+                                                        isSelected -> FontWeight.Bold
+                                                        isToday -> FontWeight.SemiBold
+                                                        else -> FontWeight.Medium
+                                                    }
                                                 ).tabular(),
-                                                color = if (isSelected) PureWhite else colors.textPrimary
+                                                color = when {
+                                                    isSelected -> PureWhite
+                                                    isToday -> colors.azureInk
+                                                    else -> colors.textPrimary
+                                                }
                                             )
 
                                             if (hasShift || hasExpense) {
@@ -1279,13 +1378,8 @@ fun ActivityCalendarSheetContent(
                         shadowElevation = 0.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            shiftsForSelectedDate.forEach { shift ->
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            shiftsForSelectedDate.forEachIndexed { idx, shift ->
                                 val zone = remember { ZoneId.systemDefault() }
                                 val startLocal = Instant.ofEpochMilli(shift.timeInMillis).atZone(zone).toLocalTime()
                                 val endLocal = Instant.ofEpochMilli(shift.timeOutMillis).atZone(zone).toLocalTime()
@@ -1342,9 +1436,12 @@ fun ActivityCalendarSheetContent(
                                         softWrap = false
                                     )
                                 }
+                                if (idx < shiftsForSelectedDate.lastIndex || expensesForSelectedDate.isNotEmpty()) {
+                                    ShiftlyHairlineDivider(startInset = 44.dp)
+                                }
                             }
 
-                            expensesForSelectedDate.forEach { expense ->
+                            expensesForSelectedDate.forEachIndexed { idx, expense ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -1360,7 +1457,7 @@ fun ActivityCalendarSheetContent(
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
                                         Icon(
-                                            painter = painterResource(R.drawable.ic_lucide_receipt_text),
+                                            painter = painterResource(categoryIcon(expense.category)),
                                             contentDescription = null,
                                             tint = colors.coralBright,
                                             modifier = Modifier.size(18.dp)
@@ -1395,6 +1492,9 @@ fun ActivityCalendarSheetContent(
                                         maxLines = 1,
                                         softWrap = false
                                     )
+                                }
+                                if (idx < expensesForSelectedDate.lastIndex) {
+                                    ShiftlyHairlineDivider(startInset = 44.dp)
                                 }
                             }
                         }

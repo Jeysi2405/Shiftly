@@ -5,8 +5,19 @@ import android.os.Build
 import androidx.annotation.DrawableRes
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,13 +43,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -51,9 +66,12 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.example.shiftly.R
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
+import com.example.shiftly.ui.components.shiftlyPressClickable
+import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.utils.PinSecurity
+import kotlinx.coroutines.launch
 
 private val KEYPAD_ROWS = listOf(
     listOf("1", "2", "3"),
@@ -147,12 +165,16 @@ fun AppLockGateScreen(
     val colors = ShiftlyColors.current
     val context = LocalContext.current
     val activity = context as? FragmentActivity
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
     val biometricsSupported = remember(context) { canUseBiometrics(context) }
     val supportsBiometric = method != "4-Digit PIN" && biometricsSupported
     val supportsPin = method != "Fingerprint Only" && pinHash.isNotBlank()
 
     var enteredPin by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isPinErrorFlash by remember { mutableStateOf(false) }
+    val shakeOffsetX = remember { Animatable(0f) }
 
     fun triggerBiometric() {
         if (activity == null) return
@@ -171,17 +193,30 @@ fun AppLockGateScreen(
     }
 
     fun submitDigit(digit: String) {
-        if (enteredPin.length >= 4) return
+        if (isPinErrorFlash || enteredPin.length >= 4) return
         errorMessage = null
         val updated = enteredPin + digit
         enteredPin = updated
         if (updated.length == 4) {
             if (PinSecurity.verifyPin(updated, pinHash)) {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 enteredPin = ""
                 onUnlocked()
             } else {
-                enteredPin = ""
+                isPinErrorFlash = true
                 errorMessage = "Incorrect 4-digit PIN. Try again."
+                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                scope.launch {
+                    val steps = listOf(-26f, 26f, -18f, 18f, -10f, 10f, 0f)
+                    steps.forEach { target ->
+                        shakeOffsetX.animateTo(
+                            targetValue = target,
+                            animationSpec = tween(durationMillis = 45)
+                        )
+                    }
+                    enteredPin = ""
+                    isPinErrorFlash = false
+                }
             }
         }
     }
@@ -230,21 +265,48 @@ fun AppLockGateScreen(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(vertical = 8.dp)
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .graphicsLayer { translationX = shakeOffsetX.value }
                 ) {
                     repeat(4) { idx ->
                         val filled = idx < enteredPin.length
+                        val dotScale by animateFloatAsState(
+                            targetValue = if (filled) 1.18f else 1f,
+                            animationSpec = spring(
+                                dampingRatio = 0.55f,
+                                stiffness = Spring.StiffnessMedium
+                            ),
+                            label = "pinDotScale"
+                        )
+                        val dotColor by animateColorAsState(
+                            targetValue = when {
+                                isPinErrorFlash -> colors.coralBright
+                                filled -> colors.mintBright
+                                else -> colors.cardElevated
+                            },
+                            animationSpec = tween(durationMillis = 150),
+                            label = "pinDotColor"
+                        )
                         Box(
                             modifier = Modifier
                                 .size(14.dp)
+                                .graphicsLayer {
+                                    scaleX = dotScale
+                                    scaleY = dotScale
+                                }
                                 .clip(CircleShape)
-                                .background(if (filled) colors.mintBright else colors.cardElevated)
+                                .background(dotColor)
                         )
                     }
                 }
             }
 
-            if (!errorMessage.isNullOrBlank()) {
+            AnimatedVisibility(
+                visible = !errorMessage.isNullOrBlank(),
+                enter = fadeIn(tween(180)) + expandVertically(),
+                exit = fadeOut(tween(140)) + shrinkVertically()
+            ) {
                 Text(
                     text = errorMessage.orEmpty(),
                     style = MaterialTheme.typography.bodySmall,
@@ -302,8 +364,10 @@ fun AppLockGateScreen(
                     }
                 }
             } else {
+                val bioInteraction = remember { MutableInteractionSource() }
                 Button(
                     onClick = { triggerBiometric() },
+                    interactionSource = bioInteraction,
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colors.azurePrimary,
@@ -316,6 +380,7 @@ fun AppLockGateScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp)
+                        .shiftlyPressEffect(bioInteraction)
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_lucide_fingerprint),
@@ -352,11 +417,15 @@ private fun KeypadDigitKey(
     onClick: () -> Unit
 ) {
     val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
     Surface(
         modifier = Modifier
             .size(72.dp)
             .clip(CircleShape)
-            .clickable(role = Role.Button, onClick = onClick)
+            .shiftlyPressClickable(role = Role.Button) {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
             .semantics { contentDescription = "Digit $digit" },
         shape = CircleShape,
         color = colors.card,
@@ -383,11 +452,15 @@ private fun KeypadIconKey(
     tint: Color,
     onClick: () -> Unit
 ) {
+    val haptics = LocalHapticFeedback.current
     Surface(
         modifier = Modifier
             .size(72.dp)
             .clip(CircleShape)
-            .clickable(role = Role.Button, onClick = onClick)
+            .shiftlyPressClickable(role = Role.Button) {
+                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onClick()
+            }
             .semantics { contentDescription = description },
         shape = CircleShape,
         color = Color.Transparent,

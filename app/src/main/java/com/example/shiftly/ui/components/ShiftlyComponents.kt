@@ -1,21 +1,31 @@
 package com.example.shiftly.ui.components
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -61,23 +71,33 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -92,8 +112,15 @@ import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.tabular
+import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.roundToLong
+import kotlin.math.sin
+import kotlin.random.Random
 import kotlinx.coroutines.launch
 
 private val PillShape = RoundedCornerShape(50)
@@ -837,7 +864,7 @@ fun ShiftlyVerticalHairlineDivider(
 }
 
 /**
- * Thin, fully rounded, dotless iOS-style progress bar (4–6dp height).
+ * Thin, fully rounded, dotless iOS-style progress bar (4–6dp height) with spring animation.
  */
 @Composable
 fun ShiftlyProgressBar(
@@ -847,9 +874,26 @@ fun ShiftlyProgressBar(
     trackColor: Color = ShiftlyColors.current.cardElevated,
     height: Dp = 5.dp
 ) {
+    val clampedTarget = progress.coerceIn(0f, 1f)
+    val animatedProgress by animateFloatAsState(
+        targetValue = clampedTarget,
+        animationSpec = spring(
+            dampingRatio = 0.85f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "shiftlyProgress"
+    )
+    val animatedColor by animateColorAsState(
+        targetValue = color,
+        animationSpec = spring(
+            dampingRatio = 0.85f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "shiftlyProgressColor"
+    )
     LinearProgressIndicator(
-        progress = { progress.coerceIn(0f, 1f) },
-        color = color,
+        progress = { animatedProgress.coerceIn(0f, 1f) },
+        color = animatedColor,
         trackColor = trackColor,
         strokeCap = StrokeCap.Round,
         gapSize = 0.dp,
@@ -859,6 +903,99 @@ fun ShiftlyProgressBar(
             .height(height)
             .clip(PillShape)
     )
+}
+
+/**
+ * Tabular currency text that rolls smoothly between numeric values and animates privacy masking.
+ */
+@Composable
+fun ShiftlyAnimatedCurrencyText(
+    currencySymbol: String,
+    amount: Double,
+    style: TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+    showPlus: Boolean = false,
+    showMinus: Boolean = false,
+    isHidden: Boolean = false,
+    hiddenText: String = "${currencySymbol}•••••",
+    maxLines: Int = 1,
+    softWrap: Boolean = true,
+    overflow: TextOverflow = TextOverflow.Ellipsis
+) {
+    val safeTarget = if (amount.isFinite()) amount else 0.0
+    var fromAmount by remember { mutableDoubleStateOf(safeTarget) }
+    var targetAmount by remember { mutableDoubleStateOf(safeTarget) }
+    val progress = remember { Animatable(1f) }
+
+    LaunchedEffect(safeTarget) {
+        val currentVal = fromAmount + (targetAmount - fromAmount) * progress.value.toDouble()
+        if (abs(safeTarget - currentVal) < 0.005) {
+            fromAmount = safeTarget
+            targetAmount = safeTarget
+            progress.snapTo(1f)
+        } else {
+            fromAmount = currentVal
+            targetAmount = safeTarget
+            progress.snapTo(0f)
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing)
+            )
+            fromAmount = safeTarget
+        }
+    }
+
+    val displayedAmount = if (progress.value >= 0.999f) {
+        targetAmount
+    } else {
+        val raw = fromAmount + (targetAmount - fromAmount) * progress.value.toDouble()
+        val fromWholeOnly = (abs(fromAmount) * 100.0).roundToLong() % 100L == 0L
+        val targetWholeOnly = (abs(targetAmount) * 100.0).roundToLong() % 100L == 0L
+        if (fromWholeOnly && targetWholeOnly) {
+            raw.roundToLong().toDouble()
+        } else {
+            raw
+        }
+    }
+
+    val formattedAmount = ShiftlyFormatters.formatCurrency(
+        symbol = currencySymbol,
+        amount = displayedAmount,
+        showPlus = showPlus,
+        showMinus = showMinus
+    )
+
+    AnimatedContent(
+        targetState = isHidden,
+        modifier = modifier,
+        transitionSpec = {
+            val dir = if (targetState) -1 else 1
+            (fadeIn(tween(220)) + slideInVertically(
+                animationSpec = spring(
+                    dampingRatio = 0.85f,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            ) { (it / 5) * dir }) togetherWith
+                (fadeOut(tween(160)) + slideOutVertically(
+                    animationSpec = spring(
+                        dampingRatio = 0.85f,
+                        stiffness = Spring.StiffnessMedium
+                    )
+                ) { -(it / 5) * dir }) using
+                SizeTransform(clip = false)
+        },
+        label = "shiftlyCurrencyPrivacy"
+    ) { hidden ->
+        Text(
+            text = if (hidden) hiddenText else formattedAmount,
+            style = style.tabular(),
+            color = color,
+            maxLines = maxLines,
+            softWrap = softWrap,
+            overflow = overflow
+        )
+    }
 }
 
 /**
@@ -2268,6 +2405,293 @@ fun ShiftlyMainTabTourOverlay(
             }
 
             highlightedBottomBar()
+        }
+    }
+}
+
+/**
+ * Action descriptor for horizontal swipe gestures in [ShiftlySwipeActionRow].
+ */
+data class ShiftlySwipeAction(
+    @DrawableRes val iconRes: Int,
+    val label: String,
+    val backgroundColor: Color,
+    val contentColor: Color = PureWhite,
+    val onTrigger: () -> Unit
+)
+
+/**
+ * Horizontal swipe-to-act wrapper that reveals a tinted action strip with spring snap-back.
+ */
+@Composable
+fun ShiftlySwipeActionRow(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(18.dp),
+    startToEndAction: ShiftlySwipeAction? = null,
+    endToStartAction: ShiftlySwipeAction? = null,
+    content: @Composable () -> Unit
+) {
+    val density = LocalDensity.current
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val currentStartAction by rememberUpdatedState(startToEndAction)
+    val currentEndAction by rememberUpdatedState(endToStartAction)
+
+    val maxSwipePx = remember(density) { with(density) { 112.dp.toPx() } }
+    val triggerThresholdPx = remember(density) { with(density) { 72.dp.toPx() } }
+    val offsetX = remember { Animatable(0f) }
+    var crossedThreshold by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+    ) {
+        val currentOffset = offsetX.value
+        if (currentOffset > 2f && startToEndAction != null) {
+            val isArmed = currentOffset >= triggerThresholdPx
+            val iconScale by animateFloatAsState(
+                targetValue = if (isArmed) 1.12f else 0.85f,
+                animationSpec = spring(
+                    dampingRatio = 0.7f,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                label = "swipeStartIconScale"
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(startToEndAction.backgroundColor)
+                    .padding(horizontal = 18.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(startToEndAction.iconRes),
+                        contentDescription = null,
+                        tint = startToEndAction.contentColor,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                            }
+                    )
+                    Text(
+                        text = startToEndAction.label,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = startToEndAction.contentColor
+                    )
+                }
+            }
+        } else if (currentOffset < -2f && endToStartAction != null) {
+            val isArmed = -currentOffset >= triggerThresholdPx
+            val iconScale by animateFloatAsState(
+                targetValue = if (isArmed) 1.12f else 0.85f,
+                animationSpec = spring(
+                    dampingRatio = 0.7f,
+                    stiffness = Spring.StiffnessMedium
+                ),
+                label = "swipeEndIconScale"
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(endToStartAction.backgroundColor)
+                    .padding(horizontal = 18.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = endToStartAction.label,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = endToStartAction.contentColor
+                    )
+                    Icon(
+                        painter = painterResource(endToStartAction.iconRes),
+                        contentDescription = null,
+                        tint = endToStartAction.contentColor,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .graphicsLayer {
+                                scaleX = iconScale
+                                scaleY = iconScale
+                            }
+                    )
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offsetX.value.roundToInt(), 0) }
+                .pointerInput(startToEndAction != null, endToStartAction != null) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { crossedThreshold = false },
+                        onHorizontalDrag = { change, dragAmount ->
+                            val minBound = if (currentEndAction != null) -maxSwipePx else 0f
+                            val maxBound = if (currentStartAction != null) maxSwipePx else 0f
+                            val next = (offsetX.value + dragAmount).coerceIn(minBound, maxBound)
+                            if (abs(next) > 0f) {
+                                change.consume()
+                            }
+                            scope.launch { offsetX.snapTo(next) }
+                            if (abs(next) >= triggerThresholdPx && !crossedThreshold) {
+                                crossedThreshold = true
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            } else if (abs(next) < triggerThresholdPx * 0.85f) {
+                                crossedThreshold = false
+                            }
+                        },
+                        onDragEnd = {
+                            val finalOffset = offsetX.value
+                            scope.launch {
+                                offsetX.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = spring(
+                                        dampingRatio = 0.78f,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    )
+                                )
+                            }
+                            val startAction = currentStartAction
+                            val endAction = currentEndAction
+                            if (finalOffset >= triggerThresholdPx && startAction != null) {
+                                startAction.onTrigger()
+                            } else if (finalOffset <= -triggerThresholdPx && endAction != null) {
+                                endAction.onTrigger()
+                            }
+                        },
+                        onDragCancel = {
+                            scope.launch {
+                                offsetX.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = spring(
+                                        dampingRatio = 0.78f,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    )
+                                )
+                            }
+                        }
+                    )
+                }
+        ) {
+            content()
+        }
+    }
+}
+
+private data class ConfettiParticle(
+    val angleRad: Float,
+    val speedFactor: Float,
+    val sizeDp: Float,
+    val aspectRatio: Float,
+    val isCircle: Boolean,
+    val rotationOffsetDeg: Float,
+    val rotationSpeedDeg: Float,
+    val colorIndex: Int
+)
+
+/**
+ * Pure-Compose celebratory confetti particle burst triggered whenever [triggerCount] increments above 0.
+ */
+@Composable
+fun ShiftlyConfettiOverlay(
+    triggerCount: Int,
+    modifier: Modifier = Modifier
+) {
+    if (triggerCount <= 0) return
+
+    val colors = ShiftlyColors.current
+    val palette = remember(colors) {
+        listOf(
+            colors.mintBright,
+            colors.azurePrimary,
+            colors.iosOrange,
+            colors.nightDiffPurple,
+            colors.coralBright,
+            PureWhite
+        )
+    }
+    val particles = remember(triggerCount) {
+        val rng = Random(triggerCount * 31 + 7)
+        List(48) {
+            val angleDeg = -165f + rng.nextFloat() * 150f
+            ConfettiParticle(
+                angleRad = Math.toRadians(angleDeg.toDouble()).toFloat(),
+                speedFactor = 0.45f + rng.nextFloat() * 0.75f,
+                sizeDp = 5f + rng.nextFloat() * 4.5f,
+                aspectRatio = 0.5f + rng.nextFloat() * 0.4f,
+                isCircle = rng.nextFloat() < 0.35f,
+                rotationOffsetDeg = rng.nextFloat() * 360f,
+                rotationSpeedDeg = (rng.nextFloat() - 0.5f) * 720f,
+                colorIndex = rng.nextInt(6)
+            )
+        }
+    }
+
+    val anim = remember(triggerCount) { Animatable(0f) }
+    LaunchedEffect(triggerCount) {
+        anim.snapTo(0f)
+        anim.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = 1500, easing = LinearEasing)
+        )
+    }
+
+    val t = anim.value
+    if (t <= 0.001f || t >= 0.999f) return
+
+    Canvas(modifier = modifier) {
+        val originX = size.width * 0.5f
+        val originY = size.height * 0.28f
+        val maxSpeed = size.minDimension * 1.15f
+        val gravity = size.height * 1.65f
+        val easeDrag = 1f - (1f - t) * (1f - t)
+        val alpha = if (t < 0.65f) 1f else ((1f - t) / 0.35f).coerceIn(0f, 1f)
+
+        particles.forEach { p ->
+            val speed = maxSpeed * p.speedFactor
+            val vx = cos(p.angleRad) * speed
+            val vy = sin(p.angleRad) * speed
+            val x = originX + vx * easeDrag
+            val y = originY + vy * easeDrag + 0.5f * gravity * t * t
+            val sizePx = p.sizeDp.dp.toPx()
+            val particleColor = palette[p.colorIndex % palette.size].copy(alpha = alpha)
+
+            if (p.isCircle) {
+                drawCircle(
+                    color = particleColor,
+                    radius = sizePx * 0.5f,
+                    center = Offset(x, y)
+                )
+            } else {
+                val widthPx = sizePx * 1.35f
+                val heightPx = sizePx * p.aspectRatio
+                rotate(
+                    degrees = p.rotationOffsetDeg + p.rotationSpeedDeg * t,
+                    pivot = Offset(x, y)
+                ) {
+                    drawRect(
+                        color = particleColor,
+                        topLeft = Offset(x - widthPx * 0.5f, y - heightPx * 0.5f),
+                        size = Size(widthPx, heightPx)
+                    )
+                }
+            }
         }
     }
 }

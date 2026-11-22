@@ -9,20 +9,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -32,7 +25,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -52,14 +44,15 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlyFeatureGuideSheet
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
-import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
+import com.example.shiftly.utils.ShiftlyFormatters
 import com.example.shiftly.workers.ShiftlyDailyWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -68,7 +61,6 @@ import java.io.File
 
 private const val DEVELOPER_FEEDBACK_EMAIL = "jameschristian.huelar24@gmail.com"
 private val BACKUP_PICKER_MIME_TYPES = arrayOf("application/zip", "application/json", "text/plain", "*/*")
-private val ProfileSettingsSheetTopShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
 
 private enum class ActiveSettingsSheet {
     ACCOUNT,
@@ -283,13 +275,16 @@ fun ProfileScreen(
                     workplace = state.workplace,
                     workType = state.workType,
                     targetWeeklyHours = state.targetWeeklyHours,
-                    onSave = { newName, newJobTitle, newWorkplace, newWorkType, newTargetHours ->
+                    currencySymbol = state.currencySymbol,
+                    currentHourlyRate = state.defaultHourlyRate,
+                    onSave = { newName, newJobTitle, newWorkplace, newWorkType, newTargetHours, newHourlyRate ->
                         viewModel.updateProfileDetails(
                             userName = newName,
                             jobTitle = newJobTitle,
                             workplace = newWorkplace,
                             workType = newWorkType,
-                            targetWeeklyHours = newTargetHours
+                            targetWeeklyHours = newTargetHours,
+                            defaultHourlyRate = newHourlyRate
                         )
                         activeSheet = null
                         onShowMessage("Profile updated")
@@ -538,158 +533,197 @@ private fun ProfileScreenContent(
         }
     }
 
+    val currencyDisplayLabel = when (currency) {
+        "₱" -> "PHP (₱)"
+        "$" -> "USD ($)"
+        "€" -> "EUR (€)"
+        "£" -> "GBP (£)"
+        "¥" -> "JPY (¥)"
+        else -> currency
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
-            contentPadding = PaddingValues(top = 12.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 112.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item(key = "profile_header", contentType = "header") {
                 ShiftlyScreenHeader(
                     title = "Profile",
                     largeTitle = true,
-                    subtitle = state.userName.trim().takeIf { it.isNotEmpty() },
-                    modifier = Modifier
-                        .padding(horizontal = 20.dp)
-                        .graphicsLayer { alpha = headerAlpha }
+                    modifier = Modifier.graphicsLayer { alpha = headerAlpha }
+                )
+            }
+
+            item(key = "profile_identity", contentType = "identity") {
+                ProfileIdentityCard(
+                    userName = state.userName,
+                    jobTitle = state.jobTitle,
+                    workplace = state.workplace,
+                    workType = state.workType,
+                    targetWeeklyHours = state.targetWeeklyHours,
+                    currencySymbol = currency,
+                    defaultHourlyRate = state.defaultHourlyRate,
+                    onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
                 )
             }
 
             item(key = "profile_snapshot", contentType = "snapshot") {
-                Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                    ProfileSnapshotGlassCard(
-                        currencySymbol = currency,
-                        totalShifts = state.totalShifts,
-                        totalHoursWorked = state.totalHoursWorked,
-                        totalEarnings = state.totalEarnings,
-                        totalExpenses = state.totalExpenses
+                ProfileSnapshotGlassCard(
+                    currencySymbol = currency,
+                    totalShifts = state.totalShifts,
+                    totalHoursWorked = state.totalHoursWorked,
+                    totalEarnings = state.totalEarnings,
+                    totalExpenses = state.totalExpenses
+                )
+            }
+
+            item(key = "settings_account", contentType = "settings_group") {
+                SettingsGroupCard(groupTitle = "ACCOUNT & PREFERENCES") {
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_user,
+                        title = "Account & Rate",
+                        subtitle = "Name, workplace, weekly hours & hourly rate",
+                        trailingText = if (state.defaultHourlyRate > 0.0) {
+                            "${ShiftlyFormatters.formatCurrency(currency, state.defaultHourlyRate)}/hr"
+                        } else {
+                            null
+                        },
+                        iconTint = colors.azurePrimary,
+                        onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
+                    )
+                    ShiftlyHairlineDivider(startInset = 62.dp)
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_circle_dollar_sign,
+                        title = "Currency",
+                        trailingText = currencyDisplayLabel,
+                        iconTint = colors.mintBright,
+                        onClick = { onOpenSheet(ActiveSettingsSheet.CURRENCY) }
+                    )
+                    ShiftlyHairlineDivider(startInset = 62.dp)
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_wallet,
+                        title = "Monthly Limits",
+                        subtitle = "Overall cap, category limits & visibility",
+                        trailingText = if (state.monthlyBudget > 0.0) {
+                            ShiftlyFormatters.formatCurrency(currency, state.monthlyBudget)
+                        } else {
+                            "Off"
+                        },
+                        iconTint = colors.azureAccent,
+                        onClick = { onOpenSheet(ActiveSettingsSheet.BUDGETS) }
+                    )
+                    ShiftlyHairlineDivider(startInset = 62.dp)
+                    SettingsSwitchRow(
+                        iconRes = R.drawable.ic_lucide_bell,
+                        title = "Notifications",
+                        subtitle = if (state.settings.notificationsEnabled) {
+                            "Bills, shifts & savings reminders on"
+                        } else {
+                            "Reminders muted"
+                        },
+                        checked = state.settings.notificationsEnabled,
+                        onCheckedChange = onToggleNotifications,
+                        onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) },
+                        iconTint = colors.iosOrange
+                    )
+                    ShiftlyHairlineDivider(startInset = 62.dp)
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_palette,
+                        title = "App Theme",
+                        trailingText = when (state.settings.themeMode.uppercase()) {
+                            "LIGHT" -> "Light"
+                            "DARK" -> "Dark"
+                            else -> "System"
+                        },
+                        iconTint = colors.coralBright,
+                        onClick = { onOpenSheet(ActiveSettingsSheet.THEME) }
                     )
                 }
             }
 
-            item(key = "profile_settings_sheet", contentType = "settings_sheet") {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 520.dp),
-                    shape = ProfileSettingsSheetTopShape,
-                    color = colors.surface,
-                    shadowElevation = 0.dp
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        ShiftlySheetDragHandle()
+            item(key = "settings_security", contentType = "settings_group") {
+                SettingsGroupCard(groupTitle = "SECURITY & DATA EXPORT") {
+                    SettingsSwitchRow(
+                        iconRes = R.drawable.ic_lucide_fingerprint,
+                        title = "App Lock",
+                        subtitle = if (state.settings.appLockEnabled) {
+                            state.settings.appLockMethod
+                        } else {
+                            "Disabled"
+                        },
+                        checked = state.settings.appLockEnabled,
+                        onCheckedChange = onToggleAppLock,
+                        onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },
+                        iconTint = colors.nightDiffPurple
+                    )
+                    ShiftlyHairlineDivider(startInset = 62.dp)
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_cloud_upload,
+                        title = "Data Export & Restore",
+                        subtitle = "JSON backups & CSV spreadsheets",
+                        iconTint = colors.azurePrimary,
+                        onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }
+                    )
+                }
+            }
 
-                        Text(
-                            text = "Settings",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = colors.textPrimary
-                        )
+            item(key = "settings_support", contentType = "settings_group") {
+                SettingsGroupCard(groupTitle = "SUPPORT & FEEDBACK") {
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_sparkles,
+                        title = "What's Inside Shiftly",
+                        iconTint = colors.azurePrimary,
+                        onClick = { onOpenSheet(ActiveSettingsSheet.FEATURE_GUIDE) }
+                    )
+                    ShiftlyHairlineDivider(startInset = 62.dp)
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_rotate_ccw,
+                        title = "Replay App Tutorial",
+                        iconTint = colors.azurePrimary,
+                        onClick = onReplayTutorial
+                    )
+                    ShiftlyHairlineDivider(startInset = 62.dp)
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_message_square,
+                        title = "Suggestions & Bug Report",
+                        iconTint = colors.nightDiffPurple,
+                        onClick = { onOpenSheet(ActiveSettingsSheet.FEEDBACK) }
+                    )
+                }
+            }
 
-                        SettingsGroupCard(groupTitle = "ACCOUNT & PREFERENCES") {
-                            SettingsChevronRow(
-                                iconRes = R.drawable.ic_lucide_user,
-                                title = "Account",
-                                iconTint = colors.azurePrimary,
-                                onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
-                            )
-                            SettingsChevronRow(
-                                iconRes = R.drawable.ic_lucide_circle_dollar_sign,
-                                title = "Currency",
-                                iconTint = colors.mintBright,
-                                onClick = { onOpenSheet(ActiveSettingsSheet.CURRENCY) }
-                            )
-                            SettingsSwitchRow(
-                                iconRes = R.drawable.ic_lucide_bell,
-                                title = "Notifications",
-                                checked = state.settings.notificationsEnabled,
-                                onCheckedChange = onToggleNotifications,
-                                onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) },
-                                iconTint = colors.iosOrange
-                            )
-                            SettingsChevronRow(
-                                iconRes = R.drawable.ic_lucide_palette,
-                                title = "App Theme",
-                                trailingText = when (state.settings.themeMode.uppercase()) {
-                                    "LIGHT" -> "Light Mode"
-                                    "DARK" -> "Dark Mode"
-                                    else -> "System"
-                                },
-                                iconTint = colors.coralBright,
-                                onClick = { onOpenSheet(ActiveSettingsSheet.THEME) }
-                            )
-                        }
-
-                        SettingsGroupCard(groupTitle = "SECURITY & DATA EXPORT") {
-                            SettingsSwitchRow(
-                                iconRes = R.drawable.ic_lucide_fingerprint,
-                                title = "App Lock",
-                                checked = state.settings.appLockEnabled,
-                                onCheckedChange = onToggleAppLock,
-                                onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },
-                                iconTint = colors.nightDiffPurple
-                            )
-                            SettingsChevronRow(
-                                iconRes = R.drawable.ic_lucide_cloud_upload,
-                                title = "Data Export & Restore",
-                                iconTint = colors.azurePrimary,
-                                onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }
-                            )
-                        }
-
-                        SettingsGroupCard(groupTitle = "SUPPORT & FEEDBACK") {
-                            SettingsChevronRow(
-                                iconRes = R.drawable.ic_lucide_sparkles,
-                                title = "What's Inside Shiftly",
-                                iconTint = Color(0xFF0A84FF),
-                                onClick = { onOpenSheet(ActiveSettingsSheet.FEATURE_GUIDE) }
-                            )
-                            SettingsChevronRow(
-                                iconRes = R.drawable.ic_lucide_rotate_ccw,
-                                title = "Replay App Tutorial",
-                                iconTint = Color(0xFF0A84FF),
-                                onClick = onReplayTutorial
-                            )
-                            SettingsChevronRow(
-                                iconRes = R.drawable.ic_lucide_message_square,
-                                title = "Suggestions & Bug Report",
-                                iconTint = Color(0xFFBF5AF2),
-                                onClick = { onOpenSheet(ActiveSettingsSheet.FEEDBACK) }
-                            )
-                        }
-
-                        SettingsGroupCard(groupTitle = "ABOUT & LEGAL") {
-                            SettingsChevronRow(
-                                iconRes = R.drawable.ic_lucide_file_text,
-                                title = "Terms & Conditions",
-                                iconTint = Color(0xFF8E8E93),
-                                onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_TERMS) }
-                            )
-                            SettingsChevronRow(
-                                iconRes = R.drawable.ic_lucide_lock,
-                                title = "Privacy Policy",
-                                iconTint = Color(0xFF30D158),
-                                onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_PRIVACY) }
-                            )
-                            SettingsChevronRow(
-                                iconRes = R.drawable.ic_lucide_info,
-                                title = "Payroll & Tax Disclaimer",
-                                iconTint = Color(0xFF0A84FF),
-                                onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_DISCLAIMER) }
-                            )
-                            SettingsStaticRow(
-                                title = "Version",
-                                value = appVersion
-                            )
-                        }
-                    }
+            item(key = "settings_legal", contentType = "settings_group") {
+                SettingsGroupCard(groupTitle = "ABOUT & LEGAL") {
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_file_text,
+                        title = "Terms & Conditions",
+                        iconTint = colors.textSecondary,
+                        onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_TERMS) }
+                    )
+                    ShiftlyHairlineDivider(startInset = 62.dp)
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_lock,
+                        title = "Privacy Policy",
+                        iconTint = colors.mintBright,
+                        onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_PRIVACY) }
+                    )
+                    ShiftlyHairlineDivider(startInset = 62.dp)
+                    SettingsChevronRow(
+                        iconRes = R.drawable.ic_lucide_info,
+                        title = "Payroll & Tax Disclaimer",
+                        iconTint = colors.azurePrimary,
+                        onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_DISCLAIMER) }
+                    )
+                    ShiftlyHairlineDivider(startInset = 62.dp)
+                    SettingsStaticRow(
+                        title = "Version",
+                        value = appVersion
+                    )
                 }
             }
         }

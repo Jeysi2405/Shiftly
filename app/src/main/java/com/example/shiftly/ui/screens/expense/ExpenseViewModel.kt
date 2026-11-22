@@ -215,9 +215,21 @@ class ExpenseViewModel(
         }
     }
 
-    fun deleteExpense(expense: ExpenseEntity) {
+    fun deleteExpense(expense: ExpenseEntity, deleteReceiptFile: Boolean = true) {
         viewModelScope.launch {
-            repository.deleteExpense(expense)
+            repository.deleteExpense(expense, deleteReceiptFile = deleteReceiptFile)
+        }
+    }
+
+    fun restoreExpense(expense: ExpenseEntity) {
+        viewModelScope.launch {
+            repository.insertExpense(expense)
+        }
+    }
+
+    fun cleanupReceiptFile(path: String?) {
+        viewModelScope.launch {
+            repository.deleteReceiptFile(path)
         }
     }
 

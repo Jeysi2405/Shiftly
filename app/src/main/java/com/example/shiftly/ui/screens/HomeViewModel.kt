@@ -4,7 +4,6 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.shiftly.data.local.ActiveTimerState
 import com.example.shiftly.data.local.AllowanceEntryEntity
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ExpenseEntity
@@ -164,8 +163,7 @@ data class HomeUiState(
     val currentMonthName: String = LocalDate.now().month.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
     val monthlyTopCategories: List<CategorySpendSummary> = emptyList(),
     val monthlyHoursSummary: MonthlyHoursSummary = MonthlyHoursSummary(),
-    val timelineItems: List<TimelineActivityItem> = emptyList(),
-    val activeTimer: ActiveTimerState = ActiveTimerState()
+    val timelineItems: List<TimelineActivityItem> = emptyList()
 )
 
 class HomeViewModel(
@@ -195,8 +193,7 @@ class HomeViewModel(
         val userName: String,
         val currency: String,
         val rate: Double,
-        val budget: Double,
-        val activeTimer: ActiveTimerState
+        val budget: Double
     )
 
     private val identityPrefsFlow = combine(
@@ -208,10 +205,9 @@ class HomeViewModel(
 
     private val financePrefsFlow = combine(
         repository.defaultHourlyRate,
-        repository.monthlyBudget,
-        repository.activeTimerState
-    ) { rate, budget, activeTimer ->
-        Triple(rate, budget, activeTimer)
+        repository.monthlyBudget
+    ) { rate, budget ->
+        rate to budget
     }
 
     private val corePrefsFlow = combine(identityPrefsFlow, financePrefsFlow) { id, fin ->
@@ -219,8 +215,7 @@ class HomeViewModel(
             userName = id.first,
             currency = id.second,
             rate = fin.first,
-            budget = fin.second,
-            activeTimer = fin.third
+            budget = fin.second
         )
     }
 
@@ -467,8 +462,7 @@ class HomeViewModel(
             currentMonthName = today.month.getDisplayName(TextStyle.FULL, Locale.ENGLISH),
             monthlyTopCategories = monthlyTopCategories,
             monthlyHoursSummary = monthlyHoursSummary,
-            timelineItems = combinedTimeline,
-            activeTimer = prefs.activeTimer
+            timelineItems = combinedTimeline
         )
     }
         .flowOn(Dispatchers.IO)

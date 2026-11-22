@@ -5,16 +5,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -29,13 +25,13 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
-import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlyToolSheetContainer
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
@@ -43,6 +39,7 @@ import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
 import com.example.shiftly.ui.screens.profile.ShiftlySheetActionState
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
+import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -191,8 +188,8 @@ fun AnalyticsScreenContent(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
-            contentPadding = PaddingValues(top = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            contentPadding = PaddingValues(top = 12.dp, bottom = 112.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item(key = "analytics_top_bar", contentType = "top_bar") {
                 Box(modifier = Modifier.graphicsLayer { alpha = headerAlpha }) {
@@ -214,76 +211,115 @@ fun AnalyticsScreenContent(
                 }
             }
 
-            item(key = "analytics_insights_sheet", contentType = "insights_sheet") {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 520.dp),
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-                    color = colors.surface,
-                    shadowElevation = 0.dp
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 20.dp, end = 20.dp, bottom = 104.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        ShiftlySheetDragHandle()
-
-                        Text(
-                            text = "Insights",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = colors.textPrimary,
-                            modifier = Modifier.semantics { heading() }
-                        )
-
-                        OnBudgetStreakCard(
-                            streakDays = state.underBudgetStreakDays,
-                            streakTargetDays = state.streakTargetDays,
-                            dailyAllowance = state.dailyBudgetAllowance,
-                            onOpenBudgetSettings = onOpenBudgetSettings
-                        )
-
-                        NetSavingsRateCard(
-                            ratePercentage = state.netSavingsRate,
-                            netAmount = state.netSavingsAmount,
-                            progressFraction = state.netSavingsFraction,
-                            currencySymbol = state.currencySymbol
-                        )
-
-                        PeakShiftSpendPatternCard(
-                            topEarningDayLabel = state.topEarningDayLabel,
-                            highestSpendDayLabel = state.highestSpendDayLabel
-                        )
-
-                        ProjectedMonthlySpendCard(
-                            projectedSpend = state.projectedMonthlySpend,
-                            dailyPace = state.dailyAveragePace,
-                            isWithinBudget = state.isProjectedWithinBudget,
-                            currencySymbol = state.currencySymbol
-                        )
-
-                        TopSpendingCategoriesCard(
-                            categories = state.categoryInsights,
-                            currencySymbol = state.currencySymbol
-                        )
-
-                        EarningsHoursBreakdownCard(
-                            currencySymbol = state.currencySymbol,
-                            earnings = state.periodIncome,
-                            totalHours = state.totalWorkedHours,
-                            regularHours = state.regularHours,
-                            nightDiffHours = state.nightDiffHours,
-                            overtimeHours = state.overtimeHours
-                        )
-
-                        HoursOfWorkCostCard(
-                            currencySymbol = state.currencySymbol,
-                            hourlyRate = state.hourlyRate,
-                            items = state.workHoursCosts
-                        )
+            if (state.plainLanguageTips.isNotEmpty()) {
+                item(key = "analytics_smart_tips", contentType = "smart_tips") {
+                    Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                        SmartTakeawaysCard(tips = state.plainLanguageTips)
                     }
+                }
+            }
+
+            item(key = "analytics_budget_savings_section", contentType = "analytics_section") {
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "BUDGET & SAVINGS PACE",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = colors.textSecondary,
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .semantics { heading() }
+                    )
+
+                    OnBudgetStreakCard(
+                        streakDays = state.underBudgetStreakDays,
+                        streakTargetDays = state.streakTargetDays,
+                        dailyAllowance = state.dailyBudgetAllowance,
+                        currencySymbol = state.currencySymbol,
+                        onOpenBudgetSettings = onOpenBudgetSettings
+                    )
+
+                    NetSavingsRateCard(
+                        ratePercentage = state.netSavingsRate,
+                        netAmount = state.netSavingsAmount,
+                        progressFraction = state.netSavingsFraction,
+                        currencySymbol = state.currencySymbol
+                    )
+
+                    ProjectedMonthlySpendCard(
+                        projectedSpend = state.projectedMonthlySpend,
+                        dailyPace = state.dailyAveragePace,
+                        isWithinBudget = state.isProjectedWithinBudget,
+                        currencySymbol = state.currencySymbol
+                    )
+                }
+            }
+
+            item(key = "analytics_spending_section", contentType = "analytics_section") {
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "SPENDING BREAKDOWN",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = colors.textSecondary,
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .semantics { heading() }
+                    )
+
+                    TopSpendingCategoriesCard(
+                        categories = state.categoryInsights,
+                        currencySymbol = state.currencySymbol
+                    )
+
+                    PeakShiftSpendPatternCard(
+                        topEarningDayLabel = state.topEarningDayLabel,
+                        highestSpendDayLabel = state.highestSpendDayLabel
+                    )
+                }
+            }
+
+            item(key = "analytics_work_section", contentType = "analytics_section") {
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "WORK & DUTY IMPACT",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            letterSpacing = 0.5.sp
+                        ),
+                        color = colors.textSecondary,
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .semantics { heading() }
+                    )
+
+                    EarningsHoursBreakdownCard(
+                        currencySymbol = state.currencySymbol,
+                        earnings = state.periodIncome,
+                        totalHours = state.totalWorkedHours,
+                        regularHours = state.regularHours,
+                        nightDiffHours = state.nightDiffHours,
+                        overtimeHours = state.overtimeHours
+                    )
+
+                    HoursOfWorkCostCard(
+                        currencySymbol = state.currencySymbol,
+                        hourlyRate = state.hourlyRate,
+                        items = state.workHoursCosts
+                    )
                 }
             }
         }

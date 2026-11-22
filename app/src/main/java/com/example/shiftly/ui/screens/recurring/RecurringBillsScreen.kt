@@ -28,7 +28,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -51,6 +50,8 @@ import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySwipeAction
+import com.example.shiftly.ui.components.ShiftlySwipeActionRow
 import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -67,7 +68,11 @@ import kotlinx.coroutines.withContext
 fun RecurringBillsScreen(
     repository: ShiftlyRepository,
     onBack: () -> Unit = {},
-    onShowMessage: (String) -> Unit = {}
+    onShowMessage: (String) -> Unit = {},
+    onShowUndoMessage: (message: String, onUndo: () -> Unit, onDismissed: () -> Unit) -> Unit = { msg, _, onDismissed ->
+        onShowMessage(msg)
+        onDismissed()
+    }
 ) {
     val viewModel: RecurringBillsViewModel = viewModel(factory = RecurringBillsViewModel.Factory(repository))
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -111,7 +116,16 @@ fun RecurringBillsScreen(
                 }
             }
         },
-        onDeleteBill = { pendingDeleteBill = it }
+        onDeleteBill = { pendingDeleteBill = it },
+        onSwipeDeleteBill = { bill ->
+            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+            viewModel.deleteBill(bill)
+            onShowUndoMessage(
+                "Deleted \"${bill.title}\"",
+                { viewModel.restoreBill(bill) },
+                {}
+            )
+        }
     )
 
     if (showTutorialSheet) {
@@ -188,6 +202,7 @@ fun RecurringBillsScreenContent(
     onEditBill: (RecurringBillEntity) -> Unit = {},
     onToggleEnabled: (RecurringBillEntity, Boolean) -> Unit = { _, _ -> },
     onDeleteBill: (RecurringBillEntity) -> Unit = {},
+    onSwipeDeleteBill: (RecurringBillEntity) -> Unit = onDeleteBill,
     listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
@@ -304,23 +319,38 @@ fun RecurringBillsScreenContent(
                             bottom = if (idx < state.bills.lastIndex) 2.dp else 0.dp
                         )
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(rowShape)
-                            .background(colors.cardElevated)
-                    ) {
-                        RecurringBillItemCard(
-                            bill = bill,
-                            currencySymbol = state.currencySymbol,
-                            onToggleEnabled = { enabled -> onToggleEnabled(bill, enabled) },
-                            onEdit = { onEditBill(bill) },
-                            onDelete = { onDeleteBill(bill) },
-                            dateTimeFormatter = itemDateTimeFormatter,
-                            now = now,
-                            containerColor = Color.Transparent,
-                            shape = RectangleShape
+                    ShiftlySwipeActionRow(
+                        shape = rowShape,
+                        startToEndAction = ShiftlySwipeAction(
+                            iconRes = if (bill.isEnabled) R.drawable.ic_lucide_minus else R.drawable.ic_lucide_check,
+                            label = if (bill.isEnabled) "Pause" else "Enable",
+                            backgroundColor = if (bill.isEnabled) colors.iosOrange else colors.mintBright,
+                            onTrigger = { onToggleEnabled(bill, !bill.isEnabled) }
+                        ),
+                        endToStartAction = ShiftlySwipeAction(
+                            iconRes = R.drawable.ic_lucide_trash_2,
+                            label = "Delete",
+                            backgroundColor = colors.coralBright,
+                            onTrigger = { onSwipeDeleteBill(bill) }
                         )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(colors.cardElevated)
+                        ) {
+                            RecurringBillItemCard(
+                                bill = bill,
+                                currencySymbol = state.currencySymbol,
+                                onToggleEnabled = { enabled -> onToggleEnabled(bill, enabled) },
+                                onEdit = { onEditBill(bill) },
+                                onDelete = { onDeleteBill(bill) },
+                                dateTimeFormatter = itemDateTimeFormatter,
+                                now = now,
+                                containerColor = Color.Transparent,
+                                shape = RectangleShape
+                            )
+                        }
                     }
                 }
             }

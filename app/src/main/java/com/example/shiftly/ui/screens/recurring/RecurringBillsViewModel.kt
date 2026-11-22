@@ -152,6 +152,12 @@ class RecurringBillsViewModel(
         }
     }
 
+    fun restoreBill(bill: RecurringBillEntity) {
+        viewModelScope.launch {
+            repository.insertRecurringBill(bill)
+        }
+    }
+
     class Factory(private val repository: ShiftlyRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T {

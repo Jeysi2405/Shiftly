@@ -146,7 +146,8 @@ class ProfileViewModel(
         jobTitle: String,
         workplace: String,
         workType: String,
-        targetWeeklyHours: Double
+        targetWeeklyHours: Double,
+        defaultHourlyRate: Double? = null
     ) {
         viewModelScope.launch {
             repository.updateProfileDetails(
@@ -156,6 +157,9 @@ class ProfileViewModel(
                 workType = workType,
                 targetWeeklyHours = targetWeeklyHours
             )
+            if (defaultHourlyRate != null && defaultHourlyRate.isFinite() && defaultHourlyRate >= 0.0) {
+                repository.updateDefaultHourlyRate(defaultHourlyRate)
+            }
         }
     }
 

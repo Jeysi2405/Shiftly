@@ -8,21 +8,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,15 +31,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.shiftly.R
 import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.InAppNotificationType
 import com.example.shiftly.data.local.SavingsGoalEntity
@@ -53,13 +42,9 @@ import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
-import com.example.shiftly.ui.components.ShiftlyProgressBar
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
-import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlyToolSheetContainer
-import com.example.shiftly.ui.components.shiftlyPressClickable
-import com.example.shiftly.ui.components.shiftlySheetBodyBand
-import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.expense.CategorySpendSummary
@@ -67,10 +52,8 @@ import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
 import com.example.shiftly.ui.screens.profile.ShiftlySheetActionState
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
-import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
 import com.example.shiftly.ui.theme.ShiftlyTheme
-import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.CutoffShiftSummary
 import com.example.shiftly.utils.CutoffWindow
 import com.example.shiftly.utils.SavingsGoalMath
@@ -79,6 +62,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.coroutines.cancellation.CancellationException
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun HomeScreen(
     repository: ShiftlyRepository,
@@ -154,6 +138,7 @@ fun HomeScreen(
         onViewInsights = onNavigateToAnalytics,
         onToggleBalancePrivacy = { viewModel.toggleBalancePrivacy() },
         onOpenBudgetSettings = { showBudgetsSheet = true },
+        onNavigateToDuties = onNavigateToDuties,
         onNavigateToRecurringBills = onNavigateToRecurringBills,
         onNavigateToAllowance = onNavigateToAllowance,
         onOpenGoalDetail = { goalId ->
@@ -166,7 +151,7 @@ fun HomeScreen(
             when (item) {
                 is TimelineActivityItem.ShiftActivity -> onNavigateToDuties()
                 is TimelineActivityItem.ExpenseActivity -> onNavigateToExpense()
-                is TimelineActivityItem.ExtraIncomeActivity -> onNavigateToProfile()
+                is TimelineActivityItem.ExtraIncomeActivity -> onNavigateToAllowance()
             }
         }
     )
@@ -267,6 +252,7 @@ fun HomeScreenContent(
     onTimelineItemClick: (TimelineActivityItem) -> Unit = {},
     onToggleBalancePrivacy: () -> Unit = {},
     onOpenBudgetSettings: () -> Unit = {},
+    onNavigateToDuties: () -> Unit = {},
     onNavigateToRecurringBills: () -> Unit = {},
     onNavigateToAllowance: () -> Unit = {},
     todayOverride: LocalDate? = null,
@@ -276,15 +262,6 @@ fun HomeScreenContent(
 ) {
     val colors = ShiftlyColors.current
     val currency = state.currencySymbol
-    val budgetRatio = remember(state.mtdExpenses, state.monthlyBudget) {
-        if (state.monthlyBudget > 0.0) {
-            (state.mtdExpenses / state.monthlyBudget).toFloat().coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-    }
-    val nearLimit = budgetRatio >= 0.80f
-    val budgetPct = (budgetRatio * 100).toInt()
 
     var selectedActivityFilter by remember { mutableStateOf(ActivityFilter.ALL) }
     var isActivityExpanded by remember { mutableStateOf(false) }
@@ -322,7 +299,7 @@ fun HomeScreenContent(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
-            contentPadding = PaddingValues(top = 12.dp),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 112.dp),
             verticalArrangement = Arrangement.Top
         ) {
             item(key = "greeting_header", contentType = "greeting_header") {
@@ -349,99 +326,34 @@ fun HomeScreenContent(
                         onOpenGoalDetail = onOpenGoalDetail,
                         onOpenAddGoal = onOpenAddGoal,
                         onSelectActiveGoal = onSelectActiveGoal,
-                        onToggleBalancePrivacy = onToggleBalancePrivacy
+                        onToggleBalancePrivacy = onToggleBalancePrivacy,
+                        onNavigateToDuties = onNavigateToDuties
                     )
                 }
             }
 
-            item(key = "sheet_header", contentType = "sheet_header") {
-                Column(
+            item(key = "monthly_budget_card", contentType = "monthly_budget_card") {
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .shiftlySheetTopBand(colors.surface)
-                        .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 14.dp)
                 ) {
-                    ShiftlySheetDragHandle()
+                    MonthlyBudgetCard(
+                        mtdExpenses = state.mtdExpenses,
+                        monthlyBudget = state.monthlyBudget,
+                        currencySymbol = currency,
+                        onClick = onOpenBudgetSettings
+                    )
+                }
+            }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Monthly Budget",
-                                style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
-                                color = colors.textPrimary
-                            )
-                            if (state.monthlyBudget > 0.0) {
-                                Text(
-                                    text = "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} of ${ShiftlyFormatters.formatCurrency(currency, state.monthlyBudget)}",
-                                    style = MaterialTheme.typography.labelMedium.tabular(),
-                                    color = if (nearLimit) colors.coralInk else colors.mintInk
-                                )
-                            } else {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = "${ShiftlyFormatters.formatCurrency(currency, state.mtdExpenses)} spent",
-                                        style = MaterialTheme.typography.labelMedium.tabular(),
-                                        color = colors.mintInk
-                                    )
-                                    Box(
-                                        modifier = Modifier
-                                            .heightIn(min = 48.dp)
-                                            .clip(RoundedCornerShape(50))
-                                            .shiftlyPressClickable(onClick = onOpenBudgetSettings)
-                                            .semantics(mergeDescendants = true) {
-                                                contentDescription = "No monthly budget cap set, tap to set monthly budget"
-                                            },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Surface(
-                                            shape = RoundedCornerShape(50),
-                                            color = colors.cardElevated,
-                                            shadowElevation = 0.dp
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                                            ) {
-                                                Text(
-                                                    text = "No cap set",
-                                                    style = MaterialTheme.typography.labelSmall.copy(
-                                                        fontFamily = InterFontFamily,
-                                                        fontWeight = FontWeight.SemiBold
-                                                    ),
-                                                    color = colors.azureInk
-                                                )
-                                                Icon(
-                                                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                                                    contentDescription = null,
-                                                    tint = colors.azureInk,
-                                                    modifier = Modifier.size(13.dp)
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        ShiftlyProgressBar(
-                            progress = budgetRatio,
-                            color = if (nearLimit) colors.coralBright else colors.mintBright,
-                            trackColor = colors.cardElevated,
-                            modifier = Modifier.semantics {
-                                contentDescription = "Monthly budget $budgetPct percent used"
-                            }
-                        )
-                    }
-
-                    if (state.pendingSplitsOwed > 0.0) {
+            if (state.pendingSplitsOwed > 0.0) {
+                item(key = "pending_splits_banner", contentType = "smart_banner") {
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 14.dp)
+                    ) {
                         PendingSplitsBanner(
                             pendingAmount = state.pendingSplitsOwed,
                             billCount = state.pendingSplitBillCount,
@@ -449,8 +361,16 @@ fun HomeScreenContent(
                             onClick = onOpenPendingSplits
                         )
                     }
+                }
+            }
 
-                    state.upcomingBillBanner?.let { billBanner ->
+            state.upcomingBillBanner?.let { billBanner ->
+                item(key = "upcoming_bill_banner", contentType = "smart_banner") {
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 14.dp)
+                    ) {
                         UpcomingBillSmartBanner(
                             title = billBanner.title,
                             amount = billBanner.amount,
@@ -459,8 +379,16 @@ fun HomeScreenContent(
                             onClick = onNavigateToRecurringBills
                         )
                     }
+                }
+            }
 
-                    state.paydayCutoffBanner?.let { paydayBanner ->
+            state.paydayCutoffBanner?.let { paydayBanner ->
+                item(key = "payday_cutoff_banner", contentType = "smart_banner") {
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 20.dp)
+                            .padding(bottom = 14.dp)
+                    ) {
                         PaydayCutoffSmartBanner(
                             cutoffDayOfMonth = paydayBanner.cutoffDayOfMonth,
                             estimatedEarnings = paydayBanner.estimatedEarnings,
@@ -468,7 +396,15 @@ fun HomeScreenContent(
                             onClick = onNavigateToAllowance
                         )
                     }
+                }
+            }
 
+            item(key = "top_spending_card", contentType = "top_spending_card") {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 14.dp)
+                ) {
                     MonthlyTopCategoriesCard(
                         monthName = state.currentMonthName,
                         monthlyTotalSpent = state.mtdExpenses,
@@ -476,12 +412,29 @@ fun HomeScreenContent(
                         currencySymbol = currency,
                         onViewInsights = onViewInsights
                     )
+                }
+            }
 
+            item(key = "shift_hours_card", contentType = "shift_hours_card") {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 14.dp)
+                ) {
                     MonthlyHoursIndicatorCard(
                         monthName = state.currentMonthName,
-                        summary = state.monthlyHoursSummary
+                        summary = state.monthlyHoursSummary,
+                        onClick = onNavigateToDuties
                     )
+                }
+            }
 
+            item(key = "recent_activity_header", contentType = "recent_activity_header") {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 8.dp)
+                ) {
                     HomeRecentActivityHeader(
                         totalCount = filteredTimeline.size,
                         selectedFilter = selectedActivityFilter,
@@ -494,29 +447,24 @@ fun HomeScreenContent(
 
             if (displayedTimeline.isEmpty()) {
                 item(key = "timeline_empty", contentType = "timeline_empty") {
-                    Box(
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = colors.card,
+                        shadowElevation = 0.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shiftlySheetBodyBand(colors.surface)
-                            .padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 112.dp)
+                            .padding(horizontal = 20.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(colors.cardElevated)
-                                .padding(16.dp)
-                        ) {
-                            Text(
-                                text = if (selectedActivityFilter != ActivityFilter.ALL) {
-                                    "No ${selectedActivityFilter.label.lowercase()} logged yet."
-                                } else {
-                                    "No activity logged yet. Start a shift in Duties or log an expense."
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = colors.textSecondary
-                            )
-                        }
+                        Text(
+                            text = if (selectedActivityFilter != ActivityFilter.ALL) {
+                                "No ${selectedActivityFilter.label.lowercase()} logged yet."
+                            } else {
+                                "No activity logged yet. Start a shift in Duties or log an expense."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textSecondary,
+                            modifier = Modifier.padding(16.dp)
+                        )
                     }
                 }
             } else {
@@ -544,7 +492,7 @@ fun HomeScreenContent(
                         idx == displayedTimeline.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
                         else -> RectangleShape
                     }
-                    Box(
+                    Column(
                         modifier = Modifier
                             .animateItem(
                                 fadeInSpec = spring(dampingRatio = 0.8f),
@@ -555,31 +503,18 @@ fun HomeScreenContent(
                                 fadeOutSpec = spring(dampingRatio = 0.8f)
                             )
                             .fillMaxWidth()
-                            .shiftlySheetBodyBand(colors.surface)
                             .padding(horizontal = 20.dp)
-                            .padding(bottom = if (idx < displayedTimeline.lastIndex) 2.dp else 0.dp)
+                            .clip(rowShape)
+                            .background(colors.card)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(rowShape)
-                                .background(colors.cardElevated)
-                        ) {
-                            HomeTimelineRow(
-                                item = item,
-                                currencySymbol = currency
-                            ) { onTimelineItemClick(item) }
+                        HomeTimelineRow(
+                            item = item,
+                            currencySymbol = currency
+                        ) { onTimelineItemClick(item) }
+                        if (idx < displayedTimeline.lastIndex) {
+                            ShiftlyHairlineDivider(modifier = Modifier.padding(start = 56.dp))
                         }
                     }
-                }
-
-                item(key = "sheet_footer", contentType = "sheet_footer") {
-                    Spacer(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shiftlySheetBodyBand(colors.surface)
-                            .height(104.dp)
-                    )
                 }
             }
         }

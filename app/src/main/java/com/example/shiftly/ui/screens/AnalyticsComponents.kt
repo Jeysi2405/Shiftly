@@ -1,9 +1,19 @@
 package com.example.shiftly.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,20 +39,26 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -56,6 +72,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
+import com.example.shiftly.ui.components.ShiftlyAnimatedCurrencyText
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
@@ -97,8 +114,8 @@ fun AnalyticsRangeSegmentedControl(
     val haptics = LocalHapticFeedback.current
     val entries = AnalyticsRange.entries
     val selectedIndex = entries.indexOf(selectedRange).coerceAtLeast(0)
-    val trackColor = if (colors.isDark) Color(0xFF1C1C1E) else Color(0xFFD1D1D6)
-    val thumbColor = if (colors.isDark) Color(0xFF3A3A3C) else Color(0xFF636366)
+    val trackColor = if (colors.isDark) colors.card else colors.cardElevated
+    val thumbColor = colors.azurePrimary
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -174,12 +191,14 @@ fun IncomeVsExpenseGlassChartCard(
     state: AnalyticsUiState
 ) {
     val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
     val currency = state.currencySymbol
+    val buckets = state.chartBuckets
     val net = remember(state.periodIncome, state.periodExpenses) {
         state.periodIncome - state.periodExpenses
     }
-    val maxVal = remember(state.chartBuckets) {
-        state.chartBuckets
+    val maxVal = remember(buckets) {
+        buckets
             .maxOfOrNull { maxOf(it.income, it.expense) }
             ?.coerceAtLeast(100.0)
             ?: 100.0
@@ -191,17 +210,117 @@ fun IncomeVsExpenseGlassChartCard(
         state.periodExpenses
     ) {
         buildString {
-            append("Income versus expenses bar chart for ${state.selectedRange.fullLabel}. ")
+            append("Income versus expenses trend chart for ${state.selectedRange.fullLabel}. ")
             append("Total income ${ShiftlyFormatters.formatCurrency(currency, state.periodIncome)}, ")
             append("total expenses ${ShiftlyFormatters.formatCurrency(currency, state.periodExpenses)}.")
         }
+    }
+
+    val revealProgress = remember { Animatable(1f) }
+    var lastRange by remember { mutableStateOf(state.selectedRange) }
+    var scrubbedIndex by remember { mutableStateOf<Int?>(null) }
+
+    LaunchedEffect(state.selectedRange) {
+        scrubbedIndex = null
+        if (lastRange != state.selectedRange) {
+            lastRange = state.selectedRange
+            revealProgress.snapTo(0f)
+            revealProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 460, easing = FastOutSlowInEasing)
+            )
+        }
+    }
+
+    LaunchedEffect(buckets.size) {
+        if ((scrubbedIndex ?: -1) >= buckets.size) {
+            scrubbedIndex = null
+        }
+    }
+
+    fun resolveBucket(x: Float, width: Float, count: Int): Int? {
+        if (count <= 0 || width <= 0f) return null
+        return ((x / width) * count).toInt().coerceIn(0, count - 1)
     }
 
     ShiftlyGlassCard(
         cornerRadius = 18.dp,
         contentPadding = PaddingValues(18.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            val scrubbedBucket = scrubbedIndex?.let { buckets.getOrNull(it) }
+            AnimatedContent(
+                targetState = scrubbedBucket,
+                transitionSpec = {
+                    fadeIn(tween(150)) togetherWith fadeOut(tween(120))
+                },
+                label = "chartScrubHeader"
+            ) { bucket ->
+                if (bucket == null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${state.selectedRange.fullLabel.uppercase()} • INCOME VS. EXPENSES",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = 0.5.sp
+                            ),
+                            color = colors.textSecondary
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = colors.azureContainer,
+                            shadowElevation = 0.dp
+                        ) {
+                            Text(
+                                text = bucket.label,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Bold
+                                ).tabular(),
+                                color = colors.azureInk,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                        Text(
+                            text = ShiftlyFormatters.formatCurrency(currency, bucket.income, showPlus = true),
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold
+                            ).tabular(),
+                            color = colors.mintTextOnSurface
+                        )
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = colors.textSecondary
+                        )
+                        Text(
+                            text = ShiftlyFormatters.formatCurrency(currency, bucket.expense, showMinus = true),
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold
+                            ).tabular(),
+                            color = colors.coralTextOnSurface
+                        )
+                    }
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -218,13 +337,15 @@ fun IncomeVsExpenseGlassChartCard(
                             ),
                             color = colors.textSecondary
                         )
-                        Text(
-                            text = ShiftlyFormatters.formatCurrency(currency, state.periodIncome, showPlus = true),
+                        ShiftlyAnimatedCurrencyText(
+                            currencySymbol = currency,
+                            amount = state.periodIncome,
+                            showPlus = true,
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp
-                            ).tabular(),
+                            ),
                             color = colors.mintTextOnSurface
                         )
                     }
@@ -238,30 +359,44 @@ fun IncomeVsExpenseGlassChartCard(
                             ),
                             color = colors.textSecondary
                         )
-                        Text(
-                            text = ShiftlyFormatters.formatCurrency(currency, state.periodExpenses, showMinus = true),
+                        ShiftlyAnimatedCurrencyText(
+                            currencySymbol = currency,
+                            amount = state.periodExpenses,
+                            showMinus = true,
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 22.sp
-                            ).tabular(),
+                            ),
                             color = colors.coralTextOnSurface
                         )
                     }
                 }
 
+                val netPillContainer by animateColorAsState(
+                    targetValue = if (net >= 0) colors.mintContainer else colors.coralContainer,
+                    animationSpec = spring(dampingRatio = 0.85f),
+                    label = "analyticsNetPillBg"
+                )
+                val netPillText by animateColorAsState(
+                    targetValue = if (net >= 0) colors.mintTextOnSurface else colors.coralTextOnSurface,
+                    animationSpec = spring(dampingRatio = 0.85f),
+                    label = "analyticsNetPillText"
+                )
                 Surface(
                     shape = RoundedCornerShape(50),
-                    color = if (net >= 0) colors.mintContainer else colors.coralContainer,
+                    color = netPillContainer,
                     shadowElevation = 0.dp
                 ) {
-                    Text(
-                        text = ShiftlyFormatters.formatCurrency(currency, net, showPlus = net > 0.0),
+                    ShiftlyAnimatedCurrencyText(
+                        currencySymbol = currency,
+                        amount = net,
+                        showPlus = net > 0.0,
                         style = MaterialTheme.typography.labelSmall.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
-                        ).tabular(),
-                        color = if (net >= 0) colors.mintTextOnSurface else colors.coralTextOnSurface,
+                        ),
+                        color = netPillText,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                     )
                 }
@@ -277,17 +412,47 @@ fun IncomeVsExpenseGlassChartCard(
                     },
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                val buckets = state.chartBuckets
                 val gridBorderColor = colors.separator
                 val cardDotBg = colors.card
                 val mintLineColor = colors.mintBright
                 val coralLineColor = colors.coralBright
                 val dotCenterColor = colors.surface
+                val accentCrosshairColor = colors.azureAccent.copy(alpha = 0.65f)
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(140.dp)
+                        .pointerInput(buckets.size) {
+                            detectTapGestures { offset ->
+                                val idx = resolveBucket(offset.x, size.width.toFloat(), buckets.size)
+                                if (idx != null) {
+                                    scrubbedIndex = if (scrubbedIndex == idx) null else idx
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            }
+                        }
+                        .pointerInput(buckets.size) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    val idx = resolveBucket(offset.x, size.width.toFloat(), buckets.size)
+                                    if (idx != null && idx != scrubbedIndex) {
+                                        scrubbedIndex = idx
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    }
+                                },
+                                onHorizontalDrag = { change, _ ->
+                                    change.consume()
+                                    val idx = resolveBucket(change.position.x, size.width.toFloat(), buckets.size)
+                                    if (idx != null && idx != scrubbedIndex) {
+                                        scrubbedIndex = idx
+                                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    }
+                                },
+                                onDragEnd = { scrubbedIndex = null },
+                                onDragCancel = { scrubbedIndex = null }
+                            )
+                        }
                 ) {
                     Spacer(
                         modifier = Modifier
@@ -298,6 +463,7 @@ fun IncomeVsExpenseGlassChartCard(
                                 val paddingTop = 12.dp.toPx()
                                 val paddingBottom = 12.dp.toPx()
                                 val gridStrokePx = 0.5.dp.toPx()
+                                val crosshairStrokePx = 1.5.dp.toPx()
                                 val lineStroke = Stroke(
                                     width = 3.dp.toPx(),
                                     cap = StrokeCap.Round,
@@ -306,6 +472,10 @@ fun IncomeVsExpenseGlassChartCard(
                                 val dotOuterRadius = 5.dp.toPx()
                                 val dotMidRadius = 2.5.dp.toPx()
                                 val dotInnerRadius = 1.5.dp.toPx()
+                                val activeHaloRadius = 10.dp.toPx()
+                                val activeOuterRadius = 6.5.dp.toPx()
+                                val activeMidRadius = 3.2.dp.toPx()
+                                val activeInnerRadius = 1.8.dp.toPx()
 
                                 val chartHeight = h - paddingTop - paddingBottom
                                 val gridLines = 3
@@ -355,6 +525,40 @@ fun IncomeVsExpenseGlassChartCard(
                                 val gridStartX = 6.dp.toPx()
                                 val gridEndX = (w - 6.dp.toPx()).coerceAtLeast(gridStartX)
                                 val bottomY = h - paddingBottom
+                                val incAreaPath = if (incPoints.size >= 2) {
+                                    Path().apply {
+                                        incPoints.forEachIndexed { i, p ->
+                                            if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+                                        }
+                                        lineTo(incPoints.last().x, bottomY)
+                                        lineTo(incPoints.first().x, bottomY)
+                                        close()
+                                    }
+                                } else {
+                                    null
+                                }
+                                val expAreaPath = if (expPoints.size >= 2) {
+                                    Path().apply {
+                                        expPoints.forEachIndexed { i, p ->
+                                            if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+                                        }
+                                        lineTo(expPoints.last().x, bottomY)
+                                        lineTo(expPoints.first().x, bottomY)
+                                        close()
+                                    }
+                                } else {
+                                    null
+                                }
+                                val incAreaBrush = Brush.verticalGradient(
+                                    colors = listOf(mintLineColor.copy(alpha = 0.22f), Color.Transparent),
+                                    startY = paddingTop,
+                                    endY = bottomY
+                                )
+                                val expAreaBrush = Brush.verticalGradient(
+                                    colors = listOf(coralLineColor.copy(alpha = 0.18f), Color.Transparent),
+                                    startY = paddingTop,
+                                    endY = bottomY
+                                )
 
                                 onDrawBehind {
                                     for (y in horizontalYs) {
@@ -377,26 +581,59 @@ fun IncomeVsExpenseGlassChartCard(
                                             )
                                         }
 
-                                        drawPath(
-                                            path = incPath,
-                                            color = mintLineColor,
-                                            style = lineStroke
-                                        )
-                                        for (p in incPoints) {
-                                            drawCircle(color = mintLineColor, radius = dotOuterRadius, center = p)
-                                            drawCircle(color = cardDotBg, radius = dotMidRadius, center = p)
-                                            drawCircle(color = dotCenterColor, radius = dotInnerRadius, center = p)
+                                        val sweepFraction = revealProgress.value.coerceIn(0f, 1f)
+                                        clipRect(
+                                            left = 0f,
+                                            top = 0f,
+                                            right = size.width * sweepFraction,
+                                            bottom = size.height
+                                        ) {
+                                            incAreaPath?.let { drawPath(path = it, brush = incAreaBrush) }
+                                            expAreaPath?.let { drawPath(path = it, brush = expAreaBrush) }
+
+                                            drawPath(
+                                                path = incPath,
+                                                color = mintLineColor,
+                                                style = lineStroke
+                                            )
+                                            for (p in incPoints) {
+                                                drawCircle(color = mintLineColor, radius = dotOuterRadius, center = p)
+                                                drawCircle(color = cardDotBg, radius = dotMidRadius, center = p)
+                                                drawCircle(color = dotCenterColor, radius = dotInnerRadius, center = p)
+                                            }
+
+                                            drawPath(
+                                                path = expPath,
+                                                color = coralLineColor,
+                                                style = lineStroke
+                                            )
+                                            for (p in expPoints) {
+                                                drawCircle(color = coralLineColor, radius = dotOuterRadius, center = p)
+                                                drawCircle(color = cardDotBg, radius = dotMidRadius, center = p)
+                                                drawCircle(color = dotCenterColor, radius = dotInnerRadius, center = p)
+                                            }
                                         }
 
-                                        drawPath(
-                                            path = expPath,
-                                            color = coralLineColor,
-                                            style = lineStroke
-                                        )
-                                        for (p in expPoints) {
-                                            drawCircle(color = coralLineColor, radius = dotOuterRadius, center = p)
-                                            drawCircle(color = cardDotBg, radius = dotMidRadius, center = p)
-                                            drawCircle(color = dotCenterColor, radius = dotInnerRadius, center = p)
+                                        val sel = scrubbedIndex
+                                        if (sel != null && sel in 0 until count) {
+                                            drawLine(
+                                                color = accentCrosshairColor,
+                                                start = Offset(verticalXs[sel], paddingTop),
+                                                end = Offset(verticalXs[sel], bottomY),
+                                                strokeWidth = crosshairStrokePx
+                                            )
+
+                                            val incPoint = incPoints[sel]
+                                            drawCircle(color = mintLineColor.copy(alpha = 0.22f), radius = activeHaloRadius, center = incPoint)
+                                            drawCircle(color = mintLineColor, radius = activeOuterRadius, center = incPoint)
+                                            drawCircle(color = cardDotBg, radius = activeMidRadius, center = incPoint)
+                                            drawCircle(color = dotCenterColor, radius = activeInnerRadius, center = incPoint)
+
+                                            val expPoint = expPoints[sel]
+                                            drawCircle(color = coralLineColor.copy(alpha = 0.22f), radius = activeHaloRadius, center = expPoint)
+                                            drawCircle(color = coralLineColor, radius = activeOuterRadius, center = expPoint)
+                                            drawCircle(color = cardDotBg, radius = activeMidRadius, center = expPoint)
+                                            drawCircle(color = dotCenterColor, radius = activeInnerRadius, center = expPoint)
                                         }
                                     }
                                 }
@@ -408,14 +645,15 @@ fun IncomeVsExpenseGlassChartCard(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    state.chartBuckets.forEach { bucket ->
+                    buckets.forEachIndexed { idx, bucket ->
+                        val isScrubbed = scrubbedIndex == idx
                         Text(
                             text = bucket.label,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = if (isScrubbed) FontWeight.Bold else FontWeight.Medium
                             ).tabular(),
-                            color = colors.textSecondary,
+                            color = if (isScrubbed) colors.azureAccent else colors.textSecondary,
                             textAlign = TextAlign.Center,
                             maxLines = 1,
                             softWrap = false,
@@ -475,14 +713,25 @@ fun InsightCardContainer(
     title: String,
     trailingActionText: String? = null,
     onTrailingAction: (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     val colors = ShiftlyColors.current
     Surface(
         shape = AnalyticsCardShape,
-        color = colors.cardElevated,
+        color = colors.card,
         shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (onClick != null) {
+                    Modifier
+                        .clip(AnalyticsCardShape)
+                        .shiftlyPressClickable(onClick = onClick)
+                } else {
+                    Modifier
+                }
+            )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -527,6 +776,43 @@ fun InsightCardContainer(
 }
 
 @Composable
+fun SmartTakeawaysCard(
+    tips: List<String>
+) {
+    val colors = ShiftlyColors.current
+    if (tips.isEmpty()) return
+
+    InsightCardContainer(title = "Smart Takeaways") {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            tips.forEachIndexed { idx, tip ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    ShiftlyIosIconTile(
+                        iconRes = R.drawable.ic_lucide_sparkles,
+                        backgroundColor = colors.azurePrimary,
+                        size = 26.dp,
+                        cornerRadius = 8.dp,
+                        iconSize = 18.dp
+                    )
+                    Text(
+                        text = tip,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (idx < tips.lastIndex) {
+                    ShiftlyHairlineDivider(startInset = 36.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun TopSpendingCategoriesCard(
     categories: List<CategorySpendingInsight>,
     currencySymbol: String
@@ -542,8 +828,8 @@ fun TopSpendingCategoriesCard(
                 color = colors.textSecondary
             )
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                categories.forEach { item ->
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                categories.forEachIndexed { idx, item ->
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -583,14 +869,17 @@ fun TopSpendingCategoriesCard(
                         }
                         ShiftlyProgressBar(
                             progress = item.fraction.coerceIn(0.05f, 1f),
-                            color = colors.mintBright,
-                            trackColor = colors.separator,
+                            color = colors.coralBright,
+                            trackColor = colors.cardElevated,
                             modifier = Modifier
                                 .padding(start = 38.dp)
                                 .semantics {
                                     contentDescription = "${item.category}, ${item.percentage}% of period spending"
                                 }
                         )
+                    }
+                    if (idx < categories.lastIndex) {
+                        ShiftlyHairlineDivider(startInset = 38.dp)
                     }
                 }
             }
@@ -617,12 +906,13 @@ fun EarningsHoursBreakdownCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom
         ) {
-            Text(
-                text = ShiftlyFormatters.formatCurrency(currencySymbol, earnings),
+            ShiftlyAnimatedCurrencyText(
+                currencySymbol = currencySymbol,
+                amount = earnings,
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Bold
-                ).tabular(),
+                ),
                 color = colors.mintInk
             )
             Text(
@@ -637,7 +927,7 @@ fun EarningsHoursBreakdownCard(
                 .fillMaxWidth()
                 .height(5.dp)
                 .clip(RoundedCornerShape(50))
-                .background(colors.separator)
+                .background(colors.cardElevated)
                 .semantics {
                     contentDescription = "Hours split: ${ShiftlyFormatters.formatHours(regularHours)} regular, ${ShiftlyFormatters.formatHours(nightDiffHours)} night diff, ${ShiftlyFormatters.formatHours(overtimeHours)} overtime"
                 },
@@ -774,31 +1064,48 @@ fun HoursOfWorkCostCard(
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            ShiftlyIosIconTile(
-                                iconRes = R.drawable.ic_lucide_clock,
-                                backgroundColor = colors.mintBright,
-                                size = 28.dp,
-                                cornerRadius = 7.dp,
-                                iconSize = 22.dp
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                ShiftlyIosIconTile(
+                                    iconRes = R.drawable.ic_lucide_clock,
+                                    backgroundColor = colors.mintBright,
+                                    size = 28.dp,
+                                    cornerRadius = 7.dp,
+                                    iconSize = 22.dp
+                                )
+                                Text(
+                                    text = "${entry.category} • ${ShiftlyFormatters.formatHours(entry.dutyHours)} of duty",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold
+                                    ).tabular(),
+                                    color = colors.textPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                             Text(
-                                text = "${entry.category} = ${ShiftlyFormatters.formatHours(entry.dutyHours)} of duty",
-                                style = MaterialTheme.typography.bodyMedium.copy(
+                                text = ShiftlyFormatters.formatCurrency(currencySymbol, entry.amount),
+                                style = MaterialTheme.typography.labelMedium.copy(
                                     fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
                                 ).tabular(),
-                                color = colors.textPrimary,
+                                color = colors.textSecondary,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
+                                softWrap = false
                             )
                         }
                         ShiftlyProgressBar(
                             progress = ratio,
                             color = colors.mintBright,
-                            trackColor = colors.separator,
+                            trackColor = colors.cardElevated,
                             modifier = Modifier
                                 .padding(start = 38.dp)
                                 .semantics {
@@ -817,6 +1124,7 @@ fun OnBudgetStreakCard(
     streakDays: Int,
     streakTargetDays: Int,
     dailyAllowance: Double,
+    currencySymbol: String = "₱",
     onOpenBudgetSettings: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
@@ -829,13 +1137,19 @@ fun OnBudgetStreakCard(
         }
     }
 
-    InsightCardContainer(title = "On Budget Streak") {
+    InsightCardContainer(
+        title = "On Budget Streak",
+        onClick = onOpenBudgetSettings
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -847,74 +1161,88 @@ fun OnBudgetStreakCard(
                     iconSize = 22.dp
                 )
                 if (hasBudget) {
-                    Text(
-                        text = "$streakDays-day streak",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ).tabular(),
-                        color = colors.textPrimary
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "$streakDays-day streak",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold
+                            ).tabular(),
+                            color = colors.textPrimary
+                        )
+                        Text(
+                            text = "Safe daily pace: ${ShiftlyFormatters.formatCurrency(currencySymbol, dailyAllowance)}/day",
+                            style = MaterialTheme.typography.bodySmall.tabular(),
+                            color = colors.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .heightIn(min = 48.dp)
-                            .clip(RoundedCornerShape(50))
-                            .shiftlyPressClickable(onClick = onOpenBudgetSettings)
-                            .semantics(mergeDescendants = true) {
-                                contentDescription = "No budget set, tap to set monthly budget"
-                            },
-                        contentAlignment = Alignment.Center
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = colors.cardElevated,
+                        shadowElevation = 0.dp,
+                        modifier = Modifier.semantics(mergeDescendants = true) {
+                            contentDescription = "No budget set, tap to set monthly budget"
+                        }
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = colors.surface,
-                            shadowElevation = 0.dp
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    text = "No budget set",
-                                    style = MaterialTheme.typography.labelLarge.copy(
-                                        fontFamily = InterFontFamily,
-                                        fontWeight = FontWeight.SemiBold
-                                    ),
-                                    color = colors.azureInk
-                                )
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                                    contentDescription = null,
-                                    tint = colors.azureInk,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
+                            Text(
+                                text = "Set monthly cap",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.azureInk
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                                contentDescription = null,
+                                tint = colors.azureInk,
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
                     }
                 }
             }
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = colors.mintContainer,
-                shadowElevation = 0.dp
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = "$streakDays / ${streakTargetDays}d",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold
-                    ).tabular(),
-                    color = colors.mintInk,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                )
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = colors.mintContainer,
+                    shadowElevation = 0.dp
+                ) {
+                    Text(
+                        text = "$streakDays / ${streakTargetDays}d",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold
+                        ).tabular(),
+                        color = colors.mintInk,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+                if (hasBudget) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                        contentDescription = "Edit monthly budget",
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
         }
         ShiftlyProgressBar(
             progress = streakFraction,
             color = colors.mintBright,
-            trackColor = colors.separator,
+            trackColor = colors.cardElevated,
             modifier = Modifier.semantics {
                 contentDescription = "$streakDays of $streakTargetDays days on budget"
             }
@@ -978,7 +1306,7 @@ fun NetSavingsRateCard(
         ShiftlyProgressBar(
             progress = progressFraction.coerceIn(0.02f, 1f),
             color = if (isPositive) colors.mintBright else colors.coralBright,
-            trackColor = colors.separator,
+            trackColor = colors.cardElevated,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(5.dp)
@@ -1091,12 +1419,13 @@ fun ProjectedMonthlySpendCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = ShiftlyFormatters.formatCurrency(currencySymbol, projectedSpend),
+                ShiftlyAnimatedCurrencyText(
+                    currencySymbol = currencySymbol,
+                    amount = projectedSpend,
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold
-                    ).tabular(),
+                    ),
                     color = colors.textPrimary
                 )
                 Text(

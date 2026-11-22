@@ -1,16 +1,23 @@
 package com.example.shiftly.ui.screens
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -59,8 +66,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -75,6 +84,7 @@ import androidx.compose.ui.unit.sp
 import com.example.shiftly.R
 import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.InAppNotificationType
+import com.example.shiftly.ui.components.ShiftlyAnimatedCurrencyText
 import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
@@ -822,7 +832,8 @@ fun HomeHeroPager(
     onOpenGoalDetail: (goalId: Long?) -> Unit,
     onOpenAddGoal: () -> Unit,
     onSelectActiveGoal: (Long) -> Unit,
-    onToggleBalancePrivacy: () -> Unit = {}
+    onToggleBalancePrivacy: () -> Unit = {},
+    onNavigateToDuties: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
     val pagerState = rememberPagerState(pageCount = { 3 })
@@ -840,7 +851,19 @@ fun HomeHeroPager(
             contentPadding = PaddingValues(horizontal = 20.dp),
             pageSpacing = 12.dp
         ) { page ->
-            when (page) {
+            Box(
+                modifier = Modifier.graphicsLayer {
+                    val pageOffset = (
+                        (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                    ).coerceIn(-1f, 1f)
+                    val fraction = 1f - abs(pageOffset)
+                    val scale = 0.94f + 0.06f * fraction
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = 0.72f + 0.28f * fraction
+                }
+            ) {
+                when (page) {
                 0 -> {
                     ShiftlyGlassCard(
                         cornerRadius = 18.dp,
@@ -874,28 +897,39 @@ fun HomeHeroPager(
                                             },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(
-                                            painter = painterResource(
-                                                if (state.isBalanceHidden) R.drawable.ic_lucide_eye_off else R.drawable.ic_lucide_eye
-                                            ),
-                                            contentDescription = null,
-                                            tint = colors.textSecondary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                        AnimatedContent(
+                                            targetState = state.isBalanceHidden,
+                                            transitionSpec = {
+                                                (fadeIn(tween(180)) + scaleIn(
+                                                    initialScale = 0.85f,
+                                                    animationSpec = tween(180)
+                                                )) togetherWith (fadeOut(tween(140)) + scaleOut(
+                                                    targetScale = 0.85f,
+                                                    animationSpec = tween(140)
+                                                ))
+                                            },
+                                            label = "privacyEyeIcon"
+                                        ) { hidden ->
+                                            Icon(
+                                                painter = painterResource(
+                                                    if (hidden) R.drawable.ic_lucide_eye_off else R.drawable.ic_lucide_eye
+                                                ),
+                                                contentDescription = null,
+                                                tint = colors.textSecondary,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
                                     }
                                 }
-                                val displayBalance = if (state.isBalanceHidden) {
-                                    "${currency}•••••"
-                                } else {
-                                    ShiftlyFormatters.formatCurrency(currency, state.totalBalance)
-                                }
-                                Text(
-                                    text = displayBalance,
+                                ShiftlyAnimatedCurrencyText(
+                                    currencySymbol = currency,
+                                    amount = state.totalBalance,
+                                    isHidden = state.isBalanceHidden,
                                     style = MaterialTheme.typography.displayMedium.copy(
                                         fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
-                                    ).tabular(),
+                                    ),
                                     color = colors.textPrimary
                                 )
                             }
@@ -906,20 +940,12 @@ fun HomeHeroPager(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    val displayIncome = if (state.isBalanceHidden) {
-                                        "${currency}•••••"
-                                    } else {
-                                        ShiftlyFormatters.formatCurrency(currency, state.totalIncome, showPlus = true)
-                                    }
-                                    val displayExpenses = if (state.isBalanceHidden) {
-                                        "${currency}•••••"
-                                    } else {
-                                        ShiftlyFormatters.formatCurrency(currency, state.totalExpenses, showMinus = true)
-                                    }
                                     HeroMetricColumn(
                                         label = "Income",
-                                        amount = displayIncome,
+                                        currencySymbol = currency,
+                                        amount = state.totalIncome,
                                         isIncome = true,
+                                        isHidden = state.isBalanceHidden,
                                         modifier = Modifier.weight(1f)
                                     )
                                     ShiftlyVerticalHairlineDivider(
@@ -929,8 +955,10 @@ fun HomeHeroPager(
                                     )
                                     HeroMetricColumn(
                                         label = "Expenses",
-                                        amount = displayExpenses,
+                                        currencySymbol = currency,
+                                        amount = state.totalExpenses,
                                         isIncome = false,
+                                        isHidden = state.isBalanceHidden,
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
@@ -945,7 +973,9 @@ fun HomeHeroPager(
                         cornerRadius = 18.dp,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(uniformHeroHeight),
+                            .height(uniformHeroHeight)
+                            .clip(RoundedCornerShape(18.dp))
+                            .shiftlyPressClickable(onClick = onNavigateToDuties),
                         contentPadding = PaddingValues(18.dp)
                     ) {
                         Column(
@@ -965,22 +995,35 @@ fun HomeHeroPager(
                                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                                         color = colors.textSecondary
                                     )
-                                    Text(
-                                        text = cutoff.window.label,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontFamily = InterFontFamily,
-                                            fontWeight = FontWeight.Medium
-                                        ).tabular(),
-                                        color = colors.mintTextOnSurface
-                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                    ) {
+                                        Text(
+                                            text = cutoff.window.label,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontFamily = InterFontFamily,
+                                                fontWeight = FontWeight.Medium
+                                            ).tabular(),
+                                            color = colors.mintTextOnSurface
+                                        )
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                                            contentDescription = "Open Duties",
+                                            tint = colors.mintTextOnSurface,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
                                 }
-                                Text(
-                                    text = ShiftlyFormatters.formatCurrency(currency, cutoff.totalEarnings),
+                                ShiftlyAnimatedCurrencyText(
+                                    currencySymbol = currency,
+                                    amount = cutoff.totalEarnings,
+                                    isHidden = state.isBalanceHidden,
                                     style = MaterialTheme.typography.displayMedium.copy(
                                         fontFamily = InterFontFamily,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 32.sp
-                                    ).tabular(),
+                                    ),
                                     color = colors.mintTextOnSurface
                                 )
                             }
@@ -1017,6 +1060,7 @@ fun HomeHeroPager(
                     SavingsGoalsHeroCard(
                         goals = state.savingsGoals,
                         currencySymbol = currency,
+                        isBalanceHidden = state.isBalanceHidden,
                         onOpenGoalDetail = onOpenGoalDetail,
                         onOpenAddGoal = onOpenAddGoal,
                         onSelectActiveGoal = onSelectActiveGoal,
@@ -1025,6 +1069,7 @@ fun HomeHeroPager(
                             .height(uniformHeroHeight)
                     )
                 }
+            }
             }
         }
 
@@ -1037,9 +1082,19 @@ fun HomeHeroPager(
         ) {
             repeat(3) { index ->
                 val active = pagerState.currentPage == index
+                val indicatorWidth by animateDpAsState(
+                    targetValue = if (active) 20.dp else 7.dp,
+                    animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                    label = "heroIndicatorWidth"
+                )
+                val indicatorColor by animateColorAsState(
+                    targetValue = if (active) colors.azureAccent else colors.separator,
+                    animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+                    label = "heroIndicatorColor"
+                )
                 Box(
                     modifier = Modifier
-                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 32.dp)
                         .clip(HomePillShape)
                         .shiftlyPressClickable(
                             role = Role.Tab,
@@ -1061,9 +1116,9 @@ fun HomeHeroPager(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(width = if (active) 20.dp else 7.dp, height = 7.dp)
+                            .size(width = indicatorWidth, height = 7.dp)
                             .clip(CircleShape)
-                            .background(if (active) colors.azureAccent else colors.separator)
+                            .background(indicatorColor)
                     )
                 }
             }
@@ -1075,6 +1130,7 @@ fun HomeHeroPager(
 private fun SavingsGoalsHeroCard(
     goals: List<SavingsGoalCardItem>,
     currencySymbol: String,
+    isBalanceHidden: Boolean = false,
     onOpenGoalDetail: (goalId: Long?) -> Unit,
     onOpenAddGoal: () -> Unit,
     onSelectActiveGoal: (Long) -> Unit,
@@ -1126,13 +1182,15 @@ private fun SavingsGoalsHeroCard(
                             modifier = Modifier.size(18.dp)
                         )
                     }
-                    Text(
-                        text = ShiftlyFormatters.formatCurrency(currencySymbol, 0.0),
+                    ShiftlyAnimatedCurrencyText(
+                        currencySymbol = currencySymbol,
+                        amount = 0.0,
+                        isHidden = isBalanceHidden,
                         style = MaterialTheme.typography.displayMedium.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 30.sp
-                        ).tabular(),
+                        ),
                         color = colors.textPrimary
                     )
                     Text(
@@ -1274,15 +1332,16 @@ private fun SavingsGoalsHeroCard(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = ShiftlyFormatters.formatCurrency(currencySymbol, progress.savedAmount),
+                        ShiftlyAnimatedCurrencyText(
+                            currencySymbol = currencySymbol,
+                            amount = progress.savedAmount,
+                            isHidden = isBalanceHidden,
                             style = MaterialTheme.typography.displayMedium.copy(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 26.sp
-                            ).tabular(),
+                            ),
                             color = colors.mintTextOnSurface,
-                            maxLines = 1,
                             softWrap = false
                         )
                         ShiftlyProgressBar(
@@ -1299,9 +1358,11 @@ private fun SavingsGoalsHeroCard(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        FlatSubStatColumn(
+                        FlatSubStatCurrencyColumn(
                             label = "Left to Save",
-                            value = ShiftlyFormatters.formatCurrency(currencySymbol, progress.leftToSave),
+                            currencySymbol = currencySymbol,
+                            amount = progress.leftToSave,
+                            isHidden = isBalanceHidden,
                             modifier = Modifier.weight(1f)
                         )
                         ShiftlyVerticalHairlineDivider(
@@ -1309,16 +1370,21 @@ private fun SavingsGoalsHeroCard(
                                 .padding(horizontal = 12.dp)
                                 .height(30.dp)
                         )
-                        val perDayValue = if (progress.isCompleted) {
-                            "Goal reached"
+                        if (progress.isCompleted) {
+                            FlatSubStatColumn(
+                                label = "Per Day",
+                                value = "Goal reached",
+                                modifier = Modifier.weight(1f)
+                            )
                         } else {
-                            ShiftlyFormatters.formatCurrency(currencySymbol, progress.neededPerDay)
+                            FlatSubStatCurrencyColumn(
+                                label = "Per Day",
+                                currencySymbol = currencySymbol,
+                                amount = progress.neededPerDay,
+                                isHidden = isBalanceHidden,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
-                        FlatSubStatColumn(
-                            label = "Per Day",
-                            value = perDayValue,
-                            modifier = Modifier.weight(1f)
-                        )
                     }
 
                     val viewGoalsInteraction = remember { MutableInteractionSource() }
@@ -1349,8 +1415,10 @@ private fun SavingsGoalsHeroCard(
 @Composable
 private fun HeroMetricColumn(
     label: String,
-    amount: String,
+    currencySymbol: String,
+    amount: Double,
     isIncome: Boolean,
+    isHidden: Boolean,
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
@@ -1376,17 +1444,54 @@ private fun HeroMetricColumn(
                 ),
                 color = colors.textSecondary
             )
-            Text(
-                text = amount,
+            ShiftlyAnimatedCurrencyText(
+                currencySymbol = currencySymbol,
+                amount = amount,
+                showPlus = isIncome,
+                showMinus = !isIncome,
+                isHidden = isHidden,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontFamily = InterFontFamily,
                     fontWeight = FontWeight.Bold
-                ).tabular(),
-                color = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                ),
+                color = if (isIncome) colors.mintTextOnSurface else colors.coralTextOnSurface
             )
         }
+    }
+}
+
+@Composable
+private fun FlatSubStatCurrencyColumn(
+    label: String,
+    currencySymbol: String,
+    amount: Double,
+    isHidden: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Medium
+            ),
+            color = colors.textSecondary
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        ShiftlyAnimatedCurrencyText(
+            currencySymbol = currencySymbol,
+            amount = amount,
+            isHidden = isHidden,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.Bold
+            ),
+            color = colors.textPrimary
+        )
     }
 }
 
@@ -1424,6 +1529,162 @@ private fun FlatSubStatColumn(
 }
 
 /**
+ * Interactive monthly budget summary card showing spending progress, remaining cap, and quick edit access.
+ */
+@Composable
+fun MonthlyBudgetCard(
+    mtdExpenses: Double,
+    monthlyBudget: Double,
+    currencySymbol: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    val hasBudget = monthlyBudget > 0.0
+    val budgetRatio = remember(mtdExpenses, monthlyBudget) {
+        if (monthlyBudget > 0.0) {
+            (mtdExpenses / monthlyBudget).toFloat().coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+    }
+    val nearLimit = hasBudget && budgetRatio >= 0.80f
+    val budgetPct = (budgetRatio * 100f).roundToInt()
+
+    Surface(
+        shape = HomeCardShape,
+        color = colors.card,
+        shadowElevation = 0.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(HomeCardShape)
+            .shiftlyPressClickable(onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = if (hasBudget) {
+                    "Monthly budget $budgetPct percent used, tap to edit limits"
+                } else {
+                    "No monthly budget cap set, tap to set monthly budget"
+                }
+            }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Monthly Budget",
+                    style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
+                    color = colors.textPrimary
+                )
+                if (hasBudget) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "${ShiftlyFormatters.formatCurrency(currencySymbol, mtdExpenses)} of ${ShiftlyFormatters.formatCurrency(currencySymbol, monthlyBudget)}",
+                            style = MaterialTheme.typography.labelMedium.tabular(),
+                            color = if (nearLimit) colors.coralInk else colors.mintInk
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                } else {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "${ShiftlyFormatters.formatCurrency(currencySymbol, mtdExpenses)} spent",
+                            style = MaterialTheme.typography.labelMedium.tabular(),
+                            color = colors.mintInk
+                        )
+                        Surface(
+                            shape = HomePillShape,
+                            color = colors.cardElevated,
+                            shadowElevation = 0.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = "Set cap",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = InterFontFamily,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = colors.azureInk
+                                )
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                                    contentDescription = null,
+                                    tint = colors.azureInk,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            ShiftlyProgressBar(
+                progress = budgetRatio,
+                color = if (nearLimit) colors.coralBright else colors.mintBright,
+                trackColor = colors.cardElevated
+            )
+
+            if (hasBudget) {
+                val isOverBudget = mtdExpenses > monthlyBudget
+                val deltaAmount = if (isOverBudget) {
+                    mtdExpenses - monthlyBudget
+                } else {
+                    (monthlyBudget - mtdExpenses).coerceAtLeast(0.0)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isOverBudget) {
+                            "Over by ${ShiftlyFormatters.formatCurrency(currencySymbol, deltaAmount)}"
+                        } else {
+                            "${ShiftlyFormatters.formatCurrency(currencySymbol, deltaAmount)} left"
+                        },
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium
+                        ).tabular(),
+                        color = if (isOverBudget) colors.coralInk else colors.textSecondary
+                    )
+                    Text(
+                        text = "$budgetPct% used",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium
+                        ).tabular(),
+                        color = if (nearLimit) colors.coralInk else colors.textSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
  * Monthly top expense categories analytics card with "View insights" placed at the top-right corner.
  */
 @Composable
@@ -1438,7 +1699,7 @@ fun MonthlyTopCategoriesCard(
     val topThree = remember(topCategories) { topCategories.take(3) }
     Surface(
         shape = HomeCardShape,
-        color = colors.cardElevated,
+        color = colors.card,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1534,7 +1795,7 @@ fun MonthlyTopCategoriesCard(
                                 ShiftlyProgressBar(
                                     progress = item.fraction.coerceIn(0.05f, 1f),
                                     color = colors.coralBright,
-                                    trackColor = colors.separator
+                                    trackColor = colors.cardElevated
                                 )
                             }
                         }
@@ -1551,14 +1812,18 @@ fun MonthlyTopCategoriesCard(
 @Composable
 fun MonthlyHoursIndicatorCard(
     monthName: String,
-    summary: MonthlyHoursSummary
+    summary: MonthlyHoursSummary,
+    onClick: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
     Surface(
         shape = HomeCardShape,
-        color = colors.cardElevated,
+        color = colors.card,
         shadowElevation = 0.dp,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(HomeCardShape)
+            .shiftlyPressClickable(onClick = onClick)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -1574,14 +1839,25 @@ fun MonthlyHoursIndicatorCard(
                     style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
-                Text(
-                    text = "Full month",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = colors.textSecondary
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Full month",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = colors.textSecondary
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                        contentDescription = "Open Duties",
+                        tint = colors.textSecondary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
 
             ShiftlyHairlineDivider()
@@ -1659,7 +1935,7 @@ fun PendingSplitsBanner(
     val colors = ShiftlyColors.current
     Surface(
         shape = HomeBannerShape,
-        color = colors.cardElevated,
+        color = colors.card,
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
@@ -1723,50 +1999,58 @@ fun UpcomingBillSmartBanner(
     val colors = ShiftlyColors.current
     Surface(
         shape = HomeBannerShape,
-        color = colors.cardElevated,
+        color = colors.card,
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 54.dp)
+            .heightIn(min = 56.dp)
             .clip(HomeBannerShape)
             .shiftlyPressClickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 ShiftlyIosIconTile(
                     iconRes = R.drawable.ic_lucide_repeat,
                     backgroundColor = colors.iosOrange,
                     size = 28.dp,
-                    cornerRadius = 8.dp,
+                    cornerRadius = 9.dp,
                     iconSize = 22.dp
                 )
-                Text(
-                    text = "Upcoming: $title (${ShiftlyFormatters.formatCurrency(currencySymbol, amount)}) • Due $dueDateLabel",
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
-                    ).tabular(),
-                    color = colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Column {
+                    Text(
+                        text = "Upcoming: $title",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "${ShiftlyFormatters.formatCurrency(currencySymbol, amount)} • Due $dueDateLabel",
+                        style = MaterialTheme.typography.bodySmall.tabular(),
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             Icon(
                 painter = painterResource(R.drawable.ic_lucide_chevron_right),
                 contentDescription = "Navigate to Recurring Bills",
                 tint = colors.textSecondary,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -1782,50 +2066,58 @@ fun PaydayCutoffSmartBanner(
     val colors = ShiftlyColors.current
     Surface(
         shape = HomeBannerShape,
-        color = colors.cardElevated,
+        color = colors.card,
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 54.dp)
+            .heightIn(min = 56.dp)
             .clip(HomeBannerShape)
             .shiftlyPressClickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 ShiftlyIosIconTile(
                     iconRes = R.drawable.ic_lucide_wallet,
                     backgroundColor = colors.mintBright,
                     size = 28.dp,
-                    cornerRadius = 8.dp,
+                    cornerRadius = 9.dp,
                     iconSize = 22.dp
                 )
-                Text(
-                    text = "Payday cutoff on day $cutoffDayOfMonth • Est. +${ShiftlyFormatters.formatCurrency(currencySymbol, estimatedEarnings)}",
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 13.sp
-                    ).tabular(),
-                    color = colors.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Column {
+                    Text(
+                        text = "Payday cutoff on day $cutoffDayOfMonth",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold
+                        ).tabular(),
+                        color = colors.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "Est. +${ShiftlyFormatters.formatCurrency(currencySymbol, estimatedEarnings)} this cutoff",
+                        style = MaterialTheme.typography.bodySmall.tabular(),
+                        color = colors.mintInk,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
             Icon(
                 painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                contentDescription = "Navigate to Allowance / Duties",
+                contentDescription = "Navigate to Allowance",
                 tint = colors.textSecondary,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -1846,6 +2138,7 @@ fun HomeRecentActivityHeader(
     onToggleExpand: () -> Unit
 ) {
     val colors = ShiftlyColors.current
+    val haptics = LocalHapticFeedback.current
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1870,7 +2163,7 @@ fun HomeRecentActivityHeader(
                 )
                 Surface(
                     shape = HomePillShape,
-                    color = colors.cardElevated,
+                    color = colors.card,
                     shadowElevation = 0.dp
                 ) {
                     Text(
@@ -1914,13 +2207,34 @@ fun HomeRecentActivityHeader(
         ) {
             ActivityFilter.entries.forEach { filter ->
                 val selected = selectedFilter == filter
+                val chipBg by animateColorAsState(
+                    targetValue = if (selected) colors.azurePrimary else colors.card,
+                    animationSpec = spring(
+                        dampingRatio = 0.85f,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "activityChipBg"
+                )
+                val chipTextColor by animateColorAsState(
+                    targetValue = if (selected) colors.onAzurePrimary else colors.textSecondary,
+                    animationSpec = spring(
+                        dampingRatio = 0.85f,
+                        stiffness = Spring.StiffnessMediumLow
+                    ),
+                    label = "activityChipText"
+                )
                 Box(
                     modifier = Modifier
                         .heightIn(min = 48.dp)
                         .clip(HomePillShape)
                         .shiftlyPressClickable(
                             role = Role.Tab,
-                            onClick = { onFilterSelected(filter) }
+                            onClick = {
+                                if (!selected) {
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                                onFilterSelected(filter)
+                            }
                         )
                         .semantics {
                             this.selected = selected
@@ -1931,10 +2245,7 @@ fun HomeRecentActivityHeader(
                     Box(
                         modifier = Modifier
                             .clip(HomePillShape)
-                            .background(
-                                if (selected) colors.azurePrimary
-                                else colors.cardElevated
-                            )
+                            .background(chipBg)
                             .padding(horizontal = 16.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1944,7 +2255,7 @@ fun HomeRecentActivityHeader(
                                 fontFamily = InterFontFamily,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                             ),
-                            color = if (selected) colors.onAzurePrimary else colors.textSecondary
+                            color = chipTextColor
                         )
                     }
                 }
@@ -1964,7 +2275,7 @@ fun HomeTimelineRow(
     val iconRes = when (item) {
         is TimelineActivityItem.ShiftActivity -> R.drawable.ic_lucide_clock
         is TimelineActivityItem.ExtraIncomeActivity -> R.drawable.ic_lucide_trending_up
-        is TimelineActivityItem.ExpenseActivity -> R.drawable.ic_lucide_receipt_text
+        is TimelineActivityItem.ExpenseActivity -> categoryIcon(item.category)
     }
     Row(
         modifier = Modifier

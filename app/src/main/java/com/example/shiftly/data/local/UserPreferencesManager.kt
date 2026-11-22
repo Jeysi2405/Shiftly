@@ -56,14 +56,6 @@ data class InAppNotificationItem(
 )
 
 @Immutable
-data class ActiveTimerState(
-    val isRunning: Boolean = false,
-    val startTimeMillis: Long = 0L,
-    val shiftDateEpochDay: Long = 0L,
-    val lockedRate: Double = 0.0
-)
-
-@Immutable
 data class CategoryBudgetSetting(
     val category: String,
     val monthlyLimit: Double
@@ -840,9 +832,6 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_DEFAULT_HOURLY_RATE = doublePreferencesKey("default_hourly_rate")
         private val KEY_MINIMUM_WAGE_PER_DAY = doublePreferencesKey("minimum_wage_per_day")
         private val KEY_CURRENCY_SYMBOL = stringPreferencesKey("currency_symbol")
-        private val KEY_ACTIVE_TIMER_START = longPreferencesKey("active_timer_start")
-        private val KEY_ACTIVE_TIMER_DATE = longPreferencesKey("active_timer_date")
-        private val KEY_ACTIVE_TIMER_RATE = doublePreferencesKey("active_timer_rate")
 
         // Onboarding & Home Overview preferences
         private val KEY_ONBOARDING_COMPLETED = booleanPreferencesKey("onboarding_completed")
@@ -1152,20 +1141,6 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    val activeTimerState: Flow<ActiveTimerState> = safeData.map { prefs ->
-        val start = prefs[KEY_ACTIVE_TIMER_START] ?: 0L
-        if (start > 0L) {
-            ActiveTimerState(
-                isRunning = true,
-                startTimeMillis = start,
-                shiftDateEpochDay = prefs[KEY_ACTIVE_TIMER_DATE] ?: 0L,
-                lockedRate = prefs[KEY_ACTIVE_TIMER_RATE] ?: 0.0
-            )
-        } else {
-            ActiveTimerState(isRunning = false)
-        }
-    }.distinctUntilChanged()
-
     suspend fun getNotificationLastDays(): NotificationLastDays {
         val prefs = safeData.first()
         val legacyPayday = prefs[KEY_LAST_PAYDAY_NOTIFIED_DAY] ?: 0L
@@ -1224,11 +1199,6 @@ class UserPreferencesManager(private val context: Context) {
                 val goalTarget = prefs[KEY_SAVINGS_GOAL_TARGET] ?: 0.0
                 if (goalTarget > 0.0) {
                     prefs[KEY_SAVINGS_GOAL_TARGET] = round2(goalTarget * conversionRate).coerceAtLeast(1.0)
-                }
-
-                val activeRate = prefs[KEY_ACTIVE_TIMER_RATE]
-                if (activeRate != null && activeRate > 0.0) {
-                    prefs[KEY_ACTIVE_TIMER_RATE] = round2(activeRate * conversionRate).coerceAtLeast(0.01)
                 }
 
                 val currentBudgets = PreferenceJsonCodec.decodeCategoryBudgets(prefs[KEY_CATEGORY_BUDGETS])

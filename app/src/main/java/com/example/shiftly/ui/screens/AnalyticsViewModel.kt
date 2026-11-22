@@ -39,10 +39,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class AnalyticsRange(val shortLabel: String, val fullLabel: String) {
-    DAY("D", "Today"),
-    WEEK("W", "This Week"),
-    MONTH("M", "This Month"),
-    YEAR("Y", "This Year")
+    DAY("Day", "Today"),
+    WEEK("Week", "This Week"),
+    MONTH("Month", "This Month"),
+    YEAR("Year", "This Year")
 }
 
 private val YEAR_MONTH_INITIALS = listOf("J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D")

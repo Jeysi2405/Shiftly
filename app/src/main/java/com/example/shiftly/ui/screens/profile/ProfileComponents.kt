@@ -10,7 +10,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -88,6 +88,7 @@ import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.expense.categoryIcon
@@ -148,6 +149,137 @@ private fun shiftlySheetFieldColors(): androidx.compose.material3.TextFieldColor
         focusedContainerColor = colors.cardElevated,
         unfocusedContainerColor = colors.cardElevated
     )
+}
+
+/**
+ * Tappable Apple-ID-style profile identity card surfacing name, role/workplace,
+ * schedule type, weekly target hours, and default hourly rate.
+ */
+@Composable
+fun ProfileIdentityCard(
+    userName: String,
+    jobTitle: String,
+    workplace: String,
+    workType: String,
+    targetWeeklyHours: Double,
+    currencySymbol: String,
+    defaultHourlyRate: Double,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    val trimmedName = userName.trim()
+    val initials = remember(trimmedName) {
+        trimmedName.split(Regex("\\s+"))
+            .filter { it.isNotEmpty() }
+            .take(2)
+            .mapNotNull { it.firstOrNull()?.uppercaseChar() }
+            .joinToString("")
+    }
+    val roleSummary = remember(jobTitle, workplace) {
+        listOf(jobTitle.trim(), workplace.trim())
+            .filter { it.isNotEmpty() }
+            .joinToString(" · ")
+    }
+    val workMetadata = remember(workType, targetWeeklyHours, currencySymbol, defaultHourlyRate) {
+        buildList {
+            workType.trim().takeIf { it.isNotEmpty() }?.let(::add)
+            if (targetWeeklyHours > 0.0) {
+                add("${ShiftlyFormatters.formatHours(targetWeeklyHours, compact = true)}/wk")
+            }
+            if (defaultHourlyRate > 0.0) {
+                add("${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr")
+            }
+        }.joinToString(" · ")
+    }
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = colors.card,
+        shadowElevation = 0.dp,
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .shiftlyPressClickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(colors.azureContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                if (initials.isNotEmpty()) {
+                    Text(
+                        text = initials,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        ),
+                        color = colors.azureAccent
+                    )
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_lucide_user),
+                        contentDescription = null,
+                        tint = colors.azureAccent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = trimmedName.ifEmpty { "Set Up Your Profile" },
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 17.sp
+                    ),
+                    color = colors.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = roleSummary.ifEmpty { "Tap to add job title, workplace & hourly rate" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (workMetadata.isNotEmpty()) {
+                    Text(
+                        text = workMetadata,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium
+                        ).tabular(),
+                        color = colors.azureAccent,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Icon(
+                painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                contentDescription = "Edit profile",
+                tint = colors.textSecondary,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
 }
 
 @Composable
@@ -274,16 +406,37 @@ fun SettingsGroupCard(
         )
         Surface(
             shape = RoundedCornerShape(18.dp),
-            color = colors.cardElevated,
+            color = colors.card,
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier.padding(vertical = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.fillMaxWidth(),
                 content = content
             )
         }
+    }
+}
+
+@Composable
+private fun SettingsRowIconTile(
+    @DrawableRes iconRes: Int,
+    iconTint: Color
+) {
+    val colors = ShiftlyColors.current
+    Box(
+        modifier = Modifier
+            .size(34.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(iconTint.copy(alpha = if (colors.isDark) 0.18f else 0.12f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(19.dp)
+        )
     }
 }
 
@@ -304,17 +457,12 @@ fun SettingsChevronRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 11.dp),
+            .shiftlyPressClickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = null,
-            tint = iconTint,
-            modifier = Modifier.size(22.dp)
-        )
+        SettingsRowIconTile(iconRes = iconRes, iconTint = iconTint)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -392,18 +540,13 @@ fun SettingsSwitchRow(
             .fillMaxWidth()
             .heightIn(min = 56.dp)
             .let { mod ->
-                if (onRowClick != null) mod.clickable(onClick = onRowClick) else mod
+                if (onRowClick != null) mod.shiftlyPressClickable(onClick = onRowClick) else mod
             }
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = null,
-            tint = iconTint,
-            modifier = Modifier.size(22.dp)
-        )
+        SettingsRowIconTile(iconRes = iconRes, iconTint = iconTint)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -533,18 +676,15 @@ fun ThemeSelectorSheetContent(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(
-                modifier = Modifier
-                    .selectableGroup()
-                    .padding(vertical = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                modifier = Modifier.selectableGroup()
             ) {
-                THEME_MODE_OPTIONS.forEach { (modeKey, modeLabel) ->
+                THEME_MODE_OPTIONS.forEachIndexed { index, (modeKey, modeLabel) ->
                     val isSelected = currentThemeMode.equals(modeKey, ignoreCase = true)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 54.dp)
-                            .clickable(role = Role.RadioButton) {
+                            .shiftlyPressClickable(role = Role.RadioButton) {
                                 onSave(modeKey)
                             }
                             .semantics(mergeDescendants = true) {
@@ -571,6 +711,9 @@ fun ThemeSelectorSheetContent(
                             )
                         }
                     }
+                    if (index < THEME_MODE_OPTIONS.lastIndex) {
+                        ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+                    }
                 }
             }
         }
@@ -591,7 +734,16 @@ fun AccountEditSheetContent(
     workplace: String = "",
     workType: String = "Full-Time",
     targetWeeklyHours: Double = 40.0,
-    onSave: (name: String, jobTitle: String, workplace: String, workType: String, targetWeeklyHours: Double) -> Unit,
+    currencySymbol: String = "₱",
+    currentHourlyRate: Double = 0.0,
+    onSave: (
+        name: String,
+        jobTitle: String,
+        workplace: String,
+        workType: String,
+        targetWeeklyHours: Double,
+        defaultHourlyRate: Double
+    ) -> Unit,
     onDismiss: () -> Unit = {},
     actionState: ShiftlySheetActionState? = null
 ) {
@@ -604,11 +756,25 @@ fun AccountEditSheetContent(
     var hoursInput by remember {
         mutableStateOf(if (targetWeeklyHours > 0.0) formatEditableNumber(targetWeeklyHours) else "40")
     }
+    var hourlyRateInput by remember {
+        mutableStateOf(if (currentHourlyRate > 0.0) formatEditableNumber(currentHourlyRate) else "")
+    }
 
     val isValid = nameInput.isNotBlank()
     val parsedHours = remember(hoursInput) { hoursInput.toDoubleOrNull() ?: 40.0 }
+    val parsedHourlyRate = remember(hourlyRateInput) {
+        (hourlyRateInput.toDoubleOrNull() ?: 0.0).coerceAtLeast(0.0)
+    }
 
-    LaunchedEffect(isValid, nameInput, jobTitleInput, workplaceInput, selectedWorkType, parsedHours) {
+    LaunchedEffect(
+        isValid,
+        nameInput,
+        jobTitleInput,
+        workplaceInput,
+        selectedWorkType,
+        parsedHours,
+        parsedHourlyRate
+    ) {
         actionState?.enabled = isValid
         actionState?.onSave = {
             if (nameInput.isNotBlank()) {
@@ -617,7 +783,8 @@ fun AccountEditSheetContent(
                     jobTitleInput.trim(),
                     workplaceInput.trim(),
                     selectedWorkType,
-                    parsedHours
+                    parsedHours,
+                    parsedHourlyRate
                 )
             }
         }
@@ -629,18 +796,15 @@ fun AccountEditSheetContent(
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             ProfileInsetRow(
                 label = "Display Name",
                 value = nameInput,
                 onValueChange = { nameInput = it },
                 placeholder = "Your name"
             )
+
+            ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
             ProfileInsetRow(
                 label = "Job Title",
@@ -649,12 +813,27 @@ fun AccountEditSheetContent(
                 placeholder = "Role / Job Title"
             )
 
+            ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
             ProfileInsetRow(
                 label = "Workplace",
                 value = workplaceInput,
                 onValueChange = { workplaceInput = it },
                 placeholder = "Company / Workplace"
             )
+
+            ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
+            ProfileNumericInsetRow(
+                label = "Default Hourly Rate",
+                value = hourlyRateInput,
+                onValueChange = { hourlyRateInput = filterSingleDecimalInput(it, hourlyRateInput) },
+                placeholder = "0.00",
+                prefix = currencySymbol,
+                suffix = "/hr"
+            )
+
+            ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
             Column(
                 modifier = Modifier
@@ -687,7 +866,7 @@ fun AccountEditSheetContent(
                                 .heightIn(min = 48.dp)
                                 .clip(RoundedCornerShape(7.dp))
                                 .background(if (isSelected) colors.azurePrimary else Color.Transparent)
-                                .clickable { selectedWorkType = option },
+                                .shiftlyPressClickable(role = Role.Tab) { selectedWorkType = option },
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -706,69 +885,15 @@ fun AccountEditSheetContent(
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 50.dp)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Target Hours",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = colors.textPrimary
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    BasicTextField(
-                        value = hoursInput,
-                        onValueChange = { input ->
-                            val filtered = input.filter { it.isDigit() || it == '.' }
-                            if (filtered.count { it == '.' } <= 1) hoursInput = filtered
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        cursorBrush = SolidColor(colors.azureAccent),
-                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            color = colors.textPrimary,
-                            textAlign = TextAlign.End
-                        ).tabular(),
-                        decorationBox = { inner ->
-                            Box(contentAlignment = Alignment.CenterEnd) {
-                                if (hoursInput.isEmpty()) {
-                                    Text(
-                                        text = "40",
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontFamily = InterFontFamily,
-                                            color = colors.textSecondary
-                                        ),
-                                        textAlign = TextAlign.End
-                                    )
-                                }
-                                inner()
-                            }
-                        },
-                        modifier = Modifier.width(54.dp)
-                    )
-                    Text(
-                        text = "hrs/wk",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Medium
-                        ),
-                        color = colors.textSecondary
-                    )
-                }
-            }
+            ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
+            ProfileNumericInsetRow(
+                label = "Target Hours",
+                value = hoursInput,
+                onValueChange = { hoursInput = filterSingleDecimalInput(it, hoursInput) },
+                placeholder = "40",
+                suffix = "hrs/wk"
+            )
         }
     }
 
@@ -781,7 +906,8 @@ fun AccountEditSheetContent(
                     jobTitleInput.trim(),
                     workplaceInput.trim(),
                     selectedWorkType,
-                    parsedHours
+                    parsedHours,
+                    parsedHourlyRate
                 )
             }
         },
@@ -790,6 +916,88 @@ fun AccountEditSheetContent(
         actionEnabled = isValid,
         modifier = Modifier.padding(top = 4.dp)
     )
+}
+
+@Composable
+private fun ProfileNumericInsetRow(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    suffix: String,
+    prefix: String? = null
+) {
+    val colors = ShiftlyColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 50.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = InterFontFamily,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 15.sp
+            ),
+            color = colors.textPrimary
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            if (!prefix.isNullOrEmpty()) {
+                Text(
+                    text = prefix,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Medium
+                    ),
+                    color = colors.textSecondary
+                )
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                cursorBrush = SolidColor(colors.azureAccent),
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.textPrimary,
+                    textAlign = TextAlign.End
+                ).tabular(),
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterEnd) {
+                        if (value.isEmpty()) {
+                            Text(
+                                text = placeholder,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    color = colors.textSecondary
+                                ),
+                                textAlign = TextAlign.End
+                            )
+                        }
+                        inner()
+                    }
+                },
+                modifier = Modifier.width(68.dp)
+            )
+            Text(
+                text = suffix,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.Medium
+                ),
+                color = colors.textSecondary
+            )
+        }
+    }
 }
 
 @Composable
@@ -873,18 +1081,15 @@ fun CurrencyPickerSheetContent(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
-                    modifier = Modifier
-                        .selectableGroup()
-                        .padding(vertical = 2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    modifier = Modifier.selectableGroup()
                 ) {
-                    CURRENCY_OPTIONS.forEach { (symbol, label) ->
+                    CURRENCY_OPTIONS.forEachIndexed { index, (symbol, label) ->
                         val isSelected = symbol == currentCurrency
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 52.dp)
-                                .clickable(role = Role.Tab) {
+                                .shiftlyPressClickable(role = Role.Tab) {
                                     if (!isSelected) {
                                         pendingTarget = symbol to label
                                         rateInput = ""
@@ -916,6 +1121,9 @@ fun CurrencyPickerSheetContent(
                                     color = colors.azureAccent
                                 )
                             }
+                        }
+                        if (index < CURRENCY_OPTIONS.lastIndex) {
+                            ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
                         }
                     }
                 }
@@ -1085,24 +1293,21 @@ fun NotificationsSheetContent(
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 NotificationToggleRow(
                     title = "Recurring Bill Due Reminders",
                     checked = billsEnabled,
                     enabled = masterEnabled,
                     onCheckedChange = { billsEnabled = it }
                 )
+                ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
                 NotificationToggleRow(
                     title = "Scheduled Shift Reminders",
                     checked = shiftsEnabled,
                     enabled = masterEnabled,
                     onCheckedChange = { shiftsEnabled = it }
                 )
+                ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
                 NotificationToggleRow(
                     title = "Savings Goal Check-Ins",
                     checked = savingsEnabled,
@@ -1290,7 +1495,7 @@ fun BudgetsEditorSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
-                .clickable { isMonthlyExpanded = !isMonthlyExpanded }
+                .shiftlyPressClickable { isMonthlyExpanded = !isMonthlyExpanded }
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
@@ -1371,7 +1576,7 @@ fun BudgetsEditorSheetContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .clickable { isCategoryLimitsExpanded = !isCategoryLimitsExpanded }
+                    .shiftlyPressClickable { isCategoryLimitsExpanded = !isCategoryLimitsExpanded }
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -1423,10 +1628,12 @@ fun BudgetsEditorSheetContent(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 6.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                .padding(bottom = 6.dp)
                         ) {
                             editedBudgets.forEachIndexed { idx, (cat, limitStr) ->
+                                if (idx > 0) {
+                                    ShiftlyHairlineDivider(startInset = 50.dp, endInset = 12.dp)
+                                }
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -1478,7 +1685,7 @@ fun BudgetsEditorSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
-                .clickable { isManageCategoriesExpanded = !isManageCategoriesExpanded }
+                .shiftlyPressClickable { isManageCategoriesExpanded = !isManageCategoriesExpanded }
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
@@ -1530,8 +1737,7 @@ fun BudgetsEditorSheetContent(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                            .padding(bottom = 6.dp)
                     ) {
                         // Compact Add Category Row
                         Row(
@@ -1578,7 +1784,7 @@ fun BudgetsEditorSheetContent(
                                 modifier = Modifier
                                     .size(48.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .clickable {
+                                    .shiftlyPressClickable {
                                         val clean = newCategoryName.trim()
                                         if (clean.isNotEmpty() && managedCategoriesList.none { it.name.equals(clean, true) }) {
                                             managedCategoriesList.add(ManagedCategorySetting(clean, true))
@@ -1604,7 +1810,14 @@ fun BudgetsEditorSheetContent(
                             }
                         }
 
+                        if (managedCategoriesList.isNotEmpty()) {
+                            ShiftlyHairlineDivider(startInset = 12.dp, endInset = 12.dp)
+                        }
+
                         managedCategoriesList.forEachIndexed { idx, item ->
+                            if (idx > 0) {
+                                ShiftlyHairlineDivider(startInset = 50.dp, endInset = 12.dp)
+                            }
                             val isCustomCategory = ExpenseViewModel.EXPENSE_CATEGORIES.none {
                                 it.equals(item.name.trim(), ignoreCase = true)
                             }
@@ -1925,48 +2138,50 @@ fun AppLockSheetContent(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(colors.cardElevated)
-            .padding(vertical = 2.dp)
-            .selectableGroup(),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = colors.cardElevated,
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        APP_LOCK_METHOD_OPTIONS.forEach { option ->
-            val isSelected = method == option
-            val displayLabel = option.replace(" Only", "")
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 50.dp)
-                    .clickable(role = Role.RadioButton) {
-                        method = option
-                        errorMessage = null
-                    }
-                    .semantics(mergeDescendants = true) {
-                        selected = isSelected
-                    }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = displayLabel,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                    ),
-                    color = if (isSelected) colors.azureAccent else colors.textPrimary
-                )
-                if (isSelected) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_check),
-                        contentDescription = "Selected",
-                        tint = colors.azurePrimary,
-                        modifier = Modifier.size(18.dp)
+        Column(modifier = Modifier.selectableGroup()) {
+            APP_LOCK_METHOD_OPTIONS.forEachIndexed { index, option ->
+                val isSelected = method == option
+                val displayLabel = option.replace(" Only", "")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .shiftlyPressClickable(role = Role.RadioButton) {
+                            method = option
+                            errorMessage = null
+                        }
+                        .semantics(mergeDescendants = true) {
+                            selected = isSelected
+                        }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = displayLabel,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                        ),
+                        color = if (isSelected) colors.azureAccent else colors.textPrimary
                     )
+                    if (isSelected) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_check),
+                            contentDescription = "Selected",
+                            tint = colors.azurePrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                if (index < APP_LOCK_METHOD_OPTIONS.lastIndex) {
+                    ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
                 }
             }
         }
@@ -2088,18 +2303,15 @@ fun BackupAndExportSheetContent(
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_cloud_upload,
                 label = "Export JSON Backup",
                 iconTint = colors.azureAccent,
                 onClick = onExportJson
             )
+
+            ShiftlyHairlineDivider(startInset = 42.dp, endInset = 14.dp)
 
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_rotate_ccw,
@@ -2126,18 +2338,15 @@ fun BackupAndExportSheetContent(
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_file_spreadsheet,
                 label = "Export Shifts (CSV)",
                 iconTint = colors.mintInk,
                 onClick = onExportShiftsCsv
             )
+
+            ShiftlyHairlineDivider(startInset = 42.dp, endInset = 14.dp)
 
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_file_spreadsheet,
@@ -2167,7 +2376,7 @@ private fun ExportOptionInsetRow(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 50.dp)
-            .clickable(onClick = onClick)
+            .shiftlyPressClickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -2311,13 +2520,8 @@ fun LegalInfoBottomSheet(
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        section.clauses.forEach { clause ->
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        section.clauses.forEachIndexed { index, clause ->
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -2341,6 +2545,9 @@ fun LegalInfoBottomSheet(
                                     ),
                                     color = colors.textSecondary
                                 )
+                            }
+                            if (index < section.clauses.lastIndex) {
+                                ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
                             }
                         }
                     }
@@ -2415,12 +2622,7 @@ fun FeedbackBottomSheet(
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     FeedbackInsetTextField(
                         label = "Subject",
                         value = subjectInput,
@@ -2430,6 +2632,8 @@ fun FeedbackBottomSheet(
                         capitalization = KeyboardCapitalization.Sentences
                     )
 
+                    ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
                     FeedbackInsetTextField(
                         label = "Name (Optional)",
                         value = nameInput,
@@ -2438,6 +2642,8 @@ fun FeedbackBottomSheet(
                         singleLine = true,
                         capitalization = KeyboardCapitalization.Words
                     )
+
+                    ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
                     FeedbackInsetTextField(
                         label = "Details",
@@ -2458,7 +2664,7 @@ fun FeedbackBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .clickable { includeDeviceInfo = !includeDeviceInfo }
+                    .shiftlyPressClickable { includeDeviceInfo = !includeDeviceInfo }
             ) {
                 Row(
                     modifier = Modifier
