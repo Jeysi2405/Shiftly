@@ -24,10 +24,14 @@ android {
         applicationId = "com.example.shiftly"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "3.3.0"
+        versionCode = 6
+        versionName = "3.9.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    base {
+        archivesName.set("Shiftly 3.9.0")
     }
 
     signingConfigs {

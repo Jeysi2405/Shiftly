@@ -1910,6 +1910,10 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
                 description = "View net balance, cutoff pay, and activity with privacy toggle."
             ),
             FeatureGuideItem(
+                title = "Quick Add Modal & Floating Nav",
+                description = "Tap the floating + button for fast 1-tap logging from any tab."
+            ),
+            FeatureGuideItem(
                 title = "Visual Spending & Earning Trends",
                 description = "Compare income, expenses, and patterns clearly."
             ),
@@ -1929,7 +1933,7 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
             ),
             FeatureGuideItem(
                 title = "PIN & Biometric App Lock",
-                description = "Protect your app with a clean PIN keypad or biometrics."
+                description = "Protect your app with PIN keypad, biometrics, and smooth unlock transition."
             ),
             FeatureGuideItem(
                 title = "Easy Backup & Spreadsheet Export",

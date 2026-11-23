@@ -2,53 +2,47 @@
 
 > Track every earned peso, work shift, and daily expense—calm, private, and offline.
 
-[![Version](https://img.shields.io/badge/Version-3.3.0-0A84FF?style=for-the-badge)](../../releases/latest)
-[![Platform](https://img.shields.io/badge/Android-8.0%2B-30D158?style=for-the-badge&logo=android&logoColor=white)](./release/Shiftly-v3.3.0.apk)
-[![Download APK](https://img.shields.io/badge/Download-Shiftly%20v3.3.0%20APK-1C1C1E?style=for-the-badge)](./release/Shiftly-v3.3.0.apk)
+[![Version](https://img.shields.io/badge/Version-3.9.0-0A84FF?style=for-the-badge)](../../releases/latest)
+[![Platform](https://img.shields.io/badge/Android-8.0%2B-30D158?style=for-the-badge&logo=android&logoColor=white)](./release/Shiftly%203.9.0.apk)
+[![Download APK](https://img.shields.io/badge/Download-Shiftly%203.9.0%20APK-1C1C1E?style=for-the-badge)](./release/Shiftly%203.9.0.apk)
 
 ---
 
-## Download Shiftly v3.3.0 (APK)
+## Download Shiftly 3.9.0 (APK)
 
-- **Direct APK Download:** [Download Shiftly v3.3.0 APK](./release/Shiftly-v3.3.0.apk)
-- **GitHub Releases:** [Release v3.3.0](../../releases/latest)
+- **Direct APK Download:** [Download Shiftly 3.9.0 APK](./release/Shiftly%203.9.0.apk)
+- **GitHub Releases:** [Release v3.9.0](../../releases/latest)
 
-> **Quick Install:** Download `Shiftly-v3.3.0.apk` on your Android phone and open it to install. *(If prompted, allow installing unknown apps for your browser or file manager.)*
-
----
-
-### ⚠️ One-time update notice for v3.3.0
-
-> **Important:** v3.3.0 introduces a permanent production signing key for seamless future updates. Because previous releases (v3.2.0 or earlier) were signed differently, Android will require a one-time migration step to upgrade:
->
-> 1. In your existing Shiftly app, go to **Profile → Backup & Export → Export JSON Backup** and save your backup file.
-> 2. Uninstall the old Shiftly app from your phone.
-> 3. Download and install `Shiftly-v3.3.0.apk`.
-> 4. Open Shiftly, go to **Profile → Backup & Export → Restore from Backup**, and select your saved JSON file.
->
-> **Note:** From v3.3.0 onward, all future updates will install directly with **Update**, preserving your data automatically without uninstalling.
+> **Quick Install:** Download `Shiftly 3.9.0.apk` on your Android phone and open it to install. *(If prompted, allow installing unknown apps for your browser or file manager.)*
 
 ---
 
-## What's Inside Shiftly
+### Upgrading to v3.9.0
+
+> - **From v3.3.0 or newer:** Install `Shiftly 3.9.0.apk` directly and tap **Update**—your data upgrades automatically (`Room DB v9`).
+> - **From v3.2.0 or earlier:** Back up via **Profile → Backup → Export JSON**, uninstall the older build, install `Shiftly 3.9.0.apk`, and restore via **Restore Backup**.
+
+---
+
+## What's Inside Shiftly 3.9.0
 
 1. **Shifts & Work Pay**
-   Easy shift logging with saved presets, automatic pay computation (regular hours, night differential, overtime, and holiday rates), upcoming shift reminders, and monthly work goals.
+   Tap **Log Shift** or any calendar date with saved time presets, automatic pay math (`Regular Day`, `Rest Day`, and Holiday acronyms like `SNW Day` & `RH + Rest`, plus overtime and night differential), upcoming shift reminders, monthly goals, and swipe-to-edit/delete cards.
 
 2. **Daily Spending & Monthly Limits**
-   Simple expense tracking with receipt photos, editable expense history, flexible monthly limits and category budgets, and a calm daily safe-to-spend guide.
+   Track daily expenses with receipt photos, `< MMM yyyy >` + `All` month and category filters, swipe-to-edit/delete with quick Undo, flexible monthly limits, category caps, and a calm daily safe-to-spend guide.
 
 3. **Allowance & Take-Home Pay**
-   Allowance and extra income tracking, paired with a PH Take-Home Pay Estimator covering SSS, PhilHealth, Pag-IBIG, and withholding tax estimates.
+   Track allowances, stipends, and extra income against semi-monthly, weekly, or custom payday cutoffs, paired with a PH Take-Home Pay Estimator covering SSS, PhilHealth, Pag-IBIG, and withholding tax.
 
 4. **Shared Bills, Loans & Savings**
-   Fair group bill splitting, a Personal IOUs (Borrow & Lend) tracker, an **Installment Loans (Contract Tracker)** for financed items and payment schedules with editable payment history (date & time editing and item deletion), recurring bill reminders, and personal savings goals.
+   Split group bills cleanly, track Personal IOUs offline, manage **Installment Loans** with `Monthly %` or `Total %` interest rates and a custom **Record Payment** editor (Amount, Date & Time Paid), auto-post Recurring Bills to Expenses, and save toward Goals with daily pace and confetti celebrations.
 
-5. **Expanded Quick Add (`+`) & Clear Insights**
-   Log shifts, expenses, allowances, split bills, recurring bills, installment loans, savings goals, or IOUs in one tap from the center `+` menu—alongside a calm home overview with a privacy balance mask, visual trends, and an activity calendar.
+5. **Refined UI, Floating Nav, Quick Add (`+`) & Guided Tour**
+   Built with a 4-tab expanding-pill floating bottom bar, a detached upper-right `+` button that morphs into a floating Quick Add modal (`Log Shift`, `Add Expense`, `Allowance`, `Split Bill`, `Recurring`, `Loan`, `Goal`, `IOU`), native Compose animated Lucide icons with Tools spotlight transitions, 1:1 loading skeleton shimmers, a dark `#090A0D` Welcome + intro sequence, and updated interactive tutorials & `?` screen guides.
 
 6. **Privacy & Peace of Mind**
-   100% offline and local-first storage—no accounts, no cloud tracking. Protected with PIN & Biometric App Lock, plus full JSON backup/restore and CSV spreadsheet export.
+   100% offline and local-first storage—no accounts, no cloud tracking. Features a clean outline-free Shiftly app mark, borderless PIN keypad & Biometric App Lock with smooth logo zoom unlock, plus full JSON backup/restore and CSV spreadsheet export.
 
 ---
 
