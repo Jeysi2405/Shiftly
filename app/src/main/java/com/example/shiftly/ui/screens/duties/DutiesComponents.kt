@@ -24,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -37,6 +36,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,7 +48,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -70,10 +69,12 @@ import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.DayType
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -106,17 +107,6 @@ internal fun formatDurationCompact(totalMinutes: Long): String {
     }
 }
 
-private fun formatPillDuration(totalMinutes: Long): String {
-    val safe = totalMinutes.coerceAtLeast(0L)
-    val h = safe / 60L
-    val m = safe % 60L
-    return when {
-        h > 0L && m > 0L -> if (h == 1L) "${h} hour ${m} mins" else "${h} hours ${m} mins"
-        h > 0L -> if (h == 1L) "${h} hour" else "${h} hours"
-        else -> "${m} mins"
-    }
-}
-
 private fun filterWageDecimalInput(raw: String, current: String): String {
     val filtered = raw.filter { it.isDigit() || it == '.' }
     return if (filtered.count { it == '.' } <= 1) filtered else current
@@ -142,18 +132,14 @@ fun DutiesWageRateCard(
     var hourlyInput by remember {
         mutableStateOf(if (defaultHourlyRate > 0.0) formatWageEditableNumber(defaultHourlyRate) else "")
     }
-    var minWageInput by remember {
-        mutableStateOf(if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else "")
-    }
 
-    LaunchedEffect(defaultHourlyRate, minimumWagePerDay) {
+    LaunchedEffect(defaultHourlyRate) {
         if (!hasInitializedMode && defaultHourlyRate > 0.0) {
             hasInitializedMode = true
             isEditing = false
         }
         if (!isEditing) {
             hourlyInput = if (defaultHourlyRate > 0.0) formatWageEditableNumber(defaultHourlyRate) else ""
-            minWageInput = if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else ""
         }
     }
 
@@ -192,29 +178,30 @@ fun DutiesWageRateCard(
                         iconSize = 22.dp
                     )
                     Text(
-                        text = "WAGE & RATE SETTINGS",
-                        style = MaterialTheme.typography.labelMedium.copy(
+                        text = "Hourly Rate",
+                        style = MaterialTheme.typography.labelLarge.copy(
                             fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.8.sp
+                            fontWeight = FontWeight.Medium
                         ),
                         color = colors.textSecondary
                     )
                 }
 
                 if (!isEditing) {
+                    var editTapCount by remember { mutableIntStateOf(0) }
                     IconButton(
                         onClick = {
+                            editTapCount++
                             hourlyInput = if (defaultHourlyRate > 0.0) formatWageEditableNumber(defaultHourlyRate) else ""
-                            minWageInput = if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else ""
                             isEditing = true
                         },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_pencil),
-                            contentDescription = "Edit wage rates",
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_pencil,
+                            contentDescription = "Edit hourly rate",
                             tint = colors.azureAccent,
+                            triggerKey = editTapCount,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -222,7 +209,6 @@ fun DutiesWageRateCard(
                     TextButton(
                         onClick = {
                             hourlyInput = formatWageEditableNumber(defaultHourlyRate)
-                            minWageInput = if (minimumWagePerDay > 0.0) formatWageEditableNumber(minimumWagePerDay) else ""
                             isEditing = false
                         },
                         modifier = Modifier.heightIn(min = 48.dp)
@@ -237,113 +223,56 @@ fun DutiesWageRateCard(
             }
 
             if (!isEditing) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(IntrinsicSize.Min),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    WageRateDisplayTile(
-                        label = "Hourly Rate",
-                        value = "${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr",
-                        valueColor = colors.mintTextOnSurface,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 12.dp)
-                    )
-                    ShiftlyVerticalHairlineDivider(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .padding(vertical = 2.dp)
-                    )
-                    WageRateDisplayTile(
-                        label = "Min Wage / Day",
-                        value = if (minimumWagePerDay > 0.0) {
-                            "${ShiftlyFormatters.formatCurrency(currencySymbol, minimumWagePerDay)}/day"
-                        } else {
-                            "Not set"
-                        },
-                        valueColor = if (minimumWagePerDay > 0.0) colors.textPrimary else colors.textSecondary,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(start = 14.dp)
-                    )
-                }
+                Text(
+                    text = "${ShiftlyFormatters.formatCurrency(currencySymbol, defaultHourlyRate)}/hr",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Bold
+                    ).tabular(),
+                    color = colors.mintTextOnSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedTextField(
-                        value = hourlyInput,
-                        onValueChange = { hourlyInput = filterWageDecimalInput(it, hourlyInput) },
-                        label = { Text("Hourly ($currencySymbol/hr)", fontFamily = InterFontFamily) },
-                        placeholder = {
-                            Text(
-                                text = "0",
-                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                                color = colors.textSecondary
-                            )
-                        },
-                        prefix = {
-                            Text(
-                                text = currencySymbol,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = colors.textPrimary
-                            )
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = fieldColors,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    OutlinedTextField(
-                        value = minWageInput,
-                        onValueChange = { minWageInput = filterWageDecimalInput(it, minWageInput) },
-                        label = { Text("Min Wage/Day", fontFamily = InterFontFamily) },
-                        placeholder = {
-                            Text(
-                                text = "0",
-                                style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
-                                color = colors.textSecondary
-                            )
-                        },
-                        prefix = {
-                            Text(
-                                text = currencySymbol,
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontFamily = InterFontFamily,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                color = colors.textPrimary
-                            )
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = fieldColors,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                OutlinedTextField(
+                    value = hourlyInput,
+                    onValueChange = { hourlyInput = filterWageDecimalInput(it, hourlyInput) },
+                    label = { Text("Hourly ($currencySymbol/hr)", fontFamily = InterFontFamily) },
+                    placeholder = {
+                        Text(
+                            text = "0",
+                            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = InterFontFamily),
+                            color = colors.textSecondary
+                        )
+                    },
+                    prefix = {
+                        Text(
+                            text = currencySymbol,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = colors.textPrimary
+                        )
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = fieldColors,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
                 ShiftlyPrimaryPillButton(
                     text = "Save",
                     leadingIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_check),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_check,
                             contentDescription = null,
                             tint = colors.onAzurePrimary,
                             modifier = Modifier.size(18.dp)
                         )
                     },
                     onClick = {
-                        val parsedMinWage = (minWageInput.toDoubleOrNull() ?: 0.0)
-                            .takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
                         val rawHourly = hourlyInput.toDoubleOrNull()
                         val resolvedHourly = if (rawHourly != null && rawHourly.isFinite() && rawHourly > 0.0) {
                             rawHourly
@@ -355,49 +284,14 @@ fun DutiesWageRateCard(
                             return@ShiftlyPrimaryPillButton
                         }
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onSaveRates(resolvedHourly, parsedMinWage)
+                        onSaveRates(resolvedHourly, minimumWagePerDay)
                         hourlyInput = formatWageEditableNumber(resolvedHourly)
-                        minWageInput = if (parsedMinWage > 0.0) formatWageEditableNumber(parsedMinWage) else ""
                         isEditing = false
-                        onShowMessage("Wage settings saved")
+                        onShowMessage("Hourly rate saved")
                     }
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun WageRateDisplayTile(
-    label: String,
-    value: String,
-    valueColor: Color,
-    modifier: Modifier = Modifier
-) {
-    val colors = ShiftlyColors.current
-    Column(
-        modifier = modifier.padding(vertical = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.Medium
-            ),
-            color = colors.textSecondary
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.Bold,
-                fontSize = 19.sp
-            ).tabular(),
-            color = valueColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }
 
@@ -493,10 +387,11 @@ fun DayTypePromptSheet(
                             }
                         }
                         if (isSelected) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_check),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_check,
                                 contentDescription = "Selected",
                                 tint = colors.azurePrimary,
+                                animateOnMount = true,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -577,8 +472,8 @@ fun TimeBreakdownCard(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_banknote),
+                                ShiftlyAnimatedIcon(
+                                    iconRes = R.drawable.ic_lucide_banknote,
                                     contentDescription = null,
                                     tint = if (hasRate) colors.mintTextOnSurface else colors.azureInk,
                                     modifier = Modifier.size(13.dp)
@@ -745,26 +640,36 @@ fun ShiftCalendarCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
+                    var prevTapCount by remember { mutableIntStateOf(0) }
+                    var nextTapCount by remember { mutableIntStateOf(0) }
                     IconButton(
-                        onClick = onPreviousMonth,
+                        onClick = {
+                            prevTapCount++
+                            onPreviousMonth()
+                        },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_chevron_left),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_chevron_left,
                             contentDescription = "Previous Month",
                             tint = colors.textPrimary,
+                            triggerKey = prevTapCount,
                             modifier = Modifier.size(22.dp)
                         )
                     }
 
                     IconButton(
-                        onClick = onNextMonth,
+                        onClick = {
+                            nextTapCount++
+                            onNextMonth()
+                        },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_chevron_right,
                             contentDescription = "Next Month",
                             tint = colors.textPrimary,
+                            triggerKey = nextTapCount,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -884,7 +789,7 @@ fun ShiftHistoryEmptyCard(
     ShiftlyEmptyState(
         iconRes = R.drawable.ic_lucide_briefcase,
         title = "No shifts logged this month",
-        subtitle = "Tap Log Shift above or choose any calendar day to record your hours.",
+        subtitle = null,
         actionText = "Log Shift",
         onAction = onLogFirstShift,
         iconBackgroundColor = colors.mintBright
@@ -897,8 +802,8 @@ fun ShiftHistoryItemCard(
     currencySymbol: String,
     onEditNote: () -> Unit,
     onDelete: () -> Unit,
-    containerColor: Color = ShiftlyColors.current.cardElevated,
-    shape: Shape = RoundedCornerShape(18.dp)
+    containerColor: Color = ShiftlyColors.current.card,
+    shape: Shape = ShiftlyShapes.Card
 ) {
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
@@ -915,7 +820,7 @@ fun ShiftHistoryItemCard(
         "$start – $end"
     }
     val dayTypeLabel = remember(shift.dayType) {
-        runCatching { DayType.valueOf(shift.dayType).label }.getOrNull() ?: shift.dayType
+        runCatching { DayType.valueOf(shift.dayType).shortLabel }.getOrNull() ?: shift.dayType
     }
 
     val wageDetails = remember(
@@ -930,6 +835,15 @@ fun ShiftHistoryItemCard(
             hourlyRate = shift.lockedHourlyRate,
             dayTypeStr = shift.dayType
         )
+    }
+    val totalShiftMinutes = remember(shift.timeInMillis, shift.timeOutMillis) {
+        ((shift.timeOutMillis - shift.timeInMillis) / 60_000L).coerceAtLeast(0L)
+    }
+    val extraTags = remember(wageDetails.nightDiffMinutes, wageDetails.overtimeMinutes) {
+        buildList {
+            if (wageDetails.nightDiffMinutes > 0L) add("ND ${formatDurationCompact(wageDetails.nightDiffMinutes)}")
+            if (wageDetails.overtimeMinutes > 0L) add("OT ${formatDurationCompact(wageDetails.overtimeMinutes)}")
+        }.joinToString(" · ")
     }
 
     Surface(
@@ -963,32 +877,20 @@ fun ShiftHistoryItemCard(
                         iconSize = 22.dp
                     )
 
-                    Column {
-                        Text(
-                            text = shiftDateText,
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            color = colors.textPrimary
-                        )
-                        Text(
-                            text = timeRangeText,
-                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily).tabular(),
-                            color = colors.textSecondary
-                        )
-                    }
+                    Text(
+                        text = shiftDateText,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        color = colors.textPrimary
+                    )
                 }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, shift.totalEarned)}",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Bold
-                        ).tabular(),
-                        color = colors.mintInk
-                    )
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     Text(
                         text = dayTypeLabel,
                         style = MaterialTheme.typography.labelSmall.copy(
@@ -997,117 +899,88 @@ fun ShiftHistoryItemCard(
                         ),
                         color = colors.textSecondary
                     )
-                }
-            }
-
-            // Color-coded breakdown pills (zero border strokes)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (wageDetails.regularBaseMinutes > 0L) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = colors.surface,
-                        shadowElevation = 0.dp
-                    ) {
-                        Text(
-                            text = "Reg ${formatPillDuration(wageDetails.regularBaseMinutes)}",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium
-                            ).tabular(),
-                            color = colors.textPrimary,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-                if (wageDetails.nightDiffMinutes > 0L) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = colors.nightDiffPurpleContainer,
-                        shadowElevation = 0.dp
-                    ) {
-                        Text(
-                            text = "ND ${formatPillDuration(wageDetails.nightDiffMinutes)}",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium
-                            ).tabular(),
-                            color = colors.nightDiffPurple,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-                if (wageDetails.overtimeMinutes > 0L) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = colors.coralContainer,
-                        shadowElevation = 0.dp
-                    ) {
-                        Text(
-                            text = "OT ${formatPillDuration(wageDetails.overtimeMinutes)}",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium
-                            ).tabular(),
-                            color = colors.coralBright,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
-                        )
-                    }
+                    Text(
+                        text = "+${ShiftlyFormatters.formatCurrency(currencySymbol, shift.totalEarned)}",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold
+                        ).tabular(),
+                        color = colors.mintInk
+                    )
                 }
             }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom
             ) {
-                if (shift.overtimeNote.isNotBlank()) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = colors.surface,
-                        shadowElevation = 0.dp,
-                        modifier = Modifier.weight(1f, fill = false)
-                    ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = timeRangeText,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily).tabular(),
+                        color = colors.textSecondary
+                    )
+                    Text(
+                        text = formatDurationCompact(totalShiftMinutes),
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp
+                        ).tabular(),
+                        color = colors.textPrimary
+                    )
+                    if (extraTags.isNotEmpty() || shift.overtimeNote.isNotBlank()) {
+                        val detailLine = listOfNotNull(
+                            extraTags.takeIf { it.isNotEmpty() },
+                            shift.overtimeNote.trim().takeIf { it.isNotEmpty() }
+                        ).joinToString(" · ")
                         Text(
-                            text = shift.overtimeNote,
+                            text = detailLine,
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Medium
-                            ),
-                            color = colors.textPrimary,
+                            ).tabular(),
+                            color = colors.textSecondary,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
-                } else {
-                    Text(
-                        text = "${ShiftlyFormatters.formatCurrency(currencySymbol, shift.lockedHourlyRate)}/hr",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Medium
-                        ).tabular(),
-                        color = colors.textSecondary
-                    )
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                    IconButton(onClick = onEditNote, modifier = Modifier.size(48.dp)) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_square_pen),
+                    var editTapCount by remember { mutableIntStateOf(0) }
+                    var deleteTapCount by remember { mutableIntStateOf(0) }
+                    IconButton(
+                        onClick = {
+                            editTapCount++
+                            onEditNote()
+                        },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_square_pen,
                             contentDescription = "Edit Shift",
                             tint = colors.azureInk,
+                            triggerKey = editTapCount,
                             modifier = Modifier.size(19.dp)
                         )
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_trash_2),
+                    IconButton(
+                        onClick = {
+                            deleteTapCount++
+                            onDelete()
+                        },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_trash_2,
                             contentDescription = "Delete Shift",
                             tint = colors.coralInk,
+                            triggerKey = deleteTapCount,
                             modifier = Modifier.size(19.dp)
                         )
                     }

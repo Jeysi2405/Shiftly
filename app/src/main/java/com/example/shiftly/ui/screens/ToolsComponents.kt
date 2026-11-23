@@ -24,7 +24,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -36,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +48,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,6 +70,7 @@ import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlySwipeAction
 import com.example.shiftly.ui.components.ShiftlySwipeActionRow
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.expense.categoryIcon
@@ -664,8 +664,8 @@ fun IouTrackerSheetContent(
                                             onClick = { pendingDeleteEntry = entry },
                                             modifier = Modifier.size(48.dp)
                                         ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.ic_lucide_trash_2),
+                                            ShiftlyAnimatedIcon(
+                                                iconRes = R.drawable.ic_lucide_trash_2,
                                                 contentDescription = "Delete entry",
                                                 tint = colors.coralInk,
                                                 modifier = Modifier.size(18.dp)
@@ -764,7 +764,7 @@ fun IouTrackerSheetContent(
     pendingDeleteEntry?.let { entryToDelete ->
         ShiftlyDeleteConfirmDialog(
             title = "Delete Record?",
-            message = "This ${if (entryToDelete.isLent) "lent" else "borrowed"} record for ${entryToDelete.personName} will be permanently removed.",
+            message = "Delete IOU for ${entryToDelete.personName}?",
             onDismiss = { pendingDeleteEntry = null },
             onConfirm = {
                 itemList.removeAll { it.id == entryToDelete.id }
@@ -1043,6 +1043,8 @@ fun ActivityCalendarSheetContent(
 
     val todayDate = remember { LocalDate.now() }
     var displayedMonth by remember { mutableStateOf(YearMonth.from(todayDate)) }
+    var prevMonthTrigger by remember { mutableIntStateOf(0) }
+    var nextMonthTrigger by remember { mutableIntStateOf(0) }
     var selectedDate by remember { mutableStateOf(todayDate) }
 
     val monthFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMMM yyyy", locale) }
@@ -1107,13 +1109,17 @@ fun ActivityCalendarSheetContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = { displayedMonth = displayedMonth.minusMonths(1) },
+                        onClick = {
+                            prevMonthTrigger++
+                            displayedMonth = displayedMonth.minusMonths(1)
+                        },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_chevron_left),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_chevron_left,
                             contentDescription = "Previous Month",
                             tint = colors.textPrimary,
+                            triggerKey = prevMonthTrigger,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1128,13 +1134,17 @@ fun ActivityCalendarSheetContent(
                     )
 
                     IconButton(
-                        onClick = { displayedMonth = displayedMonth.plusMonths(1) },
+                        onClick = {
+                            nextMonthTrigger++
+                            displayedMonth = displayedMonth.plusMonths(1)
+                        },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_chevron_right,
                             contentDescription = "Next Month",
                             tint = colors.textPrimary,
+                            triggerKey = nextMonthTrigger,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1230,7 +1240,7 @@ fun ActivityCalendarSheetContent(
                                                             modifier = Modifier
                                                                 .size(5.dp)
                                                                 .clip(CircleShape)
-                                                                .background(if (isSelected) PureWhite else Color(0xFF30D158))
+                                                                .background(if (isSelected) PureWhite else colors.mintBright)
                                                         )
                                                     }
                                                     if (hasExpense) {
@@ -1238,7 +1248,7 @@ fun ActivityCalendarSheetContent(
                                                             modifier = Modifier
                                                                 .size(5.dp)
                                                                 .clip(CircleShape)
-                                                                .background(if (isSelected) PureWhite else Color(0xFFFF453A))
+                                                                .background(if (isSelected) PureWhite else colors.coralBright)
                                                         )
                                                     }
                                                 }
@@ -1399,8 +1409,8 @@ fun ActivityCalendarSheetContent(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_lucide_clock),
+                                        ShiftlyAnimatedIcon(
+                                            iconRes = R.drawable.ic_lucide_clock,
                                             contentDescription = null,
                                             tint = colors.azureInk,
                                             modifier = Modifier.size(18.dp)
@@ -1456,8 +1466,8 @@ fun ActivityCalendarSheetContent(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(categoryIcon(expense.category)),
+                                        ShiftlyAnimatedIcon(
+                                            iconRes = categoryIcon(expense.category),
                                             contentDescription = null,
                                             tint = colors.coralBright,
                                             modifier = Modifier.size(18.dp)

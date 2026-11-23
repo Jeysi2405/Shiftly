@@ -21,9 +21,9 @@ import com.example.shiftly.data.local.SavingsGoalWithDeposits
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.local.ShiftlySettingsSnapshot
 import com.example.shiftly.data.local.SplitBillWithParticipants
+import com.example.shiftly.data.local.actualIsCompleted
+import com.example.shiftly.data.local.actualRemainingBalance
 import com.example.shiftly.data.local.dueStatus
-import com.example.shiftly.data.local.isCompleted
-import com.example.shiftly.data.local.remainingBalance
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.LocalDate
@@ -202,15 +202,32 @@ class ToolsViewModel(
         }
     }
 
-    fun markLoanMonthAsPaid(loanId: Long) {
+    fun markLoanMonthAsPaid(
+        loanId: Long,
+        amountPaid: Double? = null,
+        datePaidMillis: Long = System.currentTimeMillis()
+    ) {
         viewModelScope.launch {
-            repository.markLoanMonthAsPaid(loanId)
+            repository.markLoanMonthAsPaid(
+                loanId = loanId,
+                amountPaid = amountPaid,
+                datePaidMillis = datePaidMillis
+            )
         }
     }
 
-    fun updateLoanPaymentDateTime(payment: LoanPaymentEntity, newDatePaidMillis: Long) {
+    fun updateLoanPayment(
+        payment: LoanPaymentEntity,
+        newAmountPaid: Double,
+        newDatePaidMillis: Long
+    ) {
         viewModelScope.launch {
-            repository.updateLoanPayment(payment.copy(datePaidMillis = newDatePaidMillis))
+            repository.updateLoanPayment(
+                payment.copy(
+                    amountPaid = newAmountPaid,
+                    datePaidMillis = newDatePaidMillis
+                )
+            )
         }
     }
 
@@ -326,8 +343,8 @@ class ToolsViewModel(
                 else -> "Balanced debts"
             }
 
-            val activeLoans = installmentLoans.filter { !it.loan.isCompleted }
-            val totalRemainingLoanBalance = activeLoans.sumOf { it.loan.remainingBalance }
+            val activeLoans = installmentLoans.filter { !it.actualIsCompleted }
+            val totalRemainingLoanBalance = activeLoans.sumOf { it.actualRemainingBalance }
             var overdueLoanCount = 0
             var dueSoonLoanCount = 0
             for (entry in activeLoans) {

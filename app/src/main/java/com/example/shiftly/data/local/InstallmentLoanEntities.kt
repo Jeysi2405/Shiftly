@@ -34,7 +34,9 @@ data class InstallmentLoanEntity(
     val paidMonths: Int = 0,
     val startDateMillis: Long,
     val monthlyDueDay: Int,
-    val firstDueDateMillis: Long
+    val firstDueDateMillis: Long,
+    val interestRatePercent: Double = 0.0,
+    val isMonthlyInterestRate: Boolean = true
 )
 
 @Immutable
@@ -121,6 +123,30 @@ val InstallmentLoanEntity.progressFraction: Float
 val InstallmentLoanEntity.isCompleted: Boolean
     get() = termsInMonths > 0 && remainingMonths == 0
 
+val InstallmentLoanWithPayments.actualTotalPaid: Double
+    get() = if (payments.isNotEmpty()) {
+        loan.downpayment.nonNegativeOrZero() + payments.sumOf { it.amountPaid.nonNegativeOrZero() }
+    } else {
+        loan.totalPaid
+    }
+
+val InstallmentLoanWithPayments.actualRemainingBalance: Double
+    get() = (loan.finalPrice - actualTotalPaid).coerceAtLeast(0.0)
+
+val InstallmentLoanWithPayments.actualProgressFraction: Float
+    get() = if (payments.isNotEmpty() && loan.finalPrice > 0.0) {
+        (actualTotalPaid / loan.finalPrice).toFloat().coerceIn(0f, 1f)
+    } else {
+        loan.progressFraction
+    }
+
+val InstallmentLoanWithPayments.actualIsCompleted: Boolean
+    get() = if (payments.isNotEmpty()) {
+        actualRemainingBalance <= 0.009 || loan.isCompleted
+    } else {
+        loan.isCompleted
+    }
+
 val InstallmentLoanEntity.startDate: LocalDate
     get() = utcMillisToLocalDate(startDateMillis)
 
@@ -184,7 +210,8 @@ fun InstallmentLoanEntity.normalizedOrNull(): InstallmentLoanEntity? {
         installmentPerMonth = roundMoney(installmentPerMonth),
         termsInMonths = safeTerms,
         paidMonths = paidMonths.coerceIn(0, safeTerms),
-        monthlyDueDay = monthlyDueDay.coerceIn(1, 31)
+        monthlyDueDay = monthlyDueDay.coerceIn(1, 31),
+        interestRatePercent = roundMoney(interestRatePercent.nonNegativeOrZero())
     )
 }
 

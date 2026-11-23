@@ -1,38 +1,55 @@
 package com.example.shiftly.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.shiftly.R
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyCollapsedTopBar
+import com.example.shiftly.ui.components.ShiftlyGroupLabel
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlyToolSheetContainer
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
+import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.screens.profile.BudgetsEditorSheetContent
@@ -41,6 +58,7 @@ import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.LocalDate
@@ -144,11 +162,11 @@ fun AnalyticsScreen(
     if (showBudgetsTutorial) {
         ShiftlyScreenTutorialSheet(
             title = "Budgets Guide",
-            subtitle = "Set comfortable limits for your month and top categories.",
+            subtitle = null,
             steps = listOf(
-                "Set your monthly limit" to "Enter an overall monthly spending cap to unlock daily safe-to-spend guidance.",
-                "Assign category caps" to "Add optional limits for Food, Transport, or Bills to see individual progress bars.",
-                "Customize your categories" to "Enable, add, or organize the categories shown whenever you log an expense."
+                "Set monthly limit" to "Add an overall monthly spending cap.",
+                "Assign category caps" to "Set optional limits per spending category.",
+                "Manage categories" to "Enable or add custom expense categories."
             ),
             onDismiss = { showBudgetsTutorial = false }
         )
@@ -167,6 +185,12 @@ fun AnalyticsScreenContent(
     listState: LazyListState = rememberLazyListState()
 ) {
     val colors = ShiftlyColors.current
+    var showMoreInsights by rememberSaveable { mutableStateOf(false) }
+    val moreChevronRotation by animateFloatAsState(
+        targetValue = if (showMoreInsights) 90f else 0f,
+        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+        label = "moreInsightsChevron"
+    )
     val isTitleCollapsed by remember(listState) {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 70
@@ -222,40 +246,22 @@ fun AnalyticsScreenContent(
             item(key = "analytics_budget_savings_section", contentType = "analytics_section") {
                 Column(
                     modifier = Modifier.padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "BUDGET & SAVINGS PACE",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = InterFontFamily,
-                            letterSpacing = 0.5.sp
-                        ),
-                        color = colors.textSecondary,
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .semantics { heading() }
-                    )
+                    ShiftlyGroupLabel(text = "Budget")
 
-                    OnBudgetStreakCard(
+                    BudgetAndSavingsSummaryCard(
                         streakDays = state.underBudgetStreakDays,
                         streakTargetDays = state.streakTargetDays,
                         dailyAllowance = state.dailyBudgetAllowance,
-                        currencySymbol = state.currencySymbol,
-                        onOpenBudgetSettings = onOpenBudgetSettings
-                    )
-
-                    NetSavingsRateCard(
                         ratePercentage = state.netSavingsRate,
                         netAmount = state.netSavingsAmount,
                         progressFraction = state.netSavingsFraction,
-                        currencySymbol = state.currencySymbol
-                    )
-
-                    ProjectedMonthlySpendCard(
                         projectedSpend = state.projectedMonthlySpend,
                         dailyPace = state.dailyAveragePace,
                         isWithinBudget = state.isProjectedWithinBudget,
-                        currencySymbol = state.currencySymbol
+                        currencySymbol = state.currencySymbol,
+                        onOpenBudgetSettings = onOpenBudgetSettings
                     )
                 }
             }
@@ -263,28 +269,13 @@ fun AnalyticsScreenContent(
             item(key = "analytics_spending_section", contentType = "analytics_section") {
                 Column(
                     modifier = Modifier.padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "SPENDING BREAKDOWN",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = InterFontFamily,
-                            letterSpacing = 0.5.sp
-                        ),
-                        color = colors.textSecondary,
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .semantics { heading() }
-                    )
+                    ShiftlyGroupLabel(text = "Spending")
 
                     TopSpendingCategoriesCard(
                         categories = state.categoryInsights,
                         currencySymbol = state.currencySymbol
-                    )
-
-                    PeakShiftSpendPatternCard(
-                        topEarningDayLabel = state.topEarningDayLabel,
-                        highestSpendDayLabel = state.highestSpendDayLabel
                     )
                 }
             }
@@ -292,19 +283,9 @@ fun AnalyticsScreenContent(
             item(key = "analytics_work_section", contentType = "analytics_section") {
                 Column(
                     modifier = Modifier.padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "WORK & DUTY IMPACT",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = InterFontFamily,
-                            letterSpacing = 0.5.sp
-                        ),
-                        color = colors.textSecondary,
-                        modifier = Modifier
-                            .padding(horizontal = 4.dp)
-                            .semantics { heading() }
-                    )
+                    ShiftlyGroupLabel(text = "Work")
 
                     EarningsHoursBreakdownCard(
                         currencySymbol = state.currencySymbol,
@@ -314,12 +295,69 @@ fun AnalyticsScreenContent(
                         nightDiffHours = state.nightDiffHours,
                         overtimeHours = state.overtimeHours
                     )
+                }
+            }
 
-                    HoursOfWorkCostCard(
-                        currencySymbol = state.currencySymbol,
-                        hourlyRate = state.hourlyRate,
-                        items = state.workHoursCosts
-                    )
+            item(key = "analytics_more_insights", contentType = "analytics_more") {
+                Column(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Surface(
+                        shape = ShiftlyShapes.Card,
+                        color = colors.card,
+                        shadowElevation = 0.dp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(ShiftlyShapes.Card)
+                            .shiftlyPressClickable { showMoreInsights = !showMoreInsights }
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "More insights",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.textPrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_chevron_right,
+                                contentDescription = if (showMoreInsights) "Collapse more insights" else "Expand more insights",
+                                tint = colors.textSecondary,
+                                triggerKey = showMoreInsights,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .graphicsLayer { rotationZ = moreChevronRotation }
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = showMoreInsights,
+                        enter = expandVertically(spring(dampingRatio = 0.85f)) + fadeIn(),
+                        exit = shrinkVertically(spring(dampingRatio = 0.85f)) + fadeOut()
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            PeakShiftSpendPatternCard(
+                                topEarningDayLabel = state.topEarningDayLabel,
+                                highestSpendDayLabel = state.highestSpendDayLabel
+                            )
+
+                            HoursOfWorkCostCard(
+                                currencySymbol = state.currencySymbol,
+                                hourlyRate = state.hourlyRate,
+                                items = state.workHoursCosts
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -34,7 +34,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -48,6 +47,7 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -72,7 +72,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -100,12 +99,14 @@ import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.io.File
@@ -122,13 +123,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private val ExpensePillShape = RoundedCornerShape(50)
-private val ExpenseItemShape = RoundedCornerShape(18.dp)
-private val ExpenseFieldShape = RoundedCornerShape(12.dp)
+private val ExpensePillShape = ShiftlyShapes.Pill
+private val ExpenseItemShape = ShiftlyShapes.Card
+private val ExpenseFieldShape = ShiftlyShapes.Control
 private val ExpenseChipShape = RoundedCornerShape(10.dp)
 private val ExpenseThumbShape = RoundedCornerShape(10.dp)
-private val ExpenseSheetTopShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-private val ExpenseCategorySheetTopShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+private val ExpenseSheetTopShape = ShiftlyShapes.Sheet
+private val ExpenseCategorySheetTopShape = ShiftlyShapes.Sheet
 
 @DrawableRes
 fun categoryIcon(category: String): Int {
@@ -157,9 +158,9 @@ fun ExpenseSummaryCard(
     val locale = LocalConfiguration.current.locales[0]
     val periodLabel = remember(selectedMonth, locale) {
         if (selectedMonth == null) {
-            "ALL TIME"
+            "All time"
         } else {
-            selectedMonth.format(DateTimeFormatter.ofPattern("MMM yyyy", locale)).uppercase()
+            selectedMonth.format(DateTimeFormatter.ofPattern("MMM yyyy", locale))
         }
     }
     val topLegendCategories = remember(categoryBreakdown) { categoryBreakdown.take(4) }
@@ -464,20 +465,15 @@ fun ExpenseEmptyCard(
         monthLabel != null -> "No expenses in $monthLabel"
         else -> "No expenses logged yet"
     }
-    val subtitle = if (isFiltered) {
-        "Try clearing the active filter or tap + Add above."
-    } else {
-        "Start tracking your daily spending and save receipts."
-    }
     val buttonText = when {
-        isCategoryFiltered -> "Show All Expenses"
-        isMonthFiltered -> "Show All Months"
-        else -> "Log your first expense"
+        isCategoryFiltered -> "Show All"
+        isMonthFiltered -> "Show All"
+        else -> "Add Expense"
     }
     ShiftlyEmptyState(
         iconRes = R.drawable.ic_lucide_receipt_text,
         title = emptyTitle,
-        subtitle = subtitle,
+        subtitle = null,
         actionText = buttonText,
         onAction = if (isFiltered) onShowAll else onAddExpense,
         iconBackgroundColor = colors.coralBright
@@ -492,7 +488,7 @@ fun ExpenseItemCard(
     onDelete: () -> Unit,
     onClick: () -> Unit = {},
     dateFormatter: DateTimeFormatter? = null,
-    containerColor: Color = ShiftlyColors.current.cardElevated,
+    containerColor: Color = ShiftlyColors.current.card,
     shape: Shape = ExpenseItemShape
 ) {
     val colors = ShiftlyColors.current
@@ -579,8 +575,8 @@ fun ExpenseItemCard(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_paperclip),
+                                ShiftlyAnimatedIcon(
+                                    iconRes = R.drawable.ic_lucide_paperclip,
                                     contentDescription = null,
                                     tint = colors.azureInk,
                                     modifier = Modifier.size(13.dp)
@@ -613,17 +609,22 @@ fun ExpenseItemCard(
                     color = colors.coralInk
                 )
                 val deleteInteraction = remember { MutableInteractionSource() }
+                var deleteTapCount by remember { mutableIntStateOf(0) }
                 IconButton(
-                    onClick = onDelete,
+                    onClick = {
+                        deleteTapCount++
+                        onDelete()
+                    },
                     interactionSource = deleteInteraction,
                     modifier = Modifier
                         .size(48.dp)
                         .shiftlyPressEffect(deleteInteraction)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_trash_2),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_trash_2,
                         contentDescription = "Delete Expense ${expense.title}",
                         tint = colors.coralInk.copy(alpha = 0.85f),
+                        triggerKey = deleteTapCount,
                         modifier = Modifier.size(19.dp)
                     )
                 }
@@ -1026,8 +1027,8 @@ fun AddExpenseSheetContent(
                             ),
                             color = colors.textPrimary
                         )
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_chevron_right,
                             contentDescription = "Select Category",
                             tint = colors.textSecondary,
                             modifier = Modifier.size(18.dp)
@@ -1060,8 +1061,8 @@ fun AddExpenseSheetContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_calendar),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_calendar,
                             contentDescription = null,
                             tint = colors.azureInk,
                             modifier = Modifier.size(17.dp)
@@ -1102,8 +1103,8 @@ fun AddExpenseSheetContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_clock),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_clock,
                             contentDescription = null,
                             tint = colors.azureInk,
                             modifier = Modifier.size(17.dp)
@@ -1172,8 +1173,8 @@ fun AddExpenseSheetContent(
                                 .size(48.dp)
                                 .shiftlyPressEffect(removeReceiptInteraction)
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_x),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_x,
                                 contentDescription = "Remove Receipt",
                                 tint = colors.coralInk,
                                 modifier = Modifier.size(20.dp)
@@ -1186,20 +1187,24 @@ fun AddExpenseSheetContent(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    var galleryTapCount by remember { mutableIntStateOf(0) }
+                    var cameraTapCount by remember { mutableIntStateOf(0) }
                     ShiftlySecondaryTextButton(
                         text = "Gallery",
                         enabled = !isProcessingCameraPhoto,
                         onClick = {
+                            galleryTapCount++
                             suppressNextRelock()
                             galleryLauncher.launch(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
                         leadingIcon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_image),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_image,
                                 contentDescription = null,
                                 tint = colors.azureAccent,
+                                triggerKey = galleryTapCount,
                                 modifier = Modifier.size(18.dp)
                             )
                         },
@@ -1210,6 +1215,7 @@ fun AddExpenseSheetContent(
                         text = if (isProcessingCameraPhoto) "Saving..." else "Camera",
                         enabled = !isProcessingCameraPhoto,
                         onClick = {
+                            cameraTapCount++
                             suppressNextRelock()
                             coroutineScope.launch {
                                 val created = withContext(Dispatchers.IO) {
@@ -1228,10 +1234,11 @@ fun AddExpenseSheetContent(
                             }
                         },
                         leadingIcon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_camera),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_camera,
                                 contentDescription = null,
                                 tint = colors.azureAccent,
+                                triggerKey = cameraTapCount,
                                 modifier = Modifier.size(18.dp)
                             )
                         },
@@ -1428,10 +1435,11 @@ fun CategoryPromptSheet(
                                 )
                             }
                             if (isSelected) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_check),
+                                ShiftlyAnimatedIcon(
+                                    iconRes = R.drawable.ic_lucide_check,
                                     contentDescription = "Selected",
                                     tint = colors.coralBright,
+                                    animateOnMount = true,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }

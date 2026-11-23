@@ -33,7 +33,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -58,7 +57,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -78,6 +76,7 @@ import com.example.shiftly.ui.components.ShiftlyGlassCard
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
@@ -344,8 +343,8 @@ fun AllowanceHistoryItemCard(
     currencySymbol: String,
     onDelete: () -> Unit,
     dateFormatter: DateTimeFormatter? = null,
-    containerColor: Color = ShiftlyColors.current.cardElevated,
-    shape: Shape = RoundedCornerShape(18.dp)
+    containerColor: Color = ShiftlyColors.current.card,
+    shape: Shape = RoundedCornerShape(16.dp)
 ) {
     val colors = ShiftlyColors.current
     val resolvedFormatter = dateFormatter ?: run {
@@ -449,14 +448,19 @@ fun AllowanceHistoryItemCard(
                     color = colors.mintInk
                 )
                 if (!isAutoFromDuties) {
+                    var deleteTapCount by remember { mutableIntStateOf(0) }
                     IconButton(
-                        onClick = onDelete,
+                        onClick = {
+                            deleteTapCount++
+                            onDelete()
+                        },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_trash_2),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_trash_2,
                             contentDescription = "Delete allowance",
                             tint = colors.coralInk,
+                            triggerKey = deleteTapCount,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -480,7 +484,7 @@ fun AllowanceEmptyCard(
     ShiftlyEmptyState(
         iconRes = R.drawable.ic_lucide_wallet,
         title = "No allowance entries yet",
-        subtitle = "Log Salary, Business, or Others income — and reached Duties cutoffs auto-credit here on payday.",
+        subtitle = null,
         actionText = "Add Allowance",
         onAction = onAddAllowance,
         iconBackgroundColor = colors.mintBright
@@ -713,10 +717,11 @@ fun AddAllowanceBottomSheet(
                                 ),
                                 color = colors.textPrimary
                             )
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_chevron_right,
                                 contentDescription = "Toggle source dropdown",
                                 tint = colors.textSecondary,
+                                triggerKey = isSourceExpanded,
                                 modifier = Modifier
                                     .size(18.dp)
                                     .graphicsLayer { rotationZ = if (isSourceExpanded) 90f else 0f }
@@ -750,8 +755,8 @@ fun AddAllowanceBottomSheet(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(allowanceSourceIcon(source)),
+                                        ShiftlyAnimatedIcon(
+                                            iconRes = allowanceSourceIcon(source),
                                             contentDescription = null,
                                             tint = if (isSelected) colors.mintInk else colors.textSecondary,
                                             modifier = Modifier.size(18.dp)
@@ -766,10 +771,11 @@ fun AddAllowanceBottomSheet(
                                         )
                                     }
                                     if (isSelected) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_lucide_check),
+                                        ShiftlyAnimatedIcon(
+                                            iconRes = R.drawable.ic_lucide_check,
                                             contentDescription = "Selected",
                                             tint = colors.mintInk,
+                                            animateOnMount = true,
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
@@ -803,8 +809,8 @@ fun AddAllowanceBottomSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_calendar),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_calendar,
                                 contentDescription = null,
                                 tint = colors.azureInk,
                                 modifier = Modifier.size(17.dp)

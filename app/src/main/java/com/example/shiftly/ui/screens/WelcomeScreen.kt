@@ -58,13 +58,9 @@ import com.example.shiftly.ui.screens.profile.LegalTopic
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.ui.theme.tabular
-
-private val ObsidianBackground = Color(0xFF0B0F17)
-private val ElectricBlue = Color(0xFF3B82F6)
-private val TextPrimary = Color(0xFFF8FAFC)
-private val TextSecondary = Color(0xFF94A3B8)
 
 private data class PendingSetupProfile(
     val name: String,
@@ -100,7 +96,7 @@ fun WelcomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ObsidianBackground)
+            .background(colors.background)
     ) {
         Column(
             modifier = Modifier
@@ -120,7 +116,7 @@ fun WelcomeScreen(
                             SpanStyle(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold,
-                                color = ElectricBlue
+                                color = colors.azurePrimary
                             )
                         ) {
                             append("smarter,")
@@ -133,16 +129,16 @@ fun WelcomeScreen(
                         fontSize = 36.sp,
                         lineHeight = 43.sp
                     ),
-                    color = TextPrimary
+                    color = colors.textPrimary
                 )
 
                 Text(
-                    text = "Log your shifts, track your spend, and split the bill.",
+                    text = "Shifts, expenses, and split bills.",
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontFamily = InterFontFamily,
                         lineHeight = 24.sp
                     ),
-                    color = TextSecondary
+                    color = colors.textSecondary
                 )
             }
 
@@ -154,9 +150,9 @@ fun WelcomeScreen(
             ) {
                 Button(
                     onClick = { showSetupSheet = true },
-                    shape = RoundedCornerShape(50),
+                    shape = ShiftlyShapes.Control,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = ElectricBlue,
+                        containerColor = colors.azurePrimary,
                         contentColor = PureWhite
                     ),
                     elevation = ButtonDefaults.buttonElevation(
@@ -188,13 +184,13 @@ fun WelcomeScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "By continuing, you agree to our Terms & Privacy Policy",
+                        text = "Terms & Privacy Policy",
                         style = MaterialTheme.typography.bodySmall.copy(
                             fontFamily = InterFontFamily,
                             fontSize = 12.sp,
                             lineHeight = 16.sp
                         ),
-                        color = Color(0xFF8E8E93),
+                        color = colors.textSecondary,
                         textAlign = TextAlign.Center
                     )
                 }
@@ -250,7 +246,7 @@ fun WelcomeScreen(
             containerColor = colors.surface,
             scrimColor = shiftlySheetScrimColor(),
             tonalElevation = 0.dp,
-            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            shape = ShiftlyShapes.Sheet,
             dragHandle = { ShiftlySheetDragHandle() }
         ) {
             Column(

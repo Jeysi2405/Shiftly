@@ -309,18 +309,23 @@ class ShiftlyRepository(context: Context) {
     }
 
     /** Records the next unpaid month as paid and advances `paidMonths`. Returns false when nothing changed. */
-    suspend fun markLoanMonthAsPaid(loanId: Long): Boolean = withContext(Dispatchers.IO) {
+    suspend fun markLoanMonthAsPaid(
+        loanId: Long,
+        amountPaid: Double? = null,
+        datePaidMillis: Long = System.currentTimeMillis()
+    ): Boolean = withContext(Dispatchers.IO) {
         installmentLoanMutex.withLock {
             db.withTransaction {
                 val loan = installmentLoanDao.getLoanByIdOnce(loanId) ?: return@withTransaction false
                 val paid = loan.paidMonthsClamped
                 if (paid >= loan.termsInMonths) return@withTransaction false
+                val resolvedAmount = amountPaid?.takeIf { it.isFinite() && it > 0.0 } ?: loan.installmentPerMonth
                 installmentLoanDao.insertLoanPayment(
                     LoanPaymentEntity(
                         loanId = loan.id,
                         monthNumber = paid + 1,
-                        amountPaid = loan.installmentPerMonth,
-                        datePaidMillis = System.currentTimeMillis()
+                        amountPaid = resolvedAmount,
+                        datePaidMillis = datePaidMillis
                     )
                 )
                 installmentLoanDao.updateInstallmentLoan(loan.copy(paidMonths = paid + 1))

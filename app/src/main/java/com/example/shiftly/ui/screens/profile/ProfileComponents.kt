@@ -36,7 +36,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -48,6 +47,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,7 +59,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -78,6 +77,7 @@ import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyGlassCard
+import com.example.shiftly.ui.components.ShiftlyGroupLabel
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyIosSegmentedControl
@@ -87,6 +87,7 @@ import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
@@ -96,6 +97,7 @@ import com.example.shiftly.ui.screens.lock.canUseBiometrics
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.PinSecurity
 import com.example.shiftly.utils.ShiftlyFormatters
@@ -194,12 +196,12 @@ fun ProfileIdentityCard(
     }
 
     Surface(
-        shape = RoundedCornerShape(18.dp),
+        shape = ShiftlyShapes.Card,
         color = colors.card,
         shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
+            .clip(ShiftlyShapes.Card)
             .shiftlyPressClickable(onClick = onClick)
     ) {
         Row(
@@ -227,8 +229,8 @@ fun ProfileIdentityCard(
                         color = colors.azureAccent
                     )
                 } else {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_user),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_user,
                         contentDescription = null,
                         tint = colors.azureAccent,
                         modifier = Modifier.size(22.dp)
@@ -251,13 +253,15 @@ fun ProfileIdentityCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    text = roleSummary.ifEmpty { "Tap to add job title, workplace & hourly rate" },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                if (roleSummary.isNotEmpty()) {
+                    Text(
+                        text = roleSummary,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = colors.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 if (workMetadata.isNotEmpty()) {
                     Text(
                         text = workMetadata,
@@ -272,8 +276,8 @@ fun ProfileIdentityCard(
                 }
             }
 
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_chevron_right),
+            ShiftlyAnimatedIcon(
+                iconRes = R.drawable.ic_lucide_chevron_right,
                 contentDescription = "Edit profile",
                 tint = colors.textSecondary,
                 modifier = Modifier.size(18.dp)
@@ -291,14 +295,14 @@ fun ProfileSnapshotGlassCard(
     totalExpenses: Double
 ) {
     val colors = ShiftlyColors.current
-    ShiftlyGlassCard(cornerRadius = 18.dp, contentPadding = PaddingValues(18.dp)) {
+    ShiftlyGlassCard(cornerRadius = 16.dp, contentPadding = PaddingValues(18.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = "SNAPSHOT",
-                style = MaterialTheme.typography.labelSmall.copy(
+                text = "Overview",
+                style = MaterialTheme.typography.labelLarge.copy(
                     fontFamily = InterFontFamily,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.7.sp
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 13.sp
                 ),
                 color = colors.textSecondary
             )
@@ -394,18 +398,9 @@ fun SettingsGroupCard(
 ) {
     val colors = ShiftlyColors.current
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = groupTitle,
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontFamily = InterFontFamily,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 0.6.sp
-            ),
-            color = colors.textSecondary,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+        ShiftlyGroupLabel(text = groupTitle)
         Surface(
-            shape = RoundedCornerShape(18.dp),
+            shape = ShiftlyShapes.Card,
             color = colors.card,
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
@@ -418,24 +413,27 @@ fun SettingsGroupCard(
     }
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 private fun SettingsRowIconTile(
     @DrawableRes iconRes: Int,
-    iconTint: Color
+    iconTint: Color,
+    triggerKey: Any? = null
 ) {
     val colors = ShiftlyColors.current
     Box(
         modifier = Modifier
             .size(34.dp)
             .clip(RoundedCornerShape(10.dp))
-            .background(iconTint.copy(alpha = if (colors.isDark) 0.18f else 0.12f)),
+            .background(colors.iconNeutralContainer),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            painter = painterResource(iconRes),
+        ShiftlyAnimatedIcon(
+            iconRes = iconRes,
             contentDescription = null,
-            tint = iconTint,
-            modifier = Modifier.size(19.dp)
+            tint = colors.iconNeutral,
+            triggerKey = triggerKey,
+            modifier = Modifier.size(18.dp)
         )
     }
 }
@@ -453,16 +451,20 @@ fun SettingsChevronRow(
     trailingText: String? = null
 ) {
     val colors = ShiftlyColors.current
+    var tapCount by remember { mutableIntStateOf(0) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .shiftlyPressClickable(onClick = onClick)
+            .shiftlyPressClickable(onClick = {
+                tapCount++
+                onClick()
+            })
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        SettingsRowIconTile(iconRes = iconRes, iconTint = iconTint)
+        SettingsRowIconTile(iconRes = iconRes, iconTint = iconTint, triggerKey = tapCount)
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -513,8 +515,8 @@ fun SettingsChevronRow(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        Icon(
-            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+        ShiftlyAnimatedIcon(
+            iconRes = R.drawable.ic_lucide_chevron_right,
             contentDescription = null,
             tint = colors.textSecondary,
             modifier = Modifier.size(18.dp)
@@ -605,7 +607,7 @@ fun SettingsStaticRow(
                 fontWeight = FontWeight.Normal,
                 fontSize = 15.sp
             ).tabular(),
-            color = Color(0xFF8E8E93)
+            color = colors.textSecondary
         )
     }
 }
@@ -703,10 +705,11 @@ fun ThemeSelectorSheetContent(
                             color = if (isSelected) colors.azureAccent else colors.textPrimary
                         )
                         if (isSelected) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_check),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_check,
                                 contentDescription = "Selected",
                                 tint = colors.azurePrimary,
+                                animateOnMount = true,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -1159,7 +1162,7 @@ fun CurrencyPickerSheetContent(
                         color = colors.textPrimary
                     )
                     Text(
-                        text = "Choose whether to change only the symbol or convert all saved shifts, expenses, split bills, and budgets by an exchange rate.",
+                        text = "Change symbol only or convert saved amounts.",
                         style = MaterialTheme.typography.bodySmall,
                         color = colors.textSecondary
                     )
@@ -1295,21 +1298,21 @@ fun NotificationsSheetContent(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 NotificationToggleRow(
-                    title = "Recurring Bill Due Reminders",
+                    title = "Bill Reminders",
                     checked = billsEnabled,
                     enabled = masterEnabled,
                     onCheckedChange = { billsEnabled = it }
                 )
                 ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
                 NotificationToggleRow(
-                    title = "Scheduled Shift Reminders",
+                    title = "Shift Reminders",
                     checked = shiftsEnabled,
                     enabled = masterEnabled,
                     onCheckedChange = { shiftsEnabled = it }
                 )
                 ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
                 NotificationToggleRow(
-                    title = "Savings Goal Check-Ins",
+                    title = "Goal Check-Ins",
                     checked = savingsEnabled,
                     enabled = masterEnabled,
                     onCheckedChange = { savingsEnabled = it }
@@ -1533,10 +1536,11 @@ fun BudgetsEditorSheetContent(
                             ).tabular(),
                             color = if (parsedMonthly != null && parsedMonthly > 0.0) colors.azureAccent else colors.textSecondary
                         )
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_chevron_right,
                             contentDescription = if (isMonthlyExpanded) "Collapse monthly budget" else "Expand monthly budget",
                             tint = colors.textSecondary,
+                            triggerKey = isMonthlyExpanded,
                             modifier = Modifier
                                 .size(20.dp)
                                 .graphicsLayer { rotationZ = monthlyChevronRotation }
@@ -1609,10 +1613,11 @@ fun BudgetsEditorSheetContent(
                                 ).tabular(),
                                 color = if (activeCapsCount > 0) colors.azureAccent else colors.textSecondary
                             )
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_chevron_right,
                                 contentDescription = if (isCategoryLimitsExpanded) "Collapse category limits" else "Expand category limits",
                                 tint = colors.textSecondary,
+                                triggerKey = isCategoryLimitsExpanded,
                                 modifier = Modifier
                                     .size(20.dp)
                                     .graphicsLayer { rotationZ = categoryChevronRotation }
@@ -1718,10 +1723,11 @@ fun BudgetsEditorSheetContent(
                             ).tabular(),
                             color = colors.azureAccent
                         )
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_chevron_right,
                             contentDescription = if (isManageCategoriesExpanded) "Collapse manage categories" else "Expand manage categories",
                             tint = colors.textSecondary,
+                            triggerKey = isManageCategoriesExpanded,
                             modifier = Modifier
                                 .size(20.dp)
                                 .graphicsLayer { rotationZ = manageChevronRotation }
@@ -1800,8 +1806,8 @@ fun BudgetsEditorSheetContent(
                                     }
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_lucide_plus),
+                                    ShiftlyAnimatedIcon(
+                                        iconRes = R.drawable.ic_lucide_plus,
                                         contentDescription = "Add category",
                                         tint = PureWhite,
                                         modifier = Modifier.size(18.dp)
@@ -1853,8 +1859,8 @@ fun BudgetsEditorSheetContent(
                                         onClick = { pendingDeleteCategory = item },
                                         modifier = Modifier.size(48.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_lucide_trash_2),
+                                        ShiftlyAnimatedIcon(
+                                            iconRes = R.drawable.ic_lucide_trash_2,
                                             contentDescription = "Delete ${item.name}",
                                             tint = colors.coralInk,
                                             modifier = Modifier.size(18.dp)
@@ -1884,7 +1890,7 @@ fun BudgetsEditorSheetContent(
     pendingDeleteCategory?.let { categoryToDelete ->
         ShiftlyDeleteConfirmDialog(
             title = "Delete Category?",
-            message = "This custom category \"${categoryToDelete.name}\" and its budget limit will be removed.",
+            message = "Delete \"${categoryToDelete.name}\" and its budget?",
             onDismiss = { pendingDeleteCategory = null },
             onConfirm = {
                 managedCategoriesList.removeAll { it.name.equals(categoryToDelete.name, ignoreCase = true) }
@@ -2001,8 +2007,8 @@ fun ManageCategoriesSheetContent(
             elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
             modifier = Modifier.heightIn(min = 52.dp)
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_plus),
+            ShiftlyAnimatedIcon(
+                iconRes = R.drawable.ic_lucide_plus,
                 contentDescription = "Add",
                 modifier = Modifier.size(18.dp)
             )
@@ -2042,8 +2048,8 @@ fun ManageCategoriesSheetContent(
                     onClick = { pendingDeleteCategory = item },
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_trash_2),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_trash_2,
                         contentDescription = "Delete ${item.name}",
                         tint = colors.coralInk,
                         modifier = Modifier.size(18.dp)
@@ -2067,7 +2073,7 @@ fun ManageCategoriesSheetContent(
     pendingDeleteCategory?.let { categoryToDelete ->
         ShiftlyDeleteConfirmDialog(
             title = "Delete Category?",
-            message = "This custom category \"${categoryToDelete.name}\" will be removed.",
+            message = "Delete \"${categoryToDelete.name}\"?",
             onDismiss = { pendingDeleteCategory = null },
             onConfirm = {
                 list.removeAll { it.name.equals(categoryToDelete.name, ignoreCase = true) }
@@ -2172,10 +2178,11 @@ fun AppLockSheetContent(
                         color = if (isSelected) colors.azureAccent else colors.textPrimary
                     )
                     if (isSelected) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_check),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_check,
                             contentDescription = "Selected",
                             tint = colors.azurePrimary,
+                            animateOnMount = true,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -2189,7 +2196,7 @@ fun AppLockSheetContent(
 
     if (method != "4-Digit PIN" && !biometricsAvailable) {
         Text(
-            text = "No fingerprint/biometric enrolled on this device. Device lock or 4-Digit PIN will be used.",
+            text = "No biometrics enrolled. Using PIN or device lock.",
             style = MaterialTheme.typography.bodySmall,
             color = colors.coralTextOnSurface
         )
@@ -2287,18 +2294,10 @@ fun BackupAndExportSheetContent(
 ) {
     val colors = ShiftlyColors.current
 
-    Text(
-        text = "BACKUP & RESTORE",
-        style = MaterialTheme.typography.labelSmall.copy(
-            fontFamily = InterFontFamily,
-            letterSpacing = 0.5.sp
-        ),
-        color = colors.textSecondary,
-        modifier = Modifier.padding(horizontal = 4.dp)
-    )
+    ShiftlyGroupLabel(text = "Backup")
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = ShiftlyShapes.Card,
         color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
@@ -2306,7 +2305,7 @@ fun BackupAndExportSheetContent(
         Column(modifier = Modifier.fillMaxWidth()) {
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_cloud_upload,
-                label = "Export JSON Backup",
+                label = "Export JSON",
                 iconTint = colors.azureAccent,
                 onClick = onExportJson
             )
@@ -2315,25 +2314,17 @@ fun BackupAndExportSheetContent(
 
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_rotate_ccw,
-                label = "Restore from Backup",
+                label = "Restore Backup",
                 iconTint = colors.azureAccent,
                 onClick = onRestoreBackup
             )
         }
     }
 
-    Text(
-        text = "SPREADSHEETS",
-        style = MaterialTheme.typography.labelSmall.copy(
-            fontFamily = InterFontFamily,
-            letterSpacing = 0.5.sp
-        ),
-        color = colors.textSecondary,
-        modifier = Modifier.padding(horizontal = 4.dp)
-    )
+    ShiftlyGroupLabel(text = "Spreadsheets")
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = ShiftlyShapes.Card,
         color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
@@ -2341,7 +2332,7 @@ fun BackupAndExportSheetContent(
         Column(modifier = Modifier.fillMaxWidth()) {
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_file_spreadsheet,
-                label = "Export Shifts (CSV)",
+                label = "Shifts CSV",
                 iconTint = colors.mintInk,
                 onClick = onExportShiftsCsv
             )
@@ -2350,7 +2341,7 @@ fun BackupAndExportSheetContent(
 
             ExportOptionInsetRow(
                 iconRes = R.drawable.ic_lucide_file_spreadsheet,
-                label = "Export Expenses (CSV)",
+                label = "Expenses CSV",
                 iconTint = colors.coralInk,
                 onClick = onExportExpensesCsv
             )
@@ -2372,11 +2363,15 @@ private fun ExportOptionInsetRow(
     onClick: () -> Unit
 ) {
     val colors = ShiftlyColors.current
+    var tapCount by remember { mutableIntStateOf(0) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 50.dp)
-            .shiftlyPressClickable(onClick = onClick)
+            .shiftlyPressClickable(onClick = {
+                tapCount++
+                onClick()
+            })
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -2385,10 +2380,11 @@ private fun ExportOptionInsetRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(
-                painter = painterResource(iconRes),
+            ShiftlyAnimatedIcon(
+                iconRes = iconRes,
                 contentDescription = null,
                 tint = iconTint,
+                triggerKey = tapCount,
                 modifier = Modifier.size(18.dp)
             )
             Text(
@@ -2400,8 +2396,8 @@ private fun ExportOptionInsetRow(
                 color = colors.textPrimary
             )
         }
-        Icon(
-            painter = painterResource(R.drawable.ic_lucide_chevron_right),
+        ShiftlyAnimatedIcon(
+            iconRes = R.drawable.ic_lucide_chevron_right,
             contentDescription = null,
             tint = colors.textSecondary,
             modifier = Modifier.size(16.dp)

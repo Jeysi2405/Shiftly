@@ -21,7 +21,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         InstallmentLoanEntity::class,
         LoanPaymentEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class ShiftlyDatabase : RoomDatabase() {
@@ -199,6 +199,13 @@ abstract class ShiftlyDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE installment_loans ADD COLUMN interestRatePercent REAL NOT NULL DEFAULT 0.0")
+                db.execSQL("ALTER TABLE installment_loans ADD COLUMN isMonthlyInterestRate INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
         fun getInstance(context: Context): ShiftlyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -213,7 +220,8 @@ abstract class ShiftlyDatabase : RoomDatabase() {
                         MIGRATION_4_5,
                         MIGRATION_5_6,
                         MIGRATION_6_7,
-                        MIGRATION_7_8
+                        MIGRATION_7_8,
+                        MIGRATION_8_9
                     )
                     .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .build()

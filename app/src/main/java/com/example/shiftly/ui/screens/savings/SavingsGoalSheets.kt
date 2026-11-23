@@ -24,7 +24,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -47,7 +46,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -72,6 +70,7 @@ import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
@@ -197,8 +196,8 @@ fun AddSavingsGoalSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_calendar),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_calendar,
                                 contentDescription = null,
                                 tint = colors.azureInk,
                                 modifier = Modifier.size(17.dp)
@@ -373,10 +372,11 @@ fun SavingsGoalDetailSheet(
                 ShiftlyEmptyState(
                     iconRes = R.drawable.ic_lucide_piggy_bank,
                     title = "No savings goal set yet",
-                    subtitle = "Set a target amount and date to track your progress.",
-                    actionText = "Create Savings Goal",
+                    subtitle = null,
+                    actionText = "Add Goal",
                     onAction = onOpenAddNewGoal,
-                    iconBackgroundColor = colors.mintBright
+                    iconBackgroundColor = colors.mintBright,
+                    containerColor = colors.cardElevated
                 )
                 ShiftlySheetCloseButton(
                     label = "Close",
@@ -390,8 +390,11 @@ fun SavingsGoalDetailSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        var prevTapCount by remember { mutableIntStateOf(0) }
+                        var nextTapCount by remember { mutableIntStateOf(0) }
                         IconButton(
                             onClick = {
+                                prevTapCount++
                                 val prev = if (safeIndex > 0) safeIndex - 1 else goals.lastIndex
                                 val targetId = goals[prev].goal.id
                                 selectedGoalId = targetId
@@ -399,10 +402,11 @@ fun SavingsGoalDetailSheet(
                             },
                             modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_chevron_left),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_chevron_left,
                                 contentDescription = "Previous goal",
                                 tint = colors.textPrimary,
+                                triggerKey = prevTapCount,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -415,6 +419,7 @@ fun SavingsGoalDetailSheet(
 
                         IconButton(
                             onClick = {
+                                nextTapCount++
                                 val next = if (safeIndex < goals.lastIndex) safeIndex + 1 else 0
                                 val targetId = goals[next].goal.id
                                 selectedGoalId = targetId
@@ -422,10 +427,11 @@ fun SavingsGoalDetailSheet(
                             },
                             modifier = Modifier.size(48.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_chevron_right,
                                 contentDescription = "Next goal",
                                 tint = colors.textPrimary,
+                                triggerKey = nextTapCount,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -507,14 +513,19 @@ fun SavingsGoalDetailSheet(
                                     color = colors.textSecondary
                                 )
                             }
+                            var deleteGoalTapCount by remember { mutableIntStateOf(0) }
                             IconButton(
-                                onClick = { pendingDeleteGoal = goal },
+                                onClick = {
+                                    deleteGoalTapCount++
+                                    pendingDeleteGoal = goal
+                                },
                                 modifier = Modifier.size(48.dp)
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_trash_2),
+                                ShiftlyAnimatedIcon(
+                                    iconRes = R.drawable.ic_lucide_trash_2,
                                     contentDescription = "Delete goal",
                                     tint = colors.coralInk,
+                                    triggerKey = deleteGoalTapCount,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -674,8 +685,8 @@ fun SavingsGoalDetailSheet(
                     text = "Add Goal",
                     onClick = onOpenAddNewGoal,
                     leadingIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_plus),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_plus,
                             contentDescription = null,
                             tint = colors.azureAccent,
                             modifier = Modifier.size(18.dp)
@@ -738,14 +749,19 @@ fun SavingsGoalDetailSheet(
                                             overflow = TextOverflow.Ellipsis
                                         )
                                     }
+                                    var deleteDepositTapCount by remember { mutableIntStateOf(0) }
                                     IconButton(
-                                        onClick = { pendingDeleteDeposit = dep },
+                                        onClick = {
+                                            deleteDepositTapCount++
+                                            pendingDeleteDeposit = dep
+                                        },
                                         modifier = Modifier.size(48.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_lucide_trash_2),
+                                        ShiftlyAnimatedIcon(
+                                            iconRes = R.drawable.ic_lucide_trash_2,
                                             contentDescription = "Delete deposit",
                                             tint = colors.coralInk,
+                                            triggerKey = deleteDepositTapCount,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -774,11 +790,11 @@ fun SavingsGoalDetailSheet(
     if (showTutorialSheet) {
         ShiftlyScreenTutorialSheet(
             title = "Savings Goals Guide",
-            subtitle = "Save step by step toward your personal targets.",
+            subtitle = null,
             steps = listOf(
-                "Create & switch goals" to "Tap Add Goal to set a target amount and date, or tap goal pills at the top to switch between goals.",
-                "Record deposits anytime" to "Enter an amount and optional note, then tap Add Deposit to grow your progress bar and daily pace.",
-                "Track your deposit history" to "Review every past deposit below, or remove an entry if you need to make a correction."
+                "Create & switch goals" to "Set a target amount and date, or switch goals above.",
+                "Record deposits" to "Enter an amount to update your progress and daily pace.",
+                "Deposit history" to "Review or remove past deposits anytime."
             ),
             onDismiss = { showTutorialSheet = false }
         )
@@ -787,7 +803,7 @@ fun SavingsGoalDetailSheet(
     pendingDeleteGoal?.let { goalToDelete ->
         ShiftlyDeleteConfirmDialog(
             title = "Delete Savings Goal?",
-            message = "This savings goal \"${goalToDelete.title}\" and its deposit progress will be removed.",
+            message = "Delete \"${goalToDelete.title}\"?",
             onDismiss = { pendingDeleteGoal = null },
             onConfirm = {
                 onDeleteGoal(goalToDelete)
@@ -799,7 +815,7 @@ fun SavingsGoalDetailSheet(
     pendingDeleteDeposit?.let { depositToDelete ->
         ShiftlyDeleteConfirmDialog(
             title = "Delete Deposit?",
-            message = "This deposit of ${ShiftlyFormatters.formatCurrency(currencySymbol, depositToDelete.amount)} and its linked savings expense will be removed.",
+            message = "Delete ${ShiftlyFormatters.formatCurrency(currencySymbol, depositToDelete.amount)} deposit?",
             onDismiss = { pendingDeleteDeposit = null },
             onConfirm = {
                 onDeleteDeposit(depositToDelete)

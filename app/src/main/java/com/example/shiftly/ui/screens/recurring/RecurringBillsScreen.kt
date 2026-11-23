@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -20,9 +21,9 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,7 +35,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -44,17 +44,17 @@ import com.example.shiftly.data.local.RecurringBillEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyHelpIconButton
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
-import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
+import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
-import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySubScreenTopBar
 import com.example.shiftly.ui.components.ShiftlySwipeAction
 import com.example.shiftly.ui.components.ShiftlySwipeActionRow
-import com.example.shiftly.ui.components.shiftlySheetBodyBand
-import com.example.shiftly.ui.components.shiftlySheetTopBand
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.RecurringEngine
 import com.example.shiftly.workers.ShiftlyDailyWorker
@@ -131,11 +131,11 @@ fun RecurringBillsScreen(
     if (showTutorialSheet) {
         ShiftlyScreenTutorialSheet(
             title = "Recurring Bills Guide",
-            subtitle = "Stay ahead of repeating bills without manual entry.",
+            subtitle = null,
             steps = listOf(
-                "Schedule repeating bills" to "Tap Add Recurring Bill to set the amount, category, frequency, and next due date and time.",
-                "Automatic expense logging" to "Active bills automatically post to your Expenses when due so your spending totals stay up to date.",
-                "Pause or edit anytime" to "Toggle any bill off temporarily without deleting it, or tap a row to adjust its amount and schedule."
+                "Schedule bills" to "Set amount, category, frequency, and due date.",
+                "Auto-post expenses" to "Active bills log to Expenses when due.",
+                "Pause or edit" to "Toggle any bill off or tap to edit anytime."
             ),
             onDismiss = { showTutorialSheet = false }
         )
@@ -181,7 +181,7 @@ fun RecurringBillsScreen(
     pendingDeleteBill?.let { billToDelete ->
         ShiftlyDeleteConfirmDialog(
             title = "Delete Recurring Bill?",
-            message = "This recurring bill schedule for \"${billToDelete.title}\" will be permanently removed.",
+            message = "Delete \"${billToDelete.title}\"?",
             onDismiss = { pendingDeleteBill = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -211,157 +211,138 @@ fun RecurringBillsScreenContent(
         DateTimeFormatter.ofPattern("MMM d, yyyy • h:mm a", locale)
     }
     val now = remember { LocalDateTime.now() }
+    val isScrolled by remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 8
+        }
+    }
 
-    LazyColumn(
-        state = listState,
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(top = 10.dp),
-        verticalArrangement = Arrangement.Top
+            .statusBarsPadding()
     ) {
-        item(key = "recurring_header", contentType = "header") {
-            ShiftlyScreenHeader(
-                title = "Recurring Bills",
-                subtitle = null,
-                onBackClick = onBack,
-                trailing = {
-                    ShiftlyHelpIconButton(onClick = onOpenHelp)
-                },
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)
-            )
-        }
-
-        item(key = "recurring_summary", contentType = "summary") {
-            Column(
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                RecurringBillsSummaryCard(
-                    activeCount = state.activeCount,
-                    totalCount = state.bills.size,
-                    monthlyEstimate = state.enabledMonthlyEstimate,
-                    dueSoonCount = state.dueSoonCount,
-                    currencySymbol = state.currencySymbol
+        ShiftlySubScreenTopBar(
+            title = "Recurring Bills",
+            onBack = onBack,
+            showDivider = isScrolled,
+            trailing = {
+                ShiftlyHelpIconButton(onClick = onOpenHelp)
+                ShiftlySecondaryTextButton(
+                    text = "Add",
+                    onClick = onOpenAddSheet,
+                    leadingIcon = {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_plus,
+                            contentDescription = null,
+                            tint = colors.azureAccent,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 )
+            }
+        )
 
-                if (state.bills.isNotEmpty()) {
-                    ShiftlyPrimaryPillButton(
-                        text = "Add Recurring Bill",
-                        onClick = onOpenAddSheet,
-                        leadingIcon = {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_plus),
-                                contentDescription = null,
-                                tint = colors.onAzurePrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .navigationBarsPadding(),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
+            item(key = "recurring_summary", contentType = "summary") {
+                Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp)) {
+                    RecurringBillsSummaryCard(
+                        activeCount = state.activeCount,
+                        totalCount = state.bills.size,
+                        monthlyEstimate = state.enabledMonthlyEstimate,
+                        dueSoonCount = state.dueSoonCount,
+                        currencySymbol = state.currencySymbol
                     )
                 }
             }
-        }
 
-        item(key = "sheet_header", contentType = "sheet_header") {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shiftlySheetTopBand(colors.surface)
-                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                ShiftlySheetDragHandle()
-
+            item(key = "sheet_header", contentType = "sheet_header") {
                 ShiftlySectionHeader(
                     title = "Scheduled Bills",
                     count = state.bills.size,
-                    onLightSurface = true
+                    onLightSurface = false,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp)
                 )
             }
-        }
 
-        if (state.bills.isEmpty()) {
-            item(key = "sheet_empty", contentType = "sheet_empty") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 540.dp)
-                        .shiftlySheetBodyBand(colors.surface)
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
-                ) {
-                    RecurringBillsEmptyCard(onAddBill = onOpenAddSheet)
-                }
-            }
-        } else {
-            itemsIndexed(
-                items = state.bills,
-                key = { _, bill -> "recurring_${bill.id}" },
-                contentType = { _, _ -> "recurring_bill_item" }
-            ) { idx, bill ->
-                val rowShape = when {
-                    state.bills.size == 1 -> RoundedCornerShape(18.dp)
-                    idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-                    idx == state.bills.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
-                    else -> RectangleShape
-                }
-                Box(
-                    modifier = Modifier
-                        .animateItem(
-                            fadeInSpec = spring(dampingRatio = 0.8f),
-                            placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                            fadeOutSpec = spring(dampingRatio = 0.8f)
-                        )
-                        .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface)
-                        .padding(
-                            start = 20.dp,
-                            end = 20.dp,
-                            bottom = if (idx < state.bills.lastIndex) 2.dp else 0.dp
-                        )
-                ) {
-                    ShiftlySwipeActionRow(
-                        shape = rowShape,
-                        startToEndAction = ShiftlySwipeAction(
-                            iconRes = if (bill.isEnabled) R.drawable.ic_lucide_minus else R.drawable.ic_lucide_check,
-                            label = if (bill.isEnabled) "Pause" else "Enable",
-                            backgroundColor = if (bill.isEnabled) colors.iosOrange else colors.mintBright,
-                            onTrigger = { onToggleEnabled(bill, !bill.isEnabled) }
-                        ),
-                        endToStartAction = ShiftlySwipeAction(
-                            iconRes = R.drawable.ic_lucide_trash_2,
-                            label = "Delete",
-                            backgroundColor = colors.coralBright,
-                            onTrigger = { onSwipeDeleteBill(bill) }
-                        )
+            if (state.bills.isEmpty()) {
+                item(key = "sheet_empty", contentType = "sheet_empty") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(colors.cardElevated)
-                        ) {
-                            RecurringBillItemCard(
-                                bill = bill,
-                                currencySymbol = state.currencySymbol,
-                                onToggleEnabled = { enabled -> onToggleEnabled(bill, enabled) },
-                                onEdit = { onEditBill(bill) },
-                                onDelete = { onDeleteBill(bill) },
-                                dateTimeFormatter = itemDateTimeFormatter,
-                                now = now,
-                                containerColor = Color.Transparent,
-                                shape = RectangleShape
+                        RecurringBillsEmptyCard(onAddBill = onOpenAddSheet)
+                    }
+                }
+            } else {
+                itemsIndexed(
+                    items = state.bills,
+                    key = { _, bill -> "recurring_${bill.id}" },
+                    contentType = { _, _ -> "recurring_bill_item" }
+                ) { idx, bill ->
+                    val rowShape = when {
+                        state.bills.size == 1 -> ShiftlyShapes.Card
+                        idx == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        idx == state.bills.lastIndex -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                        else -> RectangleShape
+                    }
+                    Box(
+                        modifier = Modifier
+                            .animateItem(
+                                fadeInSpec = spring(dampingRatio = 0.8f),
+                                placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = spring(dampingRatio = 0.8f)
                             )
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                    ) {
+                        ShiftlySwipeActionRow(
+                            shape = rowShape,
+                            startToEndAction = ShiftlySwipeAction(
+                                iconRes = if (bill.isEnabled) R.drawable.ic_lucide_minus else R.drawable.ic_lucide_check,
+                                label = if (bill.isEnabled) "Pause" else "Enable",
+                                backgroundColor = if (bill.isEnabled) colors.iosOrange else colors.mintBright,
+                                onTrigger = { onToggleEnabled(bill, !bill.isEnabled) }
+                            ),
+                            endToStartAction = ShiftlySwipeAction(
+                                iconRes = R.drawable.ic_lucide_trash_2,
+                                label = "Delete",
+                                backgroundColor = colors.coralBright,
+                                onTrigger = { onSwipeDeleteBill(bill) }
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(colors.card)
+                            ) {
+                                RecurringBillItemCard(
+                                    bill = bill,
+                                    currencySymbol = state.currencySymbol,
+                                    onToggleEnabled = { enabled -> onToggleEnabled(bill, enabled) },
+                                    onEdit = { onEditBill(bill) },
+                                    onDelete = { onDeleteBill(bill) },
+                                    dateTimeFormatter = itemDateTimeFormatter,
+                                    now = now,
+                                    containerColor = Color.Transparent,
+                                    shape = RectangleShape
+                                )
+                                if (idx < state.bills.lastIndex) {
+                                    ShiftlyHairlineDivider(startInset = 54.dp)
+                                }
+                            }
                         }
                     }
                 }
-            }
-
-            item(key = "sheet_footer", contentType = "sheet_footer") {
-                Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface)
-                        .height(if (state.bills.size <= 2) 260.dp else 104.dp)
-                )
             }
         }
     }

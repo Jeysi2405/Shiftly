@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -22,13 +23,12 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -40,7 +40,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,19 +50,21 @@ import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyHelpIconButton
-import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
+import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySubScreenTopBar
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressEffect
-import com.example.shiftly.ui.components.shiftlySheetBodyBand
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
-import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.DayType
 import java.time.Instant
@@ -125,11 +126,11 @@ fun DutiesScreen(
     if (showTutorialSheet) {
         ShiftlyScreenTutorialSheet(
             title = "Duties & Shifts Guide",
-            subtitle = "Log your shifts and let Shiftly calculate your pay.",
+            subtitle = null,
             steps = listOf(
-                "Tap Log Shift or any calendar day" to "Record your clock-in and clock-out times in seconds using saved presets or custom hours.",
-                "Choose the day type" to "Mark ordinary, special, or regular holidays so night differential, overtime, and holiday pay compute automatically.",
-                "Set your rates & presets" to "Tap the gear icon anytime to adjust your hourly rate, daily minimum wage, or quick shift presets."
+                "Log shift or pick a day" to "Record clock-in and clock-out times with presets or custom hours.",
+                "Choose day type" to "Set ordinary or holiday rates for automatic pay calculation.",
+                "Rates & presets" to "Tap settings anytime to edit rates or quick presets."
             ),
             onDismiss = { showTutorialSheet = false }
         )
@@ -207,7 +208,7 @@ fun DutiesScreen(
         val colors = ShiftlyColors.current
         ShiftlyConfirmDialog(
             title = "Edit Shift",
-            message = "Are you sure you want to edit the shift for this day?",
+            message = "Edit this shift?",
             iconRes = R.drawable.ic_lucide_square_pen,
             iconBgColor = colors.azurePrimary,
             noLabel = "No",
@@ -278,7 +279,7 @@ fun DutiesScreen(
         val formattedDate = LocalDate.ofEpochDay(shiftToDelete.dateEpochDay).format(deleteFormatter)
         ShiftlyDeleteConfirmDialog(
             title = "Delete Shift?",
-            message = "This logged shift on $formattedDate and its computed earnings will be permanently removed.",
+            message = "Delete shift on $formattedDate?",
             onDismiss = { pendingDeleteShift = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -306,185 +307,140 @@ fun DutiesScreenContent(
     todayOverride: LocalDate? = null
 ) {
     val colors = ShiftlyColors.current
+    val isScrolled by remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 8
+        }
+    }
 
-    LazyColumn(
-        state = listState,
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(top = 10.dp),
-        verticalArrangement = Arrangement.Top
+            .statusBarsPadding()
     ) {
-        // 0. Screen Header with Back, Help & Settings Action
-        item(key = "duties_header", contentType = "header") {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ShiftlySubScreenTopBar(
+            title = "Duties",
+            onBack = onBack,
+            showDivider = isScrolled,
+            trailing = {
+                ShiftlyHelpIconButton(onClick = onOpenHelp)
+                val settingsInteraction = remember { MutableInteractionSource() }
+                var settingsTapCount by remember { mutableIntStateOf(0) }
+                IconButton(
+                    onClick = {
+                        settingsTapCount++
+                        onOpenSettings()
+                    },
+                    interactionSource = settingsInteraction,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .shiftlyPressEffect(settingsInteraction)
                 ) {
-                    val backInteraction = remember { MutableInteractionSource() }
-                    IconButton(
-                        onClick = onBack,
-                        interactionSource = backInteraction,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .shiftlyPressEffect(backInteraction)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_arrow_left),
-                            contentDescription = "Back",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Text(
-                        text = "Duties",
-                        style = MaterialTheme.typography.headlineSmall.copy(fontFamily = InterFontFamily),
-                        color = colors.textPrimary
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_settings,
+                        contentDescription = "Duties Settings",
+                        tint = colors.textPrimary,
+                        triggerKey = settingsTapCount,
+                        modifier = Modifier.size(21.dp)
                     )
                 }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    ShiftlyHelpIconButton(onClick = onOpenHelp)
-                    val settingsInteraction = remember { MutableInteractionSource() }
-                    IconButton(
-                        onClick = onOpenSettings,
-                        interactionSource = settingsInteraction,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .shiftlyPressEffect(settingsInteraction)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_settings),
-                            contentDescription = "Duties Settings",
-                            tint = colors.textPrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
-        }
-
-        // 1. Monthly Earnings & Time Breakdown Card
-        item(key = "time_breakdown", contentType = "summary") {
-            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
-                TimeBreakdownCard(
-                    monthlyTotalEarnings = state.monthlyTotalEarnings,
-                    timeBreakdown = state.monthlyTimeBreakdown,
-                    currencySymbol = state.currencySymbol,
-                    displayedMonth = state.displayedMonth,
-                    defaultHourlyRate = state.defaultHourlyRate,
-                    onOpenSettings = onOpenSettings
-                )
-            }
-        }
-
-        // 2. Monthly Shift Calendar
-        item(key = "shift_calendar", contentType = "calendar") {
-            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
-                ShiftCalendarCard(
-                    displayedMonth = state.displayedMonth,
-                    loggedEpochDays = state.loggedEpochDays,
-                    onPreviousMonth = onPreviousMonth,
-                    onNextMonth = onNextMonth,
-                    onSelectDate = onSelectCalendarDate,
-                    todayOverride = todayOverride
-                )
-            }
-        }
-
-        // 3. Prominent Log Shift Action Button
-        item(key = "log_shift_button", contentType = "action_button") {
-            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
-                ShiftlyPrimaryPillButton(
-                    text = "Log Shift",
+                ShiftlySecondaryTextButton(
+                    text = "Log",
                     onClick = onOpenLogShift,
                     leadingIcon = {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_plus),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_plus,
                             contentDescription = null,
-                            tint = colors.onAzurePrimary,
+                            tint = colors.azureAccent,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                 )
             }
-        }
+        )
 
-        // 4. Bottom Sheet Top Cap for Monthly Shift History
-        item(key = "sheet_header", contentType = "sheet_header") {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shiftlySheetTopBand(colors.surface)
-                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                ShiftlySheetDragHandle()
-
-                ShiftlySectionHeader(
-                    title = "Shift History",
-                    count = state.displayedShifts.size,
-                    onLightSurface = true
-                )
-            }
-        }
-
-        if (state.displayedShifts.isEmpty()) {
-            item(key = "sheet_empty", contentType = "sheet_empty") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 380.dp)
-                        .shiftlySheetBodyBand(colors.surface)
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
-                ) {
-                    ShiftHistoryEmptyCard(
-                        onLogFirstShift = onOpenLogShift
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .navigationBarsPadding(),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
+            // 1. Monthly Earnings & Time Breakdown Card
+            item(key = "time_breakdown", contentType = "summary") {
+                Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
+                    TimeBreakdownCard(
+                        monthlyTotalEarnings = state.monthlyTotalEarnings,
+                        timeBreakdown = state.monthlyTimeBreakdown,
+                        currencySymbol = state.currencySymbol,
+                        displayedMonth = state.displayedMonth,
+                        defaultHourlyRate = state.defaultHourlyRate,
+                        onOpenSettings = onOpenSettings
                     )
                 }
             }
-        } else {
-            itemsIndexed(
-                items = state.displayedShifts,
-                key = { _, shift -> "shift_${shift.id}" },
-                contentType = { _, _ -> "shift_item" }
-            ) { idx, shift ->
-                val rowShape = when {
-                    state.displayedShifts.size == 1 -> RoundedCornerShape(18.dp)
-                    idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-                    idx == state.displayedShifts.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
-                    else -> RectangleShape
+
+            // 2. Monthly Shift Calendar
+            item(key = "shift_calendar", contentType = "calendar") {
+                Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp)) {
+                    ShiftCalendarCard(
+                        displayedMonth = state.displayedMonth,
+                        loggedEpochDays = state.loggedEpochDays,
+                        onPreviousMonth = onPreviousMonth,
+                        onNextMonth = onNextMonth,
+                        onSelectDate = onSelectCalendarDate,
+                        todayOverride = todayOverride
+                    )
                 }
-                Box(
-                    modifier = Modifier
-                        .animateItem(
-                            fadeInSpec = spring(dampingRatio = 0.8f),
-                            placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                            fadeOutSpec = spring(dampingRatio = 0.8f)
-                        )
-                        .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface)
-                        .padding(
-                            start = 20.dp,
-                            end = 20.dp,
-                            bottom = if (idx < state.displayedShifts.lastIndex) 2.dp else 0.dp
-                        )
-                ) {
+            }
+
+            // 3. Monthly Shift History Header
+            item(key = "sheet_header", contentType = "sheet_header") {
+                ShiftlySectionHeader(
+                    title = "Shift History",
+                    count = state.displayedShifts.size,
+                    onLightSurface = false,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp)
+                )
+            }
+
+            if (state.displayedShifts.isEmpty()) {
+                item(key = "sheet_empty", contentType = "sheet_empty") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                    ) {
+                        ShiftHistoryEmptyCard(
+                            onLogFirstShift = onOpenLogShift
+                        )
+                    }
+                }
+            } else {
+                itemsIndexed(
+                    items = state.displayedShifts,
+                    key = { _, shift -> "shift_${shift.id}" },
+                    contentType = { _, _ -> "shift_item" }
+                ) { idx, shift ->
+                    val rowShape = when {
+                        state.displayedShifts.size == 1 -> ShiftlyShapes.Card
+                        idx == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        idx == state.displayedShifts.lastIndex -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                        else -> RectangleShape
+                    }
+                    Column(
+                        modifier = Modifier
+                            .animateItem(
+                                fadeInSpec = spring(dampingRatio = 0.8f),
+                                placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = spring(dampingRatio = 0.8f)
+                            )
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
                             .clip(rowShape)
-                            .background(colors.cardElevated)
+                            .background(colors.card)
                     ) {
                         ShiftHistoryItemCard(
                             shift = shift,
@@ -494,17 +450,11 @@ fun DutiesScreenContent(
                             containerColor = Color.Transparent,
                             shape = RectangleShape
                         )
+                        if (idx < state.displayedShifts.lastIndex) {
+                            ShiftlyHairlineDivider(startInset = 16.dp)
+                        }
                     }
                 }
-            }
-
-            item(key = "sheet_footer", contentType = "sheet_footer") {
-                Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface)
-                        .height(if (state.displayedShifts.size <= 1) 220.dp else 104.dp)
-                )
             }
         }
     }
@@ -582,7 +532,7 @@ private fun DutiesLogShiftSheetPreview() {
                         .background(shiftlySheetScrimColor())
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        shape = ShiftlyShapes.Sheet,
                         color = colors.surface,
                         shadowElevation = 0.dp,
                         modifier = Modifier

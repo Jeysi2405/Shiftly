@@ -34,13 +34,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -54,7 +54,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -66,6 +65,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.example.shiftly.R
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.theme.InterFontFamily
@@ -382,10 +382,11 @@ fun AppLockGateScreen(
                         .height(50.dp)
                         .shiftlyPressEffect(bioInteraction)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_fingerprint),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_fingerprint,
                         contentDescription = null,
                         tint = colors.onAzurePrimary,
+                        animateOnMount = true,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.size(8.dp))
@@ -453,12 +454,14 @@ private fun KeypadIconKey(
     onClick: () -> Unit
 ) {
     val haptics = LocalHapticFeedback.current
+    var tapCount by remember { mutableIntStateOf(0) }
     Surface(
         modifier = Modifier
             .size(72.dp)
             .clip(CircleShape)
             .shiftlyPressClickable(role = Role.Button) {
                 haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                tapCount++
                 onClick()
             }
             .semantics { contentDescription = description },
@@ -467,10 +470,11 @@ private fun KeypadIconKey(
         shadowElevation = 0.dp
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(
-                painter = painterResource(iconRes),
+            ShiftlyAnimatedIcon(
+                iconRes = iconRes,
                 contentDescription = description,
                 tint = tint,
+                triggerKey = tapCount,
                 modifier = Modifier.size(26.dp)
             )
         }

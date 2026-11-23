@@ -35,6 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.shiftly.R
 import com.example.shiftly.data.local.InAppNotificationItem
 import com.example.shiftly.data.local.InAppNotificationType
 import com.example.shiftly.data.local.SavingsGoalEntity
@@ -53,6 +54,7 @@ import com.example.shiftly.ui.screens.profile.ShiftlySheetActionState
 import com.example.shiftly.ui.screens.savings.AddSavingsGoalSheet
 import com.example.shiftly.ui.screens.savings.SavingsGoalDetailSheet
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import com.example.shiftly.utils.CutoffShiftSummary
 import com.example.shiftly.utils.CutoffWindow
@@ -224,11 +226,11 @@ fun HomeScreen(
     if (showBudgetsTutorial) {
         ShiftlyScreenTutorialSheet(
             title = "Budgets Guide",
-            subtitle = "Set comfortable limits for your month and top categories.",
+            subtitle = null,
             steps = listOf(
-                "Set your monthly limit" to "Enter an overall monthly spending cap to unlock daily safe-to-spend guidance.",
-                "Assign category caps" to "Add optional limits for Food, Transport, or Bills to see individual progress bars.",
-                "Customize your categories" to "Enable, add, or organize the categories shown whenever you log an expense."
+                "Set monthly limit" to "Add an overall monthly spending cap.",
+                "Assign category caps" to "Set optional limits per spending category.",
+                "Manage categories" to "Enable or add custom expense categories."
             ),
             onDismiss = { showBudgetsTutorial = false }
         )
@@ -276,6 +278,56 @@ fun HomeScreenContent(
 
     val displayedTimeline = remember(filteredTimeline, isActivityExpanded) {
         if (isActivityExpanded) filteredTimeline else filteredTimeline.take(5)
+    }
+
+    val attentionItems = remember(
+        state.upcomingBillBanner,
+        state.pendingSplitsOwed,
+        state.pendingSplitBillCount,
+        state.paydayCutoffBanner,
+        currency,
+        colors.iosOrange,
+        colors.azureAccent,
+        colors.mintBright
+    ) {
+        buildList {
+            state.upcomingBillBanner?.let { bill ->
+                add(
+                    HomeAttentionItem(
+                        id = "upcoming_bill",
+                        title = "Upcoming: ${bill.title}",
+                        subtitle = "${ShiftlyFormatters.formatCurrency(currency, bill.amount)} · Due ${bill.dueDateLabel}",
+                        iconRes = R.drawable.ic_lucide_repeat,
+                        accentColor = colors.iosOrange,
+                        onClick = onNavigateToRecurringBills
+                    )
+                )
+            }
+            if (state.pendingSplitsOwed > 0.0) {
+                add(
+                    HomeAttentionItem(
+                        id = "pending_splits",
+                        title = "${ShiftlyFormatters.formatCurrency(currency, state.pendingSplitsOwed)} owed to you",
+                        subtitle = "${state.pendingSplitBillCount} split bill(s) awaiting payment",
+                        iconRes = R.drawable.ic_lucide_split,
+                        accentColor = colors.azureAccent,
+                        onClick = onOpenPendingSplits
+                    )
+                )
+            }
+            state.paydayCutoffBanner?.let { payday ->
+                add(
+                    HomeAttentionItem(
+                        id = "payday_cutoff",
+                        title = "Payday cutoff on day ${payday.cutoffDayOfMonth}",
+                        subtitle = "Est. +${ShiftlyFormatters.formatCurrency(currency, payday.estimatedEarnings)} this cutoff",
+                        iconRes = R.drawable.ic_lucide_wallet,
+                        accentColor = colors.mintBright,
+                        onClick = onNavigateToAllowance
+                    )
+                )
+            }
+        }
     }
 
     val isTitleCollapsed by remember(listState) {
@@ -347,84 +399,32 @@ fun HomeScreenContent(
                 }
             }
 
-            if (state.pendingSplitsOwed > 0.0) {
-                item(key = "pending_splits_banner", contentType = "smart_banner") {
+            if (attentionItems.isNotEmpty()) {
+                item(key = "attention_strip", contentType = "attention_strip") {
                     Box(
                         modifier = Modifier
                             .padding(horizontal = 20.dp)
                             .padding(bottom = 14.dp)
                     ) {
-                        PendingSplitsBanner(
-                            pendingAmount = state.pendingSplitsOwed,
-                            billCount = state.pendingSplitBillCount,
-                            currencySymbol = currency,
-                            onClick = onOpenPendingSplits
-                        )
+                        HomeAttentionStrip(items = attentionItems)
                     }
                 }
             }
 
-            state.upcomingBillBanner?.let { billBanner ->
-                item(key = "upcoming_bill_banner", contentType = "smart_banner") {
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 20.dp)
-                            .padding(bottom = 14.dp)
-                    ) {
-                        UpcomingBillSmartBanner(
-                            title = billBanner.title,
-                            amount = billBanner.amount,
-                            dueDateLabel = billBanner.dueDateLabel,
-                            currencySymbol = currency,
-                            onClick = onNavigateToRecurringBills
-                        )
-                    }
-                }
-            }
-
-            state.paydayCutoffBanner?.let { paydayBanner ->
-                item(key = "payday_cutoff_banner", contentType = "smart_banner") {
-                    Box(
-                        modifier = Modifier
-                            .padding(horizontal = 20.dp)
-                            .padding(bottom = 14.dp)
-                    ) {
-                        PaydayCutoffSmartBanner(
-                            cutoffDayOfMonth = paydayBanner.cutoffDayOfMonth,
-                            estimatedEarnings = paydayBanner.estimatedEarnings,
-                            currencySymbol = currency,
-                            onClick = onNavigateToAllowance
-                        )
-                    }
-                }
-            }
-
-            item(key = "top_spending_card", contentType = "top_spending_card") {
+            item(key = "month_glance_card", contentType = "month_glance_card") {
                 Box(
                     modifier = Modifier
                         .padding(horizontal = 20.dp)
                         .padding(bottom = 14.dp)
                 ) {
-                    MonthlyTopCategoriesCard(
+                    HomeMonthGlanceCard(
                         monthName = state.currentMonthName,
                         monthlyTotalSpent = state.mtdExpenses,
-                        topCategories = state.monthlyTopCategories,
+                        topCategory = state.monthlyTopCategories.firstOrNull(),
+                        hoursSummary = state.monthlyHoursSummary,
                         currencySymbol = currency,
-                        onViewInsights = onViewInsights
-                    )
-                }
-            }
-
-            item(key = "shift_hours_card", contentType = "shift_hours_card") {
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 14.dp)
-                ) {
-                    MonthlyHoursIndicatorCard(
-                        monthName = state.currentMonthName,
-                        summary = state.monthlyHoursSummary,
-                        onClick = onNavigateToDuties
+                        onViewInsights = onViewInsights,
+                        onNavigateToDuties = onNavigateToDuties
                     )
                 }
             }
@@ -448,7 +448,7 @@ fun HomeScreenContent(
             if (displayedTimeline.isEmpty()) {
                 item(key = "timeline_empty", contentType = "timeline_empty") {
                     Surface(
-                        shape = RoundedCornerShape(18.dp),
+                        shape = ShiftlyShapes.Card,
                         color = colors.card,
                         shadowElevation = 0.dp,
                         modifier = Modifier
@@ -457,9 +457,9 @@ fun HomeScreenContent(
                     ) {
                         Text(
                             text = if (selectedActivityFilter != ActivityFilter.ALL) {
-                                "No ${selectedActivityFilter.label.lowercase()} logged yet."
+                                "No ${selectedActivityFilter.label.lowercase()} yet."
                             } else {
-                                "No activity logged yet. Start a shift in Duties or log an expense."
+                                "No activity yet."
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = colors.textSecondary,
@@ -487,9 +487,9 @@ fun HomeScreenContent(
                     }
                 ) { idx, item ->
                     val rowShape = when {
-                        displayedTimeline.size == 1 -> RoundedCornerShape(18.dp)
-                        idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-                        idx == displayedTimeline.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
+                        displayedTimeline.size == 1 -> ShiftlyShapes.Card
+                        idx == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        idx == displayedTimeline.lastIndex -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
                         else -> RectangleShape
                     }
                     Column(

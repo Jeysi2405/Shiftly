@@ -6,23 +6,23 @@ import java.time.ZoneId
 
 enum class DayType(
     val label: String,
-    val holidayBadge: String? = null
+    val holidayBadge: String? = null,
+    val shortLabel: String = label
 ) {
-    ORDINARY("Regular Day", null),
-    SPECIAL_NON_WORKING("Special Non-Working Holiday", "30%"),
-    REGULAR_HOLIDAY("Regular Holiday", "Double Pay"),
-    SPECIAL_WORKING("Special Working Holiday", null),
-    SPECIAL_WORKING_REST("Special Working + Rest Day", "30%"),
-    SPECIAL_NON_WORKING_REST("Special Non-Working + Rest Day", "50%"),
-    REGULAR_HOLIDAY_REST("Regular Holiday + Rest Day", "160%"),
-    REST_DAY("Rest Day", null);
+    ORDINARY("Regular Day", null, "Regular Day"),
+    SPECIAL_NON_WORKING("Special Non-Working Holiday", "30%", "SNW Day"),
+    REGULAR_HOLIDAY("Regular Holiday", "Double Pay", "Regular Holiday"),
+    SPECIAL_WORKING("Special Working Holiday", null, "SW Day"),
+    SPECIAL_WORKING_REST("Special Working + Rest Day", "30%", "SW + Rest"),
+    SPECIAL_NON_WORKING_REST("Special Non-Working + Rest Day", "50%", "SNW + Rest"),
+    REGULAR_HOLIDAY_REST("Regular Holiday + Rest Day", "160%", "RH + Rest"),
+    REST_DAY("Rest Day", null, "Rest Day");
 
     companion object {
         val orderedForSelection: List<DayType> = listOf(
             ORDINARY,
             SPECIAL_NON_WORKING,
             REGULAR_HOLIDAY,
-            SPECIAL_WORKING,
             SPECIAL_WORKING_REST,
             SPECIAL_NON_WORKING_REST,
             REGULAR_HOLIDAY_REST

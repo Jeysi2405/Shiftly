@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -21,8 +22,8 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,7 +36,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,15 +47,15 @@ import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyHelpIconButton
-import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
-import com.example.shiftly.ui.components.ShiftlySheetDragHandle
-import com.example.shiftly.ui.components.shiftlySheetBodyBand
-import com.example.shiftly.ui.components.shiftlySheetTopBand
+import com.example.shiftly.ui.components.ShiftlySubScreenTopBar
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -87,11 +87,11 @@ fun AllowanceScreen(
     if (showTutorialSheet) {
         ShiftlyScreenTutorialSheet(
             title = "Allowance & Cutoff Guide",
-            subtitle = "Track stipends, salary payouts, and extra income.",
+            subtitle = null,
             steps = listOf(
-                "Add income entries" to "Tap Add in the top corner to record allowances, salary payouts, freelance work, or family support.",
-                "Customize your cutoff schedule" to "Tap Change Cutoff to set semi-monthly, weekly, or custom pay periods that match your schedule.",
-                "Monitor pending shift payouts" to "See earnings accumulated from logged shifts inside your active cutoff window at a glance."
+                "Add income" to "Record allowances, salary payouts, or side income.",
+                "Cutoff schedule" to "Set semi-monthly, weekly, or custom pay periods.",
+                "Pending payouts" to "Track shift earnings inside your active cutoff."
             ),
             onDismiss = { showTutorialSheet = false }
         )
@@ -127,7 +127,7 @@ fun AllowanceScreen(
     pendingDeleteEntry?.let { entryToDelete ->
         ShiftlyDeleteConfirmDialog(
             title = "Delete Allowance?",
-            message = "\"${entryToDelete.title}\" will be permanently removed.",
+            message = "Delete \"${entryToDelete.title}\"?",
             onDismiss = { pendingDeleteEntry = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -152,131 +152,114 @@ fun AllowanceScreenContent(
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
     val itemDateFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM d, yyyy", locale) }
+    val isScrolled by remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 8
+        }
+    }
 
-    LazyColumn(
-        state = listState,
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(top = 10.dp),
-        verticalArrangement = Arrangement.Top
+            .statusBarsPadding()
     ) {
-        item(key = "allowance_header", contentType = "header") {
-            ShiftlyScreenHeader(
-                title = "Allowance",
-                subtitle = null,
-                onBackClick = onBack,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
-                trailing = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        ShiftlyHelpIconButton(onClick = onOpenHelp)
-                        ShiftlySecondaryTextButton(
-                            text = "Add",
-                            onClick = onOpenAddAllowance,
-                            leadingIcon = {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_plus),
-                                    contentDescription = null,
-                                    tint = colors.azureAccent,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+        ShiftlySubScreenTopBar(
+            title = "Allowance",
+            onBack = onBack,
+            showDivider = isScrolled,
+            trailing = {
+                ShiftlyHelpIconButton(onClick = onOpenHelp)
+                ShiftlySecondaryTextButton(
+                    text = "Add",
+                    onClick = onOpenAddAllowance,
+                    leadingIcon = {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_plus,
+                            contentDescription = null,
+                            tint = colors.azureAccent,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
+                )
+            }
+        )
+
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .navigationBarsPadding(),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
+            item(key = "allowance_hero", contentType = "hero") {
+                Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
+                    AllowanceHeroCard(
+                        totalBalance = state.totalAllowanceBalance,
+                        salaryTotal = state.salaryTotal,
+                        businessTotal = state.businessTotal,
+                        othersTotal = state.othersTotal,
+                        currencySymbol = state.currencySymbol
+                    )
                 }
-            )
-        }
-
-        item(key = "allowance_hero", contentType = "hero") {
-            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
-                AllowanceHeroCard(
-                    totalBalance = state.totalAllowanceBalance,
-                    salaryTotal = state.salaryTotal,
-                    businessTotal = state.businessTotal,
-                    othersTotal = state.othersTotal,
-                    currencySymbol = state.currencySymbol
-                )
             }
-        }
 
-        item(key = "allowance_cutoff", contentType = "cutoff") {
-            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
-                AllowanceCutoffScheduleCard(
-                    cutoffConfig = state.cutoffConfig,
-                    activeWindow = state.activeCutoffWindow,
-                    pendingDutiesEarnings = state.pendingDutiesEarnings,
-                    pendingShiftCount = state.pendingShiftCount,
-                    currencySymbol = state.currencySymbol,
-                    onChangeCutoff = onOpenChangeCutoff
-                )
+            item(key = "allowance_cutoff", contentType = "cutoff") {
+                Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 16.dp)) {
+                    AllowanceCutoffScheduleCard(
+                        cutoffConfig = state.cutoffConfig,
+                        activeWindow = state.activeCutoffWindow,
+                        pendingDutiesEarnings = state.pendingDutiesEarnings,
+                        pendingShiftCount = state.pendingShiftCount,
+                        currencySymbol = state.currencySymbol,
+                        onChangeCutoff = onOpenChangeCutoff
+                    )
+                }
             }
-        }
 
-        item(key = "sheet_header", contentType = "sheet_header") {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shiftlySheetTopBand(colors.surface)
-                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                ShiftlySheetDragHandle()
-
+            item(key = "sheet_header", contentType = "sheet_header") {
                 ShiftlySectionHeader(
                     title = "Allowance History",
                     count = state.entries.size,
-                    onLightSurface = true
+                    onLightSurface = false,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp)
                 )
             }
-        }
 
-        if (state.entries.isEmpty()) {
-            item(key = "sheet_empty", contentType = "sheet_empty") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 440.dp)
-                        .shiftlySheetBodyBand(colors.surface)
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
-                ) {
-                    AllowanceEmptyCard(onAddAllowance = onOpenAddAllowance)
-                }
-            }
-        } else {
-            itemsIndexed(
-                items = state.entries,
-                key = { _, entry -> "allowance_${entry.id}" },
-                contentType = { _, _ -> "allowance_item" }
-            ) { idx, entry ->
-                val rowShape = when {
-                    state.entries.size == 1 -> RoundedCornerShape(18.dp)
-                    idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-                    idx == state.entries.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
-                    else -> RectangleShape
-                }
-                Box(
-                    modifier = Modifier
-                        .animateItem(
-                            fadeInSpec = spring(dampingRatio = 0.8f),
-                            placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                            fadeOutSpec = spring(dampingRatio = 0.8f)
-                        )
-                        .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface)
-                        .padding(
-                            start = 20.dp,
-                            end = 20.dp,
-                            bottom = if (idx < state.entries.lastIndex) 2.dp else 0.dp
-                        )
-                ) {
-                    Column(
+            if (state.entries.isEmpty()) {
+                item(key = "sheet_empty", contentType = "sheet_empty") {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                    ) {
+                        AllowanceEmptyCard(onAddAllowance = onOpenAddAllowance)
+                    }
+                }
+            } else {
+                itemsIndexed(
+                    items = state.entries,
+                    key = { _, entry -> "allowance_${entry.id}" },
+                    contentType = { _, _ -> "allowance_item" }
+                ) { idx, entry ->
+                    val rowShape = when {
+                        state.entries.size == 1 -> ShiftlyShapes.Card
+                        idx == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        idx == state.entries.lastIndex -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                        else -> RectangleShape
+                    }
+                    Column(
+                        modifier = Modifier
+                            .animateItem(
+                                fadeInSpec = spring(dampingRatio = 0.8f),
+                                placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = spring(dampingRatio = 0.8f)
+                            )
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
                             .clip(rowShape)
-                            .background(colors.cardElevated)
+                            .background(colors.card)
                     ) {
                         AllowanceHistoryItemCard(
                             entry = entry,
@@ -286,23 +269,11 @@ fun AllowanceScreenContent(
                             containerColor = Color.Transparent,
                             shape = RectangleShape
                         )
+                        if (idx < state.entries.lastIndex) {
+                            ShiftlyHairlineDivider(startInset = 54.dp)
+                        }
                     }
                 }
-            }
-
-            item(key = "sheet_footer", contentType = "sheet_footer") {
-                Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface)
-                        .height(
-                            when {
-                                state.entries.size <= 2 -> 220.dp
-                                state.entries.size == 3 -> 160.dp
-                                else -> 104.dp
-                            }
-                        )
-                )
             }
         }
     }

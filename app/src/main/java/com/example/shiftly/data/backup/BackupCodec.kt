@@ -192,6 +192,8 @@ object BackupCodec {
                                     put("startDateMillis", l.startDateMillis)
                                     put("monthlyDueDay", l.monthlyDueDay)
                                     put("firstDueDateMillis", l.firstDueDateMillis)
+                                    put("interestRatePercent", l.interestRatePercent)
+                                    put("isMonthlyInterestRate", l.isMonthlyInterestRate)
                                     put(
                                         "payments",
                                         JSONArray().apply {
@@ -499,7 +501,10 @@ object BackupCodec {
                     paidMonths = obj.optInt("paidMonths", 0),
                     startDateMillis = obj.optLong("startDateMillis", 0L),
                     monthlyDueDay = obj.optInt("monthlyDueDay", 1),
-                    firstDueDateMillis = obj.optLong("firstDueDateMillis", 0L)
+                    firstDueDateMillis = obj.optLong("firstDueDateMillis", 0L),
+                    interestRatePercent = obj.optDouble("interestRatePercent", 0.0)
+                        .takeIf { it.isFinite() && it >= 0.0 } ?: 0.0,
+                    isMonthlyInterestRate = obj.optBoolean("isMonthlyInterestRate", true)
                 )
                 val loan = rawLoan.normalizedOrNull() ?: continue
                 val paymentsArray = obj.optJSONArray("payments") ?: JSONArray()

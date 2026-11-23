@@ -1,6 +1,5 @@
 package com.example.shiftly.ui.screens.loans
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -49,7 +47,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -61,6 +58,10 @@ import com.example.shiftly.data.local.InstallmentLoanEntity
 import com.example.shiftly.data.local.InstallmentLoanWithPayments
 import com.example.shiftly.data.local.LoanDueStatus
 import com.example.shiftly.data.local.LoanPaymentEntity
+import com.example.shiftly.data.local.actualIsCompleted
+import com.example.shiftly.data.local.actualProgressFraction
+import com.example.shiftly.data.local.actualRemainingBalance
+import com.example.shiftly.data.local.actualTotalPaid
 import com.example.shiftly.data.local.contractEndDate
 import com.example.shiftly.data.local.daysUntilNextDue
 import com.example.shiftly.data.local.dueStatus
@@ -71,28 +72,29 @@ import com.example.shiftly.data.local.isCompleted
 import com.example.shiftly.data.local.needsDueAttention
 import com.example.shiftly.data.local.nextDueDate
 import com.example.shiftly.data.local.paidMonthsClamped
-import com.example.shiftly.data.local.progressFraction
 import com.example.shiftly.data.local.remainingBalance
 import com.example.shiftly.data.local.remainingMonths
 import com.example.shiftly.data.local.startDate
 import com.example.shiftly.data.local.toUtcMillis
 import com.example.shiftly.data.local.totalInterest
-import com.example.shiftly.data.local.totalPaid
 import com.example.shiftly.ui.components.ShiftlyConfettiOverlay
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
 import com.example.shiftly.ui.components.ShiftlyDialogShell
 import com.example.shiftly.ui.components.ShiftlyEmptyState
 import com.example.shiftly.ui.components.ShiftlyHairlineDivider
+import com.example.shiftly.ui.components.ShiftlyIosSegmentedControl
 import com.example.shiftly.ui.components.ShiftlyPrimaryPillButton
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.Instant
@@ -103,8 +105,9 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.roundToLong
 
-private val SheetTopRoundedShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+private val SheetTopRoundedShape = ShiftlyShapes.Sheet
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,8 +115,8 @@ fun InstallmentLoansBottomSheet(
     currencySymbol: String,
     loans: List<InstallmentLoanWithPayments>,
     onAddOrUpdateLoan: (InstallmentLoanEntity) -> Unit,
-    onMarkMonthPaid: (InstallmentLoanEntity) -> Unit,
-    onUpdateLoanPaymentDateTime: (LoanPaymentEntity, Long) -> Unit = { _, _ -> },
+    onMarkMonthPaid: (InstallmentLoanEntity, Double, Long) -> Unit,
+    onUpdateLoanPayment: (LoanPaymentEntity, Double, Long) -> Unit = { _, _, _ -> },
     onDeleteLoanPayment: (InstallmentLoanEntity, LoanPaymentEntity) -> Unit = { _, _ -> },
     onDeleteLoan: (InstallmentLoanEntity) -> Unit,
     onHelpClick: () -> Unit,
@@ -131,13 +134,13 @@ fun InstallmentLoansBottomSheet(
 
     val sortedLoans = remember(loans, today) {
         loans.sortedWith(
-            compareBy<InstallmentLoanWithPayments> { it.loan.isCompleted }
+            compareBy<InstallmentLoanWithPayments> { it.actualIsCompleted }
                 .thenBy { it.loan.nextDueDate() }
                 .thenByDescending { it.loan.id }
         )
     }
     val attentionLoans = remember(sortedLoans, today) {
-        sortedLoans.filter { it.loan.needsDueAttention(today) }
+        sortedLoans.filter { !it.actualIsCompleted && it.loan.needsDueAttention(today) }
     }
     val selectedLoanEntry = remember(loans, selectedLoanId) {
         selectedLoanId?.let { id -> loans.firstOrNull { it.loan.id == id } }
@@ -188,7 +191,7 @@ fun InstallmentLoansBottomSheet(
                     ShiftlyEmptyState(
                         iconRes = R.drawable.ic_lucide_file_text,
                         title = "No installment loans yet",
-                        subtitle = "Track financed laptops, phones, or loans—see balances, due reminders, and payment history.",
+                        subtitle = null,
                         actionText = "+ Add Loan",
                         onAction = {
                             editingLoan = null
@@ -199,15 +202,14 @@ fun InstallmentLoansBottomSheet(
                     )
                 } else {
                     val activeTotal = remember(sortedLoans) {
-                        sortedLoans.filter { !it.loan.isCompleted }.sumOf { it.loan.remainingBalance }
+                        sortedLoans.filter { !it.actualIsCompleted }.sumOf { it.actualRemainingBalance }
                     }
                     val activeCount = remember(sortedLoans) {
-                        sortedLoans.count { !it.loan.isCompleted }
+                        sortedLoans.count { !it.actualIsCompleted }
                     }
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = colors.cardElevated,
-                        border = BorderStroke(0.5.dp, colors.separator),
                         shadowElevation = 0.dp,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -220,10 +222,10 @@ fun InstallmentLoansBottomSheet(
                         ) {
                             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
-                                    text = "REMAINING BALANCE",
-                                    style = MaterialTheme.typography.labelSmall.copy(
+                                    text = "Remaining balance",
+                                    style = MaterialTheme.typography.labelMedium.copy(
                                         fontFamily = InterFontFamily,
-                                        letterSpacing = 0.5.sp
+                                        fontWeight = FontWeight.Medium
                                     ),
                                     color = colors.textSecondary
                                 )
@@ -249,7 +251,7 @@ fun InstallmentLoansBottomSheet(
 
                     sortedLoans.forEach { entry ->
                         InstallmentLoanSummaryCard(
-                            loan = entry.loan,
+                            entry = entry,
                             currencySymbol = currencySymbol,
                             today = today,
                             dateFormatter = dateFormatter,
@@ -278,8 +280,10 @@ fun InstallmentLoansBottomSheet(
             entry = entry,
             currencySymbol = currencySymbol,
             today = today,
-            onMarkMonthPaid = { onMarkMonthPaid(entry.loan) },
-            onUpdateLoanPaymentDateTime = onUpdateLoanPaymentDateTime,
+            onRecordPayment = { amountPaid, datePaidMillis ->
+                onMarkMonthPaid(entry.loan, amountPaid, datePaidMillis)
+            },
+            onUpdateLoanPayment = onUpdateLoanPayment,
             onDeleteLoanPayment = { payment -> onDeleteLoanPayment(entry.loan, payment) },
             onEdit = {
                 editingLoan = entry.loan
@@ -339,7 +343,6 @@ private fun LoanDueReminderBanner(
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = container,
-        border = BorderStroke(0.5.dp, accent.copy(alpha = 0.45f)),
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
@@ -353,8 +356,8 @@ private fun LoanDueReminderBanner(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_bell),
+            ShiftlyAnimatedIcon(
+                iconRes = R.drawable.ic_lucide_bell,
                 contentDescription = null,
                 tint = accent,
                 modifier = Modifier.size(20.dp)
@@ -382,8 +385,8 @@ private fun LoanDueReminderBanner(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_chevron_right),
+            ShiftlyAnimatedIcon(
+                iconRes = R.drawable.ic_lucide_chevron_right,
                 contentDescription = "Open loan",
                 tint = accent,
                 modifier = Modifier.size(18.dp)
@@ -394,14 +397,17 @@ private fun LoanDueReminderBanner(
 
 @Composable
 private fun InstallmentLoanSummaryCard(
-    loan: InstallmentLoanEntity,
+    entry: InstallmentLoanWithPayments,
     currencySymbol: String,
     today: LocalDate,
     dateFormatter: DateTimeFormatter,
     onClick: () -> Unit
 ) {
     val colors = ShiftlyColors.current
-    val status = loan.dueStatus(today)
+    val loan = entry.loan
+    val isCompleted = entry.actualIsCompleted
+    val remaining = entry.actualRemainingBalance
+    val status = if (isCompleted) LoanDueStatus.COMPLETED else loan.dueStatus(today)
     val monthsLeft = loan.remainingMonths
     val progressColor = when (status) {
         LoanDueStatus.COMPLETED -> colors.mintInk
@@ -413,7 +419,6 @@ private fun InstallmentLoanSummaryCard(
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = colors.cardElevated,
-        border = BorderStroke(0.5.dp, colors.separator),
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
@@ -455,6 +460,7 @@ private fun InstallmentLoanSummaryCard(
 
                 LoanStatusBadge(
                     loan = loan,
+                    isCompleted = isCompleted,
                     today = today,
                     dateFormatter = dateFormatter
                 )
@@ -466,20 +472,20 @@ private fun InstallmentLoanSummaryCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (loan.isCompleted) {
+                    text = if (isCompleted) {
                         "Balance settled"
                     } else {
-                        "${ShiftlyFormatters.formatCurrency(currencySymbol, loan.remainingBalance)} left"
+                        "${ShiftlyFormatters.formatCurrency(currencySymbol, remaining)} left"
                     },
                     style = MaterialTheme.typography.titleSmall.copy(
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold
                     ).tabular(),
-                    color = if (loan.isCompleted) colors.mintInk else colors.textPrimary
+                    color = if (isCompleted) colors.mintInk else colors.textPrimary
                 )
 
                 Text(
-                    text = if (loan.isCompleted) {
+                    text = if (isCompleted) {
                         "Completed"
                     } else {
                         "$monthsLeft mo${if (monthsLeft == 1) "" else "s"} left"
@@ -493,7 +499,7 @@ private fun InstallmentLoanSummaryCard(
             }
 
             ShiftlyProgressBar(
-                progress = loan.progressFraction,
+                progress = entry.actualProgressFraction,
                 color = progressColor,
                 trackColor = colors.surface,
                 height = 6.dp
@@ -511,7 +517,7 @@ private fun InstallmentLoanSummaryCard(
                 )
 
                 Text(
-                    text = if (loan.isCompleted) {
+                    text = if (isCompleted) {
                         "Ended ${loan.contractEndDate().format(dateFormatter)}"
                     } else {
                         "Next due ${loan.nextDueDate().format(dateFormatter)}"
@@ -527,11 +533,12 @@ private fun InstallmentLoanSummaryCard(
 @Composable
 private fun LoanStatusBadge(
     loan: InstallmentLoanEntity,
+    isCompleted: Boolean = loan.isCompleted,
     today: LocalDate,
     dateFormatter: DateTimeFormatter
 ) {
     val colors = ShiftlyColors.current
-    val status = loan.dueStatus(today)
+    val status = if (isCompleted) LoanDueStatus.COMPLETED else loan.dueStatus(today)
     val days = loan.daysUntilNextDue(today)
 
     val (label, textColor, bgColor) = when (status) {
@@ -587,8 +594,8 @@ fun InstallmentLoanDetailsSheet(
     entry: InstallmentLoanWithPayments,
     currencySymbol: String,
     today: LocalDate = LocalDate.now(),
-    onMarkMonthPaid: () -> Unit,
-    onUpdateLoanPaymentDateTime: (LoanPaymentEntity, Long) -> Unit = { _, _ -> },
+    onRecordPayment: (Double, Long) -> Unit,
+    onUpdateLoanPayment: (LoanPaymentEntity, Double, Long) -> Unit = { _, _, _ -> },
     onDeleteLoanPayment: (LoanPaymentEntity) -> Unit = {},
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -602,14 +609,18 @@ fun InstallmentLoanDetailsSheet(
     val haptics = LocalHapticFeedback.current
     var confettiTrigger by remember { mutableIntStateOf(0) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showRecordPaymentDialog by remember { mutableStateOf(false) }
     var paymentToEdit by remember { mutableStateOf<LoanPaymentEntity?>(null) }
     var paymentToDelete by remember { mutableStateOf<LoanPaymentEntity?>(null) }
 
     val loan = entry.loan
+    val isCompleted = entry.actualIsCompleted
+    val totalPaid = entry.actualTotalPaid
+    val remaining = entry.actualRemainingBalance
     val sortedPayments = remember(entry.payments) {
         entry.payments.sortedByDescending { it.monthNumber }
     }
-    val status = loan.dueStatus(today)
+    val status = if (isCompleted) LoanDueStatus.COMPLETED else loan.dueStatus(today)
     val progressColor = when (status) {
         LoanDueStatus.COMPLETED -> colors.mintInk
         LoanDueStatus.OVERDUE -> colors.coralBright
@@ -652,7 +663,6 @@ fun InstallmentLoanDetailsSheet(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = colors.cardElevated,
-                    border = BorderStroke(0.5.dp, colors.separator),
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -668,32 +678,33 @@ fun InstallmentLoanDetailsSheet(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "REMAINING BALANCE",
-                                style = MaterialTheme.typography.labelSmall.copy(
+                                text = "Remaining balance",
+                                style = MaterialTheme.typography.labelMedium.copy(
                                     fontFamily = InterFontFamily,
-                                    letterSpacing = 0.5.sp
+                                    fontWeight = FontWeight.Medium
                                 ),
                                 color = colors.textSecondary
                             )
                             LoanStatusBadge(
                                 loan = loan,
+                                isCompleted = isCompleted,
                                 today = today,
                                 dateFormatter = dateFormatter
                             )
                         }
 
                         Text(
-                            text = ShiftlyFormatters.formatCurrency(currencySymbol, loan.remainingBalance),
+                            text = ShiftlyFormatters.formatCurrency(currencySymbol, remaining),
                             style = MaterialTheme.typography.headlineLarge.copy(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 32.sp
                             ).tabular(),
-                            color = if (loan.isCompleted) colors.mintInk else colors.textPrimary
+                            color = if (isCompleted) colors.mintInk else colors.textPrimary
                         )
 
                         ShiftlyProgressBar(
-                            progress = loan.progressFraction,
+                            progress = entry.actualProgressFraction,
                             color = progressColor,
                             trackColor = colors.surface,
                             height = 8.dp
@@ -713,7 +724,7 @@ fun InstallmentLoanDetailsSheet(
                                 color = colors.textPrimary
                             )
                             Text(
-                                text = if (loan.isCompleted) {
+                                text = if (isCompleted) {
                                     "Ended ${loan.contractEndDate().format(dateFormatter)}"
                                 } else {
                                     "Ends ${loan.contractEndDate().format(dateFormatter)}"
@@ -725,24 +736,19 @@ fun InstallmentLoanDetailsSheet(
                     }
                 }
 
-                if (!loan.isCompleted) {
+                if (!isCompleted) {
                     ShiftlyPrimaryPillButton(
-                        text = "Mark Month as Paid (${ShiftlyFormatters.formatCurrency(currencySymbol, loan.installmentPerMonth)})",
-                        onClick = {
-                            if ((loan.paidMonthsClamped + 1) >= loan.termsInMonths) {
-                                confettiTrigger++
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            }
-                            onMarkMonthPaid()
-                        }
+                        text = "Record Payment",
+                        onClick = { showRecordPaymentDialog = true }
                     )
                 }
 
                 Text(
-                    text = "FINANCIAL BREAKDOWN",
-                    style = MaterialTheme.typography.labelSmall.copy(
+                    text = "Financial breakdown",
+                    style = MaterialTheme.typography.labelLarge.copy(
                         fontFamily = InterFontFamily,
-                        letterSpacing = 0.5.sp
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp
                     ),
                     color = colors.textSecondary,
                     modifier = Modifier.padding(horizontal = 4.dp)
@@ -751,7 +757,6 @@ fun InstallmentLoanDetailsSheet(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = colors.cardElevated,
-                    border = BorderStroke(0.5.dp, colors.separator),
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -770,7 +775,15 @@ fun InstallmentLoanDetailsSheet(
                             value = ShiftlyFormatters.formatCurrency(currencySymbol, loan.downpayment)
                         )
                         LoanBreakdownRow(
-                            label = "Installment / Month",
+                            label = "Interest Rate",
+                            value = if (loan.interestRatePercent > 0.0) {
+                                "${formatEditableAmount(loan.interestRatePercent)}% (${if (loan.isMonthlyInterestRate) "Monthly" else "Total"})"
+                            } else {
+                                "0%"
+                            }
+                        )
+                        LoanBreakdownRow(
+                            label = "Est. / Month",
                             value = ShiftlyFormatters.formatCurrency(currencySymbol, loan.installmentPerMonth)
                         )
                         LoanBreakdownRow(
@@ -788,19 +801,19 @@ fun InstallmentLoanDetailsSheet(
                         )
                         LoanBreakdownRow(
                             label = "Total Paid",
-                            value = ShiftlyFormatters.formatCurrency(currencySymbol, loan.totalPaid),
+                            value = ShiftlyFormatters.formatCurrency(currencySymbol, totalPaid),
                             valueColor = colors.mintInk
                         )
                         LoanBreakdownRow(
                             label = "Remaining Balance",
-                            value = ShiftlyFormatters.formatCurrency(currencySymbol, loan.remainingBalance),
-                            valueColor = if (loan.isCompleted) colors.mintInk else colors.textPrimary
+                            value = ShiftlyFormatters.formatCurrency(currencySymbol, remaining),
+                            valueColor = if (isCompleted) colors.mintInk else colors.textPrimary
                         )
                         LoanBreakdownRow(
                             label = "Remaining Months",
                             value = "${loan.remainingMonths} mo${if (loan.remainingMonths == 1) "" else "s"}"
                         )
-                        if (!loan.isCompleted) {
+                        if (!isCompleted) {
                             LoanBreakdownRow(
                                 label = "Next Due Date",
                                 value = loan.nextDueDate().format(dateFormatter)
@@ -810,10 +823,11 @@ fun InstallmentLoanDetailsSheet(
                 }
 
                 Text(
-                    text = "PAYMENT HISTORY",
-                    style = MaterialTheme.typography.labelSmall.copy(
+                    text = "Payment history",
+                    style = MaterialTheme.typography.labelLarge.copy(
                         fontFamily = InterFontFamily,
-                        letterSpacing = 0.5.sp
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 13.sp
                     ),
                     color = colors.textSecondary,
                     modifier = Modifier.padding(horizontal = 4.dp)
@@ -822,7 +836,6 @@ fun InstallmentLoanDetailsSheet(
                 Surface(
                     shape = RoundedCornerShape(16.dp),
                     color = colors.cardElevated,
-                    border = BorderStroke(0.5.dp, colors.separator),
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -898,25 +911,35 @@ fun InstallmentLoanDetailsSheet(
                                             color = colors.mintInk,
                                             modifier = Modifier.padding(end = 4.dp)
                                         )
+                                        var editPayTapCount by remember { mutableIntStateOf(0) }
+                                        var delPayTapCount by remember { mutableIntStateOf(0) }
                                         IconButton(
-                                            onClick = { paymentToEdit = payment },
+                                            onClick = {
+                                                editPayTapCount++
+                                                paymentToEdit = payment
+                                            },
                                             modifier = Modifier.size(48.dp)
                                         ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.ic_lucide_pencil),
-                                                contentDescription = "Edit Payment Date & Time",
+                                            ShiftlyAnimatedIcon(
+                                                iconRes = R.drawable.ic_lucide_pencil,
+                                                contentDescription = "Edit Payment",
                                                 tint = colors.azureInk,
+                                                triggerKey = editPayTapCount,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }
                                         IconButton(
-                                            onClick = { paymentToDelete = payment },
+                                            onClick = {
+                                                delPayTapCount++
+                                                paymentToDelete = payment
+                                            },
                                             modifier = Modifier.size(48.dp)
                                         ) {
-                                            Icon(
-                                                painter = painterResource(R.drawable.ic_lucide_trash_2),
+                                            ShiftlyAnimatedIcon(
+                                                iconRes = R.drawable.ic_lucide_trash_2,
                                                 contentDescription = "Delete Payment",
                                                 tint = colors.coralBright,
+                                                triggerKey = delPayTapCount,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }
@@ -927,6 +950,8 @@ fun InstallmentLoanDetailsSheet(
                     }
                 }
 
+                var editLoanTapCount by remember { mutableIntStateOf(0) }
+                var deleteLoanTapCount by remember { mutableIntStateOf(0) }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -934,22 +959,25 @@ fun InstallmentLoanDetailsSheet(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = colors.cardElevated,
-                        border = BorderStroke(0.5.dp, colors.separator),
                         shadowElevation = 0.dp,
                         modifier = Modifier
                             .weight(1f)
                             .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .shiftlyPressClickable(onClick = onEdit)
+                            .shiftlyPressClickable(onClick = {
+                                editLoanTapCount++
+                                onEdit()
+                            })
                     ) {
                         Row(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_pencil),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_pencil,
                                 contentDescription = null,
                                 tint = colors.azureInk,
+                                triggerKey = editLoanTapCount,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -973,16 +1001,20 @@ fun InstallmentLoanDetailsSheet(
                             .weight(1f)
                             .heightIn(min = 48.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .shiftlyPressClickable { showDeleteConfirm = true }
+                            .shiftlyPressClickable {
+                                deleteLoanTapCount++
+                                showDeleteConfirm = true
+                            }
                     ) {
                         Row(
                             horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_trash_2),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_trash_2,
                                 contentDescription = null,
                                 tint = colors.coralInk,
+                                triggerKey = deleteLoanTapCount,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -1014,10 +1046,30 @@ fun InstallmentLoanDetailsSheet(
         }
     }
 
+    if (showRecordPaymentDialog) {
+        val suggestedAmount = minOf(loan.installmentPerMonth, remaining).takeIf { it > 0.0 }
+            ?: loan.installmentPerMonth
+        LoanPaymentEditorDialog(
+            title = "Record Payment",
+            currencySymbol = currencySymbol,
+            initialAmount = suggestedAmount,
+            initialDateTimeMillis = System.currentTimeMillis(),
+            onDismiss = { showRecordPaymentDialog = false },
+            onSave = { amountPaid, datePaidMillis ->
+                if ((totalPaid + amountPaid) >= loan.finalPrice || (loan.paidMonthsClamped + 1) >= loan.termsInMonths) {
+                    confettiTrigger++
+                    haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+                onRecordPayment(amountPaid, datePaidMillis)
+                showRecordPaymentDialog = false
+            }
+        )
+    }
+
     if (showDeleteConfirm) {
         ShiftlyDeleteConfirmDialog(
             title = "Delete Loan Contract?",
-            message = "This installment loan for ${loan.gadgetName} and its payment history will be permanently removed.",
+            message = "Delete ${loan.gadgetName} loan?",
             onDismiss = { showDeleteConfirm = false },
             onConfirm = {
                 showDeleteConfirm = false
@@ -1027,11 +1079,15 @@ fun InstallmentLoanDetailsSheet(
     }
 
     if (paymentToEdit != null) {
-        EditPaymentDateTimeDialog(
-            payment = paymentToEdit!!,
+        val targetPayment = paymentToEdit!!
+        LoanPaymentEditorDialog(
+            title = "Edit Payment",
+            currencySymbol = currencySymbol,
+            initialAmount = targetPayment.amountPaid,
+            initialDateTimeMillis = targetPayment.datePaidMillis,
             onDismiss = { paymentToEdit = null },
-            onSave = { newMillis ->
-                onUpdateLoanPaymentDateTime(paymentToEdit!!, newMillis)
+            onSave = { newAmount, newMillis ->
+                onUpdateLoanPayment(targetPayment, newAmount, newMillis)
                 paymentToEdit = null
             }
         )
@@ -1040,7 +1096,7 @@ fun InstallmentLoanDetailsSheet(
     if (paymentToDelete != null) {
         ShiftlyDeleteConfirmDialog(
             title = "Delete Payment?",
-            message = "This payment record will be removed and your loan balance will be updated.",
+            message = "Delete this payment record?",
             confirmLabel = "Delete",
             onConfirm = {
                 onDeleteLoanPayment(paymentToDelete!!)
@@ -1080,8 +1136,8 @@ private fun LoanTimePickerRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_clock),
+            ShiftlyAnimatedIcon(
+                iconRes = R.drawable.ic_lucide_clock,
                 contentDescription = null,
                 tint = colors.azureInk,
                 modifier = Modifier.size(17.dp)
@@ -1100,10 +1156,13 @@ private fun LoanTimePickerRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EditPaymentDateTimeDialog(
-    payment: LoanPaymentEntity,
+private fun LoanPaymentEditorDialog(
+    title: String,
+    currencySymbol: String,
+    initialAmount: Double,
+    initialDateTimeMillis: Long,
     onDismiss: () -> Unit,
-    onSave: (Long) -> Unit
+    onSave: (amountPaid: Double, datePaidMillis: Long) -> Unit
 ) {
     val colors = ShiftlyColors.current
     val locale = LocalConfiguration.current.locales[0]
@@ -1111,23 +1170,31 @@ private fun EditPaymentDateTimeDialog(
     val timeFormatter = remember(locale) { DateTimeFormatter.ofPattern("h:mm a", locale) }
 
     val zone = remember { ZoneId.systemDefault() }
-    val initialZoned = remember(payment.datePaidMillis) {
-        Instant.ofEpochMilli(payment.datePaidMillis).atZone(zone)
+    val initialZoned = remember(initialDateTimeMillis) {
+        Instant.ofEpochMilli(initialDateTimeMillis).atZone(zone)
     }
 
+    var amountText by remember(initialAmount) {
+        mutableStateOf(if (initialAmount > 0.0) formatEditableAmount(initialAmount) else "")
+    }
     var selectedDate by remember { mutableStateOf(initialZoned.toLocalDate()) }
     var selectedTime by remember { mutableStateOf(initialZoned.toLocalTime()) }
 
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
 
+    val parsedAmount = remember(amountText) { amountText.toDoubleOrNull() }
+    val isAmountValid = parsedAmount != null && parsedAmount.isFinite() && parsedAmount > 0.0
+
     ShiftlyDialogShell(
-        title = "Edit Payment Date & Time",
+        title = title,
         onDismiss = onDismiss,
         actionLabel = "Save",
+        actionEnabled = isAmountValid,
         onAction = {
+            val amount = parsedAmount ?: return@ShiftlyDialogShell
             val newZoned = ZonedDateTime.of(selectedDate, selectedTime, zone)
-            onSave(newZoned.toInstant().toEpochMilli())
+            onSave(amount, newZoned.toInstant().toEpochMilli())
         }
     ) {
         Column(
@@ -1138,7 +1205,6 @@ private fun EditPaymentDateTimeDialog(
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = colors.cardElevated,
-                border = BorderStroke(0.5.dp, colors.separator),
                 shadowElevation = 0.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -1148,6 +1214,17 @@ private fun EditPaymentDateTimeDialog(
                         .padding(vertical = 2.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
+                    LoanInsetFieldRow(
+                        label = "Amount Paid",
+                        value = amountText,
+                        onValueChange = { input ->
+                            val filtered = input.filter { it.isDigit() || it == '.' }
+                            if (filtered.count { it == '.' } <= 1) amountText = filtered
+                        },
+                        placeholder = "0.00",
+                        prefix = currencySymbol,
+                        keyboardType = KeyboardType.Decimal
+                    )
                     LoanDatePickerRow(
                         label = "Date Paid",
                         formattedDate = selectedDate.format(dateFormatter),
@@ -1274,10 +1351,13 @@ fun AddEditInstallmentLoanSheet(
             editingLoan?.downpayment?.takeIf { it > 0.0 }?.let { formatEditableAmount(it) }.orEmpty()
         )
     }
-    var installmentPerMonthText by remember(editingLoan) {
+    var interestRateText by remember(editingLoan) {
         mutableStateOf(
-            editingLoan?.installmentPerMonth?.takeIf { it > 0.0 }?.let { formatEditableAmount(it) }.orEmpty()
+            editingLoan?.let { formatEditableAmount(it.interestRatePercent) }.orEmpty()
         )
+    }
+    var isMonthlyRate by remember(editingLoan) {
+        mutableStateOf(editingLoan?.isMonthlyInterestRate ?: true)
     }
     var termsText by remember(editingLoan) {
         mutableStateOf(editingLoan?.termsInMonths?.toString() ?: "12")
@@ -1299,36 +1379,58 @@ fun AddEditInstallmentLoanSheet(
     val parsedDownpayment = remember(downpaymentText) {
         (downpaymentText.toDoubleOrNull() ?: 0.0).takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
     }
-    val parsedInstallment = remember(installmentPerMonthText) {
-        (installmentPerMonthText.toDoubleOrNull() ?: 0.0).takeIf { it.isFinite() && it > 0.0 } ?: 0.0
+    val parsedRatePercent = remember(interestRateText) {
+        (interestRateText.toDoubleOrNull() ?: 0.0).takeIf { it.isFinite() && it >= 0.0 } ?: 0.0
     }
     val parsedTerms = remember(termsText) {
         (termsText.toIntOrNull() ?: 0).coerceAtLeast(0)
     }
 
-    val isValid = gadgetName.trim().isNotEmpty() && parsedInstallment > 0.0 && parsedTerms > 0
+    val financedPrincipal = remember(parsedCashPrice, parsedDownpayment) {
+        (parsedCashPrice - parsedDownpayment).coerceAtLeast(0.0)
+    }
+    val computedInterest = remember(financedPrincipal, parsedRatePercent, isMonthlyRate, parsedTerms) {
+        if (isMonthlyRate) {
+            financedPrincipal * (parsedRatePercent / 100.0) * parsedTerms
+        } else {
+            financedPrincipal * (parsedRatePercent / 100.0)
+        }
+    }
+    val computedMonthly = remember(financedPrincipal, computedInterest, parsedTerms) {
+        if (parsedTerms > 0 && financedPrincipal > 0.0) {
+            (((financedPrincipal + computedInterest) / parsedTerms) * 100.0).roundToLong() / 100.0
+        } else {
+            0.0
+        }
+    }
+
+    val isValid = gadgetName.trim().isNotEmpty() && parsedCashPrice > parsedDownpayment && parsedTerms > 0
 
     val previewLoan = remember(
         editingLoan,
         gadgetName,
         parsedCashPrice,
         parsedDownpayment,
-        parsedInstallment,
+        computedMonthly,
         parsedTerms,
         startDate,
-        firstDueDate
+        firstDueDate,
+        parsedRatePercent,
+        isMonthlyRate
     ) {
         InstallmentLoanEntity(
             id = editingLoan?.id ?: 0L,
             gadgetName = gadgetName.trim().ifEmpty { "Loan" },
             cashPrice = parsedCashPrice,
             downpayment = parsedDownpayment,
-            installmentPerMonth = parsedInstallment,
+            installmentPerMonth = computedMonthly,
             termsInMonths = parsedTerms.coerceAtLeast(1),
             paidMonths = (editingLoan?.paidMonths ?: 0).coerceIn(0, parsedTerms.coerceAtLeast(1)),
             startDateMillis = startDate.toUtcMillis(),
             monthlyDueDay = firstDueDate.dayOfMonth,
-            firstDueDateMillis = firstDueDate.toUtcMillis()
+            firstDueDateMillis = firstDueDate.toUtcMillis(),
+            interestRatePercent = parsedRatePercent,
+            isMonthlyInterestRate = isMonthlyRate
         )
     }
 
@@ -1404,16 +1506,31 @@ fun AddEditInstallmentLoanSheet(
                         ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
                         LoanInsetFieldRow(
-                            label = "Installment / Month",
-                            value = installmentPerMonthText,
+                            label = "Interest Rate (%)",
+                            value = interestRateText,
                             onValueChange = { input ->
                                 val filtered = input.filter { it.isDigit() || it == '.' }
-                                if (filtered.count { it == '.' } <= 1) installmentPerMonthText = filtered
+                                if (filtered.count { it == '.' } <= 1) interestRateText = filtered
                             },
-                            placeholder = "0.00",
-                            prefix = currencySymbol,
+                            placeholder = "0",
                             keyboardType = KeyboardType.Decimal
                         )
+                        ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            ShiftlyIosSegmentedControl(
+                                options = listOf("Monthly %", "Total %"),
+                                selectedOption = if (isMonthlyRate) "Monthly %" else "Total %",
+                                onOptionSelected = { selected ->
+                                    isMonthlyRate = (selected == "Monthly %")
+                                },
+                                containerColor = colors.surface
+                            )
+                        }
                         ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
 
                         LoanInsetFieldRow(
@@ -1456,29 +1573,39 @@ fun AddEditInstallmentLoanSheet(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "SUMMARY",
-                            style = MaterialTheme.typography.labelSmall.copy(
+                            text = "Summary",
+                            style = MaterialTheme.typography.labelLarge.copy(
                                 fontFamily = InterFontFamily,
-                                letterSpacing = 0.5.sp
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp
                             ),
                             color = colors.textSecondary
                         )
                         LoanPreviewRow(
+                            label = "Est. / Month",
+                            value = if (parsedTerms > 0 && computedMonthly > 0.0) {
+                                ShiftlyFormatters.formatCurrency(currencySymbol, computedMonthly)
+                            } else {
+                                "—"
+                            },
+                            valueColor = colors.textPrimary
+                        )
+                        LoanPreviewRow(
                             label = "Final Price",
-                            value = if (parsedTerms > 0 && parsedInstallment > 0.0) {
+                            value = if (parsedTerms > 0 && computedMonthly > 0.0) {
                                 ShiftlyFormatters.formatCurrency(currencySymbol, previewLoan.finalPrice)
                             } else {
                                 "—"
                             }
                         )
-                        val interestPct = if (parsedTerms > 0 && parsedInstallment > 0.0) {
+                        val interestPct = if (parsedTerms > 0 && computedMonthly > 0.0) {
                             previewLoan.interestPercent
                         } else {
                             null
                         }
                         LoanPreviewRow(
                             label = "Total Interest",
-                            value = if (parsedTerms > 0 && parsedInstallment > 0.0) {
+                            value = if (parsedTerms > 0 && computedMonthly > 0.0) {
                                 val amt = ShiftlyFormatters.formatCurrency(currencySymbol, previewLoan.totalInterest)
                                 if (interestPct != null) "$amt (${String.format(locale, "%.1f", interestPct)}%)" else amt
                             } else {
@@ -1488,7 +1615,7 @@ fun AddEditInstallmentLoanSheet(
                         )
                         LoanPreviewRow(
                             label = "Remaining Balance",
-                            value = if (parsedTerms > 0 && parsedInstallment > 0.0) {
+                            value = if (parsedTerms > 0 && computedMonthly > 0.0) {
                                 ShiftlyFormatters.formatCurrency(currencySymbol, previewLoan.remainingBalance)
                             } else {
                                 "—"
@@ -1635,8 +1762,8 @@ private fun LoanDatePickerRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_lucide_calendar),
+            ShiftlyAnimatedIcon(
+                iconRes = R.drawable.ic_lucide_calendar,
                 contentDescription = null,
                 tint = colors.azureInk,
                 modifier = Modifier.size(17.dp)

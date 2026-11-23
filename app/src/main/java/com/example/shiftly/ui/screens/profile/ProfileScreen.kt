@@ -583,20 +583,7 @@ private fun ProfileScreenContent(
             }
 
             item(key = "settings_account", contentType = "settings_group") {
-                SettingsGroupCard(groupTitle = "ACCOUNT & PREFERENCES") {
-                    SettingsChevronRow(
-                        iconRes = R.drawable.ic_lucide_user,
-                        title = "Account & Rate",
-                        subtitle = "Name, workplace, weekly hours & hourly rate",
-                        trailingText = if (state.defaultHourlyRate > 0.0) {
-                            "${ShiftlyFormatters.formatCurrency(currency, state.defaultHourlyRate)}/hr"
-                        } else {
-                            null
-                        },
-                        iconTint = colors.azurePrimary,
-                        onClick = { onOpenSheet(ActiveSettingsSheet.ACCOUNT) }
-                    )
-                    ShiftlyHairlineDivider(startInset = 62.dp)
+                SettingsGroupCard(groupTitle = "Preferences") {
                     SettingsChevronRow(
                         iconRes = R.drawable.ic_lucide_circle_dollar_sign,
                         title = "Currency",
@@ -607,8 +594,7 @@ private fun ProfileScreenContent(
                     ShiftlyHairlineDivider(startInset = 62.dp)
                     SettingsChevronRow(
                         iconRes = R.drawable.ic_lucide_wallet,
-                        title = "Monthly Limits",
-                        subtitle = "Overall cap, category limits & visibility",
+                        title = "Budgets",
                         trailingText = if (state.monthlyBudget > 0.0) {
                             ShiftlyFormatters.formatCurrency(currency, state.monthlyBudget)
                         } else {
@@ -621,11 +607,6 @@ private fun ProfileScreenContent(
                     SettingsSwitchRow(
                         iconRes = R.drawable.ic_lucide_bell,
                         title = "Notifications",
-                        subtitle = if (state.settings.notificationsEnabled) {
-                            "Bills, shifts & savings reminders on"
-                        } else {
-                            "Reminders muted"
-                        },
                         checked = state.settings.notificationsEnabled,
                         onCheckedChange = onToggleNotifications,
                         onRowClick = { onOpenSheet(ActiveSettingsSheet.NOTIFICATIONS) },
@@ -634,7 +615,7 @@ private fun ProfileScreenContent(
                     ShiftlyHairlineDivider(startInset = 62.dp)
                     SettingsChevronRow(
                         iconRes = R.drawable.ic_lucide_palette,
-                        title = "App Theme",
+                        title = "Theme",
                         trailingText = when (state.settings.themeMode.uppercase()) {
                             "LIGHT" -> "Light"
                             "DARK" -> "Dark"
@@ -647,15 +628,10 @@ private fun ProfileScreenContent(
             }
 
             item(key = "settings_security", contentType = "settings_group") {
-                SettingsGroupCard(groupTitle = "SECURITY & DATA EXPORT") {
+                SettingsGroupCard(groupTitle = "Security") {
                     SettingsSwitchRow(
                         iconRes = R.drawable.ic_lucide_fingerprint,
                         title = "App Lock",
-                        subtitle = if (state.settings.appLockEnabled) {
-                            state.settings.appLockMethod
-                        } else {
-                            "Disabled"
-                        },
                         checked = state.settings.appLockEnabled,
                         onCheckedChange = onToggleAppLock,
                         onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },
@@ -664,8 +640,7 @@ private fun ProfileScreenContent(
                     ShiftlyHairlineDivider(startInset = 62.dp)
                     SettingsChevronRow(
                         iconRes = R.drawable.ic_lucide_cloud_upload,
-                        title = "Data Export & Restore",
-                        subtitle = "JSON backups & CSV spreadsheets",
+                        title = "Backup",
                         iconTint = colors.azurePrimary,
                         onClick = { onOpenSheet(ActiveSettingsSheet.BACKUP_EXPORT) }
                     )
@@ -673,24 +648,24 @@ private fun ProfileScreenContent(
             }
 
             item(key = "settings_support", contentType = "settings_group") {
-                SettingsGroupCard(groupTitle = "SUPPORT & FEEDBACK") {
+                SettingsGroupCard(groupTitle = "Support") {
                     SettingsChevronRow(
                         iconRes = R.drawable.ic_lucide_sparkles,
-                        title = "What's Inside Shiftly",
+                        title = "Features",
                         iconTint = colors.azurePrimary,
                         onClick = { onOpenSheet(ActiveSettingsSheet.FEATURE_GUIDE) }
                     )
                     ShiftlyHairlineDivider(startInset = 62.dp)
                     SettingsChevronRow(
                         iconRes = R.drawable.ic_lucide_rotate_ccw,
-                        title = "Replay App Tutorial",
+                        title = "Tutorial",
                         iconTint = colors.azurePrimary,
                         onClick = onReplayTutorial
                     )
                     ShiftlyHairlineDivider(startInset = 62.dp)
                     SettingsChevronRow(
                         iconRes = R.drawable.ic_lucide_message_square,
-                        title = "Suggestions & Bug Report",
+                        title = "Feedback",
                         iconTint = colors.nightDiffPurple,
                         onClick = { onOpenSheet(ActiveSettingsSheet.FEEDBACK) }
                     )
@@ -698,24 +673,24 @@ private fun ProfileScreenContent(
             }
 
             item(key = "settings_legal", contentType = "settings_group") {
-                SettingsGroupCard(groupTitle = "ABOUT & LEGAL") {
+                SettingsGroupCard(groupTitle = "Legal") {
                     SettingsChevronRow(
                         iconRes = R.drawable.ic_lucide_file_text,
-                        title = "Terms & Conditions",
+                        title = "Terms",
                         iconTint = colors.textSecondary,
                         onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_TERMS) }
                     )
                     ShiftlyHairlineDivider(startInset = 62.dp)
                     SettingsChevronRow(
                         iconRes = R.drawable.ic_lucide_lock,
-                        title = "Privacy Policy",
+                        title = "Privacy",
                         iconTint = colors.mintBright,
                         onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_PRIVACY) }
                     )
                     ShiftlyHairlineDivider(startInset = 62.dp)
                     SettingsChevronRow(
                         iconRes = R.drawable.ic_lucide_info,
-                        title = "Payroll & Tax Disclaimer",
+                        title = "Disclaimer",
                         iconTint = colors.azurePrimary,
                         onClick = { onOpenSheet(ActiveSettingsSheet.LEGAL_DISCLAIMER) }
                     )

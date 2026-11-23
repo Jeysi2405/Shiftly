@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
@@ -58,8 +59,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -72,6 +71,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -92,7 +92,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
@@ -108,9 +107,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.shiftly.R
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 import java.time.YearMonth
@@ -123,10 +124,10 @@ import kotlin.math.sin
 import kotlin.random.Random
 import kotlinx.coroutines.launch
 
-private val PillShape = RoundedCornerShape(50)
-private val PrimaryButtonShape = RoundedCornerShape(14.dp)
-private val SheetTopShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-private val DialogCardShape = RoundedCornerShape(20.dp)
+private val PillShape = ShiftlyShapes.Pill
+private val PrimaryButtonShape = ShiftlyShapes.Control
+private val SheetTopShape = ShiftlyShapes.Sheet
+private val DialogCardShape = ShiftlyShapes.Dialog
 
 /**
  * iOS-style press feedback: scale 0.97 + slight alpha dip with a spring restore.
@@ -198,9 +199,7 @@ fun ShiftlyCollapsedTopBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    if (colors.isDark) Color(0xEB1C1C1E) else colors.surface.copy(alpha = 0.94f)
-                )
+                .background(colors.collapsedTopBar)
                 .statusBarsPadding()
         ) {
             Box(
@@ -233,27 +232,6 @@ fun shiftlySheetScrimColor(): Color {
     val colors = ShiftlyColors.current
     return Color.Black.copy(alpha = if (colors.isDark) 0.6f else 0.4f)
 }
-
-/**
- * Top cap modifier for unrolled LazyColumn sheet bands: rounds the top 20dp corners
- * and fills with [surfaceColor] with zero border strokes.
- */
-@Suppress("UNUSED_PARAMETER")
-fun Modifier.shiftlySheetTopBand(
-    surfaceColor: Color,
-    borderColor: Color = Color.Transparent
-): Modifier = this
-    .clip(SheetTopShape)
-    .background(surfaceColor)
-
-/**
- * Body row modifier for unrolled LazyColumn sheet items (pure tonal fill, zero border strokes).
- */
-@Suppress("UNUSED_PARAMETER")
-fun Modifier.shiftlySheetBodyBand(
-    surfaceColor: Color,
-    borderColor: Color = Color.Transparent
-): Modifier = this.background(surfaceColor)
 
 /**
  * Full-bleed screen backdrop reacting to the active Shiftly theme.
@@ -302,13 +280,15 @@ fun ShiftlyHelpIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     contentDescription: String = "Quick guide",
-    tint: Color = Color(0xFF8E8E93)
+    tint: Color = ShiftlyColors.current.textSecondary
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val haptics = LocalHapticFeedback.current
+    var tapCount by remember { mutableIntStateOf(0) }
     IconButton(
         onClick = {
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            tapCount++
             onClick()
         },
         interactionSource = interactionSource,
@@ -316,10 +296,11 @@ fun ShiftlyHelpIconButton(
             .size(48.dp)
             .shiftlyPressEffect(interactionSource)
     ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_lucide_circle_help),
+        ShiftlyAnimatedIcon(
+            iconRes = R.drawable.ic_lucide_circle_help,
             contentDescription = contentDescription,
             tint = tint,
+            triggerKey = tapCount,
             modifier = Modifier.size(20.dp)
         )
     }
@@ -435,13 +416,13 @@ fun ShiftlySheetBottomButtons(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            shape = RoundedCornerShape(14.dp),
+            shape = PrimaryButtonShape,
             color = colors.cardElevated,
             shadowElevation = 0.dp,
             modifier = Modifier
                 .weight(1f)
                 .height(50.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(PrimaryButtonShape)
                 .shiftlyPressClickable(onClick = onCancel)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -458,13 +439,13 @@ fun ShiftlySheetBottomButtons(
         }
 
         Surface(
-            shape = RoundedCornerShape(14.dp),
+            shape = PrimaryButtonShape,
             color = if (actionEnabled) colors.azurePrimary else colors.disabledContainer,
             shadowElevation = 0.dp,
             modifier = Modifier
                 .weight(1f)
                 .height(50.dp)
-                .clip(RoundedCornerShape(14.dp))
+                .clip(PrimaryButtonShape)
                 .shiftlyPressClickable(enabled = actionEnabled, onClick = onAction)
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -493,13 +474,13 @@ fun ShiftlySheetCloseButton(
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = PrimaryButtonShape,
         color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = modifier
             .fillMaxWidth()
             .height(50.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(PrimaryButtonShape)
             .shiftlyPressClickable(onClick = onClick)
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -517,7 +498,7 @@ fun ShiftlySheetCloseButton(
 }
 
 /**
- * Standardized iOS-style modal dialog wrapper with dimmed scrim, 20dp radius, grabber,
+ * Standardized modal dialog wrapper with dimmed scrim, 20dp radius,
  * centered bold title, and bottom action row.
  */
 @Composable
@@ -586,10 +567,9 @@ fun ShiftlyDialogShell(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = contentHorizontalPadding)
-                        .padding(bottom = 18.dp),
+                        .padding(top = 16.dp, bottom = 18.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    ShiftlySheetDragHandle()
                     ShiftlySheetHeader(title = title)
                     content()
                     if (onAction != null && actionLabel != null) {
@@ -629,11 +609,7 @@ fun ShiftlyIosSwitch(
     val colors = ShiftlyColors.current
     val haptics = LocalHapticFeedback.current
     val trackColor by animateColorAsState(
-        targetValue = when {
-            checked -> Color(0xFF30D158)
-            colors.isDark -> Color(0xFF39393D)
-            else -> Color(0xFF48484A)
-        },
+        targetValue = if (checked) colors.azurePrimary else colors.switchOffTrack,
         animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
         label = "iosSwitchTrack"
     )
@@ -748,7 +724,7 @@ fun ShiftlyIosSegmentedControl(
 @Composable
 fun ShiftlyGlassCard(
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 18.dp,
+    cornerRadius: Dp = 16.dp,
     contentPadding: PaddingValues = PaddingValues(18.dp),
     showBorder: Boolean = false,
     animateSize: Boolean = false,
@@ -777,7 +753,7 @@ fun ShiftlyGlassCard(
 }
 
 /**
- * Standardized Shiftly card container with 18dp corners and zero borders/shadows.
+ * Standardized Shiftly card container with 16dp corners and zero borders/shadows.
  */
 @Suppress("UNUSED_PARAMETER")
 @Composable
@@ -785,7 +761,7 @@ fun ShiftlyCard(
     modifier: Modifier = Modifier,
     containerColor: Color = ShiftlyColors.current.card,
     borderColor: Color = Color.Transparent,
-    cornerRadius: Dp = 18.dp,
+    cornerRadius: Dp = 16.dp,
     contentPadding: Dp = 16.dp,
     content: @Composable ColumnScope.() -> Unit
 ) {
@@ -816,51 +792,46 @@ fun ShiftlyIosIconTile(
     cornerRadius: Dp = 9.dp,
     iconSize: Dp = 22.dp,
     iconTint: Color = backgroundColor,
-    contentDescription: String? = null
+    contentDescription: String? = null,
+    triggerKey: Any? = null,
+    animateOnMount: Boolean = false
 ) {
     Box(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            painter = painterResource(iconRes),
+        ShiftlyAnimatedIcon(
+            iconRes = iconRes,
             contentDescription = contentDescription,
             tint = iconTint,
+            triggerKey = triggerKey,
+            animateOnMount = animateOnMount,
             modifier = Modifier.size(iconSize)
         )
     }
 }
 
 /**
- * Subtle 0.5dp horizontal hairline divider with optional left/right inset.
+ * Hairline divider kept as a no-op spacer for clean borderless card separation.
  */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ShiftlyHairlineDivider(
     modifier: Modifier = Modifier,
     startInset: Dp = 0.dp,
     endInset: Dp = 0.dp
 ) {
-    val colors = ShiftlyColors.current
-    HorizontalDivider(
-        modifier = modifier.padding(start = startInset, end = endInset),
-        thickness = 0.5.dp,
-        color = colors.separator
-    )
+    // Intentionally empty: clean borderless UI uses spacing and tone instead of thin dividers.
 }
 
 /**
- * Subtle 0.5dp vertical hairline divider for flattened metric columns.
+ * Vertical spacing placeholder preserving column padding without drawing a hairline rule.
  */
 @Composable
 fun ShiftlyVerticalHairlineDivider(
     modifier: Modifier = Modifier
 ) {
-    val colors = ShiftlyColors.current
-    Box(
-        modifier = modifier
-            .width(0.5.dp)
-            .background(colors.separator)
-    )
+    Spacer(modifier = modifier.width(0.dp))
 }
 
 /**
@@ -1086,22 +1057,22 @@ fun ShiftlySecondaryTextButton(
 }
 
 /**
- * Centered iOS empty state: icon tile, bold title, gray subtitle, and one plain blue text button.
+ * Centered empty state: subtle neutral icon badge, bold title, optional subtitle, and one clear action.
  */
 @Composable
 fun ShiftlyEmptyState(
     @DrawableRes iconRes: Int,
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     actionText: String,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
-    iconBackgroundColor: Color = ShiftlyColors.current.azurePrimary,
-    containerColor: Color = ShiftlyColors.current.cardElevated
+    iconBackgroundColor: Color = ShiftlyColors.current.iconNeutral,
+    containerColor: Color = ShiftlyColors.current.card
 ) {
     val colors = ShiftlyColors.current
     Surface(
-        shape = RoundedCornerShape(18.dp),
+        shape = ShiftlyShapes.Card,
         color = containerColor,
         shadowElevation = 0.dp,
         modifier = modifier.fillMaxWidth()
@@ -1113,13 +1084,20 @@ fun ShiftlyEmptyState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            ShiftlyIosIconTile(
-                iconRes = iconRes,
-                backgroundColor = iconBackgroundColor,
-                size = 36.dp,
-                cornerRadius = 12.dp,
-                iconSize = 32.dp
-            )
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(ShiftlyShapes.Control)
+                    .background(colors.iconNeutralContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                ShiftlyAnimatedIcon(
+                    iconRes = iconRes,
+                    contentDescription = null,
+                    tint = iconBackgroundColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium.copy(
@@ -1129,16 +1107,117 @@ fun ShiftlyEmptyState(
                 color = colors.textPrimary,
                 textAlign = TextAlign.Center
             )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = colors.textSecondary,
-                textAlign = TextAlign.Center
-            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                    textAlign = TextAlign.Center
+                )
+            }
             ShiftlySecondaryTextButton(
                 text = actionText,
                 onClick = onAction
             )
+        }
+    }
+}
+
+/**
+ * Calm sentence-case section label replacing ALL-CAPS eyebrow labels.
+ */
+@Composable
+fun ShiftlyGroupLabel(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    val colors = ShiftlyColors.current
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge.copy(
+            fontFamily = InterFontFamily,
+            fontWeight = FontWeight.Medium,
+            fontSize = 13.sp
+        ),
+        color = colors.textSecondary,
+        modifier = modifier
+            .padding(horizontal = 4.dp)
+            .semantics { heading() }
+    )
+}
+
+/**
+ * Unified pinned sticky top app bar for sub-screens with back navigation,
+ * optional trailing actions, and a scroll-reactive bottom hairline divider.
+ */
+@Composable
+fun ShiftlySubScreenTopBar(
+    title: String,
+    onBack: () -> Unit,
+    showDivider: Boolean = false,
+    modifier: Modifier = Modifier,
+    trailing: (@Composable RowScope.() -> Unit)? = null
+) {
+    val colors = ShiftlyColors.current
+    val backInteraction = remember { MutableInteractionSource() }
+    var backTapCount by remember { mutableIntStateOf(0) }
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(colors.background)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(start = 8.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = {
+                    backTapCount++
+                    onBack()
+                },
+                interactionSource = backInteraction,
+                modifier = Modifier
+                    .size(48.dp)
+                    .shiftlyPressEffect(backInteraction)
+            ) {
+                ShiftlyAnimatedIcon(
+                    iconRes = R.drawable.ic_lucide_arrow_left,
+                    contentDescription = "Back",
+                    tint = colors.textPrimary,
+                    triggerKey = backTapCount,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontFamily = InterFontFamily,
+                    fontWeight = FontWeight.SemiBold
+                ),
+                color = colors.textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { heading() }
+            )
+            if (trailing != null) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    content = trailing
+                )
+            }
+        }
+        AnimatedVisibility(
+            visible = showDivider,
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(150))
+        ) {
+            ShiftlyHairlineDivider()
         }
     }
 }
@@ -1168,17 +1247,22 @@ fun ShiftlyScreenHeader(
         ) {
             if (onBackClick != null) {
                 val backInteraction = remember { MutableInteractionSource() }
+                var backTapCount by remember { mutableIntStateOf(0) }
                 IconButton(
-                    onClick = onBackClick,
+                    onClick = {
+                        backTapCount++
+                        onBackClick()
+                    },
                     interactionSource = backInteraction,
                     modifier = Modifier
                         .size(48.dp)
                         .shiftlyPressEffect(backInteraction)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_chevron_left),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_chevron_left,
                         contentDescription = "Back",
                         tint = colors.azureAccent,
+                        triggerKey = backTapCount,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -1242,6 +1326,8 @@ fun ShiftlyMonthFilterBar(
     val isAllSelected = selectedMonth == null
     val prevInteraction = remember { MutableInteractionSource() }
     val nextInteraction = remember { MutableInteractionSource() }
+    var prevTapCount by remember { mutableIntStateOf(0) }
+    var nextTapCount by remember { mutableIntStateOf(0) }
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -1264,16 +1350,20 @@ fun ShiftlyMonthFilterBar(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = onPreviousMonth,
+                    onClick = {
+                        prevTapCount++
+                        onPreviousMonth()
+                    },
                     interactionSource = prevInteraction,
                     modifier = Modifier
                         .size(48.dp)
                         .shiftlyPressEffect(prevInteraction)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_chevron_left),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_chevron_left,
                         contentDescription = "Previous month",
                         tint = colors.textPrimary,
+                        triggerKey = prevTapCount,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1289,16 +1379,20 @@ fun ShiftlyMonthFilterBar(
                 )
 
                 IconButton(
-                    onClick = onNextMonth,
+                    onClick = {
+                        nextTapCount++
+                        onNextMonth()
+                    },
                     interactionSource = nextInteraction,
                     modifier = Modifier
                         .size(48.dp)
                         .shiftlyPressEffect(nextInteraction)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_chevron_right,
                         contentDescription = "Next month",
                         tint = colors.textPrimary,
+                        triggerKey = nextTapCount,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1409,8 +1503,8 @@ fun ShiftlySectionHeader(
 }
 
 /**
- * Standardized iOS-style confirmation & delete prompt dialog without top header buttons.
- * Displays centered drag handle, centered bold title, icon, question text, and a bottom row of No / Yes buttons.
+ * Standardized confirmation & delete prompt dialog without top header buttons.
+ * Displays centered bold title, icon, question text, and a bottom row of No / Yes buttons.
  */
 @Composable
 fun ShiftlyConfirmDialog(
@@ -1479,11 +1573,10 @@ fun ShiftlyConfirmDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
-                        .padding(bottom = 20.dp),
+                        .padding(top = 16.dp, bottom = 20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    ShiftlySheetDragHandle()
                     Text(
                         text = title,
                         style = MaterialTheme.typography.titleMedium.copy(
@@ -1518,13 +1611,13 @@ fun ShiftlyConfirmDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
+                            shape = PrimaryButtonShape,
                             color = colors.cardElevated,
                             shadowElevation = 0.dp,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(50.dp)
-                                .clip(RoundedCornerShape(14.dp))
+                                .clip(PrimaryButtonShape)
                                 .shiftlyPressClickable(onClick = onDismiss)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -1540,13 +1633,13 @@ fun ShiftlyConfirmDialog(
                             }
                         }
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
-                            color = if (isDestructive) Color(0xFFFF453A) else colors.azurePrimary,
+                            shape = PrimaryButtonShape,
+                            color = if (isDestructive) colors.coralBright else colors.azurePrimary,
                             shadowElevation = 0.dp,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(50.dp)
-                                .clip(RoundedCornerShape(14.dp))
+                                .clip(PrimaryButtonShape)
                                 .shiftlyPressClickable(onClick = onConfirm)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -1666,13 +1759,13 @@ fun ShiftlyDeleteConfirmDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = PrimaryButtonShape,
                             color = colors.cardElevated,
                             shadowElevation = 0.dp,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(48.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(PrimaryButtonShape)
                                 .shiftlyPressClickable(onClick = onDismiss)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -1688,13 +1781,13 @@ fun ShiftlyDeleteConfirmDialog(
                             }
                         }
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = Color(0xFFFF453A),
+                            shape = PrimaryButtonShape,
+                            color = colors.coralBright,
                             shadowElevation = 0.dp,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(48.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(PrimaryButtonShape)
                                 .shiftlyPressClickable(onClick = onConfirm)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
@@ -1724,7 +1817,6 @@ private data class FeatureGuideItem(
 private data class FeatureGuideCategory(
     val title: String,
     @DrawableRes val iconRes: Int,
-    val accentColor: Color,
     val features: List<FeatureGuideItem>
 )
 
@@ -1732,122 +1824,116 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
     FeatureGuideCategory(
         title = "Shifts & Work Pay",
         iconRes = R.drawable.ic_lucide_clock,
-        accentColor = Color(0xFF30D158),
         features = listOf(
             FeatureGuideItem(
                 title = "Easy Shift Logging",
-                description = "Record your work hours in seconds using quick time presets."
+                description = "Log work hours with quick presets."
             ),
             FeatureGuideItem(
                 title = "Automatic Pay Computation",
-                description = "Let the app calculate your regular pay, night differential, overtime, and holiday rates for you."
+                description = "Auto-computes pay, OT, ND, and holidays."
             ),
             FeatureGuideItem(
                 title = "Upcoming Shift Reminders",
-                description = "Save your future schedules and get gentle reminders before your shift starts."
+                description = "Get reminders before upcoming shifts."
             ),
             FeatureGuideItem(
                 title = "Monthly Work Goals",
-                description = "Set a personal target for your hours or earnings and watch your progress grow."
+                description = "Track monthly hours and earnings targets."
             )
         )
     ),
     FeatureGuideCategory(
         title = "Daily Spending & Budgets",
         iconRes = R.drawable.ic_lucide_wallet,
-        accentColor = Color(0xFFFF453A),
         features = listOf(
             FeatureGuideItem(
                 title = "Simple Expense Tracking",
-                description = "Log where your money goes by category and save photos of your receipts."
+                description = "Track spending by category with receipts."
             ),
             FeatureGuideItem(
                 title = "Flexible Monthly Budgets",
-                description = "Set a comfortable spending limit for the month or for specific categories."
+                description = "Set monthly and category spending caps."
             ),
             FeatureGuideItem(
                 title = "Daily Safe-to-Spend Guide",
-                description = "Know how much you can comfortably spend today while staying on track."
+                description = "See your daily safe-to-spend limit."
             )
         )
     ),
     FeatureGuideCategory(
         title = "Allowance & Take-Home Pay",
         iconRes = R.drawable.ic_lucide_banknote,
-        accentColor = Color(0xFF0A84FF),
         features = listOf(
             FeatureGuideItem(
                 title = "Allowance & Extra Income",
-                description = "Keep track of allowances, stipends, scholarships, and side income in one place."
+                description = "Track allowances, stipends, and side income."
             ),
             FeatureGuideItem(
                 title = "Take-Home Pay Estimator",
-                description = "See a clear estimate of your net pay after SSS, PhilHealth, Pag-IBIG, and tax deductions."
+                description = "Estimate net pay after statutory deductions."
             )
         )
     ),
     FeatureGuideCategory(
         title = "Shared Bills & Savings",
         iconRes = R.drawable.ic_lucide_split,
-        accentColor = Color(0xFFFF9F0A),
         features = listOf(
             FeatureGuideItem(
                 title = "Fair Bill Splitting",
-                description = "Split meals or shared bills with friends and easily see who has paid."
+                description = "Split group bills and track who paid."
             ),
             FeatureGuideItem(
                 title = "Borrow & Lend Tracker (IOUs)",
-                description = "Remember who owes you and who you need to pay back, stress-free."
+                description = "Track who owes whom offline."
             ),
             FeatureGuideItem(
                 title = "Installment Loan Tracker",
-                description = "Track financed items like a laptop or phone, see how much balance and time is left in your contract, and log payments in one tap."
+                description = "Track financed items, balances, and due dates."
             ),
             FeatureGuideItem(
                 title = "Recurring Bills",
-                description = "Keep track of daily, weekly, or monthly bills so you never miss a due date."
+                description = "Auto-log repeating bills on schedule."
             ),
             FeatureGuideItem(
                 title = "Personal Savings Goals",
-                description = "Set aside money little by little for the things that matter to you."
+                description = "Save toward personal targets with daily pace."
             )
         )
     ),
     FeatureGuideCategory(
         title = "Clear Insights & Calendar",
         iconRes = R.drawable.ic_lucide_chart_column,
-        accentColor = Color(0xFFBF5AF2),
         features = listOf(
             FeatureGuideItem(
                 title = "Calm Home Overview",
-                description = "See your current balance, total earnings, and spending at a glance, with a privacy toggle to hide amounts anytime."
+                description = "View balance and activity with privacy toggle."
             ),
             FeatureGuideItem(
                 title = "Visual Spending & Earning Trends",
-                description = "Understand your habits through clean, easy-to-read charts."
+                description = "See income and spending charts clearly."
             ),
             FeatureGuideItem(
                 title = "All-in-One Activity Calendar",
-                description = "View your work days, scheduled shifts, expenses, and allowance days on a single calendar."
+                description = "View shifts and expenses on one calendar."
             )
         )
     ),
     FeatureGuideCategory(
         title = "Privacy & Peace of Mind",
         iconRes = R.drawable.ic_lucide_lock,
-        accentColor = Color(0xFF64D2FF),
         features = listOf(
             FeatureGuideItem(
                 title = "Private & Works Offline",
-                description = "Your data stays safely on your phone—no sign-up or internet needed."
+                description = "Works 100% offline on your device."
             ),
             FeatureGuideItem(
                 title = "PIN & Biometric App Lock",
-                description = "Keep your personal finances for your eyes only."
+                description = "Protect your app with PIN or biometrics."
             ),
             FeatureGuideItem(
                 title = "Easy Backup & Spreadsheet Export",
-                description = "Save a backup of your records or export them to CSV anytime."
+                description = "Back up JSON or export CSV anytime."
             )
         )
     )
@@ -1890,12 +1976,11 @@ fun ShiftlyFeatureGuideSheet(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 2.dp, bottom = 6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "What You Can Do Here",
@@ -1907,16 +1992,6 @@ fun ShiftlyFeatureGuideSheet(
                         color = colors.textPrimary,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.semantics { heading() }
-                    )
-                    Text(
-                        text = "Tap any topic to explore, or jump right in.",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = InterFontFamily,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp
-                        ),
-                        color = Color(0xFF8E8E93),
-                        textAlign = TextAlign.Center
                     )
                 }
 
@@ -1940,7 +2015,7 @@ fun ShiftlyFeatureGuideSheet(
 
             Surface(
                 shape = PrimaryButtonShape,
-                color = Color(0xFF0A84FF),
+                color = colors.azurePrimary,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1978,12 +2053,12 @@ private fun FeatureGuideCategoryCard(
     )
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
+        shape = ShiftlyShapes.Card,
         color = colors.cardElevated,
         shadowElevation = 0.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(ShiftlyShapes.Card)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
@@ -1995,11 +2070,12 @@ private fun FeatureGuideCategoryCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = painterResource(category.iconRes),
+                ShiftlyAnimatedIcon(
+                    iconRes = category.iconRes,
                     contentDescription = null,
-                    tint = category.accentColor,
-                    modifier = Modifier.size(22.dp)
+                    tint = if (isExpanded) colors.azureAccent else colors.iconNeutral,
+                    triggerKey = isExpanded,
+                    modifier = Modifier.size(20.dp)
                 )
                 Text(
                     text = category.title,
@@ -2011,10 +2087,11 @@ private fun FeatureGuideCategoryCard(
                     color = colors.textPrimary,
                     modifier = Modifier.weight(1f)
                 )
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                ShiftlyAnimatedIcon(
+                    iconRes = R.drawable.ic_lucide_chevron_right,
                     contentDescription = if (isExpanded) "Collapse ${category.title}" else "Expand ${category.title}",
                     tint = colors.textSecondary,
+                    triggerKey = isExpanded,
                     modifier = Modifier
                         .size(18.dp)
                         .graphicsLayer { rotationZ = chevronRotation }
@@ -2051,7 +2128,7 @@ private fun FeatureGuideCategoryCard(
                                     fontSize = 12.sp,
                                     lineHeight = 17.sp
                                 ),
-                                color = Color(0xFF8E8E93)
+                                color = colors.textSecondary
                             )
                         }
                     }
@@ -2068,7 +2145,7 @@ private fun FeatureGuideCategoryCard(
 @Composable
 fun ShiftlyScreenTutorialSheet(
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     steps: List<Pair<String, String>>,
     onDismiss: () -> Unit
 ) {
@@ -2117,20 +2194,22 @@ fun ShiftlyScreenTutorialSheet(
                         textAlign = TextAlign.Center,
                         modifier = Modifier.semantics { heading() }
                     )
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            fontFamily = InterFontFamily,
-                            fontSize = 13.sp,
-                            lineHeight = 18.sp
-                        ),
-                        color = Color(0xFF8E8E93),
-                        textAlign = TextAlign.Center
-                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = InterFontFamily,
+                                fontSize = 13.sp,
+                                lineHeight = 18.sp
+                            ),
+                            color = colors.textSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = ShiftlyShapes.Card,
                     color = colors.cardElevated,
                     shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
@@ -2152,7 +2231,7 @@ fun ShiftlyScreenTutorialSheet(
                                     modifier = Modifier
                                         .size(24.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFF0A84FF).copy(alpha = 0.14f)),
+                                        .background(colors.azureContainer),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -2162,7 +2241,7 @@ fun ShiftlyScreenTutorialSheet(
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp
                                         ).tabular(),
-                                        color = Color(0xFF0A84FF)
+                                        color = colors.azureAccent
                                     )
                                 }
                                 Column(
@@ -2185,7 +2264,7 @@ fun ShiftlyScreenTutorialSheet(
                                             fontSize = 13.sp,
                                             lineHeight = 18.sp
                                         ),
-                                        color = Color(0xFF8E8E93)
+                                        color = colors.textSecondary
                                     )
                                 }
                             }
@@ -2198,7 +2277,7 @@ fun ShiftlyScreenTutorialSheet(
 
             Surface(
                 shape = PrimaryButtonShape,
-                color = Color(0xFF0A84FF),
+                color = colors.azurePrimary,
                 shadowElevation = 0.dp,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2238,7 +2317,7 @@ fun ShiftlyMainTabTourOverlay(
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    val cardColor = if (colors.isDark) Color(0xFF1C1C1E) else colors.surface
+    val cardColor = if (colors.isDark) colors.card else colors.surface
     val isLastStep = stepIndex >= totalSteps - 1
 
     Box(
@@ -2288,7 +2367,7 @@ fun ShiftlyMainTabTourOverlay(
                         ) {
                             Surface(
                                 shape = PillShape,
-                                color = Color(0xFF0A84FF).copy(alpha = 0.14f),
+                                color = colors.azureContainer,
                                 shadowElevation = 0.dp
                             ) {
                                 Text(
@@ -2298,7 +2377,7 @@ fun ShiftlyMainTabTourOverlay(
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 12.sp
                                     ).tabular(),
-                                    color = Color(0xFF0A84FF),
+                                    color = colors.azureAccent,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 )
                             }
@@ -2318,7 +2397,7 @@ fun ShiftlyMainTabTourOverlay(
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 14.sp
                                     ),
-                                    color = Color(0xFF8E8E93)
+                                    color = colors.textSecondary
                                 )
                             }
                         }
@@ -2354,13 +2433,13 @@ fun ShiftlyMainTabTourOverlay(
                         ) {
                             if (stepIndex > 0) {
                                 Surface(
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = PrimaryButtonShape,
                                     color = colors.cardElevated,
                                     shadowElevation = 0.dp,
                                     modifier = Modifier
                                         .weight(1f)
                                         .height(48.dp)
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(PrimaryButtonShape)
                                         .shiftlyPressClickable(onClick = onBack)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -2378,13 +2457,13 @@ fun ShiftlyMainTabTourOverlay(
                             }
 
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFF0A84FF),
+                                shape = PrimaryButtonShape,
+                                color = colors.azurePrimary,
                                 shadowElevation = 0.dp,
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(PrimaryButtonShape)
                                     .shiftlyPressClickable(onClick = onNextOrFinish)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
@@ -2426,7 +2505,7 @@ data class ShiftlySwipeAction(
 @Composable
 fun ShiftlySwipeActionRow(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(18.dp),
+    shape: Shape = ShiftlyShapes.Card,
     startToEndAction: ShiftlySwipeAction? = null,
     endToStartAction: ShiftlySwipeAction? = null,
     content: @Composable () -> Unit
@@ -2469,10 +2548,11 @@ fun ShiftlySwipeActionRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(startToEndAction.iconRes),
+                    ShiftlyAnimatedIcon(
+                        iconRes = startToEndAction.iconRes,
                         contentDescription = null,
                         tint = startToEndAction.contentColor,
+                        triggerKey = if (isArmed) true else null,
                         modifier = Modifier
                             .size(18.dp)
                             .graphicsLayer {
@@ -2519,10 +2599,11 @@ fun ShiftlySwipeActionRow(
                         ),
                         color = endToStartAction.contentColor
                     )
-                    Icon(
-                        painter = painterResource(endToStartAction.iconRes),
+                    ShiftlyAnimatedIcon(
+                        iconRes = endToStartAction.iconRes,
                         contentDescription = null,
                         tint = endToStartAction.contentColor,
+                        triggerKey = if (isArmed) true else null,
                         modifier = Modifier
                             .size(18.dp)
                             .graphicsLayer {

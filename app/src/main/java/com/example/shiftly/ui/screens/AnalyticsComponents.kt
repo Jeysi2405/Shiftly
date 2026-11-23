@@ -34,7 +34,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -60,7 +59,6 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -79,18 +77,20 @@ import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.tabular
 import com.example.shiftly.utils.ShiftlyFormatters
 
 private val ChartDashEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
 private val SegmentedOuterShape = RoundedCornerShape(10.dp)
 private val SegmentedThumbShape = RoundedCornerShape(8.dp)
-private val AnalyticsCardShape = RoundedCornerShape(18.dp)
+private val AnalyticsCardShape = ShiftlyShapes.Card
 
 @Composable
 fun AnalyticsTopBar(
@@ -244,7 +244,7 @@ fun IncomeVsExpenseGlassChartCard(
     }
 
     ShiftlyGlassCard(
-        cornerRadius = 18.dp,
+        cornerRadius = 16.dp,
         contentPadding = PaddingValues(18.dp)
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -264,11 +264,10 @@ fun IncomeVsExpenseGlassChartCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "${state.selectedRange.fullLabel.uppercase()} • INCOME VS. EXPENSES",
-                            style = MaterialTheme.typography.labelSmall.copy(
+                            text = state.selectedRange.fullLabel,
+                            style = MaterialTheme.typography.labelMedium.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.5.sp
+                                fontWeight = FontWeight.Medium
                             ),
                             color = colors.textSecondary
                         )
@@ -329,11 +328,10 @@ fun IncomeVsExpenseGlassChartCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     Column {
                         Text(
-                            text = "INCOME",
+                            text = "Income",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.5.sp
+                                fontWeight = FontWeight.Medium
                             ),
                             color = colors.textSecondary
                         )
@@ -351,11 +349,10 @@ fun IncomeVsExpenseGlassChartCard(
                     }
                     Column {
                         Text(
-                            text = "EXPENSES",
+                            text = "Expenses",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 0.5.sp
+                                fontWeight = FontWeight.Medium
                             ),
                             color = colors.textSecondary
                         )
@@ -790,13 +787,20 @@ fun SmartTakeawaysCard(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.Top
                 ) {
-                    ShiftlyIosIconTile(
-                        iconRes = R.drawable.ic_lucide_sparkles,
-                        backgroundColor = colors.azurePrimary,
-                        size = 26.dp,
-                        cornerRadius = 8.dp,
-                        iconSize = 18.dp
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(colors.iconNeutralContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_sparkles,
+                            contentDescription = null,
+                            tint = colors.iconNeutral,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                     Text(
                         text = tip,
                         style = MaterialTheme.typography.bodySmall,
@@ -805,7 +809,7 @@ fun SmartTakeawaysCard(
                     )
                 }
                 if (idx < tips.lastIndex) {
-                    ShiftlyHairlineDivider(startInset = 36.dp)
+                    ShiftlyHairlineDivider(startInset = 38.dp)
                 }
             }
         }
@@ -819,11 +823,11 @@ fun TopSpendingCategoriesCard(
 ) {
     val colors = ShiftlyColors.current
     InsightCardContainer(
-        title = "Top Spending Categories"
+        title = "Top Categories"
     ) {
         if (categories.isEmpty()) {
             Text(
-                text = "No spending recorded in this period yet.",
+                text = "No spending yet.",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.textSecondary
             )
@@ -845,13 +849,20 @@ fun TopSpendingCategoriesCard(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                ShiftlyIosIconTile(
-                                    iconRes = categoryIcon(item.category),
-                                    backgroundColor = colors.coralBright,
-                                    size = 28.dp,
-                                    cornerRadius = 8.dp,
-                                    iconSize = 22.dp
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(colors.iconNeutralContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    ShiftlyAnimatedIcon(
+                                        iconRes = categoryIcon(item.category),
+                                        contentDescription = null,
+                                        tint = colors.iconNeutral,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                                 Text(
                                     text = item.category,
                                     style = MaterialTheme.typography.titleSmall,
@@ -900,7 +911,7 @@ fun EarningsHoursBreakdownCard(
     val totalSplitHours = remember(regularHours, nightDiffHours, overtimeHours) {
         (regularHours + nightDiffHours + overtimeHours).coerceAtLeast(0.1)
     }
-    InsightCardContainer(title = "Hours Worked & Earnings") {
+    InsightCardContainer(title = "Work Hours") {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -1037,17 +1048,17 @@ fun HoursOfWorkCostCard(
     }
 
     InsightCardContainer(
-        title = "Hours of Work This Cost"
+        title = "Work Cost"
     ) {
         if (hourlyRate <= 0.0) {
             Text(
-                text = "Set your hourly rate in Profile to translate spending into work hours.",
+                text = "Set hourly rate in Profile.",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.textSecondary
             )
         } else if (items.isEmpty()) {
             Text(
-                text = "Log expenses to translate costs into shift duty hours at ${ShiftlyFormatters.formatCurrency(currencySymbol, hourlyRate)}/hr.",
+                text = "No expenses yet.",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.textSecondary
             )
@@ -1073,13 +1084,20 @@ fun HoursOfWorkCostCard(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                ShiftlyIosIconTile(
-                                    iconRes = R.drawable.ic_lucide_clock,
-                                    backgroundColor = colors.mintBright,
-                                    size = 28.dp,
-                                    cornerRadius = 7.dp,
-                                    iconSize = 22.dp
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(colors.iconNeutralContainer),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    ShiftlyAnimatedIcon(
+                                        iconRes = R.drawable.ic_lucide_clock,
+                                        contentDescription = null,
+                                        tint = colors.iconNeutral,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                                 Text(
                                     text = "${entry.category} • ${ShiftlyFormatters.formatHours(entry.dutyHours)} of duty",
                                     style = MaterialTheme.typography.bodyMedium.copy(
@@ -1120,11 +1138,17 @@ fun HoursOfWorkCostCard(
 }
 
 @Composable
-fun OnBudgetStreakCard(
+fun BudgetAndSavingsSummaryCard(
     streakDays: Int,
     streakTargetDays: Int,
     dailyAllowance: Double,
-    currencySymbol: String = "₱",
+    ratePercentage: Int,
+    netAmount: Double,
+    progressFraction: Float,
+    projectedSpend: Double,
+    dailyPace: Double,
+    isWithinBudget: Boolean?,
+    currencySymbol: String,
     onOpenBudgetSettings: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
@@ -1136,184 +1160,202 @@ fun OnBudgetStreakCard(
             0f
         }
     }
+    val isPositive = netAmount >= 0.0
 
-    InsightCardContainer(
-        title = "On Budget Streak",
-        onClick = onOpenBudgetSettings
+    Surface(
+        shape = AnalyticsCardShape,
+        color = colors.card,
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
+        Column(modifier = Modifier.fillMaxWidth()) {
+            // 1. On-Budget Streak (tappable to edit Monthly Limits)
+            Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+                    .shiftlyPressClickable(onClick = onOpenBudgetSettings)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                ShiftlyIosIconTile(
-                    iconRes = R.drawable.ic_lucide_flame,
-                    backgroundColor = colors.mintBright,
-                    size = 28.dp,
-                    cornerRadius = 9.dp,
-                    iconSize = 22.dp
-                )
-                if (hasBudget) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(end = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
                         Text(
-                            text = "$streakDays-day streak",
-                            style = MaterialTheme.typography.titleMedium.copy(
+                            text = if (hasBudget) "$streakDays-day budget streak" else "Monthly budget streak",
+                            style = MaterialTheme.typography.titleSmall.copy(
                                 fontFamily = InterFontFamily,
                                 fontWeight = FontWeight.SemiBold
                             ).tabular(),
                             color = colors.textPrimary
                         )
                         Text(
-                            text = "Safe daily pace: ${ShiftlyFormatters.formatCurrency(currencySymbol, dailyAllowance)}/day",
+                            text = if (hasBudget) {
+                                "Safe pace: ${ShiftlyFormatters.formatCurrency(currencySymbol, dailyAllowance)}/day"
+                            } else {
+                                "Set monthly cap"
+                            },
                             style = MaterialTheme.typography.bodySmall.tabular(),
-                            color = colors.textSecondary,
+                            color = if (hasBudget) colors.textSecondary else colors.azureInk,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                } else {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = colors.cardElevated,
-                        shadowElevation = 0.dp,
-                        modifier = Modifier.semantics(mergeDescendants = true) {
-                            contentDescription = "No budget set, tap to set monthly budget"
-                        }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        Surface(
+                            shape = ShiftlyShapes.Pill,
+                            color = colors.mintContainer,
+                            shadowElevation = 0.dp
                         ) {
                             Text(
-                                text = "Set monthly cap",
-                                style = MaterialTheme.typography.labelLarge.copy(
+                                text = "$streakDays / ${streakTargetDays}d",
+                                style = MaterialTheme.typography.labelSmall.copy(
                                     fontFamily = InterFontFamily,
                                     fontWeight = FontWeight.SemiBold
-                                ),
-                                color = colors.azureInk
-                            )
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                                contentDescription = null,
-                                tint = colors.azureInk,
-                                modifier = Modifier.size(14.dp)
+                                ).tabular(),
+                                color = colors.mintInk,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_chevron_right,
+                            contentDescription = "Edit monthly budget",
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(15.dp)
+                        )
+                    }
+                }
+                ShiftlyProgressBar(
+                    progress = streakFraction,
+                    color = colors.mintBright,
+                    trackColor = colors.cardElevated,
+                    modifier = Modifier.semantics {
+                        contentDescription = "$streakDays of $streakTargetDays days on budget"
+                    }
+                )
+            }
+
+            ShiftlyHairlineDivider()
+
+            // 2. Net Savings Rate
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "$ratePercentage% saved",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold
+                        ).tabular(),
+                        color = colors.textPrimary
+                    )
+
+                    Surface(
+                        shape = ShiftlyShapes.Pill,
+                        color = if (isPositive) colors.mintContainer else colors.coralContainer,
+                        shadowElevation = 0.dp
+                    ) {
+                        Text(
+                            text = if (isPositive) {
+                                "Net +${ShiftlyFormatters.formatCurrency(currencySymbol, netAmount)}"
+                            } else {
+                                "Deficit -${ShiftlyFormatters.formatCurrency(currencySymbol, -netAmount)}"
+                            },
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold
+                            ).tabular(),
+                            color = if (isPositive) colors.mintInk else colors.coralInk,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
+                    }
+                }
+                ShiftlyProgressBar(
+                    progress = progressFraction.coerceIn(0.02f, 1f),
+                    color = if (isPositive) colors.mintBright else colors.coralBright,
+                    trackColor = colors.cardElevated,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(5.dp)
+                        .semantics {
+                            contentDescription = "Net savings rate $ratePercentage percent"
+                        }
+                )
+            }
+
+            ShiftlyHairlineDivider()
+
+            // 3. Projected End-of-Month Spend
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Projected month-end",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium
+                        ),
+                        color = colors.textSecondary
+                    )
+                    ShiftlyAnimatedCurrencyText(
+                        currencySymbol = currencySymbol,
+                        amount = projectedSpend,
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = colors.textPrimary
+                    )
+                    Text(
+                        text = "${ShiftlyFormatters.formatCurrency(currencySymbol, dailyPace)}/day pace",
+                        style = MaterialTheme.typography.bodySmall.tabular(),
+                        color = colors.textSecondary
+                    )
+                }
+
+                if (isWithinBudget != null) {
+                    Surface(
+                        shape = ShiftlyShapes.Pill,
+                        color = if (isWithinBudget) colors.mintContainer else colors.coralContainer,
+                        shadowElevation = 0.dp
+                    ) {
+                        Text(
+                            text = if (isWithinBudget) "Within budget" else "Over budget",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = if (isWithinBudget) colors.mintInk else colors.coralInk,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                        )
                     }
                 }
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = colors.mintContainer,
-                    shadowElevation = 0.dp
-                ) {
-                    Text(
-                        text = "$streakDays / ${streakTargetDays}d",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold
-                        ).tabular(),
-                        color = colors.mintInk,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                    )
-                }
-                if (hasBudget) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
-                        contentDescription = "Edit monthly budget",
-                        tint = colors.textSecondary,
-                        modifier = Modifier.size(15.dp)
-                    )
-                }
-            }
         }
-        ShiftlyProgressBar(
-            progress = streakFraction,
-            color = colors.mintBright,
-            trackColor = colors.cardElevated,
-            modifier = Modifier.semantics {
-                contentDescription = "$streakDays of $streakTargetDays days on budget"
-            }
-        )
-    }
-}
-
-@Composable
-fun NetSavingsRateCard(
-    ratePercentage: Int,
-    netAmount: Double,
-    progressFraction: Float,
-    currencySymbol: String
-) {
-    val colors = ShiftlyColors.current
-    val isPositive = netAmount >= 0.0
-
-    InsightCardContainer(title = "Net Savings Rate") {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "$ratePercentage% Saved",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Bold
-                    ).tabular(),
-                    color = colors.textPrimary
-                )
-                Text(
-                    text = "Income retained this period",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = colors.textSecondary
-                )
-            }
-
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = if (isPositive) colors.mintContainer else colors.coralContainer,
-                shadowElevation = 0.dp
-            ) {
-                Text(
-                    text = if (isPositive) {
-                        "Net +${ShiftlyFormatters.formatCurrency(currencySymbol, netAmount)}"
-                    } else {
-                        "Deficit -${ShiftlyFormatters.formatCurrency(currencySymbol, -netAmount)}"
-                    },
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Bold
-                    ).tabular(),
-                    color = if (isPositive) colors.mintInk else colors.coralInk,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                )
-            }
-        }
-
-        ShiftlyProgressBar(
-            progress = progressFraction.coerceIn(0.02f, 1f),
-            color = if (isPositive) colors.mintBright else colors.coralBright,
-            trackColor = colors.cardElevated,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(5.dp)
-                .semantics {
-                    contentDescription = "Net savings rate $ratePercentage percent"
-                }
-        )
     }
 }
 
@@ -1324,9 +1366,8 @@ fun PeakShiftSpendPatternCard(
 ) {
     val colors = ShiftlyColors.current
 
-    InsightCardContainer(title = "Shift & Spending Patterns") {
+    InsightCardContainer(title = "Patterns") {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            // Row 1: Best Earning Day
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1336,15 +1377,22 @@ fun PeakShiftSpendPatternCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    ShiftlyIosIconTile(
-                        iconRes = R.drawable.ic_lucide_trending_up,
-                        backgroundColor = colors.mintBright,
-                        size = 28.dp,
-                        cornerRadius = 8.dp,
-                        iconSize = 22.dp
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(colors.iconNeutralContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_trending_up,
+                            contentDescription = null,
+                            tint = colors.iconNeutral,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                     Text(
-                        text = "Best Earning Day",
+                        text = "Top Earn Day",
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Medium
@@ -1363,7 +1411,6 @@ fun PeakShiftSpendPatternCard(
                 )
             }
 
-            // Row 2: Peak Spend Day
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1373,15 +1420,22 @@ fun PeakShiftSpendPatternCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    ShiftlyIosIconTile(
-                        iconRes = R.drawable.ic_lucide_receipt,
-                        backgroundColor = colors.coralBright,
-                        size = 28.dp,
-                        cornerRadius = 8.dp,
-                        iconSize = 22.dp
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(colors.iconNeutralContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_receipt,
+                            contentDescription = null,
+                            tint = colors.iconNeutral,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                     Text(
-                        text = "Peak Spend Day",
+                        text = "Top Spend Day",
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Medium
@@ -1398,59 +1452,6 @@ fun PeakShiftSpendPatternCard(
                     ).tabular(),
                     color = colors.coralInk
                 )
-            }
-        }
-    }
-}
-
-@Composable
-fun ProjectedMonthlySpendCard(
-    projectedSpend: Double,
-    dailyPace: Double,
-    isWithinBudget: Boolean?,
-    currencySymbol: String
-) {
-    val colors = ShiftlyColors.current
-
-    InsightCardContainer(title = "Projected End-of-Month Spend") {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                ShiftlyAnimatedCurrencyText(
-                    currencySymbol = currencySymbol,
-                    amount = projectedSpend,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = colors.textPrimary
-                )
-                Text(
-                    text = "${ShiftlyFormatters.formatCurrency(currencySymbol, dailyPace)}/day pace",
-                    style = MaterialTheme.typography.bodySmall.tabular(),
-                    color = colors.textSecondary
-                )
-            }
-
-            if (isWithinBudget != null) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = if (isWithinBudget) colors.mintContainer else colors.coralContainer,
-                    shadowElevation = 0.dp
-                ) {
-                    Text(
-                        text = if (isWithinBudget) "Within Budget" else "Over Budget",
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Bold
-                        ),
-                        color = if (isWithinBudget) colors.mintInk else colors.coralInk,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                    )
-                }
             }
         }
     }

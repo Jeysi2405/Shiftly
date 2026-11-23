@@ -25,7 +25,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -52,7 +51,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -71,6 +69,7 @@ import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.ShiftlyVerticalHairlineDivider
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.expense.CategoryPromptSheet
@@ -117,7 +116,7 @@ fun RecurringBillsSummaryCard(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = "Estimated Monthly Bills",
+                        text = "Monthly Bills",
                         style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                         color = colors.textSecondary
                     )
@@ -207,8 +206,8 @@ fun RecurringBillItemCard(
     onDelete: () -> Unit,
     dateTimeFormatter: DateTimeFormatter? = null,
     now: LocalDateTime? = null,
-    containerColor: Color = ShiftlyColors.current.cardElevated,
-    shape: Shape = RoundedCornerShape(18.dp)
+    containerColor: Color = ShiftlyColors.current.card,
+    shape: Shape = RoundedCornerShape(16.dp)
 ) {
     val colors = ShiftlyColors.current
     val resolvedFormatter = dateTimeFormatter ?: run {
@@ -334,8 +333,8 @@ fun RecurringBillItemCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_calendar),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_calendar,
                         contentDescription = null,
                         tint = colors.textSecondary,
                         modifier = Modifier.size(14.dp)
@@ -357,25 +356,35 @@ fun RecurringBillItemCard(
                         checked = bill.isEnabled,
                         onCheckedChange = onToggleEnabled
                     )
+                    var editTapCount by remember { mutableIntStateOf(0) }
+                    var deleteTapCount by remember { mutableIntStateOf(0) }
                     IconButton(
-                        onClick = onEdit,
+                        onClick = {
+                            editTapCount++
+                            onEdit()
+                        },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_pencil),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_pencil,
                             contentDescription = "Edit bill",
                             tint = colors.azureInk,
+                            triggerKey = editTapCount,
                             modifier = Modifier.size(18.dp)
                         )
                     }
                     IconButton(
-                        onClick = onDelete,
+                        onClick = {
+                            deleteTapCount++
+                            onDelete()
+                        },
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_trash_2),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_trash_2,
                             contentDescription = "Delete bill",
                             tint = colors.coralInk,
+                            triggerKey = deleteTapCount,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -393,8 +402,8 @@ fun RecurringBillsEmptyCard(
     ShiftlyEmptyState(
         iconRes = R.drawable.ic_lucide_repeat,
         title = "No recurring bills yet",
-        subtitle = "Schedule bills with due dates for automatic logging.",
-        actionText = "Add Recurring Bill",
+        subtitle = null,
+        actionText = "Add Bill",
         onAction = onAddBill,
         iconBackgroundColor = colors.azurePrimary
     )
@@ -675,8 +684,8 @@ fun AddEditRecurringBillBottomSheet(
                                 ),
                                 color = colors.textPrimary
                             )
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_chevron_right,
                                 contentDescription = "Select Category",
                                 tint = colors.textSecondary,
                                 modifier = Modifier.size(18.dp)
@@ -768,8 +777,8 @@ fun AddEditRecurringBillBottomSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_calendar),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_calendar,
                                 contentDescription = null,
                                 tint = colors.azureAccent,
                                 modifier = Modifier.size(16.dp)
@@ -809,8 +818,8 @@ fun AddEditRecurringBillBottomSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_clock),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_clock,
                                 contentDescription = null,
                                 tint = colors.azureAccent,
                                 modifier = Modifier.size(16.dp)

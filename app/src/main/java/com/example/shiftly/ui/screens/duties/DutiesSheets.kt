@@ -6,8 +6,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -22,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -47,7 +44,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -66,6 +62,7 @@ import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetCloseButton
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlyPressEffect
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
@@ -158,8 +155,8 @@ private fun CompactShiftScheduleGrid(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_calendar),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_calendar,
                         contentDescription = null,
                         tint = colors.azureInk,
                         modifier = Modifier.size(17.dp)
@@ -224,15 +221,15 @@ private fun CompactShiftScheduleGrid(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = selectedDayType.label,
+                        text = selectedDayType.shortLabel,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.Medium
                         ),
                         color = colors.textPrimary
                     )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_chevron_right),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_chevron_right,
                         contentDescription = "Choose day type",
                         tint = colors.textSecondary,
                         modifier = Modifier.size(18.dp)
@@ -265,8 +262,8 @@ private fun CompactShiftScheduleGrid(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_clock),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_clock,
                         contentDescription = null,
                         tint = colors.azureInk,
                         modifier = Modifier.size(17.dp)
@@ -307,8 +304,8 @@ private fun CompactShiftScheduleGrid(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_clock),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_clock,
                         contentDescription = null,
                         tint = colors.azureInk,
                         modifier = Modifier.size(17.dp)
@@ -563,12 +560,11 @@ private fun ShiftTimePresetsStrip(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(
-                            painter = painterResource(
-                                if (alreadyExists) R.drawable.ic_lucide_check else R.drawable.ic_lucide_plus
-                            ),
+                        ShiftlyAnimatedIcon(
+                            iconRes = if (alreadyExists) R.drawable.ic_lucide_check else R.drawable.ic_lucide_plus,
                             contentDescription = null,
                             tint = if (alreadyExists) colors.mintTextOnSurface else colors.azureAccent,
+                            triggerKey = alreadyExists,
                             modifier = Modifier.size(13.dp)
                         )
                         Text(
@@ -633,7 +629,6 @@ private fun ShiftTimePresetsStrip(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LogShiftReceiptPreviewCard(
     totalMinutes: Long,
@@ -641,6 +636,19 @@ private fun LogShiftReceiptPreviewCard(
     wageDetails: WageDetails
 ) {
     val colors = ShiftlyColors.current
+    val breakdownParts = remember(wageDetails) {
+        buildList {
+            if (wageDetails.regularBaseMinutes > 0L) {
+                add("Reg ${formatDurationCompact(wageDetails.regularBaseMinutes)}")
+            }
+            if (wageDetails.nightDiffMinutes > 0L) {
+                add("ND ${formatDurationCompact(wageDetails.nightDiffMinutes)}")
+            }
+            if (wageDetails.overtimeMinutes > 0L) {
+                add("OT ${formatDurationCompact(wageDetails.overtimeMinutes)}")
+            }
+        }
+    }
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = colors.cardElevated,
@@ -650,8 +658,8 @@ private fun LogShiftReceiptPreviewCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -663,28 +671,21 @@ private fun LogShiftReceiptPreviewCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = "Est. Earnings",
+                        text = "Est. Pay",
                         style = MaterialTheme.typography.titleSmall.copy(
                             fontFamily = InterFontFamily,
                             fontWeight = FontWeight.SemiBold
                         ),
                         color = colors.textPrimary
                     )
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = colors.surface,
-                        shadowElevation = 0.dp
-                    ) {
-                        Text(
-                            text = formatDurationCompact(totalMinutes),
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Bold
-                            ).tabular(),
-                            color = colors.textSecondary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
+                    Text(
+                        text = formatDurationCompact(totalMinutes),
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.Medium
+                        ).tabular(),
+                        color = colors.textSecondary
+                    )
                 }
 
                 Text(
@@ -692,68 +693,21 @@ private fun LogShiftReceiptPreviewCard(
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontFamily = InterFontFamily,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp
+                        fontSize = 20.sp
                     ).tabular(),
                     color = colors.mintInk
                 )
             }
 
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = colors.surface,
-                    shadowElevation = 0.dp
-                ) {
-                    Text(
-                        text = "Reg ${formatDurationCompact(wageDetails.regularBaseMinutes)} • ${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.regularPay)}",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.Medium
-                        ).tabular(),
-                        color = colors.textPrimary,
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
-                    )
-                }
-
-                if (wageDetails.nightDiffMinutes > 0L) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = colors.nightDiffPurpleContainer,
-                        shadowElevation = 0.dp
-                    ) {
-                        Text(
-                            text = "ND ${formatDurationCompact(wageDetails.nightDiffMinutes)} • +${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.nightDiffPay)}",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium
-                            ).tabular(),
-                            color = colors.nightDiffPurple,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-
-                if (wageDetails.overtimeMinutes > 0L) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = colors.coralContainer,
-                        shadowElevation = 0.dp
-                    ) {
-                        Text(
-                            text = "OT ${formatDurationCompact(wageDetails.overtimeMinutes)} • +${ShiftlyFormatters.formatCurrency(currencySymbol, wageDetails.overtimePay)}",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontFamily = InterFontFamily,
-                                fontWeight = FontWeight.Medium
-                            ).tabular(),
-                            color = colors.coralBright,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
-                        )
-                    }
-                }
+            if (wageDetails.nightDiffMinutes > 0L || wageDetails.overtimeMinutes > 0L) {
+                Text(
+                    text = breakdownParts.joinToString(" · "),
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.Medium
+                    ).tabular(),
+                    color = colors.textSecondary
+                )
             }
         }
     }
@@ -1103,20 +1057,14 @@ fun DutiesSettingsSheet(
             )
 
             Text(
-                text = "Shift Time Presets",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
-                color = colors.textPrimary
-            )
-
-            Text(
-                text = "Saved Presets",
+                text = "Presets",
                 style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
                 color = colors.textSecondary
             )
 
             if (presets.isEmpty()) {
                 Text(
-                    text = "No saved shift presets.",
+                    text = "No presets yet.",
                     style = MaterialTheme.typography.bodySmall.copy(fontFamily = InterFontFamily),
                     color = colors.textSecondary
                 )
@@ -1153,8 +1101,8 @@ fun DutiesSettingsSheet(
                                         .size(48.dp)
                                         .shiftlyPressEffect(deletePresetInteraction)
                                 ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_lucide_trash_2),
+                                    ShiftlyAnimatedIcon(
+                                        iconRes = R.drawable.ic_lucide_trash_2,
                                         contentDescription = "Delete preset",
                                         tint = colors.coralBright,
                                         modifier = Modifier.size(19.dp)
@@ -1170,9 +1118,9 @@ fun DutiesSettingsSheet(
             }
 
             Text(
-                text = "Add New Preset",
-                style = MaterialTheme.typography.titleMedium.copy(fontFamily = InterFontFamily),
-                color = colors.textPrimary
+                text = "New Preset",
+                style = MaterialTheme.typography.titleSmall.copy(fontFamily = InterFontFamily),
+                color = colors.textSecondary
             )
 
             BasicPresetTimeSelectorCard(
@@ -1191,7 +1139,7 @@ fun DutiesSettingsSheet(
             )
 
             ShiftlyPrimaryPillButton(
-                text = "Save New Preset",
+                text = "Add Preset",
                 onClick = {
                     onSavePreset(startHour24, startMin, endHour24, endMin)
                 }
@@ -1207,7 +1155,7 @@ fun DutiesSettingsSheet(
     pendingDeletePreset?.let { presetToDelete ->
         ShiftlyDeleteConfirmDialog(
             title = "Remove Time Preset?",
-            message = "This quick time preset (${presetToDelete.label}) will be removed.",
+            message = "Remove preset ${presetToDelete.label}?",
             confirmLabel = "Remove",
             onDismiss = { pendingDeletePreset = null },
             onConfirm = {
@@ -1255,8 +1203,8 @@ private fun BasicPresetTimeSelectorCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_clock),
+                ShiftlyAnimatedIcon(
+                    iconRes = R.drawable.ic_lucide_clock,
                     contentDescription = null,
                     tint = colors.azureAccent,
                     modifier = Modifier.size(17.dp)
@@ -1299,8 +1247,8 @@ private fun BasicPresetTimeSelectorCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_lucide_clock),
+                ShiftlyAnimatedIcon(
+                    iconRes = R.drawable.ic_lucide_clock,
                     contentDescription = null,
                     tint = colors.azureAccent,
                     modifier = Modifier.size(17.dp)

@@ -26,7 +26,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -45,7 +44,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -66,6 +64,7 @@ import com.example.shiftly.ui.components.ShiftlyProgressBar
 import com.example.shiftly.ui.components.ShiftlySheetBottomButtons
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
 import com.example.shiftly.ui.components.ShiftlySheetHeader
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.theme.InterFontFamily
@@ -119,11 +118,10 @@ fun SplitBillSummaryCard(
             ) {
                 Column {
                     Text(
-                        text = "PENDING",
-                        style = MaterialTheme.typography.labelMedium.copy(
+                        text = "Pending",
+                        style = MaterialTheme.typography.labelLarge.copy(
                             fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.8.sp
+                            fontWeight = FontWeight.Medium
                         ),
                         color = colors.textSecondary
                     )
@@ -462,10 +460,11 @@ fun NewSplitBillSheetContent(
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_minus),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_minus,
                                 contentDescription = "Decrease persons",
                                 tint = if (personCount > 2) colors.textPrimary else colors.textSecondary,
+                                triggerKey = personCount,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -494,10 +493,11 @@ fun NewSplitBillSheetContent(
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_lucide_plus),
+                            ShiftlyAnimatedIcon(
+                                iconRes = R.drawable.ic_lucide_plus,
                                 contentDescription = "Increase persons",
                                 tint = if (personCount < 20) PureWhite else colors.disabledContent,
+                                triggerKey = personCount,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -563,10 +563,8 @@ fun NewSplitBillSheetContent(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(
-                                                if (isPaid) R.drawable.ic_lucide_check else R.drawable.ic_lucide_x
-                                            ),
+                                        ShiftlyAnimatedIcon(
+                                            iconRes = if (isPaid) R.drawable.ic_lucide_check else R.drawable.ic_lucide_x,
                                             contentDescription = null,
                                             tint = if (isPaid) colors.mintInk else colors.textSecondary,
                                             modifier = Modifier.size(14.dp)
@@ -690,11 +688,7 @@ fun SplitBillEmptyCard(
     ShiftlyEmptyState(
         iconRes = R.drawable.ic_lucide_split,
         title = if (showMonthReset) "No split bills in $monthLabel" else "No split bills yet",
-        subtitle = if (showMonthReset) {
-            "Switch to all months to view earlier shared bills."
-        } else {
-            "Divide dinner, rent, or group expenses evenly and track who has paid."
-        },
+        subtitle = null,
         actionText = if (showMonthReset) "Show All Months" else "Try ${currencySymbol}1,200 ÷ 4 dinner",
         onAction = if (showMonthReset) onShowAllMonths else onTrySampleSplit,
         iconBackgroundColor = colors.azurePrimary
@@ -737,8 +731,8 @@ fun SplitBillLogItemCard(
     var selectedParticipantForPrompt by remember { mutableStateOf<SplitParticipantEntity?>(null) }
 
     Surface(
-        shape = SplitItemShape,
-        color = colors.cardElevated,
+        shape = RoundedCornerShape(16.dp),
+        color = colors.card,
         shadowElevation = 0.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -793,14 +787,19 @@ fun SplitBillLogItemCard(
                     )
                 }
 
+                var deleteTapCount by remember { mutableIntStateOf(0) }
                 IconButton(
-                    onClick = { onDeleteBill(bill) },
+                    onClick = {
+                        deleteTapCount++
+                        onDeleteBill(bill)
+                    },
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_trash_2),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_trash_2,
                         contentDescription = "Delete Split Bill ${bill.title}",
                         tint = colors.coralInk,
+                        triggerKey = deleteTapCount,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -886,8 +885,8 @@ fun SplitBillLogItemCard(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                                     ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_lucide_check),
+                                        ShiftlyAnimatedIcon(
+                                            iconRes = R.drawable.ic_lucide_check,
                                             contentDescription = null,
                                             tint = colors.mintInk,
                                             modifier = Modifier.size(15.dp)
@@ -953,10 +952,11 @@ fun SplitBillLogItemCard(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_lucide_circle_check),
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_circle_check,
                             contentDescription = null,
                             tint = colors.mintInk,
+                            animateOnMount = true,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -986,8 +986,8 @@ fun SplitBillLogItemCard(
                         .fillMaxWidth()
                         .heightIn(min = 50.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_lucide_receipt_text),
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_receipt_text,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -1016,7 +1016,7 @@ fun SplitBillLogItemCard(
 
         ShiftlyConfirmDialog(
             title = "Payment Status",
-            message = "Confirm marking $personName as $targetStatus for this bill?",
+            message = "Mark $personName as $targetStatus?",
             iconRes = if (participant.hasPaid) R.drawable.ic_lucide_x else R.drawable.ic_lucide_check,
             iconBgColor = if (participant.hasPaid) colors.textSecondary else colors.mintBright,
             iconTint = if (participant.hasPaid) colors.textSecondary else colors.mintBright,

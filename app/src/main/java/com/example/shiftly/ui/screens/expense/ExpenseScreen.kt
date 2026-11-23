@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -21,9 +22,9 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,7 +36,6 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -45,21 +45,22 @@ import com.example.shiftly.data.local.ExpenseEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyDeleteConfirmDialog
+import com.example.shiftly.ui.components.ShiftlyHairlineDivider
 import com.example.shiftly.ui.components.ShiftlyHelpIconButton
 import com.example.shiftly.ui.components.ShiftlyMonthFilterBar
-import com.example.shiftly.ui.components.ShiftlyScreenHeader
 import com.example.shiftly.ui.components.ShiftlyScreenTutorialSheet
 import com.example.shiftly.ui.components.ShiftlySecondaryTextButton
 import com.example.shiftly.ui.components.ShiftlySectionHeader
 import com.example.shiftly.ui.components.ShiftlySheetDragHandle
+import com.example.shiftly.ui.components.ShiftlySubScreenTopBar
 import com.example.shiftly.ui.components.ShiftlySwipeAction
 import com.example.shiftly.ui.components.ShiftlySwipeActionRow
-import com.example.shiftly.ui.components.shiftlySheetBodyBand
+import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlySheetScrimColor
-import com.example.shiftly.ui.components.shiftlySheetTopBand
 import com.example.shiftly.ui.navigation.FloatingPillBottomBar
 import com.example.shiftly.ui.navigation.Screen
 import com.example.shiftly.ui.theme.ShiftlyColors
+import com.example.shiftly.ui.theme.ShiftlyShapes
 import com.example.shiftly.ui.theme.ShiftlyTheme
 import java.time.LocalDate
 import java.time.YearMonth
@@ -122,11 +123,11 @@ fun ExpenseScreen(
     if (showTutorialSheet) {
         ShiftlyScreenTutorialSheet(
             title = "Expenses & Receipts Guide",
-            subtitle = "Keep track of every expense and spot spending habits.",
+            subtitle = null,
             steps = listOf(
-                "Log daily expenses" to "Tap Add in the top corner to record an amount, pick a category, and attach a receipt photo if needed.",
-                "Filter by month or category" to "Use the month switcher and category chips to inspect specific spending periods and totals.",
-                "Watch your monthly budget" to "Your summary card compares spending against your budget so you always know how much room is left."
+                "Log expenses" to "Tap Add to enter amount, category, and receipt.",
+                "Filter spending" to "Use month and category filters to inspect totals.",
+                "Watch budget" to "Compare spending against your monthly cap."
             ),
             onDismiss = { showTutorialSheet = false }
         )
@@ -166,7 +167,7 @@ fun ExpenseScreen(
     pendingDeleteExpense?.let { expenseToDelete ->
         ShiftlyDeleteConfirmDialog(
             title = "Delete Expense?",
-            message = "\"${expenseToDelete.title}\" will be permanently removed.",
+            message = "Delete \"${expenseToDelete.title}\"?",
             onDismiss = { pendingDeleteExpense = null },
             onConfirm = {
                 haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -213,176 +214,158 @@ fun ExpenseScreenContent(
             "${state.selectedCategory} Expenses"
         }
     }
+    val isScrolled by remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 8
+        }
+    }
 
-    LazyColumn(
-        state = listState,
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .statusBarsPadding(),
-        contentPadding = PaddingValues(top = 10.dp),
-        verticalArrangement = Arrangement.Top
+            .statusBarsPadding()
     ) {
-        item(key = "expense_header", contentType = "header") {
-            ShiftlyScreenHeader(
-                title = "Expenses",
-                subtitle = null,
-                onBackClick = onBack,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
-                trailing = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        ShiftlyHelpIconButton(onClick = onOpenHelp)
-                        ShiftlySecondaryTextButton(
-                            text = "Add",
-                            onClick = onOpenAddSheet,
-                            leadingIcon = {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_lucide_plus),
-                                    contentDescription = null,
-                                    tint = colors.azureAccent,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+        ShiftlySubScreenTopBar(
+            title = "Expenses",
+            onBack = onBack,
+            showDivider = isScrolled,
+            trailing = {
+                ShiftlyHelpIconButton(onClick = onOpenHelp)
+                ShiftlySecondaryTextButton(
+                    text = "Add",
+                    onClick = onOpenAddSheet,
+                    leadingIcon = {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_plus,
+                            contentDescription = null,
+                            tint = colors.azureAccent,
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-                }
-            )
-        }
-
-        item(key = "month_filter", contentType = "month_filter") {
-            ShiftlyMonthFilterBar(
-                selectedMonth = state.selectedMonth,
-                onPreviousMonth = onPreviousMonth,
-                onNextMonth = onNextMonth,
-                onToggleAllMonths = onToggleAllMonths,
-                modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)
-            )
-        }
-
-        item(key = "expense_summary", contentType = "summary") {
-            Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
-                ExpenseSummaryCard(
-                    monthlyTotal = state.monthlyTotal,
-                    allTimeTotal = state.allTimeTotal,
-                    monthlyBudget = state.monthlyBudget,
-                    totalReceiptCount = state.totalReceiptCount,
-                    categoryBreakdown = state.categoryBreakdown,
-                    currencySymbol = state.currencySymbol,
-                    selectedMonth = state.selectedMonth
                 )
             }
-        }
+        )
 
-        item(key = "category_filter", contentType = "category_filter") {
-            Box(modifier = Modifier.padding(bottom = 14.dp)) {
-                ExpenseCategoryFilterRow(
-                    categories = state.filterCategories,
-                    selectedCategory = state.selectedCategory,
-                    onSelectCategory = onSelectCategory
+        LazyColumn(
+            state = listState,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .navigationBarsPadding(),
+            contentPadding = PaddingValues(top = 12.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
+            item(key = "month_filter", contentType = "month_filter") {
+                ShiftlyMonthFilterBar(
+                    selectedMonth = state.selectedMonth,
+                    onPreviousMonth = onPreviousMonth,
+                    onNextMonth = onNextMonth,
+                    onToggleAllMonths = onToggleAllMonths,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)
                 )
             }
-        }
 
-        item(key = "sheet_header", contentType = "sheet_header") {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shiftlySheetTopBand(colors.surface)
-                    .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                ShiftlySheetDragHandle()
-
-                ShiftlySectionHeader(
-                    title = listTitle,
-                    count = state.filteredExpenses.size,
-                    onLightSurface = true
-                )
-            }
-        }
-
-        if (state.filteredExpenses.isEmpty()) {
-            item(key = "sheet_empty", contentType = "sheet_empty") {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 530.dp)
-                        .shiftlySheetBodyBand(colors.surface)
-                        .padding(start = 20.dp, end = 20.dp, bottom = 104.dp)
-                ) {
-                    ExpenseEmptyCard(
-                        selectedCategory = state.selectedCategory,
-                        selectedMonth = state.selectedMonth,
-                        onAddExpense = onOpenAddSheet,
-                        onShowAll = onResetFilters
+            item(key = "expense_summary", contentType = "summary") {
+                Box(modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 14.dp)) {
+                    ExpenseSummaryCard(
+                        monthlyTotal = state.monthlyTotal,
+                        allTimeTotal = state.allTimeTotal,
+                        monthlyBudget = state.monthlyBudget,
+                        totalReceiptCount = state.totalReceiptCount,
+                        categoryBreakdown = state.categoryBreakdown,
+                        currencySymbol = state.currencySymbol,
+                        selectedMonth = state.selectedMonth
                     )
                 }
             }
-        } else {
-            itemsIndexed(
-                items = state.filteredExpenses,
-                key = { _, expense -> "expense_${expense.id}" },
-                contentType = { _, _ -> "expense_item" }
-            ) { idx, expense ->
-                val rowShape = when {
-                    state.filteredExpenses.size == 1 -> RoundedCornerShape(18.dp)
-                    idx == 0 -> RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-                    idx == state.filteredExpenses.lastIndex -> RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)
-                    else -> RectangleShape
-                }
-                Box(
-                    modifier = Modifier
-                        .animateItem(
-                            fadeInSpec = spring(dampingRatio = 0.8f),
-                            placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                            fadeOutSpec = spring(dampingRatio = 0.8f)
-                        )
-                        .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface)
-                        .padding(
-                            start = 20.dp,
-                            end = 20.dp,
-                            bottom = if (idx < state.filteredExpenses.lastIndex) 2.dp else 0.dp
-                        )
-                ) {
-                    ShiftlySwipeActionRow(
-                        shape = rowShape,
-                        endToStartAction = ShiftlySwipeAction(
-                            iconRes = R.drawable.ic_lucide_trash_2,
-                            label = "Delete",
-                            backgroundColor = colors.coralBright,
-                            onTrigger = { onSwipeDeleteExpense(expense) }
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(colors.cardElevated)
-                        ) {
-                            ExpenseItemCard(
-                                expense = expense,
-                                currencySymbol = state.currencySymbol,
-                                onViewReceipt = onViewReceipt,
-                                onDelete = { onDeleteExpense(expense) },
-                                onClick = { onEditExpense(expense) },
-                                dateFormatter = itemDateFormatter,
-                                containerColor = Color.Transparent,
-                                shape = RectangleShape
-                            )
-                        }
-                    }
+
+            item(key = "category_filter", contentType = "category_filter") {
+                Box(modifier = Modifier.padding(bottom = 16.dp)) {
+                    ExpenseCategoryFilterRow(
+                        categories = state.filterCategories,
+                        selectedCategory = state.selectedCategory,
+                        onSelectCategory = onSelectCategory
+                    )
                 }
             }
 
-            item(key = "sheet_footer", contentType = "sheet_footer") {
-                Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .shiftlySheetBodyBand(colors.surface)
-                        .height(if (state.filteredExpenses.size <= 2) 280.dp else 104.dp)
+            item(key = "sheet_header", contentType = "sheet_header") {
+                ShiftlySectionHeader(
+                    title = listTitle,
+                    count = state.filteredExpenses.size,
+                    onLightSurface = false,
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 10.dp)
                 )
+            }
+
+            if (state.filteredExpenses.isEmpty()) {
+                item(key = "sheet_empty", contentType = "sheet_empty") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                    ) {
+                        ExpenseEmptyCard(
+                            selectedCategory = state.selectedCategory,
+                            selectedMonth = state.selectedMonth,
+                            onAddExpense = onOpenAddSheet,
+                            onShowAll = onResetFilters
+                        )
+                    }
+                }
+            } else {
+                itemsIndexed(
+                    items = state.filteredExpenses,
+                    key = { _, expense -> "expense_${expense.id}" },
+                    contentType = { _, _ -> "expense_item" }
+                ) { idx, expense ->
+                    val rowShape = when {
+                        state.filteredExpenses.size == 1 -> ShiftlyShapes.Card
+                        idx == 0 -> RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                        idx == state.filteredExpenses.lastIndex -> RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)
+                        else -> RectangleShape
+                    }
+                    Box(
+                        modifier = Modifier
+                            .animateItem(
+                                fadeInSpec = spring(dampingRatio = 0.8f),
+                                placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = spring(dampingRatio = 0.8f)
+                            )
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                    ) {
+                        ShiftlySwipeActionRow(
+                            shape = rowShape,
+                            endToStartAction = ShiftlySwipeAction(
+                                iconRes = R.drawable.ic_lucide_trash_2,
+                                label = "Delete",
+                                backgroundColor = colors.coralBright,
+                                onTrigger = { onSwipeDeleteExpense(expense) }
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(colors.card)
+                            ) {
+                                ExpenseItemCard(
+                                    expense = expense,
+                                    currencySymbol = state.currencySymbol,
+                                    onViewReceipt = onViewReceipt,
+                                    onDelete = { onDeleteExpense(expense) },
+                                    onClick = { onEditExpense(expense) },
+                                    dateFormatter = itemDateFormatter,
+                                    containerColor = Color.Transparent,
+                                    shape = RectangleShape
+                                )
+                                if (idx < state.filteredExpenses.lastIndex) {
+                                    ShiftlyHairlineDivider(startInset = 54.dp)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -494,7 +477,7 @@ private fun AddExpenseSheetPreview() {
                         .background(shiftlySheetScrimColor())
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        shape = ShiftlyShapes.Sheet,
                         color = colors.surface,
                         shadowElevation = 0.dp,
                         modifier = Modifier
