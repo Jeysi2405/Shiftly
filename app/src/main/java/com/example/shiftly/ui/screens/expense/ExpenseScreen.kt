@@ -125,9 +125,9 @@ fun ExpenseScreen(
             title = "Expenses & Receipts Guide",
             subtitle = null,
             steps = listOf(
-                "Log expenses" to "Tap Add to enter amount, category, and receipt.",
-                "Filter spending" to "Use month and category filters to inspect totals.",
-                "Watch budget" to "Compare spending against your monthly cap."
+                "Add expense & receipt" to "Tap Add Expense to enter amount, category, date, and optional receipt photo.",
+                "Filter by month or All" to "Use the < MMM yyyy > selector, All pill, and category chips to inspect totals.",
+                "Swipe to edit or delete" to "Swipe any expense row right to edit or left to delete with quick Undo."
             ),
             onDismiss = { showTutorialSheet = false }
         )
@@ -328,9 +328,9 @@ fun ExpenseScreenContent(
                     Box(
                         modifier = Modifier
                             .animateItem(
-                                fadeInSpec = spring(dampingRatio = 0.8f),
-                                placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                                fadeOutSpec = spring(dampingRatio = 0.8f)
+                                fadeInSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy),
+                                placementSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy)
                             )
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp)

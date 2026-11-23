@@ -338,6 +338,7 @@ data class ShiftlySettingsSnapshot(
     val appLockMethod: String = "PIN & Fingerprint",
     val hasAppLockPin: Boolean = false,
     val appLockPinHash: String = "",
+    val appLockTimeoutSeconds: Int = 0,
     val themeMode: String = "SYSTEM",
     val cutoffMode: String = CutoffScheduleConfig.MODE_SEMI_MONTHLY,
     val cutoffDay1: Int = 15,
@@ -866,6 +867,7 @@ class UserPreferencesManager(private val context: Context) {
         private val KEY_APP_LOCK_METHOD = stringPreferencesKey("app_lock_method")
         private val KEY_APP_LOCK_PIN = stringPreferencesKey("app_lock_pin")
         private val KEY_APP_LOCK_PIN_HASH = stringPreferencesKey("app_lock_pin_hash")
+        private val KEY_APP_LOCK_TIMEOUT_SECONDS = intPreferencesKey("app_lock_timeout_seconds")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         private val KEY_LAST_BILL_NOTIFIED_DAY = longPreferencesKey("last_bill_notified_day")
         private val KEY_LAST_PAYDAY_NOTIFIED_DAY = longPreferencesKey("last_payday_notified_day")
@@ -1030,6 +1032,7 @@ class UserPreferencesManager(private val context: Context) {
             appLockMethod = prefs[KEY_APP_LOCK_METHOD] ?: "PIN & Fingerprint",
             hasAppLockPin = pinHash.isNotBlank(),
             appLockPinHash = pinHash,
+            appLockTimeoutSeconds = (prefs[KEY_APP_LOCK_TIMEOUT_SECONDS] ?: 0).coerceAtLeast(0),
             themeMode = prefs[KEY_THEME_MODE] ?: "SYSTEM",
             cutoffMode = normalizedCutoff.mode,
             cutoffDay1 = normalizedCutoff.day1,
@@ -1362,12 +1365,20 @@ class UserPreferencesManager(private val context: Context) {
         }
     }
 
-    suspend fun setAppLock(enabled: Boolean, method: String, pinHash: String?) {
+    suspend fun setAppLock(
+        enabled: Boolean,
+        method: String,
+        pinHash: String?,
+        timeoutSeconds: Int? = null
+    ) {
         context.dataStore.edit { prefs ->
             prefs[KEY_APP_LOCK_ENABLED] = enabled
             prefs[KEY_APP_LOCK_METHOD] = method
             if (!pinHash.isNullOrBlank()) {
                 prefs[KEY_APP_LOCK_PIN_HASH] = pinHash
+            }
+            if (timeoutSeconds != null) {
+                prefs[KEY_APP_LOCK_TIMEOUT_SECONDS] = timeoutSeconds.coerceAtLeast(0)
             }
             prefs.remove(KEY_APP_LOCK_PIN)
         }

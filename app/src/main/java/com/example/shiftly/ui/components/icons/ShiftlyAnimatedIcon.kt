@@ -5,8 +5,9 @@ import android.provider.Settings
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -38,8 +39,6 @@ import androidx.compose.ui.semantics.semantics
 import com.example.shiftly.R
 import kotlin.math.PI
 import kotlin.math.sin
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 
 internal fun isSystemAnimationEnabled(context: Context): Boolean = runCatching {
     Settings.Global.getFloat(
@@ -206,9 +205,11 @@ private fun tier1DrawerFor(@DrawableRes iconRes: Int): LucideCanvasDrawer? = whe
  * - Tier 1: multi-part & PathMeasure Canvas animations styled after lucide-animated (pqoqubbw/icons).
  * - Tier 2: static vector drawable with spring velocity bounce/tilt on first appear or tap.
  *
- * Animations run once when first shown ([animateOnMount] defaults to true) or when [triggerKey]
- * changes, never loop continuously while idle, and respect system animator duration scale.
+ * Icons stay static by default ([animateOnMount] defaults to false, with no auto-repeat burst
+ * or cooldown loop) and animate once when [triggerKey] changes or when [animateOnMount] is true,
+ * respecting system animator duration scale.
  */
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun ShiftlyAnimatedIcon(
     @DrawableRes iconRes: Int,
@@ -216,10 +217,8 @@ fun ShiftlyAnimatedIcon(
     modifier: Modifier = Modifier,
     tint: Color = LocalContentColor.current,
     triggerKey: Any? = null,
-    animateOnMount: Boolean = true,
-    repeatIntervalMillis: Long = 2000L,
-    burstCount: Int = 3,
-    cooldownMillis: Long = 10_000L,
+    animateOnMount: Boolean = false,
+    repeatIntervalMillis: Long = 0L,
     onAnimationEnd: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -234,9 +233,6 @@ fun ShiftlyAnimatedIcon(
     LaunchedEffect(
         triggerKey,
         animateOnMount,
-        repeatIntervalMillis,
-        burstCount,
-        cooldownMillis,
         animationsEnabled
     ) {
         val shouldAnimate = if (!hasMounted) {
@@ -254,7 +250,7 @@ fun ShiftlyAnimatedIcon(
             return@LaunchedEffect
         }
 
-        suspend fun runOnce() {
+        if (shouldAnimate) {
             isAnimating = true
             progress.snapTo(0f)
             try {
@@ -262,10 +258,10 @@ fun ShiftlyAnimatedIcon(
                     progress.animateTo(
                         targetValue = 1f,
                         animationSpec = spring(
-                            dampingRatio = 0.60f,
+                            dampingRatio = Spring.DampingRatioNoBouncy,
                             stiffness = 120f
                         ),
-                        initialVelocity = 1.6f
+                        initialVelocity = 0f
                     )
                 } else if (usesStrokeDrawTiming(iconRes)) {
                     progress.animateTo(
@@ -276,37 +272,16 @@ fun ShiftlyAnimatedIcon(
                     progress.animateTo(
                         targetValue = 1f,
                         animationSpec = spring(
-                            dampingRatio = 0.62f,
+                            dampingRatio = Spring.DampingRatioNoBouncy,
                             stiffness = 100f
                         ),
-                        initialVelocity = 1.4f
+                        initialVelocity = 0f
                     )
                 }
                 latestOnAnimationEnd?.invoke()
             } finally {
                 isAnimating = false
                 progress.snapTo(0f)
-            }
-        }
-
-        var playedInBurst = 0
-        if (shouldAnimate) {
-            runOnce()
-            playedInBurst = 1
-        }
-        if (repeatIntervalMillis > 0L) {
-            val safeBurst = burstCount.coerceAtLeast(1)
-            while (isActive) {
-                if (playedInBurst < safeBurst) {
-                    delay(repeatIntervalMillis)
-                    runOnce()
-                    playedInBurst++
-                } else {
-                    delay(cooldownMillis.coerceAtLeast(0L))
-                    playedInBurst = 0
-                    runOnce()
-                    playedInBurst = 1
-                }
             }
         }
     }

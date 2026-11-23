@@ -238,21 +238,30 @@ fun ProfileScreen(
         },
         onToggleAppLock = { enabled ->
             val method = state.settings.appLockMethod
+            val timeoutSeconds = state.settings.appLockTimeoutSeconds
             val needsPinSetup = enabled && method != "Fingerprint Only" && !state.settings.hasAppLockPin
             val needsBiometricReview = enabled && method == "Fingerprint Only" && !canUseBiometrics(context)
-            if (needsPinSetup || needsBiometricReview) {
-                activeSheet = ActiveSettingsSheet.APP_LOCK
-                onShowMessage(
-                    if (needsPinSetup) "Set a 4-digit PIN to enable App Lock"
-                    else "Review lock method—no biometrics detected"
-                )
-            } else {
-                viewModel.updateAppLock(
-                    enabled = enabled,
-                    method = method,
-                    newPin = null
-                )
-                onShowMessage(if (enabled) "App lock active ($method)" else "App lock turned off")
+            when {
+                !enabled && state.settings.appLockEnabled -> {
+                    activeSheet = ActiveSettingsSheet.APP_LOCK
+                    onShowMessage("Verify your identity to turn off App Lock")
+                }
+                needsPinSetup || needsBiometricReview -> {
+                    activeSheet = ActiveSettingsSheet.APP_LOCK
+                    onShowMessage(
+                        if (needsPinSetup) "Set a 4-digit PIN to enable App Lock"
+                        else "Review lock method—no biometrics detected"
+                    )
+                }
+                else -> {
+                    viewModel.updateAppLock(
+                        enabled = enabled,
+                        method = method,
+                        newPin = null,
+                        timeoutSeconds = timeoutSeconds
+                    )
+                    onShowMessage(if (enabled) "App lock active ($method)" else "App lock turned off")
+                }
             }
         },
         onReplayTutorial = onReplayTutorial
@@ -409,10 +418,18 @@ fun ProfileScreen(
                     currentEnabled = state.settings.appLockEnabled,
                     currentMethod = state.settings.appLockMethod,
                     hasSavedPin = state.settings.hasAppLockPin,
-                    onSave = { enabled, method, newPin ->
-                        viewModel.updateAppLock(enabled, method, newPin)
+                    currentPinHash = state.settings.appLockPinHash,
+                    currentTimeoutSeconds = state.settings.appLockTimeoutSeconds,
+                    onSave = { enabled, method, newPin, timeoutSeconds ->
+                        viewModel.updateAppLock(enabled, method, newPin, timeoutSeconds)
                         activeSheet = null
-                        onShowMessage(if (enabled) "App lock saved ($method)" else "App lock disabled")
+                        onShowMessage(
+                            if (enabled) {
+                                "App lock saved (${method.replace(" Only", "")} · ${formatAppLockTimeoutLabel(timeoutSeconds)})"
+                            } else {
+                                "App lock disabled"
+                            }
+                        )
                     },
                     onDismiss = { activeSheet = null },
                     actionState = sheetActionState
@@ -632,6 +649,11 @@ private fun ProfileScreenContent(
                     SettingsSwitchRow(
                         iconRes = R.drawable.ic_lucide_fingerprint,
                         title = "App Lock",
+                        subtitle = if (state.settings.appLockEnabled) {
+                            "${state.settings.appLockMethod.replace(" Only", "")} · ${formatAppLockTimeoutLabel(state.settings.appLockTimeoutSeconds)}"
+                        } else {
+                            "Off"
+                        },
                         checked = state.settings.appLockEnabled,
                         onCheckedChange = onToggleAppLock,
                         onRowClick = { onOpenSheet(ActiveSettingsSheet.APP_LOCK) },

@@ -5,6 +5,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -103,10 +104,10 @@ internal fun ToolsSpotlightOverlay(
         flightProgress.animateTo(
             targetValue = 1f,
             animationSpec = spring(
-                dampingRatio = 0.76f,
+                dampingRatio = Spring.DampingRatioNoBouncy,
                 stiffness = 220f
             ),
-            initialVelocity = 2.0f
+            initialVelocity = 0f
         )
 
         // Stage 2: Play the complete Lucide icon animation at center without cutting it short.

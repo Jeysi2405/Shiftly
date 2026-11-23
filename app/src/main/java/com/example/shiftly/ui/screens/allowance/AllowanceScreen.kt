@@ -89,9 +89,9 @@ fun AllowanceScreen(
             title = "Allowance & Cutoff Guide",
             subtitle = null,
             steps = listOf(
-                "Add income" to "Record allowances, salary payouts, or side income.",
-                "Cutoff schedule" to "Set semi-monthly, weekly, or custom pay periods.",
-                "Pending payouts" to "Track shift earnings inside your active cutoff."
+                "Add allowance or income" to "Record allowances, stipends, or side income tagged by source.",
+                "Adjust payday cutoff" to "Set semi-monthly, weekly, or custom cutoff schedules anytime.",
+                "Track cutoff payout" to "Monitor pending shift earnings for the active payday cutoff period."
             ),
             onDismiss = { showTutorialSheet = false }
         )
@@ -252,9 +252,9 @@ fun AllowanceScreenContent(
                     Column(
                         modifier = Modifier
                             .animateItem(
-                                fadeInSpec = spring(dampingRatio = 0.8f),
-                                placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                                fadeOutSpec = spring(dampingRatio = 0.8f)
+                                fadeInSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy),
+                                placementSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy)
                             )
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp)

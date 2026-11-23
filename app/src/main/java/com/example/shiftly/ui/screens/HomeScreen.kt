@@ -495,12 +495,12 @@ fun HomeScreenContent(
                     Column(
                         modifier = Modifier
                             .animateItem(
-                                fadeInSpec = spring(dampingRatio = 0.8f),
+                                fadeInSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy),
                                 placementSpec = spring(
-                                    dampingRatio = 0.8f,
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
                                     stiffness = Spring.StiffnessMediumLow
                                 ),
-                                fadeOutSpec = spring(dampingRatio = 0.8f)
+                                fadeOutSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy)
                             )
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp)

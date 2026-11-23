@@ -380,9 +380,9 @@ fun ToolsScreen(
                 title = "Installment Loans Guide",
                 subtitle = null,
                 steps = listOf(
-                    "Add a loan" to "Enter item price, downpayment, terms, and due date.",
-                    "Due reminders" to "Due soon badges show orange; overdue shows red.",
-                    "Payment history" to "Open a loan card to record monthly payments."
+                    "Add contract & rate" to "Enter item price, downpayment, Monthly % or Total % interest, terms, and due day.",
+                    "Record Payment" to "Open a loan card to log custom Amount Paid, Date Paid, and Time Paid.",
+                    "Due status & balance" to "Remaining balance updates automatically with due soon and overdue badges."
                 ),
                 onDismiss = { activeTutorial = null }
             )

@@ -135,9 +135,9 @@ fun SplitBillScreen(
             title = "Split Bill Guide",
             subtitle = null,
             steps = listOf(
-                "Create a split" to "Tap New, enter the bill total, and set people count.",
-                "Track payments" to "Tap each person to mark their share as paid.",
-                "Log your share" to "Optionally add your share directly into Expenses."
+                "Create or filter splits" to "Tap + to split a total evenly, and filter history by month or All.",
+                "Track who paid" to "Tap any person chip inside a split card to toggle their share as paid.",
+                "Log share to Expenses" to "Log your own share directly to Expenses during creation or from the card."
             ),
             onDismiss = { showTutorialSheet = false }
         )
@@ -379,9 +379,9 @@ fun SplitBillScreenContent(
                     Column(
                         modifier = Modifier
                             .animateItem(
-                                fadeInSpec = spring(dampingRatio = 0.8f),
-                                placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                                fadeOutSpec = spring(dampingRatio = 0.8f)
+                                fadeInSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy),
+                                placementSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy)
                             )
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp)

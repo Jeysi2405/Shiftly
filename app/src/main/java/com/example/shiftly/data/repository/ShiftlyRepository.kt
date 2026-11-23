@@ -495,13 +495,23 @@ class ShiftlyRepository(context: Context) {
         prefs.applyCurrencyConversion(newSymbol, conversionRate)
     }
 
-    suspend fun updateAppLock(enabled: Boolean, method: String, newPin: String? = null) = withContext(Dispatchers.IO) {
+    suspend fun updateAppLock(
+        enabled: Boolean,
+        method: String,
+        newPin: String? = null,
+        timeoutSeconds: Int? = null
+    ) = withContext(Dispatchers.IO) {
         val existingHash = settingsSnapshot.first().appLockPinHash
         val resolvedHash = when {
             !newPin.isNullOrBlank() && PinSecurity.isValidPinFormat(newPin) -> PinSecurity.hashPin(newPin)
             else -> existingHash
         }
-        prefs.setAppLock(enabled = enabled, method = method, pinHash = resolvedHash)
+        prefs.setAppLock(
+            enabled = enabled,
+            method = method,
+            pinHash = resolvedHash,
+            timeoutSeconds = timeoutSeconds
+        )
     }
 
     suspend fun updateThemeMode(mode: String) = withContext(Dispatchers.IO) {

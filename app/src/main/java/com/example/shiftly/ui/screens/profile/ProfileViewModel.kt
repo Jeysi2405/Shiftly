@@ -212,8 +212,20 @@ class ProfileViewModel(
         viewModelScope.launch { repository.updateThemeMode(mode) }
     }
 
-    fun updateAppLock(enabled: Boolean, method: String, newPin: String?) {
-        viewModelScope.launch { repository.updateAppLock(enabled, method, newPin) }
+    fun updateAppLock(
+        enabled: Boolean,
+        method: String,
+        newPin: String?,
+        timeoutSeconds: Int? = null
+    ) {
+        viewModelScope.launch {
+            repository.updateAppLock(
+                enabled = enabled,
+                method = method,
+                newPin = newPin,
+                timeoutSeconds = timeoutSeconds
+            )
+        }
     }
 
     fun exportBackup(onResult: (Result<String>) -> Unit) {

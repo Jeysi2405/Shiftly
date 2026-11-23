@@ -128,9 +128,9 @@ fun DutiesScreen(
             title = "Duties & Shifts Guide",
             subtitle = null,
             steps = listOf(
-                "Log shift or pick a day" to "Record clock-in and clock-out times with presets or custom hours.",
-                "Choose day type" to "Set ordinary or holiday rates for automatic pay calculation.",
-                "Rates & presets" to "Tap settings anytime to edit rates or quick presets."
+                "Log shift or pick a day" to "Tap Log Shift or any calendar date to set times using Presets or custom hours.",
+                "Day types & auto math" to "Choose Regular Day, Rest Day, or holiday acronyms (SNW Day, RH + Rest) for automatic OT & ND pay.",
+                "Rates, presets & swipe" to "Tap the gear icon to edit Hourly Rate and Presets, or swipe shift cards right to edit and left to delete."
             ),
             onDismiss = { showTutorialSheet = false }
         )
@@ -433,9 +433,9 @@ fun DutiesScreenContent(
                     Column(
                         modifier = Modifier
                             .animateItem(
-                                fadeInSpec = spring(dampingRatio = 0.8f),
-                                placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                                fadeOutSpec = spring(dampingRatio = 0.8f)
+                                fadeInSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy),
+                                placementSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy)
                             )
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp)

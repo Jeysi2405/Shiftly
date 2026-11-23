@@ -133,9 +133,9 @@ fun RecurringBillsScreen(
             title = "Recurring Bills Guide",
             subtitle = null,
             steps = listOf(
-                "Schedule bills" to "Set amount, category, frequency, and due date.",
-                "Auto-post expenses" to "Active bills log to Expenses when due.",
-                "Pause or edit" to "Toggle any bill off or tap to edit anytime."
+                "Schedule Monthly Bills" to "Tap Add Bill to set title, amount, category, frequency, and due time.",
+                "Auto-post when due" to "Enabled bills automatically log to Expenses when their schedule is reached.",
+                "Toggle or swipe" to "Switch any bill on/off, swipe right to edit, or swipe left to delete with Undo."
             ),
             onDismiss = { showTutorialSheet = false }
         )
@@ -298,9 +298,9 @@ fun RecurringBillsScreenContent(
                     Box(
                         modifier = Modifier
                             .animateItem(
-                                fadeInSpec = spring(dampingRatio = 0.8f),
-                                placementSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow),
-                                fadeOutSpec = spring(dampingRatio = 0.8f)
+                                fadeInSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy),
+                                placementSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy)
                             )
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp)

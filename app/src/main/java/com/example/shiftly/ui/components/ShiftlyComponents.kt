@@ -141,12 +141,12 @@ fun Modifier.shiftlyPressEffect(
     val pressed = enabled && isPressed
     val scaleState = animateFloatAsState(
         targetValue = if (pressed) 0.97f else 1f,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
         label = "shiftlyPressScale"
     )
     val alphaState = animateFloatAsState(
         targetValue = if (pressed) 0.84f else 1f,
-        animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
         label = "shiftlyPressAlpha"
     )
     return this.graphicsLayer {
@@ -1827,11 +1827,11 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
         features = listOf(
             FeatureGuideItem(
                 title = "Easy Shift Logging",
-                description = "Log work hours with quick presets."
+                description = "Tap Log Shift or a calendar date with quick time presets."
             ),
             FeatureGuideItem(
                 title = "Automatic Pay Computation",
-                description = "Auto-computes pay, OT, ND, and holidays."
+                description = "Auto-computes Regular Day, Rest Day, Holiday, OT & ND pay."
             ),
             FeatureGuideItem(
                 title = "Upcoming Shift Reminders",
@@ -1849,15 +1849,15 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
         features = listOf(
             FeatureGuideItem(
                 title = "Simple Expense Tracking",
-                description = "Track spending by category with receipts."
+                description = "Log expenses with receipt photos; swipe to edit or delete."
             ),
             FeatureGuideItem(
                 title = "Flexible Monthly Budgets",
-                description = "Set monthly and category spending caps."
+                description = "Set overall monthly and category spending caps."
             ),
             FeatureGuideItem(
                 title = "Daily Safe-to-Spend Guide",
-                description = "See your daily safe-to-spend limit."
+                description = "See your daily safe-to-spend remaining limit."
             )
         )
     ),
@@ -1867,7 +1867,7 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
         features = listOf(
             FeatureGuideItem(
                 title = "Allowance & Extra Income",
-                description = "Track allowances, stipends, and side income."
+                description = "Track allowances, cutoffs, stipends, and side income."
             ),
             FeatureGuideItem(
                 title = "Take-Home Pay Estimator",
@@ -1881,7 +1881,7 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
         features = listOf(
             FeatureGuideItem(
                 title = "Fair Bill Splitting",
-                description = "Split group bills and track who paid."
+                description = "Split group bills cleanly and track who paid."
             ),
             FeatureGuideItem(
                 title = "Borrow & Lend Tracker (IOUs)",
@@ -1889,11 +1889,11 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
             ),
             FeatureGuideItem(
                 title = "Installment Loan Tracker",
-                description = "Track financed items, balances, and due dates."
+                description = "Add Monthly % or Total % interest and record custom payments."
             ),
             FeatureGuideItem(
                 title = "Recurring Bills",
-                description = "Auto-log repeating bills on schedule."
+                description = "Auto-log repeating bills to Expenses on schedule."
             ),
             FeatureGuideItem(
                 title = "Personal Savings Goals",
@@ -1907,15 +1907,15 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
         features = listOf(
             FeatureGuideItem(
                 title = "Calm Home Overview",
-                description = "View balance and activity with privacy toggle."
+                description = "View net balance, cutoff pay, and activity with privacy toggle."
             ),
             FeatureGuideItem(
                 title = "Visual Spending & Earning Trends",
-                description = "See income and spending charts clearly."
+                description = "Compare income, expenses, and patterns clearly."
             ),
             FeatureGuideItem(
                 title = "All-in-One Activity Calendar",
-                description = "View shifts and expenses on one calendar."
+                description = "Inspect logged shifts and expenses on one calendar."
             )
         )
     ),
@@ -1929,11 +1929,11 @@ private val SHIFTLY_FEATURE_GUIDE_CATEGORIES = listOf(
             ),
             FeatureGuideItem(
                 title = "PIN & Biometric App Lock",
-                description = "Protect your app with PIN or biometrics."
+                description = "Protect your app with a clean PIN keypad or biometrics."
             ),
             FeatureGuideItem(
                 title = "Easy Backup & Spreadsheet Export",
-                description = "Back up JSON or export CSV anytime."
+                description = "Back up JSON or export CSV spreadsheets anytime."
             )
         )
     )
@@ -1950,7 +1950,7 @@ fun ShiftlyFeatureGuideSheet(
 ) {
     val colors = ShiftlyColors.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var expandedIndices by remember { mutableStateOf(setOf(0)) }
+    var expandedIndices by remember { mutableStateOf(emptySet<Int>()) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -2345,13 +2345,15 @@ fun ShiftlyMainTabTourOverlay(
                 Surface(
                     shape = DialogCardShape,
                     color = cardColor,
-                    border = BorderStroke(0.5.dp, colors.separator),
                     shadowElevation = 0.dp,
                     modifier = Modifier
                         .widthIn(max = 392.dp)
                         .fillMaxWidth()
                         .animateContentSize(
-                            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
                         )
                 ) {
                     Column(

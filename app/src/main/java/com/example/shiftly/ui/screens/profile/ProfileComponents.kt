@@ -1,5 +1,7 @@
 package com.example.shiftly.ui.screens.profile
 
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -51,6 +53,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,11 +70,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.fragment.app.FragmentActivity
 import com.example.shiftly.R
 import com.example.shiftly.data.local.CategoryBudgetSetting
 import com.example.shiftly.data.local.ManagedCategorySetting
@@ -94,6 +99,7 @@ import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.expense.categoryIcon
 import com.example.shiftly.ui.screens.lock.canUseBiometrics
+import com.example.shiftly.ui.screens.lock.launchBiometricUnlockPrompt
 import com.example.shiftly.ui.theme.InterFontFamily
 import com.example.shiftly.ui.theme.PureWhite
 import com.example.shiftly.ui.theme.ShiftlyColors
@@ -121,6 +127,27 @@ private val APP_LOCK_METHOD_OPTIONS = listOf(
     "4-Digit PIN",
     "Fingerprint Only"
 )
+
+private val APP_LOCK_TIMEOUT_OPTIONS = listOf(
+    0 to "Immediately",
+    30 to "After 30 seconds",
+    60 to "After 1 minute",
+    300 to "After 5 minutes"
+)
+
+fun formatAppLockTimeoutLabel(seconds: Int): String = when (seconds) {
+    0 -> "Immediately"
+    30 -> "After 30s"
+    60 -> "After 1m"
+    300 -> "After 5m"
+    else -> "After ${seconds}s"
+}
+
+private tailrec fun Context.findFragmentActivity(): FragmentActivity? = when (this) {
+    is FragmentActivity -> this
+    is ContextWrapper -> baseContext.findFragmentActivity()
+    else -> null
+}
 
 class ShiftlySheetActionState {
     var onSave: (() -> Unit)? = null
@@ -2088,32 +2115,247 @@ fun AppLockSheetContent(
     currentEnabled: Boolean,
     currentMethod: String,
     hasSavedPin: Boolean,
-    onSave: (Boolean, String, String?) -> Unit,
+    currentPinHash: String = "",
+    currentTimeoutSeconds: Int = 0,
+    onSave: (Boolean, String, String?, Int) -> Unit,
     onDismiss: () -> Unit = {},
     actionState: ShiftlySheetActionState? = null
 ) {
     val colors = ShiftlyColors.current
     val context = LocalContext.current
+    val activity = remember(context) { context.findFragmentActivity() }
     val biometricsAvailable = remember(context) { canUseBiometrics(context) }
 
-    var enabled by remember { mutableStateOf(currentEnabled) }
-    var method by remember { mutableStateOf(currentMethod) }
+    val canVerifyWithPin = currentMethod != "Fingerprint Only" && hasSavedPin && currentPinHash.isNotBlank()
+    val canVerifyWithBiometrics = biometricsAvailable && (currentMethod != "4-Digit PIN" || !canVerifyWithPin)
+    val requiresVerification = currentEnabled && (canVerifyWithPin || canVerifyWithBiometrics)
+
+    var isVerified by rememberSaveable { mutableStateOf(!requiresVerification) }
+    var verifyPinInput by remember { mutableStateOf("") }
+    var verifyError by remember { mutableStateOf<String?>(null) }
+
+    var enabled by rememberSaveable { mutableStateOf(currentEnabled) }
+    var method by rememberSaveable { mutableStateOf(currentMethod) }
+    var timeoutSeconds by rememberSaveable { mutableIntStateOf(currentTimeoutSeconds) }
     var newPin by remember { mutableStateOf("") }
+    var confirmPin by remember { mutableStateOf("") }
+    var showPinDigits by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val submit = {
-        when {
-            !enabled -> onSave(false, method, if (PinSecurity.isValidPinFormat(newPin)) newPin else null)
-            method == "Fingerprint Only" -> onSave(true, method, null)
-            PinSecurity.isValidPinFormat(newPin) -> onSave(true, method, newPin)
-            newPin.isEmpty() && hasSavedPin -> onSave(true, method, null)
-            else -> errorMessage = "Please enter a full 4-digit PIN."
+    val submit: () -> Unit = {
+        if (!isVerified) {
+            verifyError = "Please verify your identity first."
+        } else {
+            when {
+                !enabled -> {
+                    if (newPin.isNotEmpty()) {
+                        when {
+                            !PinSecurity.isValidPinFormat(newPin) ->
+                                errorMessage = "Please enter a full 4-digit PIN."
+                            newPin != confirmPin ->
+                                errorMessage = "PINs do not match. Please confirm your 4-digit PIN."
+                            else -> onSave(false, method, newPin, timeoutSeconds)
+                        }
+                    } else {
+                        onSave(false, method, null, timeoutSeconds)
+                    }
+                }
+                method == "Fingerprint Only" -> onSave(true, method, null, timeoutSeconds)
+                newPin.isEmpty() && hasSavedPin -> onSave(true, method, null, timeoutSeconds)
+                !PinSecurity.isValidPinFormat(newPin) -> errorMessage = "Please enter a full 4-digit PIN."
+                newPin != confirmPin -> errorMessage = "PINs do not match. Please confirm your 4-digit PIN."
+                else -> onSave(true, method, newPin, timeoutSeconds)
+            }
         }
     }
 
-    LaunchedEffect(enabled, method, newPin, hasSavedPin) {
-        actionState?.enabled = true
+    LaunchedEffect(isVerified, enabled, method, timeoutSeconds, newPin, confirmPin, hasSavedPin) {
+        actionState?.enabled = isVerified
         actionState?.onSave = submit
+    }
+
+    if (!isVerified) {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = colors.cardElevated,
+            shadowElevation = 0.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(colors.azureContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_lock,
+                            contentDescription = null,
+                            tint = colors.azurePrimary,
+                            animateOnMount = true,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = "Verify Identity",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp
+                            ),
+                            color = colors.textPrimary
+                        )
+                        Text(
+                            text = "Confirm your current PIN or biometrics before editing App Lock.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = colors.textSecondary
+                        )
+                    }
+                }
+
+                if (canVerifyWithPin) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = colors.surface,
+                        shadowElevation = 0.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 50.dp)
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Current PIN",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.SemiBold
+                                ),
+                                color = colors.textPrimary
+                            )
+                            BasicTextField(
+                                value = verifyPinInput,
+                                onValueChange = { raw ->
+                                    val digits = raw.filter(Char::isDigit).take(4)
+                                    verifyPinInput = digits
+                                    verifyError = null
+                                    if (digits.length == 4) {
+                                        if (PinSecurity.verifyPin(digits, currentPinHash)) {
+                                            isVerified = true
+                                            verifyPinInput = ""
+                                            verifyError = null
+                                        } else {
+                                            verifyError = "Incorrect current PIN. Try again."
+                                            verifyPinInput = ""
+                                        }
+                                    }
+                                },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                                cursorBrush = SolidColor(colors.azureAccent),
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Bold,
+                                    color = colors.textPrimary,
+                                    textAlign = TextAlign.End,
+                                    letterSpacing = 4.sp
+                                ).tabular(),
+                                decorationBox = { inner ->
+                                    Box(contentAlignment = Alignment.CenterEnd) {
+                                        if (verifyPinInput.isEmpty()) {
+                                            Text(
+                                                text = "••••",
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontFamily = InterFontFamily,
+                                                    color = colors.textSecondary,
+                                                    letterSpacing = 2.sp
+                                                ),
+                                                textAlign = TextAlign.End
+                                            )
+                                        }
+                                        inner()
+                                    }
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 16.dp)
+                            )
+                        }
+                    }
+                }
+
+                if (canVerifyWithBiometrics && activity != null) {
+                    Button(
+                        onClick = {
+                            launchBiometricUnlockPrompt(
+                                activity = activity,
+                                allowDeviceCredentialFallback = currentMethod == "Fingerprint Only" || !canVerifyWithPin,
+                                title = "Verify Identity",
+                                subtitle = "Confirm your identity to manage App Lock",
+                                onSuccess = {
+                                    isVerified = true
+                                    verifyError = null
+                                },
+                                onErrorMessage = { msg -> verifyError = msg }
+                            )
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colors.azurePrimary,
+                            contentColor = PureWhite
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_fingerprint,
+                            contentDescription = null,
+                            tint = PureWhite,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = "  Verify with Biometrics",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
+        if (!verifyError.isNullOrBlank()) {
+            Text(
+                text = verifyError.orEmpty(),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.coralTextOnSurface
+            )
+        }
+
+        ShiftlySheetCloseButton(
+            label = "Cancel",
+            onClick = onDismiss,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+        return
     }
 
     Row(
@@ -2143,6 +2385,8 @@ fun AppLockSheetContent(
             }
         )
     }
+
+    ShiftlyGroupLabel(text = "Unlock Method")
 
     Surface(
         shape = RoundedCornerShape(18.dp),
@@ -2203,66 +2447,196 @@ fun AppLockSheetContent(
     }
 
     if (method != "Fingerprint Only") {
+        val pinVisual = if (showPinDigits) VisualTransformation.None else PasswordVisualTransformation()
         Surface(
             shape = RoundedCornerShape(16.dp),
             color = colors.cardElevated,
             shadowElevation = 0.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 50.dp)
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "4-Digit PIN",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 15.sp
-                    ),
-                    color = colors.textPrimary
-                )
-                BasicTextField(
-                    value = newPin,
-                    onValueChange = {
-                        newPin = it.filter(Char::isDigit).take(4)
-                        errorMessage = null
-                    },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-                    cursorBrush = SolidColor(colors.azureAccent),
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        fontFamily = InterFontFamily,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary,
-                        textAlign = TextAlign.End,
-                        letterSpacing = 4.sp
-                    ).tabular(),
-                    decorationBox = { inner ->
-                        Box(contentAlignment = Alignment.CenterEnd) {
-                            if (newPin.isEmpty()) {
-                                Text(
-                                    text = if (hasSavedPin) "Leave blank to keep" else "••••",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = InterFontFamily,
-                                        color = colors.textSecondary,
-                                        letterSpacing = 0.sp
-                                    ),
-                                    textAlign = TextAlign.End
-                                )
-                            }
-                            inner()
-                        }
-                    },
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 16.dp)
-                )
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .padding(start = 16.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (hasSavedPin) "New 4-Digit PIN" else "4-Digit PIN",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp
+                        ),
+                        color = colors.textPrimary
+                    )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        BasicTextField(
+                            value = newPin,
+                            onValueChange = {
+                                newPin = it.filter(Char::isDigit).take(4)
+                                errorMessage = null
+                            },
+                            singleLine = true,
+                            visualTransformation = pinVisual,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            cursorBrush = SolidColor(colors.azureAccent),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary,
+                                textAlign = TextAlign.End,
+                                letterSpacing = 4.sp
+                            ).tabular(),
+                            decorationBox = { inner ->
+                                Box(contentAlignment = Alignment.CenterEnd) {
+                                    if (newPin.isEmpty()) {
+                                        Text(
+                                            text = if (hasSavedPin) "Keep current" else "••••",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontFamily = InterFontFamily,
+                                                color = colors.textSecondary,
+                                                letterSpacing = 0.sp
+                                            ),
+                                            textAlign = TextAlign.End
+                                        )
+                                    }
+                                    inner()
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 12.dp)
+                        )
+                        IconButton(
+                            onClick = { showPinDigits = !showPinDigits },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            ShiftlyAnimatedIcon(
+                                iconRes = if (showPinDigits) R.drawable.ic_lucide_eye_off else R.drawable.ic_lucide_eye,
+                                contentDescription = if (showPinDigits) "Hide PIN" else "Show PIN",
+                                tint = colors.textSecondary,
+                                triggerKey = showPinDigits,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+
+                if (!hasSavedPin || newPin.isNotEmpty()) {
+                    ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 50.dp)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Confirm PIN",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp
+                            ),
+                            color = colors.textPrimary
+                        )
+                        BasicTextField(
+                            value = confirmPin,
+                            onValueChange = {
+                                confirmPin = it.filter(Char::isDigit).take(4)
+                                errorMessage = null
+                            },
+                            singleLine = true,
+                            visualTransformation = pinVisual,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                            cursorBrush = SolidColor(colors.azureAccent),
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = InterFontFamily,
+                                fontWeight = FontWeight.Bold,
+                                color = colors.textPrimary,
+                                textAlign = TextAlign.End,
+                                letterSpacing = 4.sp
+                            ).tabular(),
+                            decorationBox = { inner ->
+                                Box(contentAlignment = Alignment.CenterEnd) {
+                                    if (confirmPin.isEmpty()) {
+                                        Text(
+                                            text = "Re-enter 4 digits",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontFamily = InterFontFamily,
+                                                color = colors.textSecondary,
+                                                letterSpacing = 0.sp
+                                            ),
+                                            textAlign = TextAlign.End
+                                        )
+                                    }
+                                    inner()
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(start = 16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    ShiftlyGroupLabel(text = "Auto-Lock Timeout")
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = colors.cardElevated,
+        shadowElevation = 0.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.selectableGroup()) {
+            APP_LOCK_TIMEOUT_OPTIONS.forEachIndexed { index, (seconds, label) ->
+                val isSelected = timeoutSeconds == seconds
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 50.dp)
+                        .shiftlyPressClickable(role = Role.RadioButton) {
+                            timeoutSeconds = seconds
+                        }
+                        .semantics(mergeDescendants = true) {
+                            selected = isSelected
+                        }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                        ),
+                        color = if (isSelected) colors.azureAccent else colors.textPrimary
+                    )
+                    if (isSelected) {
+                        ShiftlyAnimatedIcon(
+                            iconRes = R.drawable.ic_lucide_check,
+                            contentDescription = "Selected",
+                            tint = colors.azurePrimary,
+                            animateOnMount = true,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+                if (index < APP_LOCK_TIMEOUT_OPTIONS.lastIndex) {
+                    ShiftlyHairlineDivider(startInset = 16.dp, endInset = 16.dp)
+                }
             }
         }
     }

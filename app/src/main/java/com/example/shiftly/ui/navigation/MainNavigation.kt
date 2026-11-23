@@ -1,31 +1,26 @@
 package com.example.shiftly.ui.navigation
 
+import android.app.Activity
+import android.os.SystemClock
+import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +37,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,9 +47,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -62,13 +56,13 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -77,10 +71,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp as lerpColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -91,13 +93,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.lerp
+import kotlin.math.roundToInt
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -105,18 +109,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.shiftly.R
+import com.example.shiftly.data.local.CutoffScheduleConfig
 import com.example.shiftly.data.local.ShiftEntity
 import com.example.shiftly.data.repository.ShiftlyRepository
 import com.example.shiftly.ui.components.ShiftlyBlueGradientBackground
 import com.example.shiftly.ui.components.ShiftlyIosIconTile
 import com.example.shiftly.ui.components.ShiftlyMainTabTourOverlay
-import com.example.shiftly.ui.components.ShiftlySheetCloseButton
-import com.example.shiftly.ui.components.ShiftlySheetDragHandle
-import com.example.shiftly.ui.components.ShiftlySheetHeader
 import com.example.shiftly.ui.components.icons.ShiftlyAnimatedIcon
 import com.example.shiftly.ui.components.shiftlyPressClickable
 import com.example.shiftly.ui.components.shiftlyPressEffect
-import com.example.shiftly.ui.components.shiftlySheetScrimColor
 import com.example.shiftly.ui.screens.AddIouBottomSheet
 import com.example.shiftly.ui.screens.AnalyticsScreen
 import com.example.shiftly.ui.screens.HomeScreen
@@ -135,6 +136,8 @@ import com.example.shiftly.ui.screens.expense.ExpenseViewModel
 import com.example.shiftly.ui.screens.loans.AddEditInstallmentLoanSheet
 import com.example.shiftly.ui.screens.lock.AppLockGateScreen
 import com.example.shiftly.ui.screens.lock.LocalSuppressNextRelock
+import com.example.shiftly.ui.screens.lock.ShiftlyPostUnlockSkeletonOverlay
+import com.example.shiftly.ui.screens.lock.ShiftlyScreenSkeletonOverlay
 import com.example.shiftly.ui.screens.profile.ProfileScreen
 import com.example.shiftly.ui.screens.recurring.AddEditRecurringBillBottomSheet
 import com.example.shiftly.ui.screens.recurring.RecurringBillsScreen
@@ -155,12 +158,12 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val NavBarPillShape = ShiftlyShapes.Pill
-private val SheetTopRoundedShape = ShiftlyShapes.Sheet
 
 private enum class ActiveQuickAddSheet {
     LOG_SHIFT,
@@ -177,98 +180,56 @@ private data class MainTourStep(
     val title: String,
     val description: String,
     val targetScreen: Screen,
-    val navSlotIndex: Int
+    val highlightQuickAddFab: Boolean = false
 )
 
 private val MAIN_TAB_TOUR_STEPS by lazy {
     listOf(
         MainTourStep(
             title = "Home Overview",
-            description = "Balance, earnings, and spending at a glance.",
+            description = "Check your net balance, cutoff shift earnings, budget cap, and recent activity at a glance.",
             targetScreen = Screen.Home,
-            navSlotIndex = 0
+            highlightQuickAddFab = false
         ),
         MainTourStep(
-            title = "Quick Add",
-            description = "Tap + to log a shift, expense, or split bill.",
+            title = "Quick Add Modal",
+            description = "Tap the floating + button above the bar to open Quick Add for shifts, expenses, allowance, split bills, recurring bills, loans, goals, and IOUs.",
             targetScreen = Screen.Home,
-            navSlotIndex = 2
+            highlightQuickAddFab = true
         ),
         MainTourStep(
             title = "Analytics",
-            description = "Track income, expenses, and spending trends.",
+            description = "Compare work earnings, spending categories, work hours, and daily patterns.",
             targetScreen = Screen.Analytics,
-            navSlotIndex = 1
+            highlightQuickAddFab = false
         ),
         MainTourStep(
             title = "Tools",
-            description = "Access shifts, expenses, bills, loans, and goals.",
+            description = "Open trackers and planning tools: Duties, Expenses, Split Bill, IOUs, Loans, Budgets, Goals, Recurring, Allowance, Paycheck, and Calendar.",
             targetScreen = Screen.Tools,
-            navSlotIndex = 3
+            highlightQuickAddFab = false
         ),
         MainTourStep(
             title = "Profile & Settings",
-            description = "Manage rates, app lock, theme, and backups.",
+            description = "Tap your profile card to edit name or rate, and manage currency, budgets, app lock, theme, backups, or replay this tutorial.",
             targetScreen = Screen.Profile,
-            navSlotIndex = 4
+            highlightQuickAddFab = false
         )
     )
 }
 
-private val TabRouteOrder by lazy {
-    listOf(Screen.Home.route, Screen.Analytics.route, Screen.Tools.route, Screen.Profile.route)
-}
-
 private fun <T> shiftlyNavSpring() = spring<T>(
-    dampingRatio = 0.8f,
+    dampingRatio = Spring.DampingRatioNoBouncy,
     stiffness = Spring.StiffnessMediumLow
 )
 
-private fun AnimatedContentTransitionScope<NavBackStackEntry>.tabDirection(): Int {
-    val from = TabRouteOrder.indexOf(initialState.destination.route)
-    val to = TabRouteOrder.indexOf(targetState.destination.route)
-    return if (from >= 0 && to >= 0 && from != to) (if (to > from) 1 else -1) else 0
-}
+private fun shiftlyEnter(): EnterTransition = fadeIn(tween(140))
 
-private fun AnimatedContentTransitionScope<NavBackStackEntry>.shiftlyEnter(): EnterTransition {
-    val dir = tabDirection()
-    return if (dir != 0) {
-        slideInHorizontally(shiftlyNavSpring<IntOffset>()) { it * dir } +
-            fadeIn(shiftlyNavSpring<Float>())
-    } else {
-        fadeIn(tween(150))
-    }
-}
+private fun shiftlyExit(): ExitTransition = fadeOut(tween(110))
 
-private fun AnimatedContentTransitionScope<NavBackStackEntry>.shiftlyExit(): ExitTransition {
-    val dir = tabDirection()
-    return if (dir != 0) {
-        slideOutHorizontally(shiftlyNavSpring<IntOffset>()) { -it * dir / 3 } +
-            fadeOut(shiftlyNavSpring<Float>())
-    } else {
-        fadeOut(tween(120))
-    }
-}
+private fun shiftlyPopEnter(): EnterTransition = fadeIn(tween(140))
 
-private fun AnimatedContentTransitionScope<NavBackStackEntry>.shiftlyPopEnter(): EnterTransition {
-    val dir = tabDirection()
-    return if (dir != 0) {
-        slideInHorizontally(shiftlyNavSpring<IntOffset>()) { it * dir } +
-            fadeIn(shiftlyNavSpring<Float>())
-    } else {
-        fadeIn(tween(150))
-    }
-}
-
-private fun AnimatedContentTransitionScope<NavBackStackEntry>.shiftlyPopExit(): ExitTransition {
-    val dir = tabDirection()
-    return if (dir != 0) {
-        slideOutHorizontally(shiftlyNavSpring<IntOffset>()) { -it * dir / 3 } +
-            fadeOut(shiftlyNavSpring<Float>())
-    } else {
-        fadeOut(tween(120))
-    }
-}
+private fun shiftlyPopExit(): ExitTransition = fadeOut(tween(110))
 
 @Composable
 fun MainAppScreen() {
@@ -284,7 +245,16 @@ fun MainAppScreen() {
 
     var hasInitializedLock by rememberSaveable { mutableStateOf(false) }
     var isSessionUnlocked by rememberSaveable { mutableStateOf(false) }
+    var showPostUnlockSkeleton by rememberSaveable { mutableStateOf(false) }
     var suppressRelockOnce by remember { mutableStateOf(false) }
+    var lastBackgroundElapsedRealtime by rememberSaveable { mutableLongStateOf(-1L) }
+
+    LaunchedEffect(showPostUnlockSkeleton) {
+        if (showPostUnlockSkeleton) {
+            delay(2_000L)
+            showPostUnlockSkeleton = false
+        }
+    }
 
     LaunchedEffect(settings) {
         val loaded = settings ?: return@LaunchedEffect
@@ -293,19 +263,45 @@ fun MainAppScreen() {
             isSessionUnlocked = !loaded.appLockEnabled
         } else if (!loaded.appLockEnabled) {
             isSessionUnlocked = true
+            showPostUnlockSkeleton = false
+            lastBackgroundElapsedRealtime = -1L
         }
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner, settings?.appLockEnabled) {
+    DisposableEffect(
+        lifecycleOwner,
+        settings?.appLockEnabled,
+        settings?.appLockTimeoutSeconds
+    ) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_START -> {
+                    val enabled = settings?.appLockEnabled == true
+                    val timeoutSec = (settings?.appLockTimeoutSeconds ?: 0).coerceAtLeast(0)
+                    val bgTimestamp = lastBackgroundElapsedRealtime
+                    if (enabled && !suppressRelockOnce && bgTimestamp >= 0L) {
+                        val elapsedMs = SystemClock.elapsedRealtime() - bgTimestamp
+                        if (elapsedMs >= timeoutSec * 1000L) {
+                            isSessionUnlocked = false
+                            showPostUnlockSkeleton = false
+                        }
+                    }
+                    lastBackgroundElapsedRealtime = -1L
                     suppressRelockOnce = false
                 }
                 Lifecycle.Event.ON_STOP -> {
-                    if ((settings?.appLockEnabled == true) && !suppressRelockOnce) {
-                        isSessionUnlocked = false
+                    val isConfigChange = (context as? Activity)?.isChangingConfigurations == true
+                    val enabled = settings?.appLockEnabled == true
+                    val timeoutSec = (settings?.appLockTimeoutSeconds ?: 0).coerceAtLeast(0)
+                    if (enabled && !suppressRelockOnce && !isConfigChange) {
+                        if (timeoutSec <= 0) {
+                            isSessionUnlocked = false
+                            showPostUnlockSkeleton = false
+                            lastBackgroundElapsedRealtime = -1L
+                        } else if (isSessionUnlocked) {
+                            lastBackgroundElapsedRealtime = SystemClock.elapsedRealtime()
+                        }
                     }
                 }
                 else -> Unit
@@ -334,20 +330,7 @@ fun MainAppScreen() {
                 AnimatedContent(
                     targetState = shouldShowLockGate,
                     transitionSpec = {
-                        if (!targetState) {
-                            (fadeIn(tween(260)) + scaleIn(
-                                initialScale = 0.96f,
-                                animationSpec = spring(
-                                    dampingRatio = 0.85f,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
-                            )) togetherWith (fadeOut(tween(200)) + scaleOut(
-                                targetScale = 1.04f,
-                                animationSpec = tween(200)
-                            ))
-                        } else {
-                            fadeIn(tween(120)) togetherWith fadeOut(tween(100))
-                        }
+                        fadeIn(tween(160)) togetherWith fadeOut(tween(140))
                     },
                     label = "AppLockGateTransition"
                 ) { isLocked ->
@@ -356,7 +339,21 @@ fun MainAppScreen() {
                             method = loadedSettings.appLockMethod,
                             pinHash = loadedSettings.appLockPinHash,
                             userName = userName.ifBlank { "Shiftly" },
-                            onUnlocked = { isSessionUnlocked = true }
+                            onUnlocked = {
+                                lastBackgroundElapsedRealtime = -1L
+                                showPostUnlockSkeleton = true
+                                isSessionUnlocked = true
+                            },
+                            onUpgradeLegacyPin = { rawPin ->
+                                scope.launch {
+                                    repository.updateAppLock(
+                                        enabled = loadedSettings.appLockEnabled,
+                                        method = loadedSettings.appLockMethod,
+                                        newPin = rawPin,
+                                        timeoutSeconds = loadedSettings.appLockTimeoutSeconds
+                                    )
+                                }
+                            }
                         )
                     } else {
                         AnimatedContent(
@@ -377,9 +374,13 @@ fun MainAppScreen() {
 
                                 false -> {
                                     WelcomeScreen(
-                                        onSaveSetupProfile = { name, rate, monthlyBudget ->
+                                        onSaveSetupProfile = { name, rate, monthlyBudget, currencySymbol, cutoffSchedule ->
                                             scope.launch {
                                                 repository.updateUserName(name)
+                                                repository.changeCurrency(currencySymbol, null)
+                                                repository.updateCutoffSchedule(
+                                                    CutoffScheduleConfig.fromLegacySchedule(cutoffSchedule)
+                                                )
                                                 repository.updateDefaultHourlyRate(rate)
                                                 repository.updateMonthlyBudget(monthlyBudget)
                                             }
@@ -393,7 +394,16 @@ fun MainAppScreen() {
                                 }
 
                                 true -> {
-                                    MainDashboardShell(repository = repository)
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        MainDashboardShell(repository = repository)
+                                        AnimatedVisibility(
+                                            visible = showPostUnlockSkeleton,
+                                            enter = fadeIn(tween(120)),
+                                            exit = fadeOut(tween(280))
+                                        ) {
+                                            ShiftlyPostUnlockSkeletonOverlay()
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -428,6 +438,20 @@ private fun MainDashboardShell(
     var activeQuickAddSheet by remember { mutableStateOf<ActiveQuickAddSheet?>(null) }
     var quickEditingShift by remember { mutableStateOf<ShiftEntity?>(null) }
     var quickSplitTrigger by remember { mutableIntStateOf(0) }
+    var previousRoute by rememberSaveable { mutableStateOf<String?>(null) }
+    var showRouteSkeleton by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentRoute) {
+        val route = currentRoute ?: return@LaunchedEffect
+        if (previousRoute == null) {
+            previousRoute = route
+        } else if (previousRoute != route) {
+            previousRoute = route
+            showRouteSkeleton = true
+            delay(500L)
+            showRouteSkeleton = false
+        }
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -555,7 +579,7 @@ private fun MainDashboardShell(
     val onNavigateToSplitBill = remember(navigateToTab) { { navigateToTab(Screen.SplitBill) } }
     val onNavigateToProfile = remember(navigateToTab) { { navigateToTab(Screen.Profile) } }
     val onNavigateToAnalytics = remember(navigateToTab) { { navigateToTab(Screen.Analytics) } }
-    val onPopBack: () -> Unit = remember(navController) { { navController.popBackStack(); Unit } }
+    val onPopBack: () -> Unit = remember(navController) { { navController.popBackStack() } }
     val onOpenDuties = remember(navController) {
         { navController.navigate(Screen.Duties.route) { launchSingleTop = true } }
     }
@@ -572,8 +596,23 @@ private fun MainDashboardShell(
         { navController.navigate(Screen.Allowance.route) { launchSingleTop = true } }
     }
 
+    var fabBoundsInRoot by remember { mutableStateOf(Rect.Zero) }
+    var rootOriginInRoot by remember { mutableStateOf(Offset.Zero) }
+    val quickAddProgress by animateFloatAsState(
+        targetValue = if (showQuickActionSheet) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = 280f
+        ),
+        label = "quickAddModalProgress"
+    )
+
     ShiftlyBlueGradientBackground {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .onGloballyPositioned { rootOriginInRoot = it.positionInRoot() }
+        ) {
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 containerColor = Color.Transparent,
@@ -659,22 +698,27 @@ private fun MainDashboardShell(
                             isSelected = isNavItemSelected,
                             onSelect = onBottomBarSelect,
                             isFabActive = showQuickActionSheet,
+                            isFabHidden = showQuickActionSheet || quickAddProgress > 0.005f,
+                            onFabBoundsChanged = { fabBoundsInRoot = it },
                             onFabClick = onFabClick
                         )
                     }
                 }
             ) { innerPadding ->
-                NavHost(
-                    navController = navController,
-                    startDestination = Screen.Home.route,
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .consumeWindowInsets(innerPadding),
-                    enterTransition = { shiftlyEnter() },
-                    exitTransition = { shiftlyExit() },
-                    popEnterTransition = { shiftlyPopEnter() },
-                    popExitTransition = { shiftlyPopExit() }
+                        .consumeWindowInsets(innerPadding)
                 ) {
+                    NavHost(
+                        navController = navController,
+                        startDestination = Screen.Home.route,
+                        modifier = Modifier.fillMaxSize(),
+                        enterTransition = { shiftlyEnter() },
+                        exitTransition = { shiftlyExit() },
+                        popEnterTransition = { shiftlyPopEnter() },
+                        popExitTransition = { shiftlyPopExit() }
+                    ) {
                     composable(Screen.Home.route) {
                         Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
                             HomeScreen(
@@ -776,6 +820,17 @@ private fun MainDashboardShell(
                         }
                     }
                 }
+                AnimatedVisibility(
+                    visible = showRouteSkeleton,
+                    enter = fadeIn(tween(80)),
+                    exit = fadeOut(tween(180))
+                ) {
+                    ShiftlyScreenSkeletonOverlay(
+                        route = currentRoute,
+                        includeBottomBar = false
+                    )
+                }
+            }
             }
 
             if (hasSeenAppTutorial == false && !isSubScreen) {
@@ -802,25 +857,29 @@ private fun MainDashboardShell(
                     highlightedBottomBar = {
                         TourHighlightedBottomBar(
                             items = Screen.bottomNavItems,
-                            highlightedSlotIndex = currentStep.navSlotIndex
+                            activeScreen = currentStep.targetScreen,
+                            highlightQuickAddFab = currentStep.highlightQuickAddFab
                         )
                     }
                 )
             }
-        }
-    }
-
-    if (showQuickActionSheet) {
-        QuickAddActionSheet(
-            onDismiss = { showQuickActionSheet = false },
-            onSelectAction = { action ->
-                showQuickActionSheet = false
-                if (action == ActiveQuickAddSheet.SPLIT_BILL) {
-                    quickSplitTrigger++
-                }
-                activeQuickAddSheet = action
+            if (showQuickActionSheet || quickAddProgress > 0.005f) {
+                QuickAddPromptModalOverlay(
+                    isOpen = showQuickActionSheet,
+                    progress = quickAddProgress,
+                    fabBoundsInRoot = fabBoundsInRoot,
+                    containerOriginInRoot = rootOriginInRoot,
+                    onDismiss = { showQuickActionSheet = false },
+                    onSelectAction = { action ->
+                        showQuickActionSheet = false
+                        if (action == ActiveQuickAddSheet.SPLIT_BILL) {
+                            quickSplitTrigger++
+                        }
+                        activeQuickAddSheet = action
+                    }
+                )
             }
-        )
+        }
     }
 
     if (activeQuickAddSheet == ActiveQuickAddSheet.LOG_SHIFT || quickEditingShift != null) {
@@ -907,11 +966,11 @@ private fun MainDashboardShell(
 @Composable
 private fun TourHighlightedBottomBar(
     items: List<Screen>,
-    highlightedSlotIndex: Int,
+    activeScreen: Screen,
+    highlightQuickAddFab: Boolean,
     modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    val highlightFill = if (colors.isDark) colors.card else PureWhite
 
     Column(
         modifier = modifier
@@ -921,13 +980,12 @@ private fun TourHighlightedBottomBar(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalAlignment = Alignment.End
     ) {
-        val isPlusHighlighted = highlightedSlotIndex == 2
-        if (isPlusHighlighted) {
+        if (highlightQuickAddFab) {
             Surface(
                 shape = CircleShape,
                 color = colors.azurePrimary,
-                border = BorderStroke(1.5.dp, colors.azureAccent.copy(alpha = 0.75f)),
-                shadowElevation = 6.dp,
+                border = BorderStroke(2.dp, PureWhite.copy(alpha = 0.85f)),
+                shadowElevation = 8.dp,
                 modifier = Modifier.size(60.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -953,25 +1011,14 @@ private fun TourHighlightedBottomBar(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            items.forEachIndexed { idx, screen ->
-                val slotIndex = if (idx < 2) idx else idx + 1
-                val isHighlighted = slotIndex == highlightedSlotIndex
+            items.forEach { screen ->
+                val isSelectedTab = screen == activeScreen
+                val isHighlighted = isSelectedTab && !highlightQuickAddFab
                 TourBottomBarSlot(
-                    highlighted = isHighlighted,
-                    highlightFill = highlightFill,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if (isHighlighted) {
-                        ShiftlyAnimatedIcon(
-                            iconRes = screen.selectedIconRes,
-                            contentDescription = screen.label,
-                            tint = colors.azureAccent,
-                            animateOnMount = true,
-                            repeatIntervalMillis = 0L,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
+                    screen = screen,
+                    isSelectedTab = isSelectedTab,
+                    highlighted = isHighlighted
+                )
             }
         }
     }
@@ -979,32 +1026,93 @@ private fun TourHighlightedBottomBar(
 
 @Composable
 private fun TourBottomBarSlot(
+    screen: Screen,
+    isSelectedTab: Boolean,
     highlighted: Boolean,
-    highlightFill: Color,
-    modifier: Modifier = Modifier,
-    content: @Composable BoxScope.() -> Unit
+    modifier: Modifier = Modifier
 ) {
     val colors = ShiftlyColors.current
-    if (highlighted) {
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = highlightFill,
-            border = BorderStroke(1.dp, colors.azureAccent.copy(alpha = 0.75f)),
-            shadowElevation = 0.dp,
-            modifier = modifier
-                .padding(horizontal = 4.dp, vertical = 2.dp)
-                .height(56.dp)
-        ) {
+    val highlightFill = if (colors.isDark) colors.cardElevated else PureWhite
+    val highlightContentColor = if (colors.isDark) PureWhite else colors.azurePrimary
+
+    when {
+        highlighted -> {
+            Surface(
+                shape = NavBarPillShape,
+                color = highlightFill,
+                border = BorderStroke(1.5.dp, colors.azureAccent),
+                shadowElevation = 6.dp,
+                modifier = modifier
+                    .defaultMinSize(minWidth = 48.dp)
+                    .height(48.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    ShiftlyAnimatedIcon(
+                        iconRes = screen.selectedIconRes,
+                        contentDescription = screen.label,
+                        tint = highlightContentColor,
+                        animateOnMount = true,
+                        repeatIntervalMillis = 0L,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(7.dp))
+                    Text(
+                        text = screen.label,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.5.sp
+                        ),
+                        color = highlightContentColor,
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+        }
+
+        isSelectedTab -> {
+            // Preserve the expanded pill's exact horizontal footprint when the + FAB is spotlighted above
             Box(
-                contentAlignment = Alignment.Center,
-                content = content
+                modifier = modifier
+                    .defaultMinSize(minWidth = 48.dp)
+                    .height(48.dp)
+                    .padding(horizontal = 16.dp)
+                    .graphicsLayer { alpha = 0f },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Spacer(modifier = Modifier.size(22.dp))
+                    Spacer(modifier = Modifier.width(7.dp))
+                    Text(
+                        text = screen.label,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontFamily = InterFontFamily,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.5.sp
+                        ),
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
+            }
+        }
+
+        else -> {
+            Box(
+                modifier = modifier
+                    .defaultMinSize(minWidth = 48.dp)
+                    .height(48.dp)
+                    .padding(horizontal = 12.dp)
             )
         }
-    } else {
-        Box(
-            modifier = modifier.heightIn(min = 58.dp),
-            contentAlignment = Alignment.Center
-        ) {}
     }
 }
 
@@ -1315,144 +1423,273 @@ private fun QuickIouSheetHost(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun QuickAddActionSheet(
+private fun QuickAddPromptModalOverlay(
+    isOpen: Boolean,
+    progress: Float,
+    fabBoundsInRoot: Rect,
+    containerOriginInRoot: Offset,
     onDismiss: () -> Unit,
     onSelectAction: (ActiveQuickAddSheet) -> Unit
 ) {
     val colors = ShiftlyColors.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val sheetContainerColor = colors.surface
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
     val groupCardColor = colors.cardElevated
+    val p = progress.coerceIn(0f, 1f)
+    var cardRestingBoundsInRoot by remember { mutableStateOf(Rect.Zero) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = sheetContainerColor,
-        scrimColor = shiftlySheetScrimColor(),
-        tonalElevation = 0.dp,
-        shape = SheetTopRoundedShape,
-        dragHandle = { ShiftlySheetDragHandle() }
-    ) {
-        Column(
+    BackHandler(enabled = isOpen) {
+        onDismiss()
+    }
+
+    val scrimInteraction = remember { MutableInteractionSource() }
+    val cardInteraction = remember { MutableInteractionSource() }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Dimmed backdrop that dismisses the prompt on outside tap
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            ShiftlySheetHeader(title = "Quick Add")
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.56f * p))
+                .clickable(
+                    interactionSource = scrimInteraction,
+                    indication = null,
+                    enabled = isOpen,
+                    onClick = onDismiss
+                )
+        )
 
-            Column(
+        // Centered floating modal card (compact prompt, not full-screen)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .widthIn(max = 420.dp)
+                    .onGloballyPositioned { cardRestingBoundsInRoot = it.boundsInRoot() }
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Surface(
+                    shape = RoundedCornerShape(28.dp),
+                    color = colors.surface,
+                    shadowElevation = (18f * p).dp,
+                    tonalElevation = 0.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            val s = lerp(0.90f, 1f, p)
+                            scaleX = s
+                            scaleY = s
+                            alpha = p
+                            translationY = (1f - p) * with(density) { 28.dp.toPx() }
+                        }
+                        .clickable(
+                            interactionSource = cardInteraction,
+                            indication = null,
+                            onClick = {}
+                        )
                 ) {
-                    QuickAddPrimaryTile(
-                        title = "Log Shift",
-                        iconRes = R.drawable.ic_lucide_clock,
-                        iconTint = colors.mintBright,
-                        iconContainerColor = colors.mintContainer,
-                        surfaceColor = groupCardColor,
-                        onClick = { onSelectAction(ActiveQuickAddSheet.LOG_SHIFT) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAddPrimaryTile(
-                        title = "Add Expense",
-                        iconRes = R.drawable.ic_lucide_receipt_text,
-                        iconTint = colors.coralBright,
-                        iconContainerColor = colors.coralContainer,
-                        surfaceColor = groupCardColor,
-                        onClick = { onSelectAction(ActiveQuickAddSheet.ADD_EXPENSE) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 18.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Quick Add",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontFamily = InterFontFamily,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = colors.textPrimary
+                            )
+                            // Target landing spacer for the animated + -> × button at the upper-right
+                            Box(modifier = Modifier.size(38.dp))
+                        }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    QuickAddPrimaryTile(
-                        title = "Allowance",
-                        iconRes = R.drawable.ic_lucide_wallet,
-                        iconTint = colors.azureAccent,
-                        iconContainerColor = colors.azureContainer,
-                        surfaceColor = groupCardColor,
-                        onClick = { onSelectAction(ActiveQuickAddSheet.ADD_ALLOWANCE) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAddPrimaryTile(
-                        title = "Split Bill",
-                        iconRes = R.drawable.ic_lucide_split,
-                        iconTint = colors.azureAccent,
-                        iconContainerColor = colors.azureContainer,
-                        surfaceColor = groupCardColor,
-                        onClick = { onSelectAction(ActiveQuickAddSheet.SPLIT_BILL) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 440.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            QuickAddPrimaryTile(
+                                title = "Log Shift",
+                                iconRes = R.drawable.ic_lucide_clock,
+                                iconTint = colors.mintBright,
+                                iconContainerColor = colors.mintContainer,
+                                surfaceColor = groupCardColor,
+                                onClick = { if (isOpen) onSelectAction(ActiveQuickAddSheet.LOG_SHIFT) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickAddPrimaryTile(
+                                title = "Add Expense",
+                                iconRes = R.drawable.ic_lucide_receipt_text,
+                                iconTint = colors.coralBright,
+                                iconContainerColor = colors.coralContainer,
+                                surfaceColor = groupCardColor,
+                                onClick = { if (isOpen) onSelectAction(ActiveQuickAddSheet.ADD_EXPENSE) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    QuickAddPrimaryTile(
-                        title = "Recurring",
-                        iconRes = R.drawable.ic_lucide_repeat,
-                        iconTint = colors.iosOrange,
-                        iconContainerColor = colors.orangeContainer,
-                        surfaceColor = groupCardColor,
-                        onClick = { onSelectAction(ActiveQuickAddSheet.NEW_RECURRING_BILL) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAddPrimaryTile(
-                        title = "Loan",
-                        iconRes = R.drawable.ic_lucide_file_text,
-                        iconTint = colors.nightDiffPurple,
-                        iconContainerColor = colors.nightDiffPurpleContainer,
-                        surfaceColor = groupCardColor,
-                        onClick = { onSelectAction(ActiveQuickAddSheet.NEW_INSTALLMENT_LOAN) },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            QuickAddPrimaryTile(
+                                title = "Allowance",
+                                iconRes = R.drawable.ic_lucide_wallet,
+                                iconTint = colors.azureAccent,
+                                iconContainerColor = colors.azureContainer,
+                                surfaceColor = groupCardColor,
+                                onClick = { if (isOpen) onSelectAction(ActiveQuickAddSheet.ADD_ALLOWANCE) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickAddPrimaryTile(
+                                title = "Split Bill",
+                                iconRes = R.drawable.ic_lucide_split,
+                                iconTint = colors.azureAccent,
+                                iconContainerColor = colors.azureContainer,
+                                surfaceColor = groupCardColor,
+                                onClick = { if (isOpen) onSelectAction(ActiveQuickAddSheet.SPLIT_BILL) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    QuickAddPrimaryTile(
-                        title = "Goal",
-                        iconRes = R.drawable.ic_lucide_piggy_bank,
-                        iconTint = colors.mintBright,
-                        iconContainerColor = colors.mintContainer,
-                        surfaceColor = groupCardColor,
-                        onClick = { onSelectAction(ActiveQuickAddSheet.NEW_SAVINGS_GOAL) },
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAddPrimaryTile(
-                        title = "IOU",
-                        iconRes = R.drawable.ic_lucide_circle_dollar_sign,
-                        iconTint = colors.coralBright,
-                        iconContainerColor = colors.coralContainer,
-                        surfaceColor = groupCardColor,
-                        onClick = { onSelectAction(ActiveQuickAddSheet.ADD_IOU) },
-                        modifier = Modifier.weight(1f)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            QuickAddPrimaryTile(
+                                title = "Recurring",
+                                iconRes = R.drawable.ic_lucide_repeat,
+                                iconTint = colors.iosOrange,
+                                iconContainerColor = colors.orangeContainer,
+                                surfaceColor = groupCardColor,
+                                onClick = { if (isOpen) onSelectAction(ActiveQuickAddSheet.NEW_RECURRING_BILL) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickAddPrimaryTile(
+                                title = "Loan",
+                                iconRes = R.drawable.ic_lucide_file_text,
+                                iconTint = colors.nightDiffPurple,
+                                iconContainerColor = colors.nightDiffPurpleContainer,
+                                surfaceColor = groupCardColor,
+                                onClick = { if (isOpen) onSelectAction(ActiveQuickAddSheet.NEW_INSTALLMENT_LOAN) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            QuickAddPrimaryTile(
+                                title = "Goal",
+                                iconRes = R.drawable.ic_lucide_piggy_bank,
+                                iconTint = colors.mintBright,
+                                iconContainerColor = colors.mintContainer,
+                                surfaceColor = groupCardColor,
+                                onClick = { if (isOpen) onSelectAction(ActiveQuickAddSheet.NEW_SAVINGS_GOAL) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickAddPrimaryTile(
+                                title = "IOU",
+                                iconRes = R.drawable.ic_lucide_circle_dollar_sign,
+                                iconTint = colors.coralBright,
+                                iconContainerColor = colors.coralContainer,
+                                surfaceColor = groupCardColor,
+                                onClick = { if (isOpen) onSelectAction(ActiveQuickAddSheet.ADD_IOU) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+            }
+        }
+
+        // Animated + -> × button traveling between the FAB position and upper-right card corner
+        if (!cardRestingBoundsInRoot.isEmpty || !fabBoundsInRoot.isEmpty) {
+            val slotInsetPx = with(density) { 37.dp.toPx() }
+            val restingTarget = if (!cardRestingBoundsInRoot.isEmpty) {
+                Offset(
+                    x = cardRestingBoundsInRoot.right - containerOriginInRoot.x - slotInsetPx,
+                    y = cardRestingBoundsInRoot.top - containerOriginInRoot.y + slotInsetPx
+                )
+            } else {
+                Offset.Zero
+            }
+            val startCenter = if (!fabBoundsInRoot.isEmpty) {
+                fabBoundsInRoot.center - containerOriginInRoot
+            } else {
+                restingTarget
+            }
+            val targetCenter = if (!cardRestingBoundsInRoot.isEmpty) {
+                restingTarget
+            } else {
+                startCenter
+            }
+            val currentCenter = Offset(
+                x = lerp(startCenter.x, targetCenter.x, p),
+                y = lerp(startCenter.y, targetCenter.y, p)
+            )
+            val buttonSizeDp = lerp(60.dp, 38.dp, p)
+            val buttonSizePx = with(density) { buttonSizeDp.toPx() }
+            val iconSizeDp = lerp(26.dp, 20.dp, p)
+
+            Surface(
+                shape = CircleShape,
+                color = colors.azurePrimary,
+                shadowElevation = 6.dp,
+                tonalElevation = 0.dp,
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            x = (currentCenter.x - buttonSizePx / 2f).roundToInt(),
+                            y = (currentCenter.y - buttonSizePx / 2f).roundToInt()
+                        )
+                    }
+                    .size(buttonSizeDp)
+                    .clip(CircleShape)
+                    .shiftlyPressClickable(role = Role.Button) {
+                        if (isOpen) {
+                            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onDismiss()
+                        }
+                    }
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = "Close quick add"
+                    }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    ShiftlyAnimatedIcon(
+                        iconRes = R.drawable.ic_lucide_plus,
+                        contentDescription = "Close quick add",
+                        tint = PureWhite,
+                        animateOnMount = false,
+                        repeatIntervalMillis = 0L,
+                        modifier = Modifier
+                            .size(iconSizeDp)
+                            .graphicsLayer { rotationZ = 45f * p }
                     )
                 }
             }
-
-            ShiftlySheetCloseButton(
-                label = "Cancel",
-                onClick = onDismiss
-            )
         }
     }
 }
@@ -1529,6 +1766,8 @@ fun FloatingPillBottomBar(
     onSelect: (Screen) -> Unit,
     modifier: Modifier = Modifier,
     isFabActive: Boolean = false,
+    isFabHidden: Boolean = false,
+    onFabBoundsChanged: (Rect) -> Unit = {},
     onFabClick: () -> Unit = {}
 ) {
     val colors = ShiftlyColors.current
@@ -1537,8 +1776,8 @@ fun FloatingPillBottomBar(
     val fabRotationState = animateFloatAsState(
         targetValue = if (isFabActive) 45f else 0f,
         animationSpec = spring(
-            dampingRatio = 0.8f,
-            stiffness = Spring.StiffnessMediumLow
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = 280f
         ),
         label = "fabRotation"
     )
@@ -1555,10 +1794,12 @@ fun FloatingPillBottomBar(
         Surface(
             shape = CircleShape,
             color = colors.azurePrimary,
-            shadowElevation = 6.dp,
+            shadowElevation = if (isFabHidden) 0.dp else 6.dp,
             tonalElevation = 0.dp,
             modifier = Modifier
                 .size(60.dp)
+                .onGloballyPositioned { onFabBoundsChanged(it.boundsInRoot()) }
+                .graphicsLayer { alpha = if (isFabHidden) 0f else 1f }
                 .clip(CircleShape)
                 .shiftlyPressClickable(role = Role.Button) {
                     haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -1630,42 +1871,23 @@ private fun BottomNavItemSlot(
     }
     val activeContentColor = if (colors.isDark) PureWhite else colors.azurePrimary
 
-    val pillColor by animateColorAsState(
-        targetValue = if (selected) activePillBg else Color.Transparent,
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
-        label = "navPillColor"
+    val selectionProgress by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = 280f
+        ),
+        label = "navSelectionProgress"
     )
-    val contentTint by animateColorAsState(
-        targetValue = if (selected) activeContentColor else colors.textSecondary,
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
-        label = "navContentTint"
-    )
-    var wasSelected by remember { mutableStateOf(selected) }
-    val iconBounce = remember { Animatable(1f) }
-    LaunchedEffect(selected) {
-        if (selected && !wasSelected) {
-            iconBounce.snapTo(1.16f)
-            iconBounce.animateTo(
-                targetValue = 1f,
-                animationSpec = spring(
-                    dampingRatio = 0.48f,
-                    stiffness = Spring.StiffnessMedium
-                )
-            )
-        }
-        wasSelected = selected
-    }
+    val p = selectionProgress.coerceIn(0f, 1f)
+    val pillColor = lerpColor(Color.Transparent, activePillBg, p)
+    val contentTint = lerpColor(colors.textSecondary, activeContentColor, p)
+    val horizontalPad = lerp(12.dp, 16.dp, p)
 
     Box(
         modifier = modifier
             .defaultMinSize(minWidth = 48.dp)
             .height(48.dp)
-            .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = 0.78f,
-                    stiffness = Spring.StiffnessMediumLow
-                )
-            )
             .clip(NavBarPillShape)
             .background(pillColor)
             .shiftlyPressClickable(role = Role.Tab) {
@@ -1676,7 +1898,7 @@ private fun BottomNavItemSlot(
                 this.selected = selected
                 contentDescription = screen.label
             }
-            .padding(horizontal = if (selected) 16.dp else 12.dp),
+            .padding(horizontal = horizontalPad),
         contentAlignment = Alignment.Center
     ) {
         Row(
@@ -1690,36 +1912,36 @@ private fun BottomNavItemSlot(
                 triggerKey = if (selected) screen.route else null,
                 animateOnMount = false,
                 repeatIntervalMillis = 0L,
-                modifier = Modifier
-                    .size(22.dp)
-                    .graphicsLayer {
-                        scaleX = iconBounce.value
-                        scaleY = iconBounce.value
-                    }
+                modifier = Modifier.size(22.dp)
             )
-            AnimatedVisibility(
-                visible = selected,
-                enter = fadeIn(tween(180)) + expandHorizontally(
-                    spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)
-                ),
-                exit = fadeOut(tween(100)) + shrinkHorizontally(
-                    spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMedium)
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .graphicsLayer {
+                        alpha = p
+                        translationX = (1f - p) * (-4.dp.toPx())
+                        clip = true
+                    }
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val currentWidth = (placeable.width * p).roundToInt()
+                        layout(currentWidth, placeable.height) {
+                            placeable.placeRelative(0, 0)
+                        }
+                    }
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Spacer(modifier = Modifier.width(7.dp))
-                    Text(
-                        text = screen.label,
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontFamily = InterFontFamily,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 13.5.sp
-                        ),
-                        color = contentTint,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
+                Spacer(modifier = Modifier.width(7.dp))
+                Text(
+                    text = screen.label,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = InterFontFamily,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 13.5.sp
+                    ),
+                    color = contentTint,
+                    maxLines = 1,
+                    softWrap = false
+                )
             }
         }
     }
